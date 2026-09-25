@@ -88,6 +88,14 @@ const Sound = {
       case 'drill': T(180 + Math.random() * 40, 0.08, { type: 'sawtooth', vol: 0.05, filter: 1400 }); break;
       case 'shatter': N(0.4, { ftype: 'highpass', freq: 3000, vol: 0.25 }); [1800, 2400, 3100].forEach((f, i) => T(f, 0.25, { type: 'triangle', vol: 0.06, delay: i * 0.04 })); break;
       case 'pickup': T(880, 0.07, { type: 'triangle', vol: 0.12 }); T(1320, 0.12, { type: 'triangle', vol: 0.12, delay: 0.06 }); break;
+      case 'reload': T(420, 0.05, { type: 'square', vol: 0.06 }); N(0.06, { ftype: 'bandpass', freq: 2500, vol: 0.1, delay: 0.06 }); T(300, 0.06, { type: 'square', vol: 0.05, delay: 0.14 }); break;
+      case 'reloaded': T(660, 0.05, { type: 'square', vol: 0.06 }); T(990, 0.09, { type: 'square', vol: 0.06, delay: 0.05 }); break;
+      case 'summon':
+        T(110, 2.2, { type: 'sawtooth', slide: 55, vol: 0.18, filter: 700, vib: 4 });
+        T(220, 2.0, { type: 'triangle', slide: 110, vol: 0.08, vib: 6 });
+        N(2.0, { freq: 200, slide: 3000, vol: 0.2, attack: 1.2 });
+        break;
+      case 'catch': N(0.08, { ftype: 'bandpass', freq: 900, vol: 0.25, q: 2 }); T(784, 0.08, { type: 'triangle', vol: 0.12, delay: 0.04 }); T(1175, 0.18, { type: 'triangle', vol: 0.12, delay: 0.1 }); break;
       case 'rare': [523, 659, 784, 1047, 1319, 1568].forEach((f, i) => T(f, 0.25, { type: 'triangle', vol: 0.12, delay: i * 0.06 })); break;
       case 'coin': T(988, 0.07, { type: 'square', vol: 0.07 }); T(1319, 0.25, { type: 'square', vol: 0.07, delay: 0.07 }); break;
       case 'cash': for (let i = 0; i < 5; i++) { T(988, 0.06, { type: 'square', vol: 0.05, delay: i * 0.07 }); T(1319, 0.12, { type: 'square', vol: 0.05, delay: i * 0.07 + 0.05 }); } break;
@@ -126,6 +134,32 @@ const Sound = {
       case 'dad': T(220, 0.15, { type: 'triangle', vol: 0.1 }); T(196, 0.25, { type: 'triangle', vol: 0.1, delay: 0.16 }); break;
       case 'rimshot': T(180, 0.08, { vol: 0.15 }); N(0.08, { ftype: 'highpass', freq: 1800, vol: 0.12, delay: 0.12 }); N(0.5, { ftype: 'highpass', freq: 6000, vol: 0.08, delay: 0.3 }); break;
     }
+  },
+
+  // the ship's engine: a low hum that gets louder with throttle
+  engine(on) {
+    if (!this.ctx) return;
+    if (on && !this.eng) {
+      const ctx = this.ctx, g = ctx.createGain(), f = ctx.createBiquadFilter();
+      g.gain.value = 0; f.type = 'lowpass'; f.frequency.value = 300;
+      const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = 48;
+      const n = ctx.createBufferSource(); n.buffer = this.noiseBuf; n.loop = true;
+      const ng = ctx.createGain(); ng.gain.value = 0.5;
+      o.connect(f); n.connect(ng); ng.connect(f); f.connect(g); g.connect(this.sfx);
+      o.start(); n.start();
+      this.eng = { g, f, o, n };
+    } else if (!on && this.eng) {
+      const e = this.eng; this.eng = null;
+      e.g.gain.setTargetAtTime(0, this.ctx.currentTime, 0.1);
+      setTimeout(() => { try { e.o.stop(); e.n.stop(); } catch (x) { /* already stopped */ } }, 400);
+    }
+  },
+  engineLevel(x) {
+    if (!this.eng) return;
+    const t = this.ctx.currentTime;
+    this.eng.g.gain.setTargetAtTime(0.05 + x * 0.16, t, 0.1);
+    this.eng.f.frequency.setTargetAtTime(220 + x * 900, t, 0.1);
+    this.eng.o.frequency.setTargetAtTime(40 + x * 40, t, 0.1);
   },
 
   /* ---------------- music ---------------- */
@@ -203,6 +237,7 @@ const TRACKS = {
   luck:  { bpm: 118, chords: [[62, 65, 69, 72], [67, 71, 74, 77], [60, 64, 67, 71], [57, 61, 64, 67]], pat: [0, 1, 2, 3], drums: 'swing', walk: true, wave: 'triangle' },
   frost: { bpm: 88,  chords: [[64, 67, 71], [60, 64, 67], [62, 66, 69], [59, 62, 66]], pat: [0, 1, 2, 3, 2, 1], every: 2, drums: 'soft', wave: 'sine', len: 0.5, sparkle: 0.6, oct: 1 },
   zorb:  { bpm: 96,  chords: [[57, 60, 64], [58, 62, 65], [57, 60, 64], [56, 59, 64]], pat: [0, 1, 2, 1], drums: 'soft', wave: 'sawtooth', bright: 900, bass: 'sawtooth' },
+  space: { bpm: 124, chords: [[57, 60, 64, 67], [53, 57, 60, 64], [55, 59, 62, 66], [52, 55, 59, 62]], pat: [0, 1, 2, 3, 2, 1], drums: 'hard', drive: true, wave: 'triangle', bright: 2200, sparkle: 0.4, vol: 0.8 },
   boss:  { bpm: 150, chords: [[57, 60, 64], [53, 57, 60], [55, 59, 62], [52, 56, 59]], pat: [0, 2, 1, 2], drums: 'hard', drive: true, bass: 'sawtooth', wave: 'square', bright: 1800, stabs: [0, 3, 6, 10, 12], vol: 0.9 },
   final: { bpm: 168, chords: [[50, 53, 57], [46, 50, 53], [48, 52, 55], [45, 49, 52]], pat: [0, 1, 2, 1, 0, 2], drums: 'hard', drive: true, bass: 'sawtooth', wave: 'sawtooth', bright: 1600, stabs: [0, 2, 6, 8, 11, 14], vol: 0.9 },
 };

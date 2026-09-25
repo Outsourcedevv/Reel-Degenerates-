@@ -13,9 +13,18 @@ const Sky = {
     this.group = new THREE.Group();
     scene.add(this.group);
     this.mat = new THREE.ShaderMaterial({
-      uniforms: { top: { value: new THREE.Color('#000') }, bot: { value: new THREE.Color('#000') } },
+      uniforms: { top: { value: new THREE.Color('#000') }, bot: { value: new THREE.Color('#000') }, sunDir: { value: new V3(30, 55, 18).normalize() }, sunCol: { value: new THREE.Color('#fff') }, glow: { value: 0.5 } },
       vertexShader: 'varying vec3 vP; void main(){ vP = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
-      fragmentShader: 'uniform vec3 top; uniform vec3 bot; varying vec3 vP; void main(){ float h = clamp(vP.y * 1.5 + 0.18, 0.0, 1.0); gl_FragColor = vec4(mix(bot, top, pow(h, 0.75)), 1.0); }',
+      // gradient sky plus a soft halo around the sun and a brighter band at the horizon
+      fragmentShader: `uniform vec3 top; uniform vec3 bot; uniform vec3 sunDir; uniform vec3 sunCol; uniform float glow; varying vec3 vP;
+        void main(){
+          float h = clamp(vP.y * 1.5 + 0.18, 0.0, 1.0);
+          vec3 c = mix(bot, top, pow(h, 0.75));
+          float s = max(dot(normalize(vP), sunDir), 0.0);
+          c += sunCol * (pow(s, 64.0) * 1.2 + pow(s, 6.0) * 0.25) * glow;
+          c += bot * pow(1.0 - abs(vP.y), 8.0) * 0.12;
+          gl_FragColor = vec4(c, 1.0);
+        }`,
       side: THREE.BackSide, depthWrite: false, fog: false,
     });
     const dome = new THREE.Mesh(new THREE.SphereGeometry(900, 24, 14), this.mat);
@@ -35,11 +44,50 @@ const Sky = {
     this.group.add(this.stars);
     this.bodies = new THREE.Group();
     this.group.add(this.bodies);
+    // low-poly clouds drifting around the horizon
+    this.cloudMat = new THREE.MeshToonMaterial({ color: '#ffffff', gradientMap: TOON_GRAD, fog: false, transparent: true, opacity: 0.93 });
+    this.clouds = new THREE.Group();
+    const rnd = U.seeded(77);
+    for (let i = 0; i < 18; i++) {
+      const parts = [];
+      const n = 3 + Math.floor(rnd() * 4), w = 18 + rnd() * 26;
+      for (let j = 0; j < n; j++) {
+        const g = new THREE.IcosahedronGeometry(w * (0.35 + rnd() * 0.35), 1);
+        g.scale(1, 0.55, 0.8);
+        g.translate((j / (n - 1 || 1) - 0.5) * w * 1.6, rnd() * w * 0.2, (rnd() - 0.5) * w * 0.5);
+        parts.push(g.index ? g.toNonIndexed() : g);
+      }
+      const m = new THREE.Mesh(mergeGeos(parts), this.cloudMat);
+      const a = (i / 18) * Math.PI * 2 + rnd() * 0.3, d = 520 + rnd() * 160;
+      m.position.set(Math.cos(a) * d, 70 + rnd() * 120, Math.sin(a) * d);
+      m.lookAt(0, m.position.y, 0);
+      m.renderOrder = -1;
+      this.clouds.add(m);
+    }
+    this.group.add(this.clouds);
+    // specks of dust floating around you (makes the air feel like it's there)
+    const dn = 260;
+    this.dustBase = new Float32Array(dn * 3);
+    for (let i = 0; i < dn * 3; i++) this.dustBase[i] = Math.random() * 40;
+    const dg = new THREE.BufferGeometry();
+    dg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(dn * 3), 3));
+    this.dustMat = new THREE.PointsMaterial({ color: '#ffffff', size: 0.07, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending });
+    this.dust = new THREE.Points(dg, this.dustMat);
+    this.dust.frustumCulled = false;
+    scene.add(this.dust);
+    this.t = 0;
   },
   set(cfg) {
     this.mat.uniforms.top.value.set(cfg.sky[0]);
     this.mat.uniforms.bot.value.set(cfg.sky[1]);
     this.starMat.opacity = cfg.stars;
+    const planet = (cfg.bodies || []).length > 0;
+    this.clouds.visible = planet && cfg.stars < 0.7;
+    this.cloudMat.color.set('#f2f2f2').lerp(new THREE.Color(cfg.fog[0]), 0.5);
+    this.dust.visible = planet;
+    this.dustMat.color.set(cfg.fog[0]).lerp(new THREE.Color('#ffffff'), 0.6);
+    this.mat.uniforms.sunCol.value.set(cfg.sun[0]);
+    this.mat.uniforms.glow.value = planet ? (cfg.stars > 0.6 ? 0.25 : 0.6) : 0.2;
     while (this.bodies.children.length) { const c = this.bodies.children[0]; this.bodies.remove(c); disposeObj(c); }
     for (const b of cfg.bodies || []) {
       const d = new V3(...b.dir).normalize().multiplyScalar(700);
@@ -57,6 +105,18 @@ const Sky = {
   update(dt, cam) {
     this.group.position.copy(cam.position);
     this.stars.rotation.y += dt * 0.003;
+    this.clouds.rotation.y += dt * 0.004;
+    this.t += dt;
+    if (this.dust.visible) {
+      const p = this.dust.geometry.attributes.position.array, b = this.dustBase, c = cam.position, t = this.t;
+      for (let i = 0; i < p.length; i += 3) {
+        const k = i * 0.37;
+        p[i] = c.x + ((((b[i] + t * 0.3 + Math.sin(t * 0.5 + k) - c.x) % 40) + 40) % 40) - 20;
+        p[i + 1] = c.y + ((((b[i + 1] + Math.sin(t * 0.4 + k) * 1.5 - c.y) % 16) + 16) % 16) - 6;
+        p[i + 2] = c.z + ((((b[i + 2] + t * 0.2 + Math.cos(t * 0.45 + k) - c.z) % 40) + 40) % 40) - 20;
+      }
+      this.dust.geometry.attributes.position.needsUpdate = true;
+    }
   },
 };
 
@@ -74,6 +134,7 @@ function setAtmosphere(cfg, bossTint) {
   G.hemi.groundColor.set(cfg.hemi[1]);
   G.hemi.intensity = cfg.hemi[2];
   G.liquid.set(cfg.liquid);
+  Post.setMood(bossTint || G.mode === 'boss' ? 'boss' : cfg.stars >= 1 && !(cfg.bodies || []).length ? 'space' : cfg.stars > 0.5 ? 'night' : 'day');
 }
 
 /* ---------------- liquid sea (water / goo / gold / lava) ---------------- */
@@ -253,10 +314,15 @@ class PlanetWorld {
 
   /* ----- common: ship, merchant, beacon ----- */
   buildShipArea() {
-    const ship = buildShip();
+    // the landing pad, and your ship parked on it (kept separate so it can fly off)
+    mk(CYL(FLY.padR, FLY.padR, 0.1, 40), '#3b3f4a', this.stat, 0, this.h(0, 0) + 0.02, 0);
+    tf(mk(TOR(FLY.padR - 0.5, 0.18, 4, 48), '#ffd23f', this.stat, 0, this.h(0, 0) + 0.09, 0), Math.PI / 2);
+    for (const a of [0, 1, 2, 3]) tf(mk(BOX(0.35, 0.05, 2.2), '#ffd23f', this.stat, Math.sin(a * Math.PI / 2) * 8, this.h(0, 0) + 0.09, Math.cos(a * Math.PI / 2) * 8), 0, a * Math.PI / 2, 0);
+    const ship = (this.parked = buildShip());
+    ship.userData.dynamic = true;
     this.place(ship, 0, 0, 0);
     this.box(0, 0.5, 4.4, 11.5);
-    this.interact(4.2, 0.2, 3.2, 'Board ship (Galaxy Map)', () => Shop.openGalaxy());
+    this.interact(4.2, 0.2, 3.2, () => (G.progress.includes('gary') ? 'Board your ship' : 'Ship locked: beat Trashlord Gary first'), () => Flight.board());
     const shopCfg = SHOPS[this.cfg.shop];
     const counter = buildCounter(shopCfg.color);
     this.place(counter, 14.2, -6, Math.PI / 2);
@@ -279,22 +345,41 @@ class PlanetWorld {
     this.npc(model, 16.2, -6, -Math.PI / 2, shopCfg.npc, 4.1);
     this.interact(13.2, -6, 3.2, `Shop at ${shopCfg.npc}`, () => Shop.open(this.cfg.shop));
   }
+  // the boss altar: use the planet's summoning item here to start the fight
   buildBeacon() {
-    const b = BOSSES[this.cfg.boss];
+    const b = BOSSES[this.cfg.boss], s = SUMMONS[this.cfg.boss];
     const g = new THREE.Group();
     mk(CYL(2.2, 2.6, 0.6, 8), '#3b3f4a', g, 0, 0.3, 0);
     mk(CYL(0.5, 0.7, 4.5, 6), '#555a66', g, 0, 2.8, 0);
     const light = mk(OCT(0.6), '#ff3d3d', g, 0, 5.6, 0, { emissive: '#ff0000' });
-    const sign = signMesh(['⚠ BOSS ⚠', b.name.toUpperCase()], 4.2, 1.6, { bg: '#2b1d14', colors: ['#ff4b3e', '#ffffff'], border: '#ff4b3e', double: true });
-    sign.position.set(0, 2.6, 0.72); g.add(sign);
+    // the sign stands off to the side, so nothing hides the boss climbing out behind the altar
+    mk(BOX(0.18, 2.4, 0.18), '#555a66', g, -3.6, 1.2, 0.3);
+    const sign = signMesh(['BOSS ALTAR', b.name.toUpperCase(), 'USE: ' + s.name.toUpperCase()], 3.6, 1.7, { bg: '#2b1d14', colors: ['#ff4b3e', '#ffffff', '#ffd23f'], border: '#ff4b3e', double: true });
+    sign.position.set(-3.6, 2.1, 0.42); g.add(sign);
     this.place(g, 0, -38, 0);
     this.circle(0, -38, 1.0);
-    const icon = textSprite(b.icon, { size: 90, pad: 4, scale: 0.02 });
-    icon.position.set(0, 7.4, -38 + 0);
-    icon.position.y += this.h(0, -38);
-    this.dyn.add(icon);
-    this.anim.push((t) => { light.rotation.y = t * 2; icon.position.y = this.h(0, -38) + 7.4 + Math.sin(t * 2) * 0.3; });
-    this.interact(0, -35.5, 3.5, `Challenge ${b.name}`, () => Shop.openBoss());
+    this.circle(-3.6, -37.7, 0.3);
+    // a floating crystal marks the altar from far away
+    const icon = mk(OCT(0.7), b.color, this.dyn, 0, 7.4 + this.h(0, -38), -38, { emissive: b.color });
+    this.anim.push((t) => { light.rotation.y = t * 2; icon.rotation.y = t * 1.5; icon.position.y = this.h(0, -38) + 7.4 + Math.sin(t * 2) * 0.3; });
+    this.interact(0, -35.5, 3.5, `Boss altar: summon ${b.name}`, () => Shop.openBoss());
+  }
+  // someone used the summoning item: the boss climbs out of the ground behind the altar
+  summonFx(id) {
+    this.clearSummon();
+    const m = buildBossModel(id), z = -44, y = this.h(0, z);
+    m.root.position.set(0, y - 8, z);
+    // a beam of light out of the altar, visible from anywhere on the planet
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, 90, 16, 1, true),
+      new THREE.MeshBasicMaterial({ color: RING_COL[id], transparent: true, opacity: 0.35, depthWrite: false, side: THREE.DoubleSide, fog: false }));
+    beam.position.set(0, this.h(0, -38) + 45, -38);
+    this.dyn.add(m.root, beam);
+    this.rising = { m, beam, t: 0, y, z };
+  }
+  clearSummon() {
+    if (!this.rising) return;
+    for (const o of [this.rising.m.root, this.rising.beam]) { this.dyn.remove(o); disposeObj(o); }
+    this.rising = null;
   }
   jokeSign(x, z, model) {
     const s = SIGNS[this.cfg.id];
@@ -395,7 +480,7 @@ class PlanetWorld {
     for (let i = 0; i <= 5; i++) mk(BOX(19.6, 0.02, 0.06), '#ffffff', tr, 0, 0.12, -3 + i * 1.2);
     for (let i = 0; i < 12; i++) mk(BOX(0.3, 0.03, 0.3), i % 2 ? '#111' : '#fff', tr, 8.6 + (i % 2) * 0.3, 0.12, -3 + Math.floor(i / 2) * 1.2 + 0.3);
     for (let i = 0; i < 3; i++) mk(BOX(20, 0.5, 0.9), '#5b3a8a', tr, 0, 0.25 + i * 0.5, 4.2 + i * 0.9);
-    const ts = signMesh(['🐌 SNAIL RACES 🐌', 'BET ON A SNAIL'], 5, 1.6, { bg: '#1a0a30', colors: ['#ffd23f', '#3df0ff'], border: '#ff3df0', glow: true });
+    const ts = signMesh(['SNAIL RACES', 'BET ON A SNAIL'], 5, 1.6, { bg: '#1a0a30', colors: ['#ffd23f', '#3df0ff'], border: '#ff3df0', glow: true });
     ts.position.set(0, 3.5, 4.9); ts.rotation.y = Math.PI; tr.add(ts);
     mk(BOX(0.2, 3, 0.2), '#6b4a2b', tr, -2.4, 1.5, 5); mk(BOX(0.2, 3, 0.2), '#6b4a2b', tr, 2.4, 1.5, 5);
     this.place(tr, -17, 17, 0);
@@ -491,6 +576,21 @@ class PlanetWorld {
     }
   }
   surfaceAt(x, z) { return Math.max(this.h(x, z), WATER_Y); }
+  // where a critter can walk: dry land, not into buildings
+  walkable(x, z) {
+    if (Math.hypot(x, z) > 62 || this.h(x, z) < 0.6) return false;
+    for (const b of this.boxes) if (x > b.x0 && x < b.x1 && z > b.z0 && z < b.z1) return false;
+    return true;
+  }
+  // open dry ground for a meteor to hit: not a building or rock, and not the
+  // flat pads (your ship and the shop are a safe zone)
+  landable(x, z) {
+    if (Math.hypot(x, z) > 60 || this.h(x, z) < 0.8) return false;
+    for (const p of this.pads) if (Math.hypot(x - p.x, z - p.z) < p.r + 1) return false;
+    for (const b of this.boxes) if (x > b.x0 - 1 && x < b.x1 + 1 && z > b.z0 - 1 && z < b.z1 + 1) return false;
+    for (const c of this.circles) if (Math.hypot(x - c.x, z - c.z) < c.r + 1.2) return false;
+    return true;
+  }
 
   update(dt, t) {
     const pp = G.player ? G.player.pos : null;
@@ -510,6 +610,15 @@ class PlanetWorld {
       nd.mesh.rotation.y += dt * 0.4;
     }
     for (const f of this.anim) f(t, dt);
+    if (this.rising) {
+      const r = this.rising;
+      r.t += dt;
+      const k = Math.min(1, r.t / 2.2), e = 1 - (1 - k) * (1 - k);
+      r.m.root.position.set(Math.sin(r.t * 40) * 0.1 * (1 - k), r.y - 8 * (1 - e), r.z);
+      r.beam.material.opacity = 0.2 + 0.25 * Math.abs(Math.sin(r.t * 8));
+      r.beam.scale.set(1 + Math.sin(r.t * 12) * 0.15, 1, 1 + Math.sin(r.t * 12) * 0.15);
+      if (Math.random() < 0.6) FX.burst(new V3(U.rand(-2.5, 2.5), r.y + 0.3, r.z + U.rand(-2.5, 2.5)), this.cfg.ground[0], 1, 4);
+    }
     if (this.slotMachines) this.slotMachines[0].userData.light.material.emissiveIntensity = 0.6 + Math.sin(t * 6) * 0.5;
   }
 }

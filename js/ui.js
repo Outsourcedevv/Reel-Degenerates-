@@ -8,9 +8,9 @@ const UI = {
   panelTick: null,
 
   init() {
-    ['hud', 'bucks', 'pizza', 'cargo', 'nades', 'roomcode', 'planetname', 'crosshair', 'prompt', 'hint', 'actbar',
+    ['hud', 'bucks', 'pizza', 'goal', 'ammo', 'cargo', 'nades', 'roomcode', 'planetname', 'crosshair', 'prompt', 'hint', 'actbar',
       'bossbar', 'phud', 'feed', 'chat', 'chatinput', 'toasts', 'subtitle', 'bigtitle', 'pickups', 'hurt', 'plist',
-      'spectate', 'panel', 'panel-inner'].forEach((id) => (this.el[id] = U.$(id)));
+      'spectate', 'panel', 'panel-inner', 'flyhud'].forEach((id) => (this.el[id] = U.$(id)));
     this.el['panel-inner'].addEventListener('click', (e) => {
       const b = e.target.closest('[data-act]');
       if (!b || b.disabled) return;
@@ -42,19 +42,24 @@ const UI = {
 
   hud() {
     const cap = CARGO[SAVE.cargoLvl];
-    this.el.cargo.textContent = `🎒 ${SAVE.cargo.length}/${cap}`;
+    this.el.cargo.innerHTML = `${icon('bag')}<span>${SAVE.cargo.length}/${cap}</span>`;
     this.el.cargo.classList.toggle('full', SAVE.cargo.length >= cap);
-    this.el.nades.textContent = `💣 Goo Grenades x${SAVE.nades}`;
+    this.el.nades.innerHTML = `${icon('bomb')}<span>Goo Grenades x${SAVE.nades}</span>`;
     this.show('nades', SAVE.nades > 0);
     const pl = PLANETS[G.planet];
-    this.el.pizza.textContent = `🍕 Pizza: 3 yrs late · ${pl.pizza}`;
-    this.el.planetname.textContent = `${pl.icon} ${pl.name}`;
+    let pizza = pl.pizza;
+    if (pl.boss === 'zorblax') pizza = Summons.has('zorblax') ? 'WARM! (a miracle)' : SAVE.heat ? `Warming up ${SAVE.heat}/${SUMMONS.zorblax.heat}` : pizza;
+    this.el.pizza.textContent = `Pizza: 3 yrs late · ${pizza}`;
+    const goal = Summons.goal();
+    if (this.el.goal.textContent !== goal.text) this.el.goal.textContent = goal.text;
+    this.el.goal.classList.toggle('ready', !!goal.ready);
+    this.el.planetname.textContent = pl.name;
     this.bucks(0);
     const p = G.player;
     document.querySelectorAll('#hotbar .slot').forEach((s) => {
       const t = s.dataset.tool;
       s.classList.toggle('on', p && p.tool === t);
-      s.classList.toggle('hidden', t === 'drill' && !SAVE.drill);
+      s.classList.toggle('hidden', !hasTool(t));
     });
   },
 
@@ -123,10 +128,27 @@ const UI = {
 
   hint(text) { if (this.el.hint.textContent !== text) this.el.hint.textContent = text; },
 
+  // battery counter, bottom right, while the zapper is out
+  ammo(p) {
+    const a = this.el.ammo;
+    const show = p.tool === 'zap' && SAVE.zap >= 0 && !p.dead && !p.ghost && (G.mode === 'planet' || G.mode === 'boss');
+    a.classList.toggle('hidden', !show);
+    if (!show) return;
+    const mag = ZAPPERS[SAVE.zap].mag, rel = p.reloadT > 0;
+    const key = rel ? 'r' + Math.round((1 - p.reloadT / p.reloadDur) * 40) : p.ammo + '/' + mag;
+    if (this._ammoKey === key) return;
+    this._ammoKey = key;
+    a.classList.toggle('reloading', rel);
+    a.classList.toggle('low', !rel && p.ammo <= mag * 0.25);
+    a.querySelector('.n').innerHTML = `${rel ? 0 : p.ammo}<small>/${mag}</small>`;
+    a.querySelector('.fill').style.width = ((rel ? 1 - p.reloadT / p.reloadDur : p.ammo / mag) * 100).toFixed(1) + '%';
+    a.querySelector('.lbl').textContent = rel ? p.reloadMsg + '...' : p.ammo <= mag * 0.25 ? 'PRESS R TO RELOAD' : 'BATTERY · ∞ SPARES';
+  },
+
   /* ----- panels ----- */
   openPanel(html, handler, tick, onClose) {
     if (G.panel && this.onClose) { const cb = this.onClose; this.onClose = null; cb(); }
-    this.el['panel-inner'].innerHTML = '<button class="btn small x" data-act="close">✕</button>' + html;
+    this.el['panel-inner'].innerHTML = `<button class="btn small x" data-act="close">${icon('close')}</button>` + html;
     this.panelHandler = handler || null;
     this.panelTick = tick || null;
     this.onClose = onClose || null;
@@ -136,7 +158,7 @@ const UI = {
     Sound.play('open');
   },
   setPanel(html) {
-    this.el['panel-inner'].innerHTML = '<button class="btn small x" data-act="close">✕</button>' + html;
+    this.el['panel-inner'].innerHTML = `<button class="btn small x" data-act="close">${icon('close')}</button>` + html;
   },
   closePanel(noLock) {
     if (!G.panel) return;
@@ -152,6 +174,7 @@ const UI = {
   },
 
   hurt() {
+    Post.hurt(0.7);
     const h = this.el.hurt;
     h.classList.add('on');
     setTimeout(() => h.classList.remove('on'), 80);
@@ -173,16 +196,23 @@ const UI = {
     this.el.bossbar.querySelector('.lag').style.width = w;
     if (p2) this.el.bossbar.classList.add('p2');
   },
-  phud(on) { this.show('phud', on); },
+  phud(on) { this.show('phud', on); this.el.phud.classList.remove('planet'); },
+  // health bar on planets, only while you're hurt
+  planetHp(hp) {
+    if (G.mode !== 'planet') { this._php = null; return; }
+    const show = hp < 99.5;
+    if (show !== this._php) { this._php = show; this.show('phud', show); this.el.phud.classList.toggle('planet', show); }
+    if (show) this.php(hp, 1);
+  },
   php(hp, lives) {
     const f = this.el.phud;
     f.querySelector('.fill').style.width = U.clamp(hp, 0, 100) + '%';
     f.querySelector('.hp span').textContent = Math.ceil(Math.max(0, hp)) + ' HP';
-    const txt = lives > 0 ? '❤️'.repeat(lives) : '💀';
-    if (f.querySelector('.lives').textContent !== txt) f.querySelector('.lives').textContent = txt;
+    const txt = lives > 0 ? icon('heart', 'full').repeat(lives) : icon('skull');
+    if (f.querySelector('.lives').innerHTML !== txt) f.querySelector('.lives').innerHTML = txt;
   },
   team(rows) {
-    const html = rows.map((r) => `<div>${r.out ? '👻' : r.hp <= 0 ? '💀' : '🧑‍🚀'} ${U.esc(r.name)} ${r.out ? '(out)' : Math.max(0, Math.round(r.hp)) + 'hp'}</div>`).join('');
+    const html = rows.map((r) => `<div>${icon(r.out ? 'ghost' : r.hp <= 0 ? 'skull' : 'person')} ${U.esc(r.name)} ${r.out ? '(out)' : Math.max(0, Math.round(r.hp)) + 'hp'}</div>`).join('');
     const t = this.el.phud.querySelector('.team');
     if (t.innerHTML !== html) t.innerHTML = html;
   },
@@ -193,8 +223,8 @@ const UI = {
     const rows = [{ n: G.name + ' (you)', b: SAVE.bucks }];
     for (const r of G.remotes.values()) rows.push({ n: r.name, b: r.s.$ || 0 });
     rows.sort((a, b) => b.b - a.b);
-    this.el.plist.innerHTML = `<h3>🧑‍🚀 Crew ${G.online ? '· Room ' + Net.code : '· Solo'}</h3>` +
-      rows.map((r, i) => `<div class="pl"><span>${i === 0 && rows.length > 1 ? '👑 ' : ''}${U.esc(r.n)}</span><span>${U.bucks(r.b)}</span></div>`).join('');
+    this.el.plist.innerHTML = `<h3>Crew ${G.online ? '· Room ' + Net.code : '· Solo'}</h3>` +
+      rows.map((r, i) => `<div class="pl"><span>${i === 0 && rows.length > 1 ? icon('crown') + ' ' : ''}${U.esc(r.n)}</span><span>${U.bucks(r.b)}</span></div>`).join('');
   },
 
   howHtml() {
@@ -204,67 +234,29 @@ const UI = {
       <div><h4>Moving</h4>
         <p><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move · <kbd>Shift</kbd> sprint</p>
         <p><kbd>Space</kbd> jump (double jump with Bounce Boots)</p>
-        <p><kbd>E</kbd> talk / use · <kbd>Esc</kbd> pause</p></div>
+        <p><kbd>E</kbd> talk / use · <kbd>Esc</kbd> pause</p>
+        <p>In the ship: mouse steers, <kbd>W</kbd>/<kbd>S</kbd> throttle, <kbd>Shift</kbd> boost, <kbd>M</kbd> star map, <kbd>V</kbd> camera</p></div>
       <div><h4>Tools</h4>
-        <p><kbd>1</kbd> Zapper: click to shoot (zap your friends too)</p>
+        <p><kbd>1</kbd> Zapper: click to shoot, <kbd>R</kbd> reload (buy your first one at Robo-Pawn)</p>
         <p><kbd>2</kbd> Grabby Vac: hold click on glowing junk</p>
         <p><kbd>3</kbd> Laser Drill: hold click on crystals (buy on Frostbyte)</p>
+        <p><kbd>4</kbd> Pizza Peel: catch pepperoni meteors (buy on Zorblax Prime)</p>
         <p><kbd>Right-click</kbd> throw Goo Grenade (boss fights)</p></div>
       <div><h4>The loop</h4>
-        <p>1. Collect the planet's stuff (junk, berries, crystals).</p>
-        <p>2. Sell it at the planet's shop and buy new gear.</p>
-        <p>3. Beat the boss at the ⚠ BOSS beacon.</p>
-        <p>4. Fly to the next planet from your ship's Galaxy Map.</p></div>
+        <p>1. Collect the planet's stuff (and zap critters!) and sell it at the shop.</p>
+        <p>2. Buy gear. Guns aren't free: buy your first one!</p>
+        <p>3. Find the boss's summoning item (it's rare, keep at it), then use it at the boss altar.</p>
+        <p>4. Win, then fly your ship to the next planet. (The ship won't start until you beat Trashlord Gary.)</p></div>
       <div><h4>Friends & stuff</h4>
         <p>Host a game and send friends the 5-letter code.</p>
-        <p>The host is the captain: they fly the ship and start boss fights.</p>
-        <p>Gambling unlocks on planet 3, Luckstar. 🎰</p>
+        <p>The host is the captain and flies the ship. Anyone with a summoning item can start a boss fight.</p>
+        <p>If a friend goes down, walk up to them and hold <kbd>E</kbd> to revive them.</p>
+        <p>Gambling unlocks on planet 3, Luckstar.</p>
         <p><kbd>T</kbd> chat · <kbd>Tab</kbd> crew list · <kbd>M</kbd> music</p></div>
     </div>`;
   },
   showHow() {
     this.openPanel(this.howHtml() + '<div class="row2"><button class="btn" data-act="close">Got it, let\'s go</button></div>');
-  },
-};
-
-/* ---------------- warp (hyperspace) transition ---------------- */
-const Warp = {
-  play(planetIdx, mid) {
-    const pl = PLANETS[planetIdx];
-    const ov = document.createElement('div');
-    ov.id = 'warp';
-    ov.innerHTML = `<canvas></canvas><div class="wt"><div class="a">WARPING TO</div><div class="b">${pl.icon} ${U.esc(pl.name)}</div><div class="c">${U.esc(U.pick(LINES.warp))}</div></div>`;
-    document.body.appendChild(ov);
-    const cv = ov.querySelector('canvas'), c = cv.getContext('2d');
-    cv.width = innerWidth; cv.height = innerHeight;
-    const stars = Array.from({ length: 260 }, () => ({ a: Math.random() * Math.PI * 2, d: Math.random() * 0.2, s: 0.2 + Math.random() }));
-    const t0 = performance.now(), DUR = 3200;
-    let midDone = false;
-    Sound.play('warp');
-    const frame = (now) => {
-      const t = (now - t0) / DUR;
-      const w = cv.width, h = cv.height, cx = w / 2, cy = h / 2, R = Math.hypot(w, h) / 2;
-      const speed = t < 0.5 ? t * 2 : 1;
-      c.fillStyle = `rgba(6,4,24,${t < 0.12 ? t * 6 : 0.55})`;
-      c.fillRect(0, 0, w, h);
-      c.lineCap = 'round';
-      for (const s of stars) {
-        s.d += (0.002 + s.d * 0.06) * s.s * (0.3 + speed * 3);
-        if (s.d > 1.2) s.d = Math.random() * 0.05;
-        const r0 = s.d * R, r1 = Math.max(0, r0 - (20 + speed * 180) * s.s * s.d);
-        c.strokeStyle = `hsla(${200 + s.s * 120},100%,${70 + s.s * 20}%,${Math.min(1, s.d * 3)})`;
-        c.lineWidth = 1 + s.s * 2 * s.d;
-        c.beginPath();
-        c.moveTo(cx + Math.cos(s.a) * r1, cy + Math.sin(s.a) * r1);
-        c.lineTo(cx + Math.cos(s.a) * r0, cy + Math.sin(s.a) * r0);
-        c.stroke();
-      }
-      if (!midDone && t > 0.45) { midDone = true; mid && mid(); }
-      if (t > 0.82) ov.style.opacity = String(Math.max(0, 1 - (t - 0.82) / 0.18));
-      if (t < 1) requestAnimationFrame(frame);
-      else { ov.remove(); Sound.play('land'); }
-    };
-    requestAnimationFrame(frame);
   },
 };
 
@@ -278,12 +270,13 @@ function showEnding() {
   const el = document.createElement('div');
   el.id = 'ending';
   el.innerHTML = `
-    <button class="btn skip" data-act="done">Keep Playing ▶</button>
+    <button class="btn skip" data-act="done">Keep Playing</button>
     <div class="roll">
       <h1>DELIVERY COMPLETE</h1>
       <p>Emperor Zorblax opened the box.</p>
       <p>He looked at the pizza for a long time.</p>
       <p>"...It's cold."</p>
+      <p style="opacity:.75">(You reheated it with a meteor. Then you fought him for ten minutes.)</p>
       <p style="font-size:44px;margin:26px 0">★☆☆☆☆</p>
       <p>Tip: <b>$0.00</b></p>
       <p>Comment: <i>"Driver was 3 years late and shot me 400 times. Pizza was cold."</i></p>

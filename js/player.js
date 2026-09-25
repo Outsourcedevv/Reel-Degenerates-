@@ -34,7 +34,9 @@ const Input = {
   endFrame() { this.pressed = {}; this.clickL = this.clickR = false; this.dx = this.dy = 0; this.wheel = 0; },
 };
 
-const TOOLS = ['zap', 'vac', 'drill'];
+const TOOLS = ['zap', 'vac', 'drill', 'peel'];
+// tools you have to buy first (only the Grabby Vac is free)
+const hasTool = (t) => (t !== 'zap' || SAVE.zap >= 0) && (t !== 'drill' || SAVE.drill) && (t !== 'peel' || SAVE.peel);
 
 class LocalPlayer {
   constructor() {
@@ -42,15 +44,18 @@ class LocalPlayer {
     this.yaw = 0; this.pitch = 0;
     this.onGround = false; this.jumps = 0;
     this.tool = 'zap';
-    this.hp = 100; this.inv = 0; this.regenT = 0; this.dead = false; this.ghost = false;
+    this.hp = 100; this.inv = 0; this.regenT = 0; this.dead = false; this.ghost = false; this.down = false; this.bleedT = 0; this.reviveT = 0;
     this.cd = 0; this.nadeCd = 0; this.walkT = 0; this.recoil = 0; this.deadT = 0;
+    this.swapT = 0; this.sprintK = 0; this.landK = 0; this.swayX = 0; this.swayY = 0; this.lastYaw = 0; this.lastPitch = 0; this.flashT = 0;
     this.vacT = 0; this.vacTarget = null; this.drillT = 0; this.drillTarget = null;
-    this.slideSnd = 0;
+    this.slideSnd = 0; this.swing = 0;
+    this.ammo = 0; this.reloadT = 0; this.reloadDur = 1; this.reloadMsg = '';
     this.vm = new THREE.Group();
     G.camera.add(this.vm);
     this.vmVac = buildVacVM();
     this.vmDrill = buildDrillVM();
-    for (const o of [this.vmVac, this.vmDrill]) this.vm.add(o);
+    this.vmPeel = buildPeelVM();
+    for (const o of [this.vmVac, this.vmDrill, this.vmPeel]) this.vm.add(o);
     this.vmZap = null;
     this.refreshGear();
   }
@@ -58,25 +63,48 @@ class LocalPlayer {
 
   refreshGear() {
     if (this.vmZap) { this.vm.remove(this.vmZap); disposeObj(this.vmZap); }
-    this.vmZap = buildZapperVM(ZAPPERS[SAVE.zap].color);
+    this.vmZap = buildZapperVM(ZAPPERS[Math.max(0, SAVE.zap)].color);
     this.vm.add(this.vmZap);
     this.vm.traverse((c) => { if (c.isMesh) { c.castShadow = false; c.receiveShadow = false; } });
     this.layoutVM();
-    this.setTool(this.tool === 'drill' && !SAVE.drill ? 'zap' : this.tool, true);
+    this.refill();
+    this.setTool(hasTool(this.tool) ? this.tool : hasTool('zap') ? 'zap' : 'vac', true);
+  }
+  // fresh battery pack (new gun, new boss fight, respawn)
+  refill() {
+    this.reloadT = 0;
+    this.ammo = SAVE.zap >= 0 ? ZAPPERS[SAVE.zap].mag : 0;
+  }
+  startReload() {
+    if (SAVE.zap < 0 || this.tool !== 'zap' || this.reloadT > 0 || this.ammo >= ZAPPERS[SAVE.zap].mag) return;
+    this.reloadT = this.reloadDur = ZAPPERS[SAVE.zap].rl;
+    this.reloadMsg = U.pick(LINES.reload);
+    Sound.play('reload');
   }
   // keep held tools in the lower-right corner on any screen shape
   layoutVM() {
     const d = 0.5, hh = d * Math.tan(THREE.MathUtils.degToRad(G.camera.fov / 2)), hw = hh * G.camera.aspect;
     const x = Math.min(0.24, hw * 0.55), y = -hh * 0.52;
-    for (const o of [this.vmZap, this.vmVac, this.vmDrill]) { if (o) { o.position.set(x, y, -d); o.scale.setScalar(0.62); } }
+    for (const o of [this.vmZap, this.vmVac, this.vmDrill, this.vmPeel]) { if (o) { o.position.set(x, y, -d); o.scale.setScalar(0.62); } }
   }
   setTool(t, quiet) {
-    if (t === 'drill' && !SAVE.drill) { if (!quiet) { UI.toast('No Laser Drill yet! Penguin Pete sells one on Frostbyte.', 'bad'); Sound.play('error'); } return; }
-    if (this.tool !== t && !quiet) Sound.play('click');
+    if (!hasTool(t)) {
+      if (!quiet) {
+        UI.toast({ zap: `No gun yet! ${SHOPS[PLANETS[G.planet].shop].npc} sells the Pew Pew Zapper.`, drill: 'No Laser Drill yet! Penguin Pete sells one on Frostbyte.', peel: 'No Pizza Peel yet! Dave sells one on Zorblax Prime.' }[t], 'bad');
+        Sound.play('error');
+      }
+      return;
+    }
+    if (this.tool !== t) {
+      if (!quiet) { Sound.play('click'); this.swapT = 1; }
+      this.reloadT = 0; // putting the zapper away cancels a reload
+    }
     this.tool = t;
+    if (t === 'zap' && this.ammo <= 0) this.startReload();
     this.vmZap.visible = t === 'zap';
     this.vmVac.visible = t === 'vac';
     this.vmDrill.visible = t === 'drill';
+    this.vmPeel.visible = t === 'peel';
     this.releaseTargets();
     UI.hud();
   }
@@ -110,8 +138,10 @@ class LocalPlayer {
       if (Input.tap('Digit1')) this.setTool('zap');
       if (Input.tap('Digit2')) this.setTool('vac');
       if (Input.tap('Digit3')) this.setTool('drill');
+      if (Input.tap('Digit4')) this.setTool('peel');
+      if (Input.tap('KeyR')) this.startReload();
       if (Input.wheel) {
-        const avail = TOOLS.filter((t) => t !== 'drill' || SAVE.drill);
+        const avail = TOOLS.filter(hasTool);
         const i = (avail.indexOf(this.tool) + (Input.wheel > 0 ? 1 : -1) + avail.length) % avail.length;
         this.setTool(avail[i]);
       }
@@ -156,6 +186,7 @@ class LocalPlayer {
     this.pos.y += this.vel.y * dt;
     if (this.pos.y <= gnd) {
       if (!this.onGround && this.vel.y < -12) FX.burst(this.pos, '#ffffff', 5, 2);
+      if (!this.onGround && this.vel.y < -5) this.landK = Math.min(1, -this.vel.y / 16);
       this.pos.y = gnd; this.vel.y = Math.max(0, this.vel.y);
       this.onGround = true; this.jumps = 0;
     } else if (this.pos.y > gnd + 0.08) this.onGround = false;
@@ -166,27 +197,141 @@ class LocalPlayer {
     // --- timers
     this.cd -= dt; this.nadeCd -= dt; this.inv -= dt;
     this.recoil = U.damp(this.recoil, 0, 14, dt);
+    this.swing = Math.max(0, this.swing - dt * 3.5);
+    this.vmPeel.rotation.x = Math.sin(this.swing * Math.PI) * 0.7;
+    if (this.reloadT > 0) {
+      this.reloadT -= dt;
+      if (this.reloadT <= 0) { this.refill(); Sound.play('reloaded'); }
+    }
+    // reload animation: tip the zapper down and give the battery a wiggle
+    const rk = this.reloadT > 0 ? Math.sin((1 - this.reloadT / this.reloadDur) * Math.PI) : 0;
+    this.vmZap.rotation.set(-rk * 0.9, 0, rk * 0.35);
     const hs = Math.hypot(this.vel.x, this.vel.z);
     if (this.onGround && hs > 0.5) this.walkT += dt * hs * 1.25;
-    if (G.mode === 'boss' && !this.dead && !this.ghost) {
+    this.sprintK = U.damp(this.sprintK, sprint && hs > 6.5 && this.onGround ? 1 : 0, 6, dt);
+    this.swapT = Math.max(0, this.swapT - dt * 4);
+    this.landK = U.damp(this.landK, 0, 7, dt);
+    this.flashT -= dt;
+    if (this.vmZap.userData.flash) this.vmZap.userData.flash.visible = this.flashT > 0;
+    if ((G.mode === 'boss' || G.mode === 'planet') && !this.dead && !this.ghost) {
       this.regenT -= dt;
-      if (this.regenT <= 0 && this.hp < 100) this.hp = Math.min(100, this.hp + 6 * dt);
+      if (this.regenT <= 0 && this.hp < 100) this.hp = Math.min(100, this.hp + (G.mode === 'boss' ? 6 : 12) * dt);
     }
+    UI.planetHp(this.hp);
     // --- actions
     const busy = !canAct || this.dead || this.ghost;
     if (!busy) this.useTool(dt);
     else if (this.vacTarget || this.drillTarget) this.releaseTargets();
     if (!busy && Input.clickR) this.throwNade();
     // --- interaction prompt
-    this.checkInteract(canAct && !this.dead);
+    this.updateDown(dt);
+    if (!this.checkRevive(dt, canAct)) this.checkInteract(canAct && !this.dead);
     // --- camera
     this.updateCamera(dt, hs);
+    UI.ammo(this);
+  }
+
+  // critter bites on a planet (boss fights have their own damage rules)
+  hurtPlanet(d, fx, fz, who) {
+    if (this.inv > 0 || this.dead) return;
+    d = Math.round(d * Game.dmgMul());
+    if (SAVE.armor) d = Math.round(d * 0.7);
+    this.hp -= d; this.inv = 0.5; this.regenT = 4;
+    const dx = this.pos.x - fx, dz = this.pos.z - fz, l = Math.hypot(dx, dz) || 1;
+    this.vel.x += (dx / l) * 7; this.vel.z += (dz / l) * 7; this.vel.y = 4; this.onGround = false;
+    UI.hurt();
+    G.shake = Math.max(G.shake, 0.4);
+    Sound.play('hurt');
+    if (this.hp > 0) return;
+    if (this.canGoDown()) { this.goDown(who, () => this.knockedOut(who)); return; }
+    if (DIFFS[G.diff].perma) { this.dead = true; this.hp = 0; this.deadT = 0; Game.permaDeath(who); return; }
+    this.knockedOut(who);
+  }
+  knockedOut(who) {
+    this.dead = false; this.down = false;
+    this.hp = 100; this.inv = 2;
+    this.teleport(Game.spawnPoint(), G.world.spawnYaw);
+    UI.bigTitle('KNOCKED OUT', `${U.pick(LINES.bitten)} (${who}: 1, you: 0)`, '#ff6b6b', 2.8);
+    SAVE.stats.deaths++;
+    persist();
+    Sound.play('death');
+  }
+
+  /* ----- going down and getting picked back up (multiplayer) ----- */
+  // with friends in the game you don't die right away: you go down and they can revive you
+  canGoDown() { return Net.online && [...G.remotes.values()].some((r) => !r.s.g); }
+  goDown(cause, onBleedOut) {
+    this.down = true; this.dead = true; this.deadT = 0; this.hp = 0;
+    this.bleedT = DIFFS[G.diff].perma ? Infinity : 25;
+    this.onBleedOut = onBleedOut; this.downCause = cause;
+    this.releaseTargets();
+    Sound.play('death');
+    UI.bigTitle('YOU\'RE DOWN', `${cause ? cause + ' got you. ' : ''}A friend can revive you: they walk up and hold E.`, '#ff6b6b', 3);
+    const html = `<b>${U.esc(G.name)}</b> is down! Go revive them (hold E next to them).`;
+    UI.feed(html, 'bad');
+    Net.relay({ t: 'ann', html, cls: 'bad' });
+  }
+  updateDown(dt) {
+    if (!this.down) return;
+    this.bleedT -= dt;
+    // hardcore and everyone else left the game: nobody is coming
+    if (this.bleedT === Infinity && !this.canGoDown() && !Game.permaDead) { Game.permaDeath(this.downCause); return; }
+    const el = UI.el.spectate;
+    el.classList.remove('hidden');
+    const txt = this.bleedT === Infinity ? 'DOWN · WAITING FOR A REVIVE · IF EVERYONE GOES DOWN, THE WORLD IS GONE' : `DOWN · WAITING FOR A REVIVE · ${Math.ceil(this.bleedT)}s`;
+    if (el.textContent !== txt) el.textContent = txt;
+    if (this.bleedT <= 0) {
+      this.down = false;
+      el.classList.add('hidden');
+      const cb = this.onBleedOut; this.onBleedOut = null;
+      if (cb) cb();
+    }
+  }
+  revive(by) {
+    if (!this.down) return;
+    this.down = false; this.dead = false; this.onBleedOut = null;
+    this.hp = 40; this.inv = 2.5; this.regenT = 2;
+    UI.show('spectate', false);
+    FX.burst(this.pos.clone().setY(this.pos.y + 1), '#7dff8a', 14, 4);
+    Sound.play('reloaded');
+    if (by) UI.toast(`${by} revived you!`, 'good', 2.5);
+  }
+  // stand next to a downed friend and hold E
+  checkRevive(dt, canAct) {
+    let best = null, bd = 2.4;
+    if (canAct && !this.dead && !this.ghost) {
+      for (const r of G.remotes.values()) {
+        if (!r.visible || !r.s.dn) continue;
+        const d = Math.hypot(r.pos.x - this.pos.x, r.pos.z - this.pos.z);
+        if (d < bd) { bd = d; best = r; }
+      }
+    }
+    if (!best) { if (this.reviveT > 0) { this.reviveT = 0; UI.action(null); } return false; }
+    UI.prompt(`Hold E to revive ${best.name}`);
+    if (Input.keys.KeyE) {
+      this.reviveT += dt;
+      UI.action(this.reviveT / 2.5, 'REVIVING...');
+      if (this.reviveT >= 2.5) {
+        this.reviveT = 0; UI.action(null);
+        Net.relay({ t: 'revive', to: best.id, by: G.name });
+        const html = `<b>${U.esc(G.name)}</b> revived <b>${U.esc(best.name)}</b>!`;
+        UI.feed(html, 'good');
+        Net.relay({ t: 'ann', html, cls: 'good' });
+        Sound.play('pickup');
+      }
+    } else if (this.reviveT > 0) { this.reviveT = 0; UI.action(null); }
+    return true;
   }
 
   useTool(dt) {
     const t = this.tool;
     if (t === 'zap') {
       if (Input.mouseL && this.cd <= 0) this.fireZap();
+      return;
+    }
+    if (t === 'peel') {
+      // the peel catches things on its own; clicking is just a very important swing
+      if (Input.clickL && this.swing <= 0) { this.swing = 1; Sound.play('throw'); }
       return;
     }
     const w = this.world();
@@ -253,8 +398,12 @@ class LocalPlayer {
   }
 
   fireZap() {
+    if (this.reloadT > 0) return;
+    if (this.ammo <= 0) { this.startReload(); return; }
     const z = ZAPPERS[SAVE.zap];
     this.cd = z.cd;
+    this.ammo--;
+    if (this.ammo <= 0) this.startReload();
     const o = this.vmZap.userData.muzzle.getWorldPosition(new V3());
     const aim = G.camera.position.clone().add(this.camDir(new V3()).multiplyScalar(60));
     const d = aim.sub(o).normalize();
@@ -262,6 +411,9 @@ class LocalPlayer {
     Net.relay({ t: 'shoot', k: 'zap', o: [U.r2(o.x), U.r2(o.y), U.r2(o.z)], d: [U.r2(d.x), U.r2(d.y), U.r2(d.z)], c: z.color });
     Sound.play(SAVE.zap === 3 ? 'coin' : 'zap');
     this.recoil = 0.08;
+    this.flashT = 0.05;
+    const fl = this.vmZap.userData.flash;
+    if (fl) { fl.rotation.z = Math.random() * 6; fl.scale.setScalar(0.8 + Math.random() * 0.5); fl.material.color.set(z.color); }
   }
   throwNade() {
     if (G.mode !== 'boss') { UI.toast(SAVE.nades ? 'Save your grenades for boss fights!' : 'No grenades. Chef Snorbo sells them on Gloop.', '', 1.8); return; }
@@ -278,7 +430,7 @@ class LocalPlayer {
 
   checkInteract(can) {
     this.near = null;
-    if (!can || G.mode !== 'planet') { UI.prompt(null); return; }
+    if (!can || G.mode !== 'planet' || G.world.rising) { UI.prompt(null); return; } // no shopping while a boss climbs out
     const dir = this.camDir(new V3());
     let best = null, bd = Infinity;
     for (const it of G.world.inter) {
@@ -290,30 +442,41 @@ class LocalPlayer {
       if (d < bd) { bd = d; best = it; }
     }
     this.near = best;
-    UI.prompt(best ? best.label : null);
+    UI.prompt(best ? (typeof best.label === 'function' ? best.label() : best.label) : null);
     if (best && Input.tap('KeyE')) best.fn();
   }
 
   updateCamera(dt, hs) {
     const cam = G.camera;
     const bob = this.onGround ? Math.sin(this.walkT * 2) * 0.05 * U.clamp(hs / 6, 0, 1) : 0;
-    let eye = 1.65 + bob;
+    let eye = 1.65 + bob - this.landK * 0.22;
     if (this.dead) { this.deadT += dt; eye = U.lerp(1.65, 0.35, U.clamp(this.deadT * 2, 0, 1)); }
     cam.position.set(this.pos.x, this.pos.y + eye, this.pos.z);
     G.shake = Math.max(0, G.shake - dt * 2.2);
     const sh = G.shake * G.shake;
     cam.rotation.set(this.pitch + (Math.random() - 0.5) * sh * 0.08, this.yaw + (Math.random() - 0.5) * sh * 0.08, this.dead ? Math.min(this.deadT, 0.5) : 0, 'YXZ');
-    // viewmodel sway
+    // sprinting widens the view a little
+    const fov = 72 + this.sprintK * 7;
+    if (Math.abs(cam.fov - fov) > 0.05) { cam.fov = fov; cam.updateProjectionMatrix(); }
+    // viewmodel: lags behind the mouse, bobs with steps, dips on landing, drops out of view when swapping tools
+    const k = Math.min(1, dt * 60);
+    this.swayX = U.damp(this.swayX, U.clamp(U.angDiff(this.lastYaw, this.yaw) * 1.6 * k, -0.08, 0.08), 10, dt);
+    this.swayY = U.damp(this.swayY, U.clamp((this.pitch - this.lastPitch) * 1.6 * k, -0.08, 0.08), 10, dt);
+    this.lastYaw = this.yaw; this.lastPitch = this.pitch;
+    const sw = this.swapT * this.swapT, run = this.sprintK;
     this.vm.visible = !this.dead && !this.ghost;
-    this.vm.position.set(Math.cos(this.walkT) * 0.012, Math.abs(Math.sin(this.walkT)) * 0.012 + (this.onGround ? 0 : 0.02), this.recoil);
-    this.vm.rotation.x = this.recoil * 1.5;
+    this.vm.position.set(
+      Math.cos(this.walkT) * (0.012 + run * 0.02) + this.swayX * 0.5,
+      Math.abs(Math.sin(this.walkT)) * (0.012 + run * 0.02) + (this.onGround ? 0 : 0.02) - sw * 0.3 - this.landK * 0.05 - this.swayY * 0.4 - run * 0.03,
+      this.recoil);
+    this.vm.rotation.set(this.recoil * 1.5 - sw * 0.9 + run * 0.25 - this.swayY, this.swayX * 1.2 + run * 0.3, -this.swayX * 0.8);
   }
 
   netState() {
     return {
       x: U.r2(this.pos.x), y: U.r2(this.pos.y), z: U.r2(this.pos.z), yw: U.r2(this.yaw),
       t: TOOLS.indexOf(this.tool), h: SAVE.hat, c: G.color, n: G.name, m: G.mode, p: G.planet,
-      hp: Math.round(this.hp), g: this.ghost ? 1 : 0, d: this.dead ? 1 : 0, $: SAVE.bucks,
+      hp: Math.round(this.hp), g: this.ghost ? 1 : 0, d: this.dead ? 1 : 0, dn: this.down ? 1 : 0, $: SAVE.bucks, z: SAVE.zap,
       u: (this.vacTarget || this.drillTarget || (this.tool === 'zap' && Input.mouseL)) ? 1 : 0,
     };
   }
@@ -329,11 +492,11 @@ class RemotePlayer {
     this.tag = textSprite(s.n, { size: 44, bg: 'rgba(20,20,40,.55)', scale: 0.0065 });
     this.tag.position.y = 2.75;
     this.m.root.add(this.tag);
-    this.ghostTag = textSprite('👻', { size: 80, pad: 4, scale: 0.012 });
+    this.ghostTag = textSprite('OUT', { size: 60, pad: 8, scale: 0.012 });
     this.ghostTag.position.y = 1.2;
     this.ghostTag.visible = false;
     this.m.root.add(this.ghostTag);
-    this.tools = [buildZapperVM(ZAPPERS[0].color), buildVacVM(), buildDrillVM()];
+    this.tools = [buildZapperVM(ZAPPERS[0].color), buildVacVM(), buildDrillVM(), buildPeelVM()];
     this.tools.forEach((t) => { t.rotation.x = -Math.PI / 2; t.scale.setScalar(1.2); this.m.hand.add(t); });
     this.pos = new V3(s.x, s.y, s.z); this.tpos = this.pos.clone();
     this.yaw = s.yw; this.walk = 0;
@@ -354,7 +517,7 @@ class RemotePlayer {
   }
   update(dt) {
     const s = this.s;
-    this.visible = s.m === G.mode && s.p === G.planet && G.mode !== 'menu';
+    this.visible = s.m === G.mode && s.p === G.planet && G.mode !== 'menu' && G.mode !== 'space'; // in space everyone is inside the ship
     this.m.root.visible = this.visible;
     if (!this.visible) return;
     if (this.pos.distanceTo(this.tpos) > 8) this.pos.copy(this.tpos);
@@ -376,6 +539,9 @@ class RemotePlayer {
     const ghost = !!s.g;
     r.head.visible = !ghost; r.legL.visible = !ghost; r.legR.visible = !ghost;
     this.ghostTag.visible = ghost;
+    if (!this.downTag) { this.downTag = textSprite('REVIVE ME', { size: 44, color: '#ffffff', bg: 'rgba(200,30,30,.8)', scale: 0.0075, depthTest: false, order: 20 }); this.downTag.position.y = 1.6; r.root.add(this.downTag); }
+    this.downTag.visible = !!s.dn && !ghost;
+    if (s.dn) this.downTag.position.y = 1.5 + Math.sin(G.time * 4) * 0.1;
     r.root.children.forEach((c) => { if (c.isMesh) c.visible = !ghost; });
     r.armL.visible = r.armR.visible = !ghost;
     if (s.d && !ghost) { r.root.rotation.z = U.damp(r.root.rotation.z, 1.4, 6, dt); } else r.root.rotation.z = U.damp(r.root.rotation.z, 0, 8, dt);
@@ -431,7 +597,9 @@ const Shots = {
           if (s.kind === 'zap') G.boss.localHit(s.dmg, s.pos);
         } else if (s.kind === 'zap' && G.boss.hitMinions(s.prev, s.pos, s.dmg)) hit = true;
       } else if (s.local && G.mode === 'planet' && s.kind === 'zap') {
-        for (const r of G.remotes.values()) {
+        const ch = Critters.hitTest(s.prev, s.pos);
+        if (ch) { hit = true; Critters.hit(ch.c, s.dmg, s.pos.clone()); }
+        for (const r of (hit ? [] : G.remotes.values())) {
           if (!r.visible || r.s.g) continue;
           if (U.segSphere(s.prev, s.pos, r.center, 0.75)) {
             hit = true;

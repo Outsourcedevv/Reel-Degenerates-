@@ -5,8 +5,10 @@
 const V3 = THREE.Vector3;
 
 const G = {
-  mode: 'menu',          // menu | planet | boss | warp
+  mode: 'menu',          // menu | planet | boss | space
   planet: 0,             // index into PLANETS
+  diff: 'easy',          // world difficulty (DIFFS)
+  worldId: null,
   time: 0, paused: false,
   scene: null, camera: null, renderer: null, sun: null, hemi: null,
   player: null, world: null, worlds: {}, arena: null, boss: null, liquid: null, sky: null,
@@ -16,7 +18,7 @@ const G = {
   panel: null, chatting: false, locked: false, started: false,
   progress: [],          // boss ids beaten (the host's save is the source of truth)
   shake: 0,
-  settings: { sens: 1, vol: 0.7, music: 0.45 },
+  settings: { sens: 1, vol: 0.7, music: 0.45, quality: 'high' },
 };
 
 const U = {
@@ -133,7 +135,7 @@ const CONE = (r, h, s = 8) => new THREE.ConeGeometry(r, h, s);
 const TOR = (r, t, rs = 6, ts = 14) => new THREE.TorusGeometry(r, t, rs, ts);
 
 /* ---------- canvas textures & text ---------- */
-const FONT = '"Lilita One", "Arial Black", Impact, sans-serif';
+const FONT = '"Chakra Petch", "Arial Narrow", Arial, sans-serif';
 function roundRect(c, x, y, w, h, r) {
   c.beginPath();
   c.moveTo(x + r, y);
@@ -156,7 +158,7 @@ function canvasTex(w, h, draw) {
 }
 function textSprite(text, o = {}) {
   const size = o.size || 48, pad = o.pad == null ? 16 : o.pad;
-  const font = `${size}px ${FONT}`;
+  const font = `700 ${size}px ${FONT}`;
   const mc = document.createElement('canvas').getContext('2d');
   mc.font = font;
   const w = Math.ceil(mc.measureText(text).width) + pad * 2, h = Math.ceil(size * 1.4);
@@ -190,8 +192,8 @@ function signMesh(lines, w, h, o = {}) {
     c.textAlign = 'center'; c.textBaseline = 'middle';
     lines.forEach((ln, i) => {
       let f = fs * (i === 0 && n > 1 ? 1.05 : 0.85);
-      c.font = `${f}px ${FONT}`;
-      while (c.measureText(ln).width > px * 0.88 && f > 8) { f -= 2; c.font = `${f}px ${FONT}`; }
+      c.font = `700 ${f}px ${FONT}`;
+      while (c.measureText(ln).width > px * 0.88 && f > 8) { f -= 2; c.font = `700 ${f}px ${FONT}`; }
       c.fillStyle = (o.colors && o.colors[i]) || o.color || '#ffffff';
       if (o.glow) { c.shadowColor = c.fillStyle; c.shadowBlur = f * 0.35; }
       c.fillText(ln, px / 2, (py / n) * (i + 0.5) + f * 0.04);
@@ -209,6 +211,19 @@ function disposeObj(o) {
       c.material.dispose();
     }
   });
+}
+
+// glue several non-indexed geometries into one, flat-shaded
+function mergeGeos(list) {
+  let n = 0;
+  for (const g of list) n += g.attributes.position.count;
+  const pos = new Float32Array(n * 3);
+  let off = 0;
+  for (const g of list) { pos.set(g.attributes.position.array, off); off += g.attributes.position.array.length; g.dispose(); }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.computeVertexNormals();
+  return geo;
 }
 
 /* ---------- merge static meshes by material (big draw-call saver) ---------- */
@@ -256,19 +271,20 @@ function mergeStatic(root) {
 
 /* ---------- save data (per player name, in this browser) ---------- */
 const SAVE_DEFAULT = {
-  bucks: 100, zap: 0, cargoLvl: 0, vacLvl: 0,
-  drill: false, boots: false, socks: false, armor: false, lifeIns: false, charm: false,
+  bucks: 100, zap: -1, cargoLvl: 0, vacLvl: 0, // zap -1 = no gun yet
+  drill: false, boots: false, socks: false, armor: false, lifeIns: false, charm: false, peel: false,
   nades: 0, cargo: [], hats: ['none'], hat: 'none',
   beaten: [], seenIntro: false,
+  summons: {}, pity: {}, heat: 0, // boss summoning items held, tries since the last drop, pizza warmth
   stats: { collected: 0, gambled: 0, won: 0, lost: 0, deaths: 0, jackpots: 0, bossWins: 0 },
 };
 let SAVE = JSON.parse(JSON.stringify(SAVE_DEFAULT));
 let SAVE_KEY = null;
-function loadSave(name) {
-  SAVE_KEY = 'spacegoobers_v1_' + name.toLowerCase().replace(/\s+/g, '_');
+function loadSaveKey(key) {
+  SAVE_KEY = key;
   const fresh = JSON.parse(JSON.stringify(SAVE_DEFAULT));
   try {
-    const raw = localStorage.getItem(SAVE_KEY);
+    const raw = localStorage.getItem(key);
     if (raw) {
       const d = JSON.parse(raw);
       SAVE = Object.assign(fresh, d);
@@ -276,6 +292,57 @@ function loadSave(name) {
     } else SAVE = fresh;
   } catch (e) { SAVE = fresh; }
 }
+const nameKey = (name) => name.toLowerCase().replace(/\s+/g, '_');
+// the old one-save-per-name format (still used if you join a host running an old version)
+function loadSave(name) { loadSaveKey('spacegoobers_v1_' + nameKey(name)); }
+
+/* ---------- worlds: separate playthroughs, like save slots ----------
+   Solo and host games run in one of your worlds. When you join a friend,
+   your stuff in *their* world is kept in a guest save for that world. */
+const Worlds = {
+  list() { return lsGet('spacegoobers_worlds', []); },
+  store(l) { lsSet('spacegoobers_worlds', l); },
+  key: (id) => 'spacegoobers_world_' + id,
+  guestKey: (worldId, name) => 'spacegoobers_guest_' + worldId + '_' + nameKey(name),
+  create(name, diff) {
+    const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    const l = this.list();
+    l.push({ id, name: (name || '').trim().slice(0, 24) || 'World ' + (l.length + 1), created: Date.now(), played: Date.now(), diff: DIFFS[diff] ? diff : 'easy' });
+    this.store(l);
+    return id;
+  },
+  remove(id) {
+    this.store(this.list().filter((w) => w.id !== id));
+    try { localStorage.removeItem(this.key(id)); } catch (e) { /* ignore */ }
+  },
+  diff(id) { const w = this.list().find((x) => x.id === id); return (w && DIFFS[w.diff]) ? w.diff : 'easy'; },
+  load(id) {
+    loadSaveKey(this.key(id));
+    this.store(this.list().map((w) => (w.id === id ? Object.assign(w, { played: Date.now() }) : w)));
+  },
+  // quick facts for the world picker
+  info(id) {
+    const d = lsGet(this.key(id), null) || {};
+    return { planet: d.planet || 0, beaten: (d.beaten || []).length, bucks: d.bucks == null ? SAVE_DEFAULT.bucks : d.bucks };
+  },
+  // saves from before worlds existed become worlds, once
+  migrate() {
+    if (lsGet('spacegoobers_worlds', null) !== null) return;
+    const l = [];
+    try {
+      // collect the keys first: adding worlds while looping shuffles localStorage's order
+      const old = [];
+      for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.startsWith('spacegoobers_v1_')) old.push(k); }
+      for (const k of old) {
+        const id = 'old' + l.length + Date.now().toString(36);
+        localStorage.setItem(this.key(id), localStorage.getItem(k));
+        const who = k.slice('spacegoobers_v1_'.length).replace(/_/g, ' ');
+        l.push({ id, name: who + "'s world", created: Date.now(), played: Date.now() - l.length });
+      }
+    } catch (e) { /* storage off: no worlds to bring over */ }
+    this.store(l);
+  },
+};
 function persist() {
   if (!SAVE_KEY) return;
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(SAVE)); } catch (e) { /* private mode etc. */ }
