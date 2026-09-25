@@ -15,7 +15,7 @@ difficulty:
 | --- | --- |
 | Easy | Enemies hit normally. Die and you get back up. |
 | Hard | Everything hits twice as hard. |
-| Hardcore | Everything hits 3.5x as hard, you get one life in boss fights, and if you die, you die for good: the world is deleted (for a friend who joined you, their stuff in your world is wiped). |
+| Hardcore | Everything hits 3.5x as hard and you get one life in boss fights. Solo, if you die, the world is deleted. With friends, you go down and can be revived, but if the whole crew is down at once, the world is deleted. |
 
  Each world is its own save, like
 Minecraft worlds. When you join a friend, your stuff in their world is saved too, so it's still there next time.
@@ -26,6 +26,9 @@ Minecraft worlds. When you join a friend, your stuff in their world is saved too
 2. Everyone else types the code and clicks **Join**.
 3. The host is the captain and flies the ship. Anyone holding a summoning item can start a boss fight, and
    everyone on the planet who has a gun gets pulled in.
+4. When you'd die with friends around, you go **down** instead. A friend walks up and holds `E` for a couple of
+   seconds to revive you. On Easy and Hard you bleed out after 25 seconds and it counts as a normal death. On
+   Hardcore you stay down until someone revives you, but if **everyone** is down at once, the world is deleted.
 
 Each friend needs to open the game too. The easiest way is to put it online for free with GitHub Pages:
 **Settings > Pages > Deploy from a branch > `main` / `(root)` > Save**. After a minute it's live at

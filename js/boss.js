@@ -728,7 +728,10 @@ class BossFight {
     Sound.play('hurt');
     if (kind === 'coin' && U.chance(0.5)) { addBucks(1); UI.toast('+$1 (at least you got paid)', 'gold', 1.2); }
     if (kind === 'pizza' && U.chance(0.3)) UI.toast('It IS pretty cold, honestly.', '', 1.5);
-    if (p.hp <= 0) this.die();
+    if (p.hp <= 0) {
+      if (p.canGoDown()) p.goDown(this.def.name, () => this.die());
+      else this.die();
+    }
   }
   die() {
     const p = this.me();

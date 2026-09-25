@@ -101,6 +101,7 @@ const Game = {
   launch(m) {
     if (G.panel) UI.closePanel(true);
     G.player.releaseTargets();
+    if (G.player.down) { G.player.revive(null); UI.toast('Your crew dragged you onto the ship. The med bay patched you up.', 'good', 3); }
     Shots.clear();
     G.mode = 'space';
     Flight.start(m.from, m.wp);
@@ -286,12 +287,13 @@ const Game = {
   // how hard enemies hit in this world
   dmgMul() { return (DIFFS[G.diff] || DIFFS.easy).dmg; },
   // hardcore: you died, and that's it. Your save for this world is wiped.
-  permaDeath(cause) {
+  // wipe = the whole crew went down at once, so the world goes with them
+  permaDeath(cause, wipe) {
     if (this.permaDead) return;
     this.permaDead = true;
     SAVE.stats.deaths++;
     const html = `<b>${U.esc(G.name)}</b> died for good${cause ? ` (${U.esc(cause)})` : ''}. Hardcore is hardcore.`;
-    if (Net.online) Net.relay({ t: 'ann', html, cls: 'bad' });
+    if (Net.online && !wipe) Net.relay({ t: 'ann', html, cls: 'bad' });
     // nothing gets saved from here on
     SAVE_KEY = null;
     try {
@@ -304,10 +306,10 @@ const Game = {
     setTimeout(() => {
       Net.leave();
       if (document.pointerLockElement) document.exitPointerLock();
-      UI.openPanel(`<div class="permadeath"><h2 class="ph center">YOU DIED</h2>
-        <p class="center psub">${cause ? U.esc(cause) + ' got you.' : 'That was it.'} This is Hardcore, so it's permanent.</p>
-        <p class="center">${guest ? 'Your stuff in your friend\'s world is gone.' : 'Your world has been deleted.'}
-        ${host ? ' Your crew lost their captain.' : ''}</p>
+      UI.openPanel(`<div class="permadeath"><h2 class="ph center">${wipe ? 'CREW WIPED' : 'YOU DIED'}</h2>
+        <p class="center psub">${wipe ? 'Everyone went down and nobody was left to revive anyone.' : (cause ? U.esc(cause) + ' got you.' : 'That was it.')} This is Hardcore, so it's permanent.</p>
+        <p class="center">${wipe ? 'The world has been deleted.' : guest ? 'Your stuff in your friend\'s world is gone.' : 'Your world has been deleted.'}
+        ${host && !wipe ? ' Your crew lost their captain.' : ''}</p>
         <p class="center muted">"Driver did not arrive. Pizza presumed cold." Dave has already hired your replacement.</p>
         <div class="center"><button class="btn big" data-act="menu" style="max-width:300px">Back to menu</button></div></div>`,
       (a) => { if (a === 'menu') location.reload(); }, null, () => location.reload());
@@ -407,6 +409,7 @@ const Game = {
     const p = G.player;
     const idx = Math.max(0, ids.indexOf(Net.myId));
     p.teleport(G.arena.spawns[idx % G.arena.spawns.length], 0);
+    if (p.down) p.revive(null);
     p.hp = 100; p.dead = false; p.ghost = false; p.inv = 3;
     p.refill();
     if (hasTool('zap')) p.setTool('zap', true);
@@ -462,6 +465,7 @@ const Game = {
     G.world.group.visible = true;
     G.mode = 'planet';
     const p = G.player;
+    if (p.down) p.revive(null);
     p.hp = 100; p.dead = false; p.ghost = false; p.inv = 0;
     p.teleport(this.spawnPoint(), G.world.spawnYaw);
     UI.bossBar(false); UI.phud(false); UI.show('spectate', false);
@@ -513,6 +517,8 @@ const Game = {
     N.on('hitm', (m) => { if (Net.isHost && G.boss) G.boss.damageMinion(m.id, Math.min(400, Number(m.dmg) || 0)); });
     N.on('pst', (m, from) => { if (G.boss && m.out) G.boss.out.add(from); });
     N.on('leave', (m) => this.removeRemote(m.id));
+    N.on('revive', (m) => { if (m.to === Net.myId) G.player.revive(m.by); });
+    N.on('wipe', () => { if (!Net.isHost) this.permaDeath(null, true); });
     // --- client side
     N.on('welcome', (m) => { clearTimeout(this.joinTimeout); this.enterGame(m); if (m.fl) this.launch(m.fl); if (m.snail) Casino.startRound(m.snail.seed, m.snail.bet); if (m.mode === 'boss') UI.toast('Your crew is in a boss fight! Hang tight here.', '', 5); });
     N.on('snap', (m) => {
@@ -547,6 +553,7 @@ const Game = {
     N.on('btaunt', (m) => { if (G.boss && !Net.isHost) G.boss.onTaunt(m.text); });
     N.on('bend', (m) => { if (G.boss && !Net.isHost) G.boss.finish(m.won); });
     N.on('hostgone', () => {
+      if (this.permaDead) return;
       if (document.pointerLockElement) document.exitPointerLock();
       UI.openPanel(`<h2 class="ph">Lost the captain</h2><p class="psub">The host left the game (or their internet sneezed). Your bucks and gear are saved.</p>
         <div class="center"><button class="btn big" data-act="reload" style="max-width:300px">Back to menu</button></div>`, (a) => { if (a === 'reload') location.reload(); }, null, () => location.reload());
@@ -573,8 +580,18 @@ const Game = {
       UI.toast(`${U.pick(LINES.bonk)} ${m.by} zapped you!`, 'purple', 1.6);
     });
   },
+  // hardcore with friends: if every single player is down at the same time, it's over for the world
+  checkWipe(dt) {
+    if (!Net.online || !Net.isHost || !DIFFS[G.diff].perma || this.permaDead || !G.remotes.size) { this.wipeT = 0; return; }
+    const all = G.player.down && [...G.remotes.values()].every((r) => r.s.dn);
+    this.wipeT = all ? (this.wipeT || 0) + dt : 0;
+    if (this.wipeT < 1.2) return;
+    Net.toAll({ t: 'wipe' });
+    this.permaDeath(null, true);
+  },
   netTick(dt) {
     if (!Net.online || !G.started) return;
+    this.checkWipe(dt);
     // heartbeat: drop players (or the host) that went silent
     if (Net.isHost) {
       for (const r of [...G.remotes.values()]) {

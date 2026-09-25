@@ -44,7 +44,7 @@ class LocalPlayer {
     this.yaw = 0; this.pitch = 0;
     this.onGround = false; this.jumps = 0;
     this.tool = 'zap';
-    this.hp = 100; this.inv = 0; this.regenT = 0; this.dead = false; this.ghost = false;
+    this.hp = 100; this.inv = 0; this.regenT = 0; this.dead = false; this.ghost = false; this.down = false; this.bleedT = 0; this.reviveT = 0;
     this.cd = 0; this.nadeCd = 0; this.walkT = 0; this.recoil = 0; this.deadT = 0;
     this.swapT = 0; this.sprintK = 0; this.landK = 0; this.swayX = 0; this.swayY = 0; this.lastYaw = 0; this.lastPitch = 0; this.flashT = 0;
     this.vacT = 0; this.vacTarget = null; this.drillT = 0; this.drillTarget = null;
@@ -224,7 +224,8 @@ class LocalPlayer {
     else if (this.vacTarget || this.drillTarget) this.releaseTargets();
     if (!busy && Input.clickR) this.throwNade();
     // --- interaction prompt
-    this.checkInteract(canAct && !this.dead);
+    this.updateDown(dt);
+    if (!this.checkRevive(dt, canAct)) this.checkInteract(canAct && !this.dead);
     // --- camera
     this.updateCamera(dt, hs);
     UI.ammo(this);
@@ -242,13 +243,84 @@ class LocalPlayer {
     G.shake = Math.max(G.shake, 0.4);
     Sound.play('hurt');
     if (this.hp > 0) return;
+    if (this.canGoDown()) { this.goDown(who, () => this.knockedOut(who)); return; }
     if (DIFFS[G.diff].perma) { this.dead = true; this.hp = 0; this.deadT = 0; Game.permaDeath(who); return; }
+    this.knockedOut(who);
+  }
+  knockedOut(who) {
+    this.dead = false; this.down = false;
     this.hp = 100; this.inv = 2;
     this.teleport(Game.spawnPoint(), G.world.spawnYaw);
     UI.bigTitle('KNOCKED OUT', `${U.pick(LINES.bitten)} (${who}: 1, you: 0)`, '#ff6b6b', 2.8);
     SAVE.stats.deaths++;
     persist();
     Sound.play('death');
+  }
+
+  /* ----- going down and getting picked back up (multiplayer) ----- */
+  // with friends in the game you don't die right away: you go down and they can revive you
+  canGoDown() { return Net.online && [...G.remotes.values()].some((r) => !r.s.g); }
+  goDown(cause, onBleedOut) {
+    this.down = true; this.dead = true; this.deadT = 0; this.hp = 0;
+    this.bleedT = DIFFS[G.diff].perma ? Infinity : 25;
+    this.onBleedOut = onBleedOut; this.downCause = cause;
+    this.releaseTargets();
+    Sound.play('death');
+    UI.bigTitle('YOU\'RE DOWN', `${cause ? cause + ' got you. ' : ''}A friend can revive you: they walk up and hold E.`, '#ff6b6b', 3);
+    const html = `<b>${U.esc(G.name)}</b> is down! Go revive them (hold E next to them).`;
+    UI.feed(html, 'bad');
+    Net.relay({ t: 'ann', html, cls: 'bad' });
+  }
+  updateDown(dt) {
+    if (!this.down) return;
+    this.bleedT -= dt;
+    // hardcore and everyone else left the game: nobody is coming
+    if (this.bleedT === Infinity && !this.canGoDown() && !Game.permaDead) { Game.permaDeath(this.downCause); return; }
+    const el = UI.el.spectate;
+    el.classList.remove('hidden');
+    const txt = this.bleedT === Infinity ? 'DOWN · WAITING FOR A REVIVE · IF EVERYONE GOES DOWN, THE WORLD IS GONE' : `DOWN · WAITING FOR A REVIVE · ${Math.ceil(this.bleedT)}s`;
+    if (el.textContent !== txt) el.textContent = txt;
+    if (this.bleedT <= 0) {
+      this.down = false;
+      el.classList.add('hidden');
+      const cb = this.onBleedOut; this.onBleedOut = null;
+      if (cb) cb();
+    }
+  }
+  revive(by) {
+    if (!this.down) return;
+    this.down = false; this.dead = false; this.onBleedOut = null;
+    this.hp = 40; this.inv = 2.5; this.regenT = 2;
+    UI.show('spectate', false);
+    FX.burst(this.pos.clone().setY(this.pos.y + 1), '#7dff8a', 14, 4);
+    Sound.play('reloaded');
+    if (by) UI.toast(`${by} revived you!`, 'good', 2.5);
+  }
+  // stand next to a downed friend and hold E
+  checkRevive(dt, canAct) {
+    let best = null, bd = 2.4;
+    if (canAct && !this.dead && !this.ghost) {
+      for (const r of G.remotes.values()) {
+        if (!r.visible || !r.s.dn) continue;
+        const d = Math.hypot(r.pos.x - this.pos.x, r.pos.z - this.pos.z);
+        if (d < bd) { bd = d; best = r; }
+      }
+    }
+    if (!best) { if (this.reviveT > 0) { this.reviveT = 0; UI.action(null); } return false; }
+    UI.prompt(`Hold E to revive ${best.name}`);
+    if (Input.keys.KeyE) {
+      this.reviveT += dt;
+      UI.action(this.reviveT / 2.5, 'REVIVING...');
+      if (this.reviveT >= 2.5) {
+        this.reviveT = 0; UI.action(null);
+        Net.relay({ t: 'revive', to: best.id, by: G.name });
+        const html = `<b>${U.esc(G.name)}</b> revived <b>${U.esc(best.name)}</b>!`;
+        UI.feed(html, 'good');
+        Net.relay({ t: 'ann', html, cls: 'good' });
+        Sound.play('pickup');
+      }
+    } else if (this.reviveT > 0) { this.reviveT = 0; UI.action(null); }
+    return true;
   }
 
   useTool(dt) {
@@ -404,7 +476,7 @@ class LocalPlayer {
     return {
       x: U.r2(this.pos.x), y: U.r2(this.pos.y), z: U.r2(this.pos.z), yw: U.r2(this.yaw),
       t: TOOLS.indexOf(this.tool), h: SAVE.hat, c: G.color, n: G.name, m: G.mode, p: G.planet,
-      hp: Math.round(this.hp), g: this.ghost ? 1 : 0, d: this.dead ? 1 : 0, $: SAVE.bucks, z: SAVE.zap,
+      hp: Math.round(this.hp), g: this.ghost ? 1 : 0, d: this.dead ? 1 : 0, dn: this.down ? 1 : 0, $: SAVE.bucks, z: SAVE.zap,
       u: (this.vacTarget || this.drillTarget || (this.tool === 'zap' && Input.mouseL)) ? 1 : 0,
     };
   }
@@ -467,6 +539,9 @@ class RemotePlayer {
     const ghost = !!s.g;
     r.head.visible = !ghost; r.legL.visible = !ghost; r.legR.visible = !ghost;
     this.ghostTag.visible = ghost;
+    if (!this.downTag) { this.downTag = textSprite('REVIVE ME', { size: 44, color: '#ffffff', bg: 'rgba(200,30,30,.8)', scale: 0.0075, depthTest: false, order: 20 }); this.downTag.position.y = 1.6; r.root.add(this.downTag); }
+    this.downTag.visible = !!s.dn && !ghost;
+    if (s.dn) this.downTag.position.y = 1.5 + Math.sin(G.time * 4) * 0.1;
     r.root.children.forEach((c) => { if (c.isMesh) c.visible = !ghost; });
     r.armL.visible = r.armR.visible = !ghost;
     if (s.d && !ghost) { r.root.rotation.z = U.damp(r.root.rotation.z, 1.4, 6, dt); } else r.root.rotation.z = U.damp(r.root.rotation.z, 0, 8, dt);

@@ -250,6 +250,7 @@ const UI = {
       <div><h4>Friends & stuff</h4>
         <p>Host a game and send friends the 5-letter code.</p>
         <p>The host is the captain and flies the ship. Anyone with a summoning item can start a boss fight.</p>
+        <p>If a friend goes down, walk up to them and hold <kbd>E</kbd> to revive them.</p>
         <p>Gambling unlocks on planet 3, Luckstar.</p>
         <p><kbd>T</kbd> chat · <kbd>Tab</kbd> crew list · <kbd>M</kbd> music</p></div>
     </div>`;

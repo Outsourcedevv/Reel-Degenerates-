@@ -67,7 +67,7 @@ const Net = {
   hostRecv(id, m) {
     m.from = id;
     if (RELAY.has(m.t)) { this.toAll(m, id); this.emit(m, id); return; }
-    if (m.t === 'bonk') {
+    if (m.t === 'bonk' || m.t === 'revive') {
       if (m.to === this.myId) this.emit(m, id); else this.sendTo(m.to, m);
       return;
     }
@@ -124,7 +124,7 @@ const Net = {
     if (!this.online) return;
     m.from = this.myId;
     if (this.isHost) {
-      if (m.t === 'bonk') this.sendTo(m.to, m);
+      if (m.t === 'bonk' || m.t === 'revive') this.sendTo(m.to, m);
       else this.toAll(m);
     } else if (this.hostConn && this.hostConn.open) this.hostConn.send(m);
   },
