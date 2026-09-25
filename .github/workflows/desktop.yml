@@ -1,12 +1,28 @@
 # Builds the Space Goobers desktop app for Windows, Mac and Linux and posts
 # the downloads on the repository's Releases page.
-# Runs when a version tag (like v1.0.0) is pushed, or by hand from the Actions tab.
+# Runs when the game changes on main (or the development branch), when a version
+# tag (like v1.0.0) is pushed, or by hand from the Actions tab. The downloads go
+# on the release for the version in package.json.
 name: Desktop app
 
 on:
   push:
+    branches: [main, main-aq03af]
     tags: ['v*']
+    paths:
+      - 'index.html'
+      - 'css/**'
+      - 'js/**'
+      - 'vendor/**'
+      - 'desktop/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/desktop.yml'
   workflow_dispatch:
+
+concurrency:
+  group: desktop-app
+  cancel-in-progress: true
 
 permissions:
   contents: write
