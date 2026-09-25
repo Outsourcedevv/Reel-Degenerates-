@@ -66,7 +66,7 @@ const Game = {
     // some browsers/embeds don't allow mouse lock: fall back to free-mouse look
     document.addEventListener('pointerlockerror', () => this.enableFallback());
     G.renderer.domElement.addEventListener('click', () => { if (G.started && !G.locked && !G.panel) this.lock(); });
-    addEventListener('beforeunload', () => { persist(); Net.leave(); });
+    addEventListener('beforeunload', () => { Casino.cashOut(); persist(); Net.leave(); });
     U.$('loading').classList.add('hidden');
     U.$('menu').classList.remove('hidden');
     requestAnimationFrame((t) => this.loop(t));
@@ -381,6 +381,7 @@ const Game = {
     N.on('prog', (m) => { G.progress = m.prog || []; });
     N.on('node', (m) => Activities.onNode(m));
     N.on('snail', (m) => Casino.startRound(m.seed, m.bet));
+    N.on('met', (m) => { if (!Net.isHost) Meteors.spawn(m); });
     N.on('bstart', (m) => { if (G.started && G.mode === 'planet' && m.ids.includes(Net.myId)) this.beginBoss(m.b, m.seed, m.ids); });
     N.on('bs', (m) => { if (G.boss && !Net.isHost) G.boss.onSync(m); });
     N.on('batk', (m) => { if (G.boss && !Net.isHost) G.boss.exec(m.a); });
@@ -474,6 +475,7 @@ const Game = {
       if (G.world && G.mode !== 'boss') G.world.update(dt, G.time);
       if (G.boss) G.boss.update(dt);
       Activities.update(dt);
+      Meteors.update(dt);
       Casino.update(dt);
       Shots.update(dt);
       FX.update(dt);
@@ -508,13 +510,17 @@ const Game = {
   updateHint() {
     const p = G.player;
     let h = '';
-    if (G.mode === 'boss') h = p.ghost ? '' : `Click: zap · Right-click: Goo Grenade (${SAVE.nades}) · Space: jump the rings!`;
-    else if (G.mode === 'planet') {
+    if (G.mode === 'boss') {
+      h = p.ghost ? '' : `Click: zap · Right-click: Goo Grenade (${SAVE.nades}) · Space: jump the rings!`;
+      if (h && G.boss && G.boss.id === 'zorblax' && SAVE.peel) h += ' · 4: Pizza Peel catches pizza!';
+    } else if (G.mode === 'planet') {
       const act = PLANETS[G.planet].activity;
-      if (p.tool === 'zap') h = act === 'casino' ? 'Luckstar: go gamble at the casino →' : 'Click to zap (try zapping a friend) · 2: Grabby Vac' + (SAVE.drill ? ' · 3: Laser Drill' : '');
+      if (p.tool === 'zap') h = act === 'casino' ? 'Luckstar: go gamble at the casino →' : 'Click to zap (try zapping a friend) · 2: Grabby Vac' + (SAVE.drill ? ' · 3: Laser Drill' : '') + (SAVE.peel ? ' · 4: Pizza Peel' : '');
       else if (p.tool === 'vac') h = act === 'scrap' ? 'Hold click on glowing junk piles' : 'Hold click on junk (there isn\'t much here)';
-      else h = 'Hold click on big crystals to mine them';
+      else if (p.tool === 'drill') h = 'Hold click on big crystals to mine them';
+      else h = act === 'meteor' ? 'Stand inside the glowing landing circles to catch pepperoni meteors!' : 'The Pizza Peel catches meteors on Zorblax Prime';
       if (act === 'berry' && p.tool !== 'drill') h = 'Walk into berries to grab them · Jump up the mushrooms!' + (SAVE.boots ? ' (double jump!)' : '');
+      if (act === 'meteor' && p.tool !== 'peel') h = SAVE.peel ? 'Pepperoni meteors! Press 4 for the Pizza Peel, then stand in the landing circles' : 'Pepperoni meteors! Buy a Pizza Peel from Dave to catch them. (Without it they bonk you.)';
     }
     UI.hint(h);
   },

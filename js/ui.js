@@ -54,7 +54,7 @@ const UI = {
     document.querySelectorAll('#hotbar .slot').forEach((s) => {
       const t = s.dataset.tool;
       s.classList.toggle('on', p && p.tool === t);
-      s.classList.toggle('hidden', t === 'drill' && !SAVE.drill);
+      s.classList.toggle('hidden', !hasTool(t));
     });
   },
 
@@ -209,9 +209,10 @@ const UI = {
         <p><kbd>1</kbd> Zapper: click to shoot (zap your friends too)</p>
         <p><kbd>2</kbd> Grabby Vac: hold click on glowing junk</p>
         <p><kbd>3</kbd> Laser Drill: hold click on crystals (buy on Frostbyte)</p>
+        <p><kbd>4</kbd> Pizza Peel: catch pepperoni meteors (buy on Zorblax Prime)</p>
         <p><kbd>Right-click</kbd> throw Goo Grenade (boss fights)</p></div>
       <div><h4>The loop</h4>
-        <p>1. Collect the planet's stuff (junk, berries, crystals).</p>
+        <p>1. Collect the planet's stuff (junk, berries, crystals, meteors).</p>
         <p>2. Sell it at the planet's shop and buy new gear.</p>
         <p>3. Beat the boss at the ⚠ BOSS beacon.</p>
         <p>4. Fly to the next planet from your ship's Galaxy Map.</p></div>

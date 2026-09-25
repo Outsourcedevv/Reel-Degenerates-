@@ -71,10 +71,11 @@ const Casino = {
     }, 70);
     res.forEach((sym, i) => setTimeout(() => {
       const b = boxes[i];
-      if (!b.isConnected) return;
-      b.className = 'reelbox stop';
-      b.firstChild.textContent = sym;
-      Sound.play('reelstop');
+      if (b.isConnected) {
+        b.className = 'reelbox stop';
+        b.firstChild.textContent = sym;
+        Sound.play('reelstop');
+      }
       if (i === 2) { clearInterval(tick); this.slotResult(res, bet); }
     }, 700 + i * 420));
     setTimeout(() => clearInterval(tick), 2200);
@@ -82,10 +83,8 @@ const Casino = {
   },
   slotResult(res, bet) {
     this.spinning = false;
-    const msg = U.$('sl-msg');
-    if (!msg) return;
     const [a, b, c] = res;
-    let pay = 0, text, win = false;
+    let pay = 0, text;
     if (a === b && b === c) {
       if (a === '🗑️') text = 'Triple trash. You ARE the trash.';
       else if (a === '☄️') {
@@ -93,20 +92,16 @@ const Casino = {
         addBucks(-lost, true);
         text = `METEOR STRIKE! It hit your wallet. -${U.bucks(lost)}`;
       } else {
-        pay = bet * SLOT_TRIPLE[a]; win = true;
+        pay = bet * SLOT_TRIPLE[a];
         text = a === '🍕' ? `🍕 PIZZA JACKPOT!!! +${U.bucks(pay)}` : `TRIPLE ${a}! +${U.bucks(pay)}`;
       }
     } else {
       const pair = a === b ? a : b === c ? b : a === c ? a : null;
-      if (pair && SLOT_PAIR[pair]) { pay = Math.floor(bet * SLOT_PAIR[pair]); win = pay > bet; text = `Pair of ${pair}! +${U.bucks(pay)}`; }
+      if (pair && SLOT_PAIR[pair]) { pay = Math.floor(bet * SLOT_PAIR[pair]); text = `Pair of ${pair}! +${U.bucks(pay)}`; }
       else text = U.pick(LINES.slotsLose);
     }
     if (pay) addBucks(pay, true);
     gambleStat(bet, pay);
-    [0, 1, 2].forEach((i) => U.$('r' + i).classList.toggle('hot', pay > 0 && (res[i] === a && a === b || res[i] === b && b === c || res[i] === a && a === c)));
-    msg.textContent = text;
-    msg.className = 'bigmsg ' + (pay > bet ? 'win' : pay > 0 ? '' : 'lose');
-    msg.style.color = '';
     if (a === b && b === c && a === '🍕') {
       Sound.play('jackpot'); SAVE.stats.jackpots++;
       UI.bigTitle('JACKPOT!!!', `${G.name} won ${U.bucks(pay)}`, '#ffd23f', 3);
@@ -120,14 +115,21 @@ const Casino = {
     } else Sound.play('coin');
     persist();
     UI.bucks(0);
+    const msg = U.$('sl-msg');
+    // walked away mid-spin? still tell them how it went
+    if (!msg || !G.panel) UI.toast(`🎰 ${res.join('')} ${text}`, pay > bet ? 'good' : pay ? '' : 'bad', 3.5);
+    if (!msg) return;
+    [0, 1, 2].forEach((i) => U.$('r' + i).classList.toggle('hot', pay > 0 && (res[i] === a && a === b || res[i] === b && b === c || res[i] === a && a === c)));
+    msg.textContent = text;
+    msg.className = 'bigmsg ' + (pay > bet ? 'win' : pay > 0 ? '' : 'lose');
+    msg.style.color = '';
     this.openSlotsRefresh();
   },
 
   /* ---------------- Glorp's double or nothing ---------------- */
-  glorpBet: 100, flipping: false, ride: 0,
+  glorpBet: 100, flipping: false, ride: 0, atTable: false,
   openGlorp(line) {
-    this.flipping = false;
-    UI.openPanel(`
+    const html = `
       <h2 class="ph">🪙 Glorp's Double or Nothing</h2>
       <p class="psub">Pick a side. Win double. Or don't. Your bucks: <b id="gl-b">${U.bucks(SAVE.bucks)}</b></p>
       <div class="npc-line" data-who="GLORP" id="gl-line">${U.esc(line || U.pick(LINES.glorpHi))}</div>
@@ -139,15 +141,32 @@ const Casino = {
         <button class="btn big blue" data-act="flip" data-side="1" style="max-width:220px">TAILS 🍕</button>
       </div>
       ${this.ride ? '<div class="center" style="margin-top:10px"><button class="btn small" data-act="cashout">💰 Cash out ' + U.bucks(this.ride) + '</button></div>' : ''}
-      <p class="center muted">Glorp's coin is "totally fair." (47% fair.)</p>`, (act, d) => {
+      <p class="center muted">Glorp's coin is "totally fair." (47% fair.)${this.ride ? ' Walking away cashes you out.' : ''}</p>`;
+    const handler = (act, d) => {
       if (act === 'bet' && !this.flipping) { this.glorpBet = d.v; U.$('gl-bets').innerHTML = betOptions(this.glorpBet, [50, 100, 500, '25%', '50%', 'all']); }
       if (act === 'flip') this.flip(Number(d.side));
-      if (act === 'cashout') { addBucks(this.ride); Sound.play('cash'); const r = this.ride; this.ride = 0; this.openGlorp(`Fine, fine. ${U.bucks(r)}. Don't spend it all in one place. (Spend it all here.)`); }
+      if (act === 'cashout' && !this.flipping) { const r = this.cashOut(); this.openGlorp(`Fine, fine. ${U.bucks(r)}. Don't spend it all in one place. (Spend it all here.)`); }
+    };
+    if (G.panel && this.atTable) { UI.setPanel(html); UI.panelHandler = handler; return; }
+    UI.openPanel(html, handler, null, () => {
+      this.atTable = false;
+      if (this.flipping) return; // the coin is still in the air; flip() settles it
+      const r = this.cashOut();
+      if (r) UI.toast(`Glorp paid out your ${U.bucks(r)}. "Come back soon! Bring more money!"`, 'good', 3);
     });
+    this.atTable = true;
+  },
+  cashOut() {
+    const r = this.ride;
+    if (!r) return 0;
+    this.ride = 0;
+    addBucks(r);
+    Sound.play('cash');
+    return r;
   },
   flip(side) {
     if (this.flipping) return;
-    let bet = this.ride || resolveBet(this.glorpBet);
+    const bet = this.ride || resolveBet(this.glorpBet);
     const msg = U.$('gl-msg');
     if (!this.ride) {
       if (bet <= 0 || bet > SAVE.bucks) { msg.textContent = 'You can\'t afford that, pal.'; msg.className = 'bigmsg lose'; Sound.play('error'); return; }
@@ -166,28 +185,31 @@ const Casino = {
     msg.textContent = 'Flipping...'; msg.className = 'bigmsg';
     setTimeout(() => {
       this.flipping = false;
-      if (!U.$('gl-msg')) return;
-      const stake = this.ride ? this.ride : bet;
+      const face = result ? 'TAILS' : 'HEADS';
       if (win) {
-        const payout = stake * 2;
-        SAVE.stats.won += stake; SAVE.stats.gambled += this.ride ? 0 : bet;
+        const payout = bet * 2;
+        SAVE.stats.won += bet; SAVE.stats.gambled += this.ride ? 0 : bet;
         this.ride = payout;
         Sound.play('win');
         if (payout >= 5000) bigWinFeed(`🪙 <b>${U.esc(G.name)}</b> is on a streak with Glorp: <b>${U.bucks(payout)}</b> riding!`);
-        this.openGlorp(U.pick(LINES.glorpWin));
-        U.$('gl-msg').textContent = `${result ? 'TAILS' : 'HEADS'}! You win! ${U.bucks(payout)} riding. Flip again or cash out?`;
-        U.$('gl-msg').className = 'bigmsg win';
       } else {
         if (!this.ride) SAVE.stats.gambled += bet;
-        SAVE.stats.lost += stake;
-        if (stake >= 2000) bigWinFeed(`📉 <b>${U.esc(G.name)}</b> lost <b>${U.bucks(stake)}</b> to Glorp's coin.`);
+        SAVE.stats.lost += bet;
+        if (bet >= 2000) bigWinFeed(`📉 <b>${U.esc(G.name)}</b> lost <b>${U.bucks(bet)}</b> to Glorp's coin.`);
         this.ride = 0;
         Sound.play('lose');
-        this.openGlorp(U.pick(LINES.glorpLose));
-        U.$('gl-msg').textContent = `${result ? 'TAILS' : 'HEADS'}. You lost ${U.bucks(stake)}.`;
-        U.$('gl-msg').className = 'bigmsg lose';
       }
       persist();
+      // walked away while the coin was in the air: settle up without reopening the table
+      if (!(G.panel && this.atTable)) {
+        if (win) UI.toast(`${face}! Glorp paid out your ${U.bucks(this.cashOut())}.`, 'good', 3);
+        else UI.toast(`${face}. You lost ${U.bucks(bet)} to Glorp.`, 'bad', 3);
+        return;
+      }
+      this.openGlorp(U.pick(win ? LINES.glorpWin : LINES.glorpLose));
+      const m = U.$('gl-msg');
+      m.textContent = win ? `${face}! You win! ${U.bucks(this.ride)} riding. Flip again or cash out?` : `${face}. You lost ${U.bucks(bet)}.`;
+      m.className = 'bigmsg ' + (win ? 'win' : 'lose');
     }, 1450);
   },
 
@@ -235,8 +257,6 @@ const Casino = {
     const shakeT = setInterval(() => { Sound.play('tick'); if (++shakes > 12) clearInterval(shakeT); }, 90);
     setTimeout(() => {
       this.opening = false;
-      if (!U.$('crate')) return;
-      box.className = 'gachabox pop';
       const results = Array.from({ length: n }, () => this.rollCrate());
       let payout = 0, best = results[0];
       const order = ['TRASH', 'DUPLICATE', 'COMMON', 'RARE', 'EPIC', 'LEGENDARY', 'JACKPOT'];
@@ -247,13 +267,16 @@ const Casino = {
         if (order.indexOf(r.tier) > order.indexOf(best.tier)) best = r;
       }
       gambleStat(cost, payout);
-      box.textContent = best.tier === 'JACKPOT' ? '💰' : best.tier === 'LEGENDARY' ? '🎫' : best.hat ? '🎩' : best.nades ? '💣' : best.tier === 'TRASH' ? '🧦' : '💵';
-      U.$('cr-res').innerHTML = results.map((r) => `<div class="loot" style="border-color:${r.col}"><div class="rn" style="color:${r.col}">${r.tier}</div><div class="nm">${U.esc(r.name)}</div>${r.bucks ? `<div>+${U.bucks(r.bucks)}</div>` : ''}${r.hat ? '<div class="muted">Wear it at any shop → Hats</div>' : ''}</div>`).join('');
       if (best.tier === 'JACKPOT') { Sound.play('jackpot'); SAVE.stats.jackpots++; bigWinFeed(`📦 <b>${U.esc(G.name)}</b> opened a JACKPOT CRATE! (+$4,000)`); }
       else if (order.indexOf(best.tier) >= 3) Sound.play('win');
       else Sound.play('lose');
       persist();
       UI.hud();
+      if (!box.isConnected || !G.panel) UI.toast(`📦 Crate: ${best.tier}! ${best.name}${payout ? ` (+${U.bucks(payout)} total)` : ''}`, order.indexOf(best.tier) >= 3 ? 'good' : '', 3.5);
+      if (!box.isConnected) return;
+      box.className = 'gachabox pop';
+      box.textContent = best.tier === 'JACKPOT' ? '💰' : best.tier === 'LEGENDARY' ? '🎫' : best.hat ? '🎩' : best.nades ? '💣' : best.tier === 'TRASH' ? '🧦' : '💵';
+      U.$('cr-res').innerHTML = results.map((r) => `<div class="loot" style="border-color:${r.col}"><div class="rn" style="color:${r.col}">${r.tier}</div><div class="nm">${U.esc(r.name)}</div>${r.bucks ? `<div>+${U.bucks(r.bucks)}</div>` : ''}${r.hat ? '<div class="muted">Wear it at any shop → Hats</div>' : ''}</div>`).join('');
       U.$('cr-b').textContent = U.bucks(SAVE.bucks);
     }, 1200);
   },

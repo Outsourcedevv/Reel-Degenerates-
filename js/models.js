@@ -554,6 +554,23 @@ function buildCrystalNode(rng) {
   glowRing(g, 1.4, '#9fe3ff');
   return g;
 }
+// a flaming slice of space pepperoni, falling out of the sky
+function buildMeteor(big) {
+  const g = new THREE.Group(), s = big ? 1.6 : 1;
+  const slice = grp(g);
+  mk(CYL(0.75 * s, 0.75 * s, 0.22 * s, 12), '#c8321e', slice, 0, 0, 0, { emissive: '#5a0a00' });
+  for (const [x, z] of [[0.3, 0.2], [-0.25, 0.3], [0.05, -0.35], [-0.35, -0.15]]) mk(CYL(0.11 * s, 0.11 * s, 0.24 * s, 6), '#7a140c', slice, x * s, 0.01, z * s);
+  // comet tail of fire blobs trailing behind it (local +Y)
+  const fire = grp(g);
+  ['#fff36b', '#ffb23e', '#ff6a1f', '#d6281b'].forEach((col, i) => {
+    const b = new THREE.Mesh(flat(ICO((0.66 - i * 0.12) * s, 0)), basicMat(col));
+    b.position.y = (0.45 + i * 0.8) * s;
+    fire.add(b);
+  });
+  g.traverse((c) => { if (c.isMesh) c.castShadow = false; });
+  g.userData = { slice, fire };
+  return g;
+}
 
 /* ---------------- tools (first-person) ---------------- */
 function buildZapperVM(color) {
@@ -589,6 +606,19 @@ function buildDrillVM() {
   const tip = mk(SPH(0.03, 5, 4), '#7dffff', bit, 0, 0, -0.35, { emissive: '#00aaff' });
   const muzzle = grp(g, 0, 0.02, -0.55);
   g.userData = { bit, tip, muzzle };
+  return g;
+}
+function buildPeelVM() {
+  const g = new THREE.Group();
+  tf(mk(BOX(0.07, 0.18, 0.09), '#3b3f4a', g, 0, -0.1, 0.1), 0.3);
+  tf(mk(CYL(0.025, 0.03, 0.34, 6), '#8a5a2b', g, 0, -0.01, -0.05), PI / 2);
+  const board = grp(g, 0, 0, -0.36);
+  mk(CYL(0.2, 0.2, 0.02, 14), '#d9a066', board, 0, 0, 0);
+  mk(BOX(0.1, 0.02, 0.14), '#d9a066', board, 0, 0, 0.2);
+  // a sad little pepperoni someone left on it
+  mk(CYL(0.035, 0.035, 0.012, 8), '#c8321e', board, 0.07, 0.015, -0.04);
+  const muzzle = grp(g, 0, 0, -0.5);
+  g.userData = { board, muzzle };
   return g;
 }
 

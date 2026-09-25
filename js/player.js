@@ -34,7 +34,9 @@ const Input = {
   endFrame() { this.pressed = {}; this.clickL = this.clickR = false; this.dx = this.dy = 0; this.wheel = 0; },
 };
 
-const TOOLS = ['zap', 'vac', 'drill'];
+const TOOLS = ['zap', 'vac', 'drill', 'peel'];
+// tools you have to buy first
+const hasTool = (t) => (t !== 'drill' || SAVE.drill) && (t !== 'peel' || SAVE.peel);
 
 class LocalPlayer {
   constructor() {
@@ -45,12 +47,13 @@ class LocalPlayer {
     this.hp = 100; this.inv = 0; this.regenT = 0; this.dead = false; this.ghost = false;
     this.cd = 0; this.nadeCd = 0; this.walkT = 0; this.recoil = 0; this.deadT = 0;
     this.vacT = 0; this.vacTarget = null; this.drillT = 0; this.drillTarget = null;
-    this.slideSnd = 0;
+    this.slideSnd = 0; this.swing = 0;
     this.vm = new THREE.Group();
     G.camera.add(this.vm);
     this.vmVac = buildVacVM();
     this.vmDrill = buildDrillVM();
-    for (const o of [this.vmVac, this.vmDrill]) this.vm.add(o);
+    this.vmPeel = buildPeelVM();
+    for (const o of [this.vmVac, this.vmDrill, this.vmPeel]) this.vm.add(o);
     this.vmZap = null;
     this.refreshGear();
   }
@@ -62,21 +65,28 @@ class LocalPlayer {
     this.vm.add(this.vmZap);
     this.vm.traverse((c) => { if (c.isMesh) { c.castShadow = false; c.receiveShadow = false; } });
     this.layoutVM();
-    this.setTool(this.tool === 'drill' && !SAVE.drill ? 'zap' : this.tool, true);
+    this.setTool(hasTool(this.tool) ? this.tool : 'zap', true);
   }
   // keep held tools in the lower-right corner on any screen shape
   layoutVM() {
     const d = 0.5, hh = d * Math.tan(THREE.MathUtils.degToRad(G.camera.fov / 2)), hw = hh * G.camera.aspect;
     const x = Math.min(0.24, hw * 0.55), y = -hh * 0.52;
-    for (const o of [this.vmZap, this.vmVac, this.vmDrill]) { if (o) { o.position.set(x, y, -d); o.scale.setScalar(0.62); } }
+    for (const o of [this.vmZap, this.vmVac, this.vmDrill, this.vmPeel]) { if (o) { o.position.set(x, y, -d); o.scale.setScalar(0.62); } }
   }
   setTool(t, quiet) {
-    if (t === 'drill' && !SAVE.drill) { if (!quiet) { UI.toast('No Laser Drill yet! Penguin Pete sells one on Frostbyte.', 'bad'); Sound.play('error'); } return; }
+    if (!hasTool(t)) {
+      if (!quiet) {
+        UI.toast(t === 'drill' ? 'No Laser Drill yet! Penguin Pete sells one on Frostbyte.' : 'No Pizza Peel yet! Dave sells one on Zorblax Prime.', 'bad');
+        Sound.play('error');
+      }
+      return;
+    }
     if (this.tool !== t && !quiet) Sound.play('click');
     this.tool = t;
     this.vmZap.visible = t === 'zap';
     this.vmVac.visible = t === 'vac';
     this.vmDrill.visible = t === 'drill';
+    this.vmPeel.visible = t === 'peel';
     this.releaseTargets();
     UI.hud();
   }
@@ -110,8 +120,9 @@ class LocalPlayer {
       if (Input.tap('Digit1')) this.setTool('zap');
       if (Input.tap('Digit2')) this.setTool('vac');
       if (Input.tap('Digit3')) this.setTool('drill');
+      if (Input.tap('Digit4')) this.setTool('peel');
       if (Input.wheel) {
-        const avail = TOOLS.filter((t) => t !== 'drill' || SAVE.drill);
+        const avail = TOOLS.filter(hasTool);
         const i = (avail.indexOf(this.tool) + (Input.wheel > 0 ? 1 : -1) + avail.length) % avail.length;
         this.setTool(avail[i]);
       }
@@ -166,6 +177,8 @@ class LocalPlayer {
     // --- timers
     this.cd -= dt; this.nadeCd -= dt; this.inv -= dt;
     this.recoil = U.damp(this.recoil, 0, 14, dt);
+    this.swing = Math.max(0, this.swing - dt * 3.5);
+    this.vmPeel.rotation.x = Math.sin(this.swing * Math.PI) * 0.7;
     const hs = Math.hypot(this.vel.x, this.vel.z);
     if (this.onGround && hs > 0.5) this.walkT += dt * hs * 1.25;
     if (G.mode === 'boss' && !this.dead && !this.ghost) {
@@ -187,6 +200,11 @@ class LocalPlayer {
     const t = this.tool;
     if (t === 'zap') {
       if (Input.mouseL && this.cd <= 0) this.fireZap();
+      return;
+    }
+    if (t === 'peel') {
+      // the peel catches things on its own; clicking is just a very important swing
+      if (Input.clickL && this.swing <= 0) { this.swing = 1; Sound.play('throw'); }
       return;
     }
     const w = this.world();
@@ -333,7 +351,7 @@ class RemotePlayer {
     this.ghostTag.position.y = 1.2;
     this.ghostTag.visible = false;
     this.m.root.add(this.ghostTag);
-    this.tools = [buildZapperVM(ZAPPERS[0].color), buildVacVM(), buildDrillVM()];
+    this.tools = [buildZapperVM(ZAPPERS[0].color), buildVacVM(), buildDrillVM(), buildPeelVM()];
     this.tools.forEach((t) => { t.rotation.x = -Math.PI / 2; t.scale.setScalar(1.2); this.m.hand.add(t); });
     this.pos = new V3(s.x, s.y, s.z); this.tpos = this.pos.clone();
     this.yaw = s.yw; this.walk = 0;

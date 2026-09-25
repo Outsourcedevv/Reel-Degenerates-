@@ -257,7 +257,7 @@ function mergeStatic(root) {
 /* ---------- save data (per player name, in this browser) ---------- */
 const SAVE_DEFAULT = {
   bucks: 100, zap: 0, cargoLvl: 0, vacLvl: 0,
-  drill: false, boots: false, socks: false, armor: false, lifeIns: false, charm: false,
+  drill: false, boots: false, socks: false, armor: false, lifeIns: false, charm: false, peel: false,
   nades: 0, cargo: [], hats: ['none'], hat: 'none',
   beaten: [], seenIntro: false,
   stats: { collected: 0, gambled: 0, won: 0, lost: 0, deaths: 0, jackpots: 0, bossWins: 0 },

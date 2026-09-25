@@ -491,6 +491,15 @@ class PlanetWorld {
     }
   }
   surfaceAt(x, z) { return Math.max(this.h(x, z), WATER_Y); }
+  // open dry ground for a meteor to hit: not a building or rock, and not the
+  // flat pads (your ship and the shop are a safe zone)
+  landable(x, z) {
+    if (Math.hypot(x, z) > 60 || this.h(x, z) < 0.8) return false;
+    for (const p of this.pads) if (Math.hypot(x - p.x, z - p.z) < p.r + 1) return false;
+    for (const b of this.boxes) if (x > b.x0 - 1 && x < b.x1 + 1 && z > b.z0 - 1 && z < b.z1 + 1) return false;
+    for (const c of this.circles) if (Math.hypot(x - c.x, z - c.z) < c.r + 1.2) return false;
+    return true;
+  }
 
   update(dt, t) {
     const pp = G.player ? G.player.pos : null;

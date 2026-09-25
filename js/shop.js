@@ -29,6 +29,7 @@ const Shop = {
       case 'vac': r.stats = `Range ${VAC[1].range}m · ${VAC[1].speed}x speed`; r.owned = SAVE.vacLvl >= 1; break;
       case 'boots': r.stats = 'Press Space in the air to jump again'; r.owned = SAVE.boots; break;
       case 'drill': r.stats = 'Tool 3 · hold click on crystals'; r.owned = SAVE.drill; break;
+      case 'peel': r.stats = 'Tool 4 · catches meteors (and flying pizza)'; r.owned = SAVE.peel; break;
       case 'socks': r.stats = 'Normal grip on ice'; r.owned = SAVE.socks; break;
       case 'armor': r.stats = '-30% damage taken'; r.owned = SAVE.armor; break;
       case 'life': r.stats = '4 lives per boss fight instead of 3'; r.owned = SAVE.lifeIns; break;
@@ -50,6 +51,7 @@ const Shop = {
       case 'vac': SAVE.vacLvl = 1; break;
       case 'boots': SAVE.boots = true; UI.toast('Double jump unlocked! Press Space twice.', 'good', 3); break;
       case 'drill': SAVE.drill = true; G.player.refreshGear(); G.player.setTool('drill', true); UI.toast('Laser Drill equipped! (Press 3)', 'good', 3); break;
+      case 'peel': SAVE.peel = true; G.player.refreshGear(); G.player.setTool('peel', true); UI.toast('Pizza Peel equipped! (Press 4) Stand in the landing circles!', 'good', 3); break;
       case 'socks': SAVE.socks = true; break;
       case 'armor': SAVE.armor = true; break;
       case 'life': SAVE.lifeIns = true; break;
@@ -103,8 +105,10 @@ const Shop = {
       if (act === 'tab') { this.tab = d.t; }
       if (act === 'buy') this.buy(cfg.items[Number(d.i)]);
       if (act === 'sellall') {
+        const knots = shopId === 'zorb' && SAVE.cargo.includes('knot');
         const v = Activities.sellAll();
         this.line = v >= 1000 ? 'WOW. That\'s a lot of stuff. Are you okay?' : v >= 200 ? 'Nice haul. Pleasure doing business.' : 'That\'s... it? Okay.';
+        if (knots) this.line = 'Are those GARLIC KNOTS? The Emperor has wanted those for three years! ...I\'ll keep them. For quality control.';
         UI.toast(`Sold for ${U.bucks(v)}!`, 'good');
       }
       if (act === 'hat') { SAVE.hat = d.h; persist(); Sound.play('buy'); }
@@ -161,6 +165,7 @@ const Shop = {
         <tr><td>Status</td><td class="r">${G.progress.includes(p.boss) ? '✅ Beaten (next planet unlocked)' : '❌ Not beaten yet'}</td></tr>
       </table>
       <p class="muted">Dodge with WASD + Space (jump over the shockwave rings!). Red circles on the floor mean MOVE. Everyone in the crew gets pulled in.</p>
+      ${p.boss === 'zorblax' ? `<p class="muted">🍕 ${SAVE.peel ? 'Tip: hold out your Pizza Peel (4) to catch the Emperor\'s flying pizza slices.' : 'Rumor has it Dave\'s Pizza Peel can catch flying pizza.'}</p>` : ''}
       <div class="center">${Net.isHost ? '<button class="btn big red" data-act="fight" style="max-width:320px">⚔ START FIGHT</button>' : '<button class="btn big" disabled style="max-width:360px">Waiting for the captain (host) to start</button>'}</div>`,
     (act) => {
       if (act === 'fight' && Net.isHost) { UI.closePanel(); Game.startBoss(); }

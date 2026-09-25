@@ -61,9 +61,9 @@ const PLANETS = [
     grav: 20, fric: 1.7, pizza: 'Frozen Solid',
   },
   {
-    id: 'zorb', name: 'Zorblax Prime', icon: '👑', boss: 'zorblax', shop: 'zorb', activity: 'none', music: 'zorb',
-    blurb: 'Home of Emperor Zorblax. He ordered the pizza. He is NOT happy.',
-    how: 'Final stop. Gear up at Dave\'s, then deliver the pizza. Good luck.',
+    id: 'zorb', name: 'Zorblax Prime', icon: '👑', boss: 'zorblax', shop: 'zorb', activity: 'meteor', music: 'zorb',
+    blurb: 'Home of Emperor Zorblax. He ordered the pizza. He is NOT happy. Also it rains pepperoni.',
+    how: 'Pepperoni meteors fall here! Buy a Pizza Peel from Dave (4) and stand in the glowing landing circles to catch them.',
     sky: ['#1a0010', '#ff4a2a'], fog: ['#5e1520', 50, 230], stars: 0.7,
     sun: ['#ffb08a', 0.9], hemi: ['#ff9a7a', '#301020', 0.6],
     bodies: [
@@ -89,12 +89,16 @@ const RES = {
   ice:     { name: 'Space Ice', v: 55, icon: '🧊', desc: 'Regular ice, but in SPACE.' },
   crystal: { name: 'Frost Crystal', v: 140, icon: '💎', desc: 'Hums quietly. Might be sentient.' },
   diamond: { name: 'Space Diamond', v: 1100, icon: '💠', desc: 'Forever. Like your delivery time.', rare: true },
+  pep:     { name: 'Space Pepperoni', v: 95, icon: '🔴', desc: 'Still sizzling from re-entry.' },
+  cheese:  { name: 'Cosmic Mozzarella', v: 180, icon: '🧀', desc: 'Stretchy. Suspiciously stretchy.' },
+  knot:    { name: 'Golden Garlic Knot', v: 1600, icon: '🥨', desc: 'The Emperor has been asking for these.', rare: true },
 };
 const LOOT = {
   scrap:    [['bolt', 38], ['can', 30], ['gear', 20], ['chip', 9], ['toaster', 1.6]],
   berry:    [['berry', 72], ['chonk', 25], ['gold', 2.5]],
   bigberry: [['chonk', 70], ['berry', 16], ['gold', 11]],
   crystal:  [['ice', 55], ['crystal', 40], ['diamond', 4]],
+  meteor:   [['pep', 62], ['cheese', 34], ['knot', 4]],
 };
 
 /* ---------- gear ---------- */
@@ -165,6 +169,7 @@ const SHOPS = {
     npc: 'Your Manager, Dave', color: '#dfe6ee',
     greet: ['Oh good, you made it. You\'re three years late. We\'ll talk about it in your review.', 'I flew here to "support" you. Also to sell you armor. From the company.', 'Remember: the customer is always right. Even when he is trying to kill you.'],
     items: [
+      { kind: 'peel', price: 1200, name: 'Pizza Peel', desc: 'A giant pizza paddle. Catches meteors. Company property.' },
       { kind: 'armor', price: 5000, name: 'Company Armor', desc: 'Take 30% less damage. Deducted from your paycheck.' },
       { kind: 'life', price: 3000, name: 'Extra Life Insurance', desc: '+1 life in boss fights. Premiums may apply.' },
       { kind: 'nades', price: 250, name: 'Goo Grenades x5', desc: 'Expense report pending.' },
@@ -238,6 +243,9 @@ const LINES = {
   glorpWin: ['...That\'s rigged. My OWN coin is rigged against me?! Again?', 'Ugh, fine. Take it. Wanna go again?', 'Lucky! Let it ride! Come on, let it ride!'],
   glorpLose: ['Tough break, pal. Gotta spend money to lose money.', 'Ooh, so close. By which I mean not close.', 'Thanks for the donation! Very generous.'],
   bonk: ['BONK!', 'ZAPPED!', 'Get zapped, nerd!', 'Friendly fire!'],
+  meteorBonk: ['A pepperoni meteor hit you. Rude.', 'BONK. You have been topped.', 'Extra pepperoni! (On your head.)',
+    'You caught it with your face. Wrong tool!', 'Ow. That one was still hot.'],
+  meteorCatch: ['CAUGHT!', 'NICE CATCH!', 'SLICE!', 'TOPPED!'],
 };
 
 const SIGNS = {

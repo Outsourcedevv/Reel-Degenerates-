@@ -549,7 +549,11 @@ class BossFight {
       p.mesh.rotation.x += dt * 5; p.mesh.rotation.y += dt * 7;
       if (p.tele) { p.tele.material.opacity = 0.25 + 0.35 * U.clamp(p.t / p.teleT, 0, 1); }
       let dead = false;
-      if (this.canHurt() && this.hurtCheckBody(p.pos, s.r + 0.35)) { this.hurt(s.d, s.k); dead = true; }
+      if (this.canHurt() && this.hurtCheckBody(p.pos, s.r + 0.35)) {
+        if (s.k === 'pizza' && me.tool === 'peel') this.catchSlice(p.pos);
+        else this.hurt(s.d, s.k);
+        dead = true;
+      }
       else if (p.pos.y <= this.surfaceY(p.pos)) {
         dead = true;
         if (p.pos.y > WATER_Y - 0.5) FX.burst(p.pos, s.k === 'snow' || s.k === 'icicle' ? '#ffffff' : col, 5, 3);
@@ -701,6 +705,15 @@ class BossFight {
       if (!m.mesh || m.mesh.position.distanceTo(pos) > radius) continue;
       if (Net.isHost) this.damageMinion(m.id, dmg); else Net.toHost({ t: 'hitm', id: m.id, dmg });
     }
+  }
+
+  // the Pizza Peel catches the Emperor's pizza slices instead of your face
+  catchSlice(pos) {
+    FX.text(pos.clone().add(new V3(0, 0.8, 0)), U.pick(LINES.meteorCatch), '#ffd23f', 50);
+    FX.burst(pos, '#ffc94a', 6, 3);
+    this.me().swing = 1;
+    Sound.play('catch');
+    if (U.chance(0.3)) UI.toast(U.pick(['Caught it. It IS cold, honestly.', 'Returned to sender. Sort of.', 'Delivery accepted. By you. Again.']), '', 1.6);
   }
 
   /* ----- the local player's life ----- */
