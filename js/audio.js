@@ -136,6 +136,32 @@ const Sound = {
     }
   },
 
+  // the ship's engine: a low hum that gets louder with throttle
+  engine(on) {
+    if (!this.ctx) return;
+    if (on && !this.eng) {
+      const ctx = this.ctx, g = ctx.createGain(), f = ctx.createBiquadFilter();
+      g.gain.value = 0; f.type = 'lowpass'; f.frequency.value = 300;
+      const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = 48;
+      const n = ctx.createBufferSource(); n.buffer = this.noiseBuf; n.loop = true;
+      const ng = ctx.createGain(); ng.gain.value = 0.5;
+      o.connect(f); n.connect(ng); ng.connect(f); f.connect(g); g.connect(this.sfx);
+      o.start(); n.start();
+      this.eng = { g, f, o, n };
+    } else if (!on && this.eng) {
+      const e = this.eng; this.eng = null;
+      e.g.gain.setTargetAtTime(0, this.ctx.currentTime, 0.1);
+      setTimeout(() => { try { e.o.stop(); e.n.stop(); } catch (x) { /* already stopped */ } }, 400);
+    }
+  },
+  engineLevel(x) {
+    if (!this.eng) return;
+    const t = this.ctx.currentTime;
+    this.eng.g.gain.setTargetAtTime(0.05 + x * 0.16, t, 0.1);
+    this.eng.f.frequency.setTargetAtTime(220 + x * 900, t, 0.1);
+    this.eng.o.frequency.setTargetAtTime(40 + x * 40, t, 0.1);
+  },
+
   /* ---------------- music ---------------- */
   playMusic(name) {
     if (!this.ctx || this.music.on === name) return;

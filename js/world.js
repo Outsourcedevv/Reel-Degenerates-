@@ -253,10 +253,15 @@ class PlanetWorld {
 
   /* ----- common: ship, merchant, beacon ----- */
   buildShipArea() {
-    const ship = buildShip();
+    // the landing pad, and your ship parked on it (kept separate so it can fly off)
+    mk(CYL(FLY.padR, FLY.padR, 0.1, 40), '#3b3f4a', this.stat, 0, this.h(0, 0) + 0.02, 0);
+    tf(mk(TOR(FLY.padR - 0.5, 0.18, 4, 48), '#ffd23f', this.stat, 0, this.h(0, 0) + 0.09, 0), Math.PI / 2);
+    for (const a of [0, 1, 2, 3]) tf(mk(BOX(0.35, 0.05, 2.2), '#ffd23f', this.stat, Math.sin(a * Math.PI / 2) * 8, this.h(0, 0) + 0.09, Math.cos(a * Math.PI / 2) * 8), 0, a * Math.PI / 2, 0);
+    const ship = (this.parked = buildShip());
+    ship.userData.dynamic = true;
     this.place(ship, 0, 0, 0);
     this.box(0, 0.5, 4.4, 11.5);
-    this.interact(4.2, 0.2, 3.2, 'Board ship (Galaxy Map)', () => Shop.openGalaxy());
+    this.interact(4.2, 0.2, 3.2, 'Board your ship', () => Flight.board());
     const shopCfg = SHOPS[this.cfg.shop];
     const counter = buildCounter(shopCfg.color);
     this.place(counter, 14.2, -6, Math.PI / 2);

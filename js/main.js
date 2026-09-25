@@ -95,23 +95,17 @@ const Game = {
     return p;
   },
   // host: fly everyone somewhere
-  travel(i) {
-    if (!Net.isHost || G.mode !== 'planet' || this.summoning) return;
-    const m = { t: 'launch', to: i, seed: Math.floor(Math.random() * 1e9), from: G.planet };
-    Net.toAll(m);
-    this.launch(m);
-  },
-  // everyone: climb aboard and take off (see flight.js)
+  // everyone: climb into the ship's cockpit (see flight.js)
   launch(m) {
     if (G.panel) UI.closePanel(true);
     G.player.releaseTargets();
     Shots.clear();
     G.mode = 'space';
-    G.world.group.visible = false;
-    Flight.start(m.to, m.seed, m.from);
+    Flight.start(m.from, m.wp);
+    if (!Net.isHost) UI.toast('The captain is taking off. You\'re on board!', 'good', 3);
     this.lock();
   },
-  // host: the ship reached the planet
+  // host: the ship is down on a landing pad; everybody hops out
   arrive(i) {
     if (!G.worlds[i]) { const w = new PlanetWorld(i); G.scene.add(w.group); w.group.visible = false; G.worlds[i] = w; }
     const m = { t: 'land', p: i, taken: Activities.takenList(i) };
@@ -121,16 +115,17 @@ const Game = {
     persist();
   },
   doLand(i, taken) {
+    const moved = i !== G.planet;
     Flight.finish();
-    const fl = U.$('flash');
-    fl.classList.remove('on'); void fl.offsetWidth; fl.classList.add('on');
     Sound.play('land');
     this.loadPlanet(i);
+    G.world.parked.visible = true;
     if (taken) Activities.applyTaken(i, taken);
     G.player.teleport(this.spawnPoint(), G.world.spawnYaw);
     G.mode = 'planet';
     UI.hud();
     Sound.playMusic(PLANETS[i].music);
+    if (!moved) return;
     const pl = PLANETS[i];
     setTimeout(() => UI.bigTitle(`${pl.icon} ${pl.name}`, pl.blurb, '#fff', 3.4), 600);
     setTimeout(() => UI.toast(pl.how, '', 5), 2600);
@@ -454,7 +449,7 @@ const Game = {
       this.applyState(from, m.s);
       Net.sendTo(from, {
         t: 'welcome', planet: G.planet, prog: G.progress, taken: Activities.takenList(G.planet), mode: G.mode, world: G.worldId,
-        fl: G.mode === 'space' ? Flight.info() : null,
+        fl: G.mode === 'space' ? { from: Flight.planet, wp: Flight.wp } : null,
         snail: Casino.round && Casino.phase() === 'bet' ? { seed: Casino.round.seed, bet: Math.max(1, Casino.round.betEnd - G.time) } : null,
       });
       const html = `🚀 <b>${U.esc(m.s.n)}</b> joined the crew!`;
@@ -481,6 +476,7 @@ const Game = {
     N.on('launch', (m) => { if (G.started && G.mode === 'planet') this.launch(m); });
     N.on('fly', (m) => Flight.onSync(m));
     N.on('fev', (m) => { if (!Net.isHost) Flight.onEvent(m); });
+    N.on('fph', (m) => { if (!Net.isHost) Flight.onPhase(m); });
     N.on('land', (m) => { if (G.started) this.doLand(m.p, m.taken); });
     N.on('prog', (m) => { G.progress = m.prog || []; UI.hud(); });
     N.on('summoning', (m) => { if (!Net.isHost) this.onSummoning(m); });
@@ -615,11 +611,11 @@ const Game = {
   },
   keys() {
     if (!G.started) return;
-    if (G.panel && (Input.tap('Escape') || Input.tap('KeyE')) && !document.getElementById('ending')) { Input.pressed = {}; UI.closePanel(); return; }
+    if (G.panel && (Input.tap('Escape') || Input.tap('KeyE') || (Flight.mapOpen && Input.tap('KeyM'))) && !document.getElementById('ending')) { Input.pressed = {}; UI.closePanel(); return; }
     if (G.panel || G.chatting) return;
     if (this.fallback && G.locked && Input.tap('Escape')) { G.locked = false; this.updatePause(); return; }
     if (Input.tap('KeyT') || Input.tap('Enter')) { this.openChat(); return; }
-    if (Input.tap('KeyM')) {
+    if (Input.tap('KeyM') && G.mode !== 'space') { // (M is the map while flying)
       if (Sound.music.on) { Sound.stopMusic(); UI.toast('Music off', '', 1); }
       else { Sound.playMusic(G.mode === 'boss' ? (G.boss && G.boss.id === 'zorblax' ? 'final' : 'boss') : PLANETS[G.planet].music); UI.toast('Music on', '', 1); }
     }

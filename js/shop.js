@@ -142,29 +142,6 @@ const Shop = {
     else UI.openPanel(html, handler);
   },
 
-  /* ----- galaxy map ----- */
-  openGalaxy() {
-    const rows = PLANETS.map((p, i) => {
-      const unlocked = planetUnlocked(i), here = i === G.planet, b = BOSSES[p.boss];
-      const beaten = G.progress.includes(p.boss);
-      let btn;
-      if (here) btn = '<button class="btn small" disabled>📍 You are here</button>';
-      else if (!unlocked) btn = `<button class="btn small" disabled>🔒 Beat ${U.esc(BOSSES[PLANETS[i - 1].boss].name)}</button>`;
-      else if (!Net.isHost) btn = '<button class="btn small" disabled>Captain flies</button>';
-      else btn = `<button class="btn small blue" data-act="fly" data-i="${i}">🚀 Fly here</button>`;
-      return `<div class="boss ${unlocked ? '' : 'locked'} ${beaten ? 'beaten' : ''}">
-        <div class="ico" style="background:${p.sky[1]}">${p.icon}</div>
-        <div><h4>${i + 1}. ${U.esc(p.name)} ${beaten ? '✅' : ''}</h4><div class="q">${U.esc(p.blurb)}</div>
-        <div class="muted">${unlocked ? U.esc(p.how) : '???'} · Boss: ${unlocked ? `${U.esc(b.name)} (summon with ${SUMMONS[p.boss].icon} ${U.esc(SUMMONS[p.boss].name)})` : '???'}</div></div>
-        <div>${btn}</div></div>`;
-    }).join('');
-    UI.openPanel(`<h2 class="ph">🌌 Galaxy Map</h2>
-      <p class="psub">S.S. Late Delivery · Pizza status: cold · ${Net.isHost ? 'You are the captain.' : 'Only the captain (host) can fly the ship.'}</p>${rows}`,
-    (act, d) => {
-      if (act === 'fly' && Net.isHost) { UI.closePanel(true); Game.travel(Number(d.i)); }
-    });
-  },
-
   /* ----- boss altar panel ----- */
   openBoss() {
     const p = PLANETS[G.planet], bid = p.boss, b = BOSSES[bid], sm = SUMMONS[bid];
