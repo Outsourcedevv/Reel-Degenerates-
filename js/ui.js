@@ -8,7 +8,7 @@ const UI = {
   panelTick: null,
 
   init() {
-    ['hud', 'bucks', 'pizza', 'cargo', 'nades', 'roomcode', 'planetname', 'crosshair', 'prompt', 'hint', 'actbar',
+    ['hud', 'bucks', 'pizza', 'goal', 'ammo', 'cargo', 'nades', 'roomcode', 'planetname', 'crosshair', 'prompt', 'hint', 'actbar',
       'bossbar', 'phud', 'feed', 'chat', 'chatinput', 'toasts', 'subtitle', 'bigtitle', 'pickups', 'hurt', 'plist',
       'spectate', 'panel', 'panel-inner'].forEach((id) => (this.el[id] = U.$(id)));
     this.el['panel-inner'].addEventListener('click', (e) => {
@@ -47,7 +47,12 @@ const UI = {
     this.el.nades.textContent = `💣 Goo Grenades x${SAVE.nades}`;
     this.show('nades', SAVE.nades > 0);
     const pl = PLANETS[G.planet];
-    this.el.pizza.textContent = `🍕 Pizza: 3 yrs late · ${pl.pizza}`;
+    let pizza = pl.pizza;
+    if (pl.boss === 'zorblax') pizza = Summons.has('zorblax') ? 'WARM! (a miracle)' : SAVE.heat ? `Warming up 🔥 ${SAVE.heat}/${SUMMONS.zorblax.heat}` : pizza;
+    this.el.pizza.textContent = `🍕 Pizza: 3 yrs late · ${pizza}`;
+    const goal = Summons.goal();
+    if (this.el.goal.textContent !== goal.text) this.el.goal.textContent = goal.text;
+    this.el.goal.classList.toggle('ready', !!goal.ready);
     this.el.planetname.textContent = `${pl.icon} ${pl.name}`;
     this.bucks(0);
     const p = G.player;
@@ -122,6 +127,23 @@ const UI = {
   },
 
   hint(text) { if (this.el.hint.textContent !== text) this.el.hint.textContent = text; },
+
+  // battery counter, bottom right, while the zapper is out
+  ammo(p) {
+    const a = this.el.ammo;
+    const show = p.tool === 'zap' && SAVE.zap >= 0 && !p.dead && !p.ghost && (G.mode === 'planet' || G.mode === 'boss');
+    a.classList.toggle('hidden', !show);
+    if (!show) return;
+    const mag = ZAPPERS[SAVE.zap].mag, rel = p.reloadT > 0;
+    const key = rel ? 'r' + Math.round((1 - p.reloadT / p.reloadDur) * 40) : p.ammo + '/' + mag;
+    if (this._ammoKey === key) return;
+    this._ammoKey = key;
+    a.classList.toggle('reloading', rel);
+    a.classList.toggle('low', !rel && p.ammo <= mag * 0.25);
+    a.querySelector('.n').innerHTML = `⚡${rel ? 0 : p.ammo}<small>/${mag}</small>`;
+    a.querySelector('.fill').style.width = ((rel ? 1 - p.reloadT / p.reloadDur : p.ammo / mag) * 100).toFixed(1) + '%';
+    a.querySelector('.lbl').textContent = rel ? p.reloadMsg + '...' : p.ammo <= mag * 0.25 ? 'PRESS R TO RELOAD' : 'BATTERY · ∞ SPARES';
+  },
 
   /* ----- panels ----- */
   openPanel(html, handler, tick, onClose) {
@@ -206,19 +228,19 @@ const UI = {
         <p><kbd>Space</kbd> jump (double jump with Bounce Boots)</p>
         <p><kbd>E</kbd> talk / use · <kbd>Esc</kbd> pause</p></div>
       <div><h4>Tools</h4>
-        <p><kbd>1</kbd> Zapper: click to shoot (zap your friends too)</p>
+        <p><kbd>1</kbd> Zapper: click to shoot, <kbd>R</kbd> reload (buy your first one at Robo-Pawn)</p>
         <p><kbd>2</kbd> Grabby Vac: hold click on glowing junk</p>
         <p><kbd>3</kbd> Laser Drill: hold click on crystals (buy on Frostbyte)</p>
         <p><kbd>4</kbd> Pizza Peel: catch pepperoni meteors (buy on Zorblax Prime)</p>
         <p><kbd>Right-click</kbd> throw Goo Grenade (boss fights)</p></div>
       <div><h4>The loop</h4>
-        <p>1. Collect the planet's stuff (junk, berries, crystals, meteors).</p>
-        <p>2. Sell it at the planet's shop and buy new gear.</p>
-        <p>3. Beat the boss at the ⚠ BOSS beacon.</p>
-        <p>4. Fly to the next planet from your ship's Galaxy Map.</p></div>
+        <p>1. Collect the planet's stuff and sell it at the shop.</p>
+        <p>2. Buy gear. Guns aren't free: buy your first one!</p>
+        <p>3. Find the boss's summoning item, then use it at the ⚠ altar.</p>
+        <p>4. Win, then fly to the next planet from your ship.</p></div>
       <div><h4>Friends & stuff</h4>
         <p>Host a game and send friends the 5-letter code.</p>
-        <p>The host is the captain: they fly the ship and start boss fights.</p>
+        <p>The host is the captain and flies the ship. Anyone with a summoning item can start a boss fight.</p>
         <p>Gambling unlocks on planet 3, Luckstar. 🎰</p>
         <p><kbd>T</kbd> chat · <kbd>Tab</kbd> crew list · <kbd>M</kbd> music</p></div>
     </div>`;
@@ -285,6 +307,7 @@ function showEnding() {
       <p>Emperor Zorblax opened the box.</p>
       <p>He looked at the pizza for a long time.</p>
       <p>"...It's cold."</p>
+      <p style="opacity:.75">(You reheated it with a meteor. Then you fought him for ten minutes.)</p>
       <p style="font-size:44px;margin:26px 0">★☆☆☆☆</p>
       <p>Tip: <b>$0.00</b></p>
       <p>Comment: <i>"Driver was 3 years late and shot me 400 times. Pizza was cold."</i></p>

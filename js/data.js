@@ -7,7 +7,7 @@ const PLANETS = [
   {
     id: 'scrap', name: 'Scrapyard-9', icon: '🛠️', boss: 'gary', shop: 'scrap', activity: 'scrap', music: 'scrap',
     blurb: 'A moon made entirely of garbage. Smells like it too.',
-    how: 'Use the Grabby Vac (2) on glowing junk piles, then sell it to Robo-Pawn.',
+    how: 'Vacuum glowing junk (2) and sell it to Robo-Pawn. Gary\'s Stinky Crown is buried in the junk somewhere.',
     sky: ['#ff7b54', '#ffd6a5'], fog: ['#f4b58a', 55, 240], stars: 0.25,
     sun: ['#fff0d8', 1.0], hemi: ['#ffe2c4', '#7a5a44', 0.62],
     bodies: [
@@ -21,7 +21,7 @@ const PLANETS = [
   {
     id: 'gloop', name: 'Planet Gloop', icon: '🍄', boss: 'blorb', shop: 'gloop', activity: 'berry', music: 'gloop',
     blurb: 'Low gravity slime jungle. Everything is sticky. Everything.',
-    how: 'Jump up the giant mushrooms to grab Gloop Berries. Low gravity = big jumps!',
+    how: 'Low gravity! Jump up the giant mushrooms for berries. Royal Jelly hides in the big ones on top.',
     sky: ['#5b34e8', '#ff9ad5'], fog: ['#e49ae0', 55, 230], stars: 0.55,
     sun: ['#fff0ff', 0.95], hemi: ['#ffd0f2', '#2f7a6a', 0.62],
     bodies: [
@@ -36,7 +36,7 @@ const PLANETS = [
   {
     id: 'luck', name: 'Luckstar', icon: '🎰', boss: 'jerry', shop: 'luck', activity: 'casino', music: 'luck',
     blurb: 'The casino planet. Nobody has ever left with money. Nobody.',
-    how: 'GAMBLING: slots, snail races, Glorp\'s double-or-nothing and mystery crates.',
+    how: 'GAMBLING: slots, snail races, Glorp\'s coin flips and mystery crates. Jerry\'s Golden Token is in the crates.',
     sky: ['#070420', '#3d1570'], fog: ['#231048', 60, 250], stars: 1.0,
     sun: ['#c9b3ff', 0.7], hemi: ['#8a6cff', '#2a1640', 0.7],
     bodies: [
@@ -50,7 +50,7 @@ const PLANETS = [
   {
     id: 'frost', name: 'Frostbyte', icon: '❄️', boss: 'snowdad', shop: 'frost', activity: 'crystal', music: 'frost',
     blurb: 'Ice planet. The ground is slippery and so are the prices.',
-    how: 'Buy a Laser Drill from Penguin Pete (3) and mine the big crystals. Heated Socks stop the slipping.',
+    how: 'Buy a Laser Drill from Penguin Pete (3) and mine the big crystals. Something is frozen in there...',
     sky: ['#79c2ff', '#f2fbff'], fog: ['#dff2ff', 50, 220], stars: 0.35,
     sun: ['#ffffff', 1.0], hemi: ['#e8f6ff', '#9ab8d0', 0.66],
     bodies: [
@@ -63,7 +63,7 @@ const PLANETS = [
   {
     id: 'zorb', name: 'Zorblax Prime', icon: '👑', boss: 'zorblax', shop: 'zorb', activity: 'meteor', music: 'zorb',
     blurb: 'Home of Emperor Zorblax. He ordered the pizza. He is NOT happy. Also it rains pepperoni.',
-    how: 'Pepperoni meteors fall here! Buy a Pizza Peel from Dave (4) and stand in the glowing landing circles to catch them.',
+    how: 'Pepperoni meteors! Catch them with Dave\'s Pizza Peel (4) to reheat the pizza, then deliver it.',
     sky: ['#1a0010', '#ff4a2a'], fog: ['#5e1520', 50, 230], stars: 0.7,
     sun: ['#ffb08a', 0.9], hemi: ['#ff9a7a', '#301020', 0.6],
     bodies: [
@@ -102,12 +102,13 @@ const LOOT = {
 };
 
 /* ---------- gear ---------- */
+// infinite ammo, but every zapper runs on a battery pack (mag) that needs swapping (rl seconds)
 const ZAPPERS = [
-  { name: 'Pew Pew Zapper',     dmg: 12, cd: 0.30, color: '#ff4b3e' },
-  { name: 'Zapper Deluxe',      dmg: 18, cd: 0.28, color: '#3aa7ff' },
-  { name: 'Goo-Powered Zapper', dmg: 27, cd: 0.27, color: '#ff5fb8' },
-  { name: 'Jackpot Blaster',    dmg: 40, cd: 0.25, color: '#ffd23f' },
-  { name: 'Cryo Cannon',        dmg: 58, cd: 0.23, color: '#9fe3ff' },
+  { name: 'Pew Pew Zapper',     dmg: 14, cd: 0.30, mag: 12, rl: 1.3,  color: '#ff4b3e' },
+  { name: 'Zapper Deluxe',      dmg: 21, cd: 0.28, mag: 14, rl: 1.2,  color: '#3aa7ff' },
+  { name: 'Goo-Powered Zapper', dmg: 31, cd: 0.27, mag: 16, rl: 1.15, color: '#ff5fb8' },
+  { name: 'Jackpot Blaster',    dmg: 45, cd: 0.25, mag: 18, rl: 1.1,  color: '#ffd23f' },
+  { name: 'Cryo Cannon',        dmg: 66, cd: 0.23, mag: 20, rl: 1.0,  color: '#9fe3ff' },
 ];
 const CARGO = [10, 20, 35, 60];
 const VAC = [{ range: 7, speed: 1 }, { range: 9.5, speed: 1.9 }];
@@ -125,6 +126,7 @@ const SHOPS = {
     npc: 'Robo-Pawn 3000', color: '#ffb23e',
     greet: ['BEEP. I BUY GARBAGE. YOU ARE... ALSO GARBAGE? JOKE. HA. HA.', 'WELCOME, CUSTOMER. PLEASE DO NOT LICK THE MERCHANDISE.', 'I HAVE BEEN ON THIS MOON FOR 400 YEARS. BUY SOMETHING.'],
     items: [
+      { kind: 'zap', lvl: 0, price: 200, desc: 'Your first gun! Infinite batteries. Tiny battery pack.' },
       { kind: 'zap', lvl: 1, price: 350, desc: 'Now with a second battery. (AA.)' },
       { kind: 'vac', lvl: 1, price: 300, name: 'Turbo Vac', desc: 'Sucks twice as fast and reaches further.' },
       { kind: 'cargo', lvl: 1, price: 250, name: 'Bigger Backpack', desc: 'Holds 20 things. Mostly garbage.' },
@@ -149,6 +151,7 @@ const SHOPS = {
     items: [
       { kind: 'zap', lvl: 3, price: 4000, desc: 'Every shot sounds like a slot machine. Every. Single. Shot.' },
       { kind: 'nades', price: 200, name: 'Goo Grenades x5', desc: 'Imported from Gloop. Tariffs included.' },
+      { kind: 'summon', b: 'jerry', price: 1500, desc: 'Summons Jackpot Jerry at the altar. Non-refundable. Like everything here.' },
       { kind: 'charm', price: 77, name: 'Lucky Space Foot', desc: 'Does absolutely nothing. You will feel lucky, though.' },
       { kind: 'hat', id: 'tophat', price: 900 },
       { kind: 'hat', id: 'crown', price: 5000 },
@@ -220,6 +223,47 @@ const BOSSES = {
   },
 };
 
+/* ---------- boss summoning items: earn one on each planet, use it at the ⚠ altar ----------
+   src/chance/pity: it drops from that kind of pickup, guaranteed by the pity-th try.
+   heat: the final one is earned by catching that many meteors (reheating the pizza). */
+const SUMMONS = {
+  gary: {
+    name: 'Gary\'s Stinky Crown', icon: '👑', src: 'scrap', chance: 0.15, pity: 6,
+    hint: 'find his Stinky Crown in the junk piles',
+    how: 'It\'s buried in one of the junk piles. Keep vacuuming!',
+    found: 'It smells like a raccoon wore it. Because one did.',
+    line: 'Something in the landfill smells it...',
+  },
+  blorb: {
+    name: 'Royal Jelly', icon: '🍯', src: 'bigberry', chance: 0.25, pity: 4,
+    hint: 'find Royal Jelly in the big berries on the tallest mushrooms',
+    how: 'It hides in the big orange berries on top of the tall mushroom stacks. Start jumping!',
+    found: 'Wobbly, sticky, royal. The Queen will want this back.',
+    line: 'The ground starts to wobble...',
+  },
+  jerry: {
+    name: 'Jerry\'s Golden Token', icon: '🪙',
+    hint: 'win his Golden Token from a Mystery Crate, or buy one from Mr. Chips',
+    how: 'Win one from a Mystery Crate, or buy one from Mr. Chips.',
+    found: 'Shiny! Somewhere, a slot machine just perked up.',
+    line: 'DING DING DING! The whole planet lights up...',
+  },
+  snowdad: {
+    name: 'Carton of Space Milk', icon: '🥛', src: 'crystal', chance: 0.2, pity: 5,
+    hint: 'find the Space Milk frozen in the big crystals',
+    how: 'It\'s frozen inside one of the big crystals. Drill them!',
+    found: 'A dad somewhere just felt a disturbance.',
+    line: 'Somewhere, a dad is finally coming back with the milk...',
+  },
+  zorblax: {
+    name: 'Reheated Pizza', icon: '🔥', heat: 5,
+    hint: 'reheat the pizza by catching pepperoni meteors',
+    how: 'The Emperor won\'t take a cold pizza. Catch pepperoni meteors with the Pizza Peel to reheat it.',
+    found: 'The pizza is WARM. First time in three years. Deliver it. NOW.',
+    line: 'You ring the palace doorbell holding a WARM pizza...',
+  },
+};
+
 /* ---------- casino ---------- */
 const SNAILS = [
   { name: 'Turbo', color: '#ff4b3e' },
@@ -246,6 +290,7 @@ const LINES = {
   meteorBonk: ['A pepperoni meteor hit you. Rude.', 'BONK. You have been topped.', 'Extra pepperoni! (On your head.)',
     'You caught it with your face. Wrong tool!', 'Ow. That one was still hot.'],
   meteorCatch: ['CAUGHT!', 'NICE CATCH!', 'SLICE!', 'TOPPED!'],
+  reload: ['SWAPPING BATTERIES', 'BLOWING ON THE BATTERY', 'FINDING AAs', 'RELOADING'],
 };
 
 const SIGNS = {

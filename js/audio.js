@@ -88,6 +88,13 @@ const Sound = {
       case 'drill': T(180 + Math.random() * 40, 0.08, { type: 'sawtooth', vol: 0.05, filter: 1400 }); break;
       case 'shatter': N(0.4, { ftype: 'highpass', freq: 3000, vol: 0.25 }); [1800, 2400, 3100].forEach((f, i) => T(f, 0.25, { type: 'triangle', vol: 0.06, delay: i * 0.04 })); break;
       case 'pickup': T(880, 0.07, { type: 'triangle', vol: 0.12 }); T(1320, 0.12, { type: 'triangle', vol: 0.12, delay: 0.06 }); break;
+      case 'reload': T(420, 0.05, { type: 'square', vol: 0.06 }); N(0.06, { ftype: 'bandpass', freq: 2500, vol: 0.1, delay: 0.06 }); T(300, 0.06, { type: 'square', vol: 0.05, delay: 0.14 }); break;
+      case 'reloaded': T(660, 0.05, { type: 'square', vol: 0.06 }); T(990, 0.09, { type: 'square', vol: 0.06, delay: 0.05 }); break;
+      case 'summon':
+        T(110, 2.2, { type: 'sawtooth', slide: 55, vol: 0.18, filter: 700, vib: 4 });
+        T(220, 2.0, { type: 'triangle', slide: 110, vol: 0.08, vib: 6 });
+        N(2.0, { freq: 200, slide: 3000, vol: 0.2, attack: 1.2 });
+        break;
       case 'catch': N(0.08, { ftype: 'bandpass', freq: 900, vol: 0.25, q: 2 }); T(784, 0.08, { type: 'triangle', vol: 0.12, delay: 0.04 }); T(1175, 0.18, { type: 'triangle', vol: 0.12, delay: 0.1 }); break;
       case 'rare': [523, 659, 784, 1047, 1319, 1568].forEach((f, i) => T(f, 0.25, { type: 'triangle', vol: 0.12, delay: i * 0.06 })); break;
       case 'coin': T(988, 0.07, { type: 'square', vol: 0.07 }); T(1319, 0.25, { type: 'square', vol: 0.07, delay: 0.07 }); break;

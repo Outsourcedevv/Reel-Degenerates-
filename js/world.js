@@ -279,22 +279,43 @@ class PlanetWorld {
     this.npc(model, 16.2, -6, -Math.PI / 2, shopCfg.npc, 4.1);
     this.interact(13.2, -6, 3.2, `Shop at ${shopCfg.npc}`, () => Shop.open(this.cfg.shop));
   }
+  // the boss altar: use the planet's summoning item here to start the fight
   buildBeacon() {
-    const b = BOSSES[this.cfg.boss];
+    const b = BOSSES[this.cfg.boss], s = SUMMONS[this.cfg.boss];
     const g = new THREE.Group();
     mk(CYL(2.2, 2.6, 0.6, 8), '#3b3f4a', g, 0, 0.3, 0);
     mk(CYL(0.5, 0.7, 4.5, 6), '#555a66', g, 0, 2.8, 0);
     const light = mk(OCT(0.6), '#ff3d3d', g, 0, 5.6, 0, { emissive: '#ff0000' });
-    const sign = signMesh(['⚠ BOSS ⚠', b.name.toUpperCase()], 4.2, 1.6, { bg: '#2b1d14', colors: ['#ff4b3e', '#ffffff'], border: '#ff4b3e', double: true });
-    sign.position.set(0, 2.6, 0.72); g.add(sign);
+    // the sign stands off to the side, so nothing hides the boss climbing out behind the altar
+    mk(BOX(0.18, 2.4, 0.18), '#555a66', g, -3.6, 1.2, 0.3);
+    const sign = signMesh(['⚠ BOSS ALTAR ⚠', b.name.toUpperCase(), 'USE: ' + s.name.toUpperCase()], 3.6, 1.7, { bg: '#2b1d14', colors: ['#ff4b3e', '#ffffff', '#ffd23f'], border: '#ff4b3e', double: true });
+    sign.position.set(-3.6, 2.1, 0.42); g.add(sign);
     this.place(g, 0, -38, 0);
     this.circle(0, -38, 1.0);
+    this.circle(-3.6, -37.7, 0.3);
     const icon = textSprite(b.icon, { size: 90, pad: 4, scale: 0.02 });
     icon.position.set(0, 7.4, -38 + 0);
     icon.position.y += this.h(0, -38);
     this.dyn.add(icon);
     this.anim.push((t) => { light.rotation.y = t * 2; icon.position.y = this.h(0, -38) + 7.4 + Math.sin(t * 2) * 0.3; });
-    this.interact(0, -35.5, 3.5, `Challenge ${b.name}`, () => Shop.openBoss());
+    this.interact(0, -35.5, 3.5, `Boss altar: summon ${b.name}`, () => Shop.openBoss());
+  }
+  // someone used the summoning item: the boss climbs out of the ground behind the altar
+  summonFx(id) {
+    this.clearSummon();
+    const m = buildBossModel(id), z = -44, y = this.h(0, z);
+    m.root.position.set(0, y - 8, z);
+    // a beam of light out of the altar, visible from anywhere on the planet
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, 90, 16, 1, true),
+      new THREE.MeshBasicMaterial({ color: RING_COL[id], transparent: true, opacity: 0.35, depthWrite: false, side: THREE.DoubleSide, fog: false }));
+    beam.position.set(0, this.h(0, -38) + 45, -38);
+    this.dyn.add(m.root, beam);
+    this.rising = { m, beam, t: 0, y, z };
+  }
+  clearSummon() {
+    if (!this.rising) return;
+    for (const o of [this.rising.m.root, this.rising.beam]) { this.dyn.remove(o); disposeObj(o); }
+    this.rising = null;
   }
   jokeSign(x, z, model) {
     const s = SIGNS[this.cfg.id];
@@ -519,6 +540,15 @@ class PlanetWorld {
       nd.mesh.rotation.y += dt * 0.4;
     }
     for (const f of this.anim) f(t, dt);
+    if (this.rising) {
+      const r = this.rising;
+      r.t += dt;
+      const k = Math.min(1, r.t / 2.2), e = 1 - (1 - k) * (1 - k);
+      r.m.root.position.set(Math.sin(r.t * 40) * 0.1 * (1 - k), r.y - 8 * (1 - e), r.z);
+      r.beam.material.opacity = 0.2 + 0.25 * Math.abs(Math.sin(r.t * 8));
+      r.beam.scale.set(1 + Math.sin(r.t * 12) * 0.15, 1, 1 + Math.sin(r.t * 12) * 0.15);
+      if (Math.random() < 0.6) FX.burst(new V3(U.rand(-2.5, 2.5), r.y + 0.3, r.z + U.rand(-2.5, 2.5)), this.cfg.ground[0], 1, 4);
+    }
     if (this.slotMachines) this.slotMachines[0].userData.light.material.emissiveIntensity = 0.6 + Math.sin(t * 6) * 0.5;
   }
 }

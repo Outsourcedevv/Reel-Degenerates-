@@ -117,6 +117,21 @@ input:focus { box-shadow: 0 0 0 4px rgba(255,210,63,.7); }
   background: rgba(20,20,40,.45); border-radius: 10px; padding: 2px 10px;
 }
 #cargo.full { color: #ffb0a8; animation: shake .3s; }
+#goal {
+  font-family: var(--font-h); font-size: 15px; color: #fff; text-shadow: 0 2px 0 var(--ink);
+  background: rgba(43,29,20,.55); border-radius: 10px; padding: 3px 10px; max-width: min(480px, 55vw);
+}
+#goal:empty { display: none; }
+#goal.ready { background: rgba(214,40,27,.85); animation: pulse .6s infinite alternate; }
+#ammo { position: absolute; right: 22px; bottom: 18px; text-align: right; font-family: var(--font-h); color: #fff; text-shadow: 0 3px 0 var(--ink); }
+#ammo .n { font-size: 46px; line-height: 1; }
+#ammo .n small { font-size: 22px; opacity: .75; }
+#ammo .bar { width: 150px; height: 14px; margin: 4px 0 3px auto; border: 3px solid var(--ink); border-radius: 8px; background: rgba(0,0,0,.35); overflow: hidden; }
+#ammo .bar .fill { height: 100%; width: 100%; background: linear-gradient(90deg, #ffd23f, #fff36b); }
+#ammo .lbl { font-size: 13px; letter-spacing: 1px; opacity: .9; }
+#ammo.low .n { color: #ffb0a8; }
+#ammo.reloading .n { color: #9fe3ff; }
+#ammo.reloading .bar .fill { background: linear-gradient(90deg, #3aa7ff, #9fe3ff); }
 #topright { position: absolute; right: 16px; top: 14px; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
 #planetname { font-family: var(--font-h); font-size: 20px; color: #fff; text-shadow: 0 2px 0 var(--ink); }
 #actbar {
@@ -191,7 +206,7 @@ input:focus { box-shadow: 0 0 0 4px rgba(255,210,63,.7); }
 
 #feed { position: absolute; left: 16px; bottom: 100px; width: min(440px, 45vw); display: flex; flex-direction: column; gap: 3px; }
 #hud.inboss #feed { bottom: 190px; }
-#hud.inboss #topleft #cargo, #hud.inboss #topleft #pizza { display: none; }
+#hud.inboss #topleft #cargo, #hud.inboss #topleft #pizza, #hud.inboss #topleft #goal { display: none; }
 #feed .msg {
   font-size: 14px; color: #fff; background: rgba(20,20,30,.5); border-radius: 8px; padding: 3px 9px;
   text-shadow: 0 1px 0 rgba(0,0,0,.6); transition: opacity 1s; word-wrap: break-word;

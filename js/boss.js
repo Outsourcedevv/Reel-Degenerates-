@@ -751,6 +751,7 @@ class BossFight {
       if (this.respawnT <= 0) {
         this.respawnT = null;
         p.dead = false; p.hp = 100; p.inv = 2;
+        p.refill();
         const sp = U.pick(G.arena.spawns);
         p.teleport(sp, Math.atan2(-(this.rpos.x - sp.x), -(this.rpos.z - sp.z)));
         FX.burst(p.pos.clone().setY(p.pos.y + 1), '#7dff8a', 12, 4);
@@ -818,7 +819,8 @@ class BossFight {
       html = `<h2 class="ph center" style="color:#c8281b;padding:0">DEFEAT</h2>
         <p class="center psub">${U.esc(b.name)} wins this time. The pizza gets colder.</p>
         <div class="bigmsg lose">Space hospital bill: -${U.bucks(bill)}</div>
-        <p class="center muted">Tip: upgrade your zapper at the shop, grab Goo Grenades, and jump over the rings!</p>`;
+        <p class="center">For a rematch you'll need another ${SUMMONS[this.id].icon} <b>${U.esc(SUMMONS[this.id].name)}</b>.</p>
+        <p class="center muted">Tip: upgrade your zapper at the shop, grab Goo Grenades, reload when it's safe, and jump over the rings!</p>`;
     }
     setTimeout(() => {
       if (document.pointerLockElement) document.exitPointerLock();

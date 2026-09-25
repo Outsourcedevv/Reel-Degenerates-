@@ -256,10 +256,11 @@ function mergeStatic(root) {
 
 /* ---------- save data (per player name, in this browser) ---------- */
 const SAVE_DEFAULT = {
-  bucks: 100, zap: 0, cargoLvl: 0, vacLvl: 0,
+  bucks: 100, zap: -1, cargoLvl: 0, vacLvl: 0, // zap -1 = no gun yet
   drill: false, boots: false, socks: false, armor: false, lifeIns: false, charm: false, peel: false,
   nades: 0, cargo: [], hats: ['none'], hat: 'none',
   beaten: [], seenIntro: false,
+  summons: {}, pity: {}, heat: 0, // boss summoning items held, tries since the last drop, pizza warmth
   stats: { collected: 0, gambled: 0, won: 0, lost: 0, deaths: 0, jackpots: 0, bossWins: 0 },
 };
 let SAVE = JSON.parse(JSON.stringify(SAVE_DEFAULT));

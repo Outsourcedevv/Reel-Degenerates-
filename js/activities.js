@@ -51,6 +51,7 @@ const Activities = {
     this.setNode(G.planet, n.id, true);
     Net.toHost({ t: 'take', p: G.planet, id: n.id });
     const rare = this.showLoot(got);
+    if (got.length) Summons.tryDrop(n.kind);
     Sound.play(rare ? 'rare' : n.kind === 'crystal' ? 'shatter' : n.kind === 'scrap' ? 'slurp' : 'pickup');
     const col = n.kind === 'crystal' ? '#9fe3ff' : n.kind === 'scrap' ? '#7dff8a' : '#c9b3ff';
     FX.burst(new V3(n.x, n.y + 0.8, n.z), col, n.kind === 'crystal' ? 16 : 8, 4);
@@ -225,6 +226,7 @@ const Meteors = {
       SAVE.stats.collected++;
     }
     const rare = Activities.showLoot(got);
+    Summons.heatUp();
     FX.text(pos.clone().setY(pos.y + 1.6), U.pick(LINES.meteorCatch), '#ffd23f', 56);
     G.player.swing = 1;
     Sound.play(rare ? 'rare' : 'catch');
@@ -240,5 +242,68 @@ const Meteors = {
     G.shake = Math.max(G.shake, 0.8);
     Sound.play('bonk');
     UI.toast(U.pick(LINES.meteorBonk) + (SAVE.peel ? ' (Press 4 for the Pizza Peel!)' : ' Dave sells a Pizza Peel for catching these.'), 'purple', 2.4);
+  },
+};
+
+/* ---------------- boss summoning items ----------------
+   Bosses only show up when someone uses the planet's summoning item at the
+   ⚠ altar. You get it by doing the planet's thing: it drops from junk, big
+   berries or crystals (guaranteed after a few tries), comes out of Luckstar's
+   crates and shop, or (final boss) you earn it by reheating the pizza. */
+const Summons = {
+  has(b) { return (SAVE.summons[b] || 0) > 0; },
+  give(b) {
+    const s = SUMMONS[b];
+    SAVE.summons[b] = 1;
+    SAVE.pity[b] = 0;
+    persist();
+    UI.bigTitle(`${s.icon} ${s.name}!`, s.found, BOSSES[b].color, 3.4);
+    UI.toast(`Take it to the ⚠ boss altar to summon ${BOSSES[b].name}!`, 'gold', 4);
+    const html = `${s.icon} <b>${U.esc(G.name)}</b> found <b>${U.esc(s.name)}</b>! Boss fight incoming...`;
+    UI.feed(html, 'ann');
+    Net.relay({ t: 'ann', html });
+    Sound.play('rare');
+    UI.hud();
+  },
+  take(b) { SAVE.summons[b] = 0; persist(); UI.hud(); },
+  // a planet activity just paid out: maybe the summoning item was in there too
+  tryDrop(kind) {
+    const b = PLANETS[G.planet].boss, s = SUMMONS[b];
+    if (s.src !== kind || this.has(b)) return;
+    SAVE.pity[b] = (SAVE.pity[b] || 0) + 1;
+    if (SAVE.pity[b] >= s.pity || Math.random() < s.chance) this.give(b);
+  },
+  // Zorblax Prime: every meteor you catch warms the pizza up a bit
+  heatUp() {
+    const s = SUMMONS.zorblax;
+    if (this.has('zorblax')) return;
+    SAVE.heat = (SAVE.heat || 0) + 1;
+    if (SAVE.heat >= s.heat) { SAVE.heat = 0; this.give('zorblax'); return; }
+    UI.toast(`🔥 The pizza is warming up! (${SAVE.heat}/${s.heat})`, 'gold', 2);
+    persist();
+    UI.hud();
+  },
+  // the tool you still need before you can get it, if any
+  needs(b, short) {
+    if (b === 'snowdad' && !SAVE.drill) return short ? ' (needs a Laser Drill)' : ' You\'ll need a Laser Drill from Penguin Pete.';
+    if (b === 'zorblax' && !SAVE.peel) return short ? ' (needs a Pizza Peel)' : ' You\'ll need a Pizza Peel from Dave.';
+    return '';
+  },
+  howText(b) {
+    const s = SUMMONS[b];
+    return s.how + (b === 'zorblax' ? ` (${SAVE.heat || 0}/${s.heat})` : '') + this.needs(b);
+  },
+  // the one-line objective under your money
+  goal() {
+    if (!G.started || G.mode !== 'planet') return { text: '' };
+    const b = PLANETS[G.planet].boss, s = SUMMONS[b], boss = BOSSES[b];
+    if (SAVE.zap < 0) return { text: `🎯 Buy your first gun from ${SHOPS[PLANETS[G.planet].shop].npc}` + (G.planet === 0 ? ' (vacuum junk and sell it)' : '') };
+    if (this.has(b)) return { text: `🎯 ${s.icon} ${s.name} ready! Use it at the ⚠ boss altar`, ready: true };
+    if (G.progress.includes(b)) {
+      const next = PLANETS[G.planet + 1];
+      return { text: next ? `🎯 ${boss.name} beaten! Fly to ${next.name} from your ship` : '🎯 Pizza delivered. The casino is still open.' };
+    }
+    const heat = b === 'zorblax' ? ` (${SAVE.heat || 0}/${s.heat})` : '';
+    return { text: `🎯 Summon ${boss.name}: ${s.hint}${heat}${this.needs(b, true)}` };
   },
 };

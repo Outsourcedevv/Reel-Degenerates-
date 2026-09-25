@@ -226,12 +226,13 @@ const Casino = {
         <button class="btn big purple" data-act="open1" style="max-width:240px">Open 1 ($300)</button>
         <button class="btn big pink" data-act="open5" style="max-width:280px">Open 5 ($1,400)</button>
       </div>
-      <p class="center muted">Can contain: hats, bucks, grenades, garbage, or a JACKPOT. Mostly garbage.</p>`, (act) => {
+      <p class="center muted">Can contain: hats, bucks, grenades, Jerry's Golden Token, garbage, or a JACKPOT. Mostly garbage.</p>`, (act) => {
       if (act === 'open1') this.crate(1, 300);
       if (act === 'open5') this.crate(5, 1400);
     });
   },
   rollCrate() {
+    if (!Summons.has('jerry') && Math.random() < 0.12) return { tier: 'LEGENDARY', col: '#ffb21e', name: SUMMONS.jerry.name, token: true };
     const r = Math.random();
     if (r < 0.02) return { tier: 'JACKPOT', col: '#ff3d8b', name: 'JACKPOT CRATE!', bucks: 4000 };
     if (r < 0.07) return { tier: 'LEGENDARY', col: '#ffb21e', name: 'Golden Ticket', bucks: 1000 };
@@ -257,14 +258,17 @@ const Casino = {
     const shakeT = setInterval(() => { Sound.play('tick'); if (++shakes > 12) clearInterval(shakeT); }, 90);
     setTimeout(() => {
       this.opening = false;
-      const results = Array.from({ length: n }, () => this.rollCrate());
-      let payout = 0, best = results[0];
+      const results = [];
+      let payout = 0, best = null;
       const order = ['TRASH', 'DUPLICATE', 'COMMON', 'RARE', 'EPIC', 'LEGENDARY', 'JACKPOT'];
-      for (const r of results) {
+      for (let i = 0; i < n; i++) {
+        const r = this.rollCrate(); // one at a time, so a 5-pack can't hold two tokens
+        results.push(r);
         if (r.bucks) { addBucks(r.bucks, true); payout += r.bucks; }
         if (r.nades) SAVE.nades += r.nades;
         if (r.hat && !SAVE.hats.includes(r.hat)) SAVE.hats.push(r.hat);
-        if (order.indexOf(r.tier) > order.indexOf(best.tier)) best = r;
+        if (r.token) Summons.give('jerry');
+        if (!best || order.indexOf(r.tier) > order.indexOf(best.tier)) best = r;
       }
       gambleStat(cost, payout);
       if (best.tier === 'JACKPOT') { Sound.play('jackpot'); SAVE.stats.jackpots++; bigWinFeed(`📦 <b>${U.esc(G.name)}</b> opened a JACKPOT CRATE! (+$4,000)`); }
@@ -275,8 +279,8 @@ const Casino = {
       if (!box.isConnected || !G.panel) UI.toast(`📦 Crate: ${best.tier}! ${best.name}${payout ? ` (+${U.bucks(payout)} total)` : ''}`, order.indexOf(best.tier) >= 3 ? 'good' : '', 3.5);
       if (!box.isConnected) return;
       box.className = 'gachabox pop';
-      box.textContent = best.tier === 'JACKPOT' ? '💰' : best.tier === 'LEGENDARY' ? '🎫' : best.hat ? '🎩' : best.nades ? '💣' : best.tier === 'TRASH' ? '🧦' : '💵';
-      U.$('cr-res').innerHTML = results.map((r) => `<div class="loot" style="border-color:${r.col}"><div class="rn" style="color:${r.col}">${r.tier}</div><div class="nm">${U.esc(r.name)}</div>${r.bucks ? `<div>+${U.bucks(r.bucks)}</div>` : ''}${r.hat ? '<div class="muted">Wear it at any shop → Hats</div>' : ''}</div>`).join('');
+      box.textContent = best.tier === 'JACKPOT' ? '💰' : best.token ? '🪙' : best.tier === 'LEGENDARY' ? '🎫' : best.hat ? '🎩' : best.nades ? '💣' : best.tier === 'TRASH' ? '🧦' : '💵';
+      U.$('cr-res').innerHTML = results.map((r) => `<div class="loot" style="border-color:${r.col}"><div class="rn" style="color:${r.col}">${r.tier}</div><div class="nm">${U.esc(r.name)}</div>${r.bucks ? `<div>+${U.bucks(r.bucks)}</div>` : ''}${r.hat ? '<div class="muted">Wear it at any shop → Hats</div>' : ''}${r.token ? '<div class="muted">Summons Jackpot Jerry at the ⚠ altar</div>' : ''}</div>`).join('');
       U.$('cr-b').textContent = U.bucks(SAVE.bucks);
     }, 1200);
   },

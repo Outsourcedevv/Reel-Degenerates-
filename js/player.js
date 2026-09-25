@@ -35,8 +35,8 @@ const Input = {
 };
 
 const TOOLS = ['zap', 'vac', 'drill', 'peel'];
-// tools you have to buy first
-const hasTool = (t) => (t !== 'drill' || SAVE.drill) && (t !== 'peel' || SAVE.peel);
+// tools you have to buy first (only the Grabby Vac is free)
+const hasTool = (t) => (t !== 'zap' || SAVE.zap >= 0) && (t !== 'drill' || SAVE.drill) && (t !== 'peel' || SAVE.peel);
 
 class LocalPlayer {
   constructor() {
@@ -48,6 +48,7 @@ class LocalPlayer {
     this.cd = 0; this.nadeCd = 0; this.walkT = 0; this.recoil = 0; this.deadT = 0;
     this.vacT = 0; this.vacTarget = null; this.drillT = 0; this.drillTarget = null;
     this.slideSnd = 0; this.swing = 0;
+    this.ammo = 0; this.reloadT = 0; this.reloadDur = 1; this.reloadMsg = '';
     this.vm = new THREE.Group();
     G.camera.add(this.vm);
     this.vmVac = buildVacVM();
@@ -61,11 +62,23 @@ class LocalPlayer {
 
   refreshGear() {
     if (this.vmZap) { this.vm.remove(this.vmZap); disposeObj(this.vmZap); }
-    this.vmZap = buildZapperVM(ZAPPERS[SAVE.zap].color);
+    this.vmZap = buildZapperVM(ZAPPERS[Math.max(0, SAVE.zap)].color);
     this.vm.add(this.vmZap);
     this.vm.traverse((c) => { if (c.isMesh) { c.castShadow = false; c.receiveShadow = false; } });
     this.layoutVM();
-    this.setTool(hasTool(this.tool) ? this.tool : 'zap', true);
+    this.refill();
+    this.setTool(hasTool(this.tool) ? this.tool : hasTool('zap') ? 'zap' : 'vac', true);
+  }
+  // fresh battery pack (new gun, new boss fight, respawn)
+  refill() {
+    this.reloadT = 0;
+    this.ammo = SAVE.zap >= 0 ? ZAPPERS[SAVE.zap].mag : 0;
+  }
+  startReload() {
+    if (SAVE.zap < 0 || this.tool !== 'zap' || this.reloadT > 0 || this.ammo >= ZAPPERS[SAVE.zap].mag) return;
+    this.reloadT = this.reloadDur = ZAPPERS[SAVE.zap].rl;
+    this.reloadMsg = U.pick(LINES.reload);
+    Sound.play('reload');
   }
   // keep held tools in the lower-right corner on any screen shape
   layoutVM() {
@@ -76,13 +89,17 @@ class LocalPlayer {
   setTool(t, quiet) {
     if (!hasTool(t)) {
       if (!quiet) {
-        UI.toast(t === 'drill' ? 'No Laser Drill yet! Penguin Pete sells one on Frostbyte.' : 'No Pizza Peel yet! Dave sells one on Zorblax Prime.', 'bad');
+        UI.toast({ zap: `No gun yet! ${SHOPS[PLANETS[G.planet].shop].npc} sells the Pew Pew Zapper.`, drill: 'No Laser Drill yet! Penguin Pete sells one on Frostbyte.', peel: 'No Pizza Peel yet! Dave sells one on Zorblax Prime.' }[t], 'bad');
         Sound.play('error');
       }
       return;
     }
-    if (this.tool !== t && !quiet) Sound.play('click');
+    if (this.tool !== t) {
+      if (!quiet) Sound.play('click');
+      this.reloadT = 0; // putting the zapper away cancels a reload
+    }
     this.tool = t;
+    if (t === 'zap' && this.ammo <= 0) this.startReload();
     this.vmZap.visible = t === 'zap';
     this.vmVac.visible = t === 'vac';
     this.vmDrill.visible = t === 'drill';
@@ -121,6 +138,7 @@ class LocalPlayer {
       if (Input.tap('Digit2')) this.setTool('vac');
       if (Input.tap('Digit3')) this.setTool('drill');
       if (Input.tap('Digit4')) this.setTool('peel');
+      if (Input.tap('KeyR')) this.startReload();
       if (Input.wheel) {
         const avail = TOOLS.filter(hasTool);
         const i = (avail.indexOf(this.tool) + (Input.wheel > 0 ? 1 : -1) + avail.length) % avail.length;
@@ -179,6 +197,13 @@ class LocalPlayer {
     this.recoil = U.damp(this.recoil, 0, 14, dt);
     this.swing = Math.max(0, this.swing - dt * 3.5);
     this.vmPeel.rotation.x = Math.sin(this.swing * Math.PI) * 0.7;
+    if (this.reloadT > 0) {
+      this.reloadT -= dt;
+      if (this.reloadT <= 0) { this.refill(); Sound.play('reloaded'); }
+    }
+    // reload animation: tip the zapper down and give the battery a wiggle
+    const rk = this.reloadT > 0 ? Math.sin((1 - this.reloadT / this.reloadDur) * Math.PI) : 0;
+    this.vmZap.rotation.set(-rk * 0.9, 0, rk * 0.35);
     const hs = Math.hypot(this.vel.x, this.vel.z);
     if (this.onGround && hs > 0.5) this.walkT += dt * hs * 1.25;
     if (G.mode === 'boss' && !this.dead && !this.ghost) {
@@ -194,6 +219,7 @@ class LocalPlayer {
     this.checkInteract(canAct && !this.dead);
     // --- camera
     this.updateCamera(dt, hs);
+    UI.ammo(this);
   }
 
   useTool(dt) {
@@ -271,8 +297,12 @@ class LocalPlayer {
   }
 
   fireZap() {
+    if (this.reloadT > 0) return;
+    if (this.ammo <= 0) { this.startReload(); return; }
     const z = ZAPPERS[SAVE.zap];
     this.cd = z.cd;
+    this.ammo--;
+    if (this.ammo <= 0) this.startReload();
     const o = this.vmZap.userData.muzzle.getWorldPosition(new V3());
     const aim = G.camera.position.clone().add(this.camDir(new V3()).multiplyScalar(60));
     const d = aim.sub(o).normalize();
@@ -296,7 +326,7 @@ class LocalPlayer {
 
   checkInteract(can) {
     this.near = null;
-    if (!can || G.mode !== 'planet') { UI.prompt(null); return; }
+    if (!can || G.mode !== 'planet' || G.world.rising) { UI.prompt(null); return; } // no shopping while a boss climbs out
     const dir = this.camDir(new V3());
     let best = null, bd = Infinity;
     for (const it of G.world.inter) {
@@ -331,7 +361,7 @@ class LocalPlayer {
     return {
       x: U.r2(this.pos.x), y: U.r2(this.pos.y), z: U.r2(this.pos.z), yw: U.r2(this.yaw),
       t: TOOLS.indexOf(this.tool), h: SAVE.hat, c: G.color, n: G.name, m: G.mode, p: G.planet,
-      hp: Math.round(this.hp), g: this.ghost ? 1 : 0, d: this.dead ? 1 : 0, $: SAVE.bucks,
+      hp: Math.round(this.hp), g: this.ghost ? 1 : 0, d: this.dead ? 1 : 0, $: SAVE.bucks, z: SAVE.zap,
       u: (this.vacTarget || this.drillTarget || (this.tool === 'zap' && Input.mouseL)) ? 1 : 0,
     };
   }

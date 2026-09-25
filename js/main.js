@@ -5,7 +5,7 @@
 const COLORS = ['#ff7a3d', '#ff4b6e', '#3aa7ff', '#3fcf6a', '#ffd23f', '#9b5de5', '#2ad4c4', '#ff8ad8'];
 
 const Game = {
-  last: 0, sendT: 0, hintT: 0, tickT: 0,
+  last: 0, sendT: 0, hintT: 0, tickT: 0, summoning: false, summonAt: 0,
   arenas: {},
 
   async boot() {
@@ -96,7 +96,7 @@ const Game = {
   },
   // host: fly everyone somewhere
   travel(i) {
-    if (!Net.isHost || G.mode !== 'planet') return;
+    if (!Net.isHost || G.mode !== 'planet' || this.summoning) return;
     if (!G.worlds[i]) { const w = new PlanetWorld(i); G.scene.add(w.group); w.group.visible = false; G.worlds[i] = w; }
     Net.toAll({ t: 'warp', p: i, taken: Activities.takenList(i) });
     this.doTravel(i);
@@ -182,6 +182,7 @@ const Game = {
     G.mode = 'planet';
     G.player.vm.visible = true;
     G.player.refreshGear();
+    G.player.setTool(hasTool('zap') ? 'zap' : 'vac', true);
     G.player.teleport(this.spawnPoint(), G.world.spawnYaw);
     G.player.updateCamera(0, 0);
     U.$('menu').classList.add('hidden');
@@ -202,7 +203,9 @@ const Game = {
           Deliver <b>1 large pepperoni pizza</b> to <b>Emperor Zorblax</b>, Zorblax Prime.<br>
           Order placed: <b>3 years ago</b>. Customer mood: <b>furious</b>.<br><br>
           Your ship, the S.S. Late Delivery, is mostly held together by tape. Each planet on the way has a boss guarding the route,
-          because of course it does. Beat them, earn bucks, buy gear. Do NOT gamble the company's money. (There's a casino planet. I know you.)
+          because of course it does. Bosses don't just show up, though: find the thing that summons them and use it at the ⚠ altar.<br><br>
+          Company policy: no free guns (liability). Buy your own at the pawn shop.
+          Do NOT gamble the company's money. (There's a casino planet. I know you.)
         </div>${UI.howHtml().replace('<h2 class="ph">How to play</h2>', '')}
         <div class="row2"><button class="btn big green" data-act="close" style="max-width:320px">Let's deliver this pizza 🚀</button></div>`);
     } else {
@@ -283,7 +286,7 @@ const Game = {
   startBoss() {
     if (!Net.isHost || G.mode !== 'planet') return;
     const ids = [Net.myId];
-    for (const r of G.remotes.values()) if (r.s.m === 'planet' && r.s.p === G.planet) ids.push(r.id);
+    for (const r of G.remotes.values()) if (r.s.m === 'planet' && r.s.p === G.planet && !(r.s.z < 0)) ids.push(r.id);
     const seed = Math.floor(Math.random() * 1e9);
     const b = PLANETS[G.planet].boss;
     Net.toAll({ t: 'bstart', b, seed, ids });
@@ -294,6 +297,7 @@ const Game = {
     G.player.releaseTargets();
     Shots.clear(); FX.clear();
     G.mode = 'boss';
+    G.world.clearSummon();
     G.world.group.visible = false;
     if (!this.arenas[G.planet]) { const a = new Arena(G.planet); G.scene.add(a.group); this.arenas[G.planet] = a; }
     G.arena = this.arenas[G.planet];
@@ -303,7 +307,8 @@ const Game = {
     const idx = Math.max(0, ids.indexOf(Net.myId));
     p.teleport(G.arena.spawns[idx % G.arena.spawns.length], 0);
     p.hp = 100; p.dead = false; p.ghost = false; p.inv = 3;
-    p.setTool('zap', true);
+    p.refill();
+    if (hasTool('zap')) p.setTool('zap', true);
     G.boss = new BossFight(bossId, seed, ids);
     const def = BOSSES[bossId];
     UI.bossBar(true, def);
@@ -312,6 +317,41 @@ const Game = {
     Sound.playMusic(bossId === 'zorblax' ? 'final' : 'boss');
     Sound.play('roar');
     UI.bigTitle(def.name, `${'★'.repeat(def.stars)} ${def.diff} · "${def.quote}"`, def.color, 3.6);
+    this.lock();
+  },
+  /* ---------------- summoning ---------------- */
+  // anyone holding the planet's summoning item can use it at the altar; the host runs the fight
+  requestSummon(b) {
+    if (!Summons.has(b) || SAVE.zap < 0) return;
+    UI.closePanel(true);
+    Net.toHost({ t: 'summon', b });
+  },
+  // host
+  onSummon(m, from) {
+    const b = PLANETS[G.planet].boss, r = G.remotes.get(from), mine = from === Net.myId;
+    const here = mine || (r && r.s.m === 'planet' && r.s.p === G.planet);
+    if (G.mode !== 'planet' || this.summoning || m.b !== b || !here) {
+      if (mine) UI.toast('Can\'t summon right now!', 'bad');
+      else Net.sendTo(from, { t: 'summonno' });
+      return;
+    }
+    this.summoning = true;
+    this.summonAt = G.time + 2.6; // the fight starts once the boss has climbed out (see frame())
+    const msg = { t: 'summoning', b, who: from, n: mine ? G.name : r.name };
+    Net.toAll(msg);
+    this.onSummoning(msg);
+  },
+  // everyone: the item gets used up and the boss climbs out of the ground
+  onSummoning(m) {
+    const s = SUMMONS[m.b], b = BOSSES[m.b];
+    if (m.who === Net.myId) Summons.take(m.b);
+    if (G.mode !== 'planet') return;
+    if (G.panel && !document.getElementById('ending')) UI.closePanel(true);
+    G.world.summonFx(m.b);
+    UI.bigTitle(`${s.icon} SUMMONING ${b.name.toUpperCase()}`, `${m.n} used ${s.name}! ${s.line}`, b.color, 2.8);
+    UI.feed(`${s.icon} <b>${U.esc(m.n)}</b> used <b>${U.esc(s.name)}</b> at the altar!`, 'ann');
+    Sound.play('summon');
+    G.shake = Math.max(G.shake, 0.9);
     this.lock();
   },
   endBoss(final) {
@@ -365,6 +405,7 @@ const Game = {
     N.on('st', (m, from) => { if (Net.isHost) this.applyState(from, m.s); });
     N.on('take', (m) => { if (Net.isHost) Activities.onTake(m); });
     N.on('snailreq', () => { if (Net.isHost) Casino.onRequest(); });
+    N.on('summon', (m, from) => { if (Net.isHost) this.onSummon(m, from); });
     N.on('hitb', (m, from) => { if (Net.isHost && G.boss && G.boss.inFight(from)) G.boss.damage(Math.min(400, Number(m.dmg) || 0)); });
     N.on('hitm', (m) => { if (Net.isHost && G.boss) G.boss.damageMinion(m.id, Math.min(400, Number(m.dmg) || 0)); });
     N.on('pst', (m, from) => { if (G.boss && m.out) G.boss.out.add(from); });
@@ -378,11 +419,20 @@ const Game = {
       for (const id of [...G.remotes.keys()]) if (!seen.has(id)) { G.remotes.get(id).dispose(); G.remotes.delete(id); }
     });
     N.on('warp', (m) => { if (G.started) this.doTravel(m.p, m.taken); });
-    N.on('prog', (m) => { G.progress = m.prog || []; });
+    N.on('prog', (m) => { G.progress = m.prog || []; UI.hud(); });
+    N.on('summoning', (m) => { if (!Net.isHost) this.onSummoning(m); });
+    N.on('summonno', () => UI.toast('Can\'t summon right now! Try again in a sec.', 'bad'));
     N.on('node', (m) => Activities.onNode(m));
     N.on('snail', (m) => Casino.startRound(m.seed, m.bet));
     N.on('met', (m) => { if (!Net.isHost) Meteors.spawn(m); });
-    N.on('bstart', (m) => { if (G.started && G.mode === 'planet' && m.ids.includes(Net.myId)) this.beginBoss(m.b, m.seed, m.ids); });
+    N.on('bstart', (m) => {
+      if (!G.started || G.mode !== 'planet') return;
+      if (m.ids.includes(Net.myId)) this.beginBoss(m.b, m.seed, m.ids);
+      else {
+        G.world.clearSummon();
+        UI.toast(SAVE.zap < 0 ? 'Your crew is fighting the boss! Buy a gun so you can join the next fight.' : 'Your crew is fighting the boss! Hang tight.', '', 5);
+      }
+    });
     N.on('bs', (m) => { if (G.boss && !Net.isHost) G.boss.onSync(m); });
     N.on('batk', (m) => { if (G.boss && !Net.isHost) G.boss.exec(m.a); });
     N.on('btaunt', (m) => { if (G.boss && !Net.isHost) G.boss.onTaunt(m.text); });
@@ -467,6 +517,7 @@ const Game = {
     if (!paused) {
       G.time += dt;
       this.keys();
+      if (this.summoning && G.time >= this.summonAt) { this.summoning = false; this.startBoss(); }
       if (G.mode === 'menu') {
         const t = G.time * 0.05;
         cam.position.set(Math.cos(t) * 46, 20, Math.sin(t) * 46);
@@ -511,11 +562,13 @@ const Game = {
     const p = G.player;
     let h = '';
     if (G.mode === 'boss') {
-      h = p.ghost ? '' : `Click: zap · Right-click: Goo Grenade (${SAVE.nades}) · Space: jump the rings!`;
+      if (p.ghost) h = '';
+      else if (SAVE.zap < 0) h = `No gun! Right-click: Goo Grenade (${SAVE.nades}) · Space: jump the rings!`;
+      else h = `Click: zap · R: reload · Right-click: Goo Grenade (${SAVE.nades}) · Space: jump the rings!`;
       if (h && G.boss && G.boss.id === 'zorblax' && SAVE.peel) h += ' · 4: Pizza Peel catches pizza!';
     } else if (G.mode === 'planet') {
       const act = PLANETS[G.planet].activity;
-      if (p.tool === 'zap') h = act === 'casino' ? 'Luckstar: go gamble at the casino →' : 'Click to zap (try zapping a friend) · 2: Grabby Vac' + (SAVE.drill ? ' · 3: Laser Drill' : '') + (SAVE.peel ? ' · 4: Pizza Peel' : '');
+      if (p.tool === 'zap') h = act === 'casino' ? 'Luckstar: go gamble at the casino →' : 'Click: zap (try a friend) · R: reload · 2: Grabby Vac' + (SAVE.drill ? ' · 3: Drill' : '') + (SAVE.peel ? ' · 4: Peel' : '');
       else if (p.tool === 'vac') h = act === 'scrap' ? 'Hold click on glowing junk piles' : 'Hold click on junk (there isn\'t much here)';
       else if (p.tool === 'drill') h = 'Hold click on big crystals to mine them';
       else h = act === 'meteor' ? 'Stand inside the glowing landing circles to catch pepperoni meteors!' : 'The Pizza Peel catches meteors on Zorblax Prime';
