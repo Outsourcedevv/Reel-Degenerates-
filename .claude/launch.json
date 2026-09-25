@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "space-goobers",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["C:\\Users\\jamie\\AppData\\Local\\Temp\\claude\\C--Users-jamie-Game\\b66ef8ca-59a9-4490-b296-510851af2eae\\scratchpad\\serve.py", "8766", "C:\\Users\\jamie\\Game"],
+      "port": 8766
+    }
+  ]
+}

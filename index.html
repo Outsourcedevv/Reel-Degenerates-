@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Space Goobers</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍕</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@600;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="game"></div>
+
+<!-- ================= HUD ================= -->
+<div id="hud" class="hidden">
+  <div id="topleft">
+    <div id="bucks">$0</div>
+    <div id="pizza">🍕 Pizza: 3 yrs late · Cold</div>
+    <div id="cargo">🎒 0/10</div>
+    <div id="nades" class="hidden">💣 Goo Grenades x0</div>
+  </div>
+  <div id="topright">
+    <div id="roomcode" class="hidden" title="Click to copy"></div>
+    <div id="planetname"></div>
+  </div>
+  <div id="hotbar">
+    <div class="slot" data-tool="zap"><span class="k">1</span><span class="ic">🔫</span><small>Zapper</small></div>
+    <div class="slot" data-tool="vac"><span class="k">2</span><span class="ic">🌀</span><small>Grabby Vac</small></div>
+    <div class="slot" data-tool="drill"><span class="k">3</span><span class="ic">⛏️</span><small>Laser Drill</small></div>
+  </div>
+  <div id="crosshair"></div>
+  <div id="prompt" class="hidden"></div>
+  <div id="hint"></div>
+  <div id="actbar" class="hidden"><div class="fill"></div><span></span></div>
+  <div id="pickups"></div>
+  <div id="bossbar" class="hidden">
+    <div class="top"><span class="name"></span><span class="diff"></span></div>
+    <div class="bar"><div class="lag"></div><div class="fill"></div></div>
+  </div>
+  <div id="phud" class="hidden">
+    <div class="lives"></div>
+    <div class="hp"><div class="fill"></div><span></span></div>
+    <div class="team"></div>
+  </div>
+  <div id="feed"></div>
+  <div id="chat" class="hidden"><input id="chatinput" maxlength="120" autocomplete="off" placeholder="Say something dumb... (Enter to send)"></div>
+  <div id="toasts"></div>
+  <div id="subtitle" class="hidden"></div>
+  <div id="bigtitle" class="hidden"><div class="t"></div><div class="s"></div></div>
+  <div id="hurt"></div>
+  <div id="plist" class="hidden"></div>
+  <div id="spectate" class="hidden">👻 OUT OF LIVES — SPECTATING</div>
+</div>
+
+<!-- ================= PANELS / MENUS ================= -->
+<div id="panel" class="hidden"><div id="panel-inner"></div></div>
+
+<div id="pause" class="hidden">
+  <div class="menu-card small">
+    <h2 id="pause-title">PAUSED</h2>
+    <button id="p-resume" class="btn big">▶ Click to Play</button>
+    <div class="setting"><label>Mouse sensitivity <b id="v-sens"></b></label><input type="range" id="s-sens" min="0.2" max="3" step="0.1"></div>
+    <div class="setting"><label>Sound volume</label><input type="range" id="s-vol" min="0" max="1" step="0.05"></div>
+    <div class="setting"><label>Music volume</label><input type="range" id="s-mus" min="0" max="1" step="0.05"></div>
+    <div class="row2">
+      <button id="p-how" class="btn small">❓ Controls</button>
+      <button id="p-leave" class="btn small red">🚪 Leave Game</button>
+    </div>
+  </div>
+</div>
+
+<div id="menu" class="hidden">
+  <div class="menu-card">
+    <h1 class="logo"><span class="l1">SPACE</span><span class="l2">GOOBERS</span></h1>
+    <p class="tag">Deliver one pizza across the galaxy. <i>It's already cold.</i></p>
+    <label for="m-name">Your name</label>
+    <input id="m-name" maxlength="14" autocomplete="off" spellcheck="false">
+    <label>Suit color</label>
+    <div id="m-colors"></div>
+    <div class="row"><button id="m-solo" class="btn big">🚀 Play Solo</button></div>
+    <div class="row"><button id="m-host" class="btn big green">🏠 Host Game (get a code)</button></div>
+    <div class="row join"><input id="m-code" maxlength="5" placeholder="CODE" autocomplete="off" spellcheck="false"><button id="m-join" class="btn big blue">🔗 Join Friend</button></div>
+    <div id="m-status"></div>
+    <button id="m-how" class="btn small ghost">❓ How to play</button>
+  </div>
+  <div class="menu-foot">Your pizza is <b>3 years late</b>. No pressure.</div>
+</div>
+
+<div id="loading"><div class="spinner">🍕</div><div id="loading-text">Loading...</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="js/util.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/data.js"></script>
+<script src="js/models.js"></script>
+<script src="js/world.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/net.js"></script>
+<script src="js/player.js"></script>
+<script src="js/activities.js"></script>
+<script src="js/casino.js"></script>
+<script src="js/shop.js"></script>
+<script src="js/boss.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
