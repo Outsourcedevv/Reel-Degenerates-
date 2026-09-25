@@ -572,6 +572,95 @@ function buildMeteor(big) {
   return g;
 }
 
+/* ---------------- space critters (face +Z, ~knee high) ---------------- */
+function buildCritter(kind, gold) {
+  const root = new THREE.Group(), body = grp(root);
+  const C = (c) => (gold ? '#ffd23f' : c); // golden critters are golden all over
+  const E = gold ? { emissive: '#aa7700' } : undefined;
+  const legs = [];
+  const leg = (x, z, h = 0.25, col = '#3b3f4a') => { const l = grp(body, x, h, z); mk(BOX(0.07, h, 0.07), C(col), l, 0, -h / 2, 0, E); legs.push(l); };
+  const eyes = (y, z, spread, r = 0.07) => { for (const s of [-1, 1]) { mk(SPH(r, 6, 5), '#ffffff', body, s * spread, y, z); mk(SPH(r * 0.55, 5, 4), '#111111', body, s * spread, y, z + r * 0.6); } };
+  let hit = 0.45;
+  switch (kind) {
+    case 'rat':
+      tf(mk(SPH(0.28, 8, 6), C('#8a7f74'), body, 0, 0.3, 0, E), 0, 0, 0, 0.9, 0.8, 1.4);
+      mk(SPH(0.17, 8, 6), C('#9a8f84'), body, 0, 0.36, 0.38, E);
+      mk(SPH(0.04, 5, 4), '#ff8fa3', body, 0, 0.36, 0.55);
+      for (const s of [-1, 1]) mk(SPH(0.08, 6, 5), '#ff8fa3', body, s * 0.12, 0.52, 0.34);
+      eyes(0.42, 0.48, 0.07, 0.04);
+      tf(mk(CYL(0.02, 0.03, 0.5, 5), '#ff8fa3', body, 0, 0.3, -0.55), PI / 2 - 0.3);
+      for (const [x, z] of [[-0.14, 0.2], [0.14, 0.2], [-0.14, -0.2], [0.14, -0.2]]) leg(x, z, 0.16, '#6b625a');
+      break;
+    case 'crab':
+      tf(mk(SPH(0.34, 8, 6), C('#c8551f'), body, 0, 0.32, 0, E), 0, 0, 0, 1.3, 0.6, 1);
+      for (const s of [-1, 1]) {
+        mk(CYL(0.02, 0.02, 0.2, 4), C('#c8551f'), body, s * 0.1, 0.5, 0.18, E);
+        mk(SPH(0.06, 6, 5), '#ffffff', body, s * 0.1, 0.62, 0.18); mk(SPH(0.03, 5, 4), '#111111', body, s * 0.1, 0.63, 0.23);
+        const claw = grp(body, s * 0.42, 0.34, 0.25);
+        tf(mk(BOX(0.18, 0.12, 0.24), C('#e0672a'), claw, 0, 0, 0, E), 0, s * 0.4, 0);
+        legs.push(claw);
+        for (let i = 0; i < 3; i++) leg(s * 0.34, -0.1 + i * 0.12, 0.2, '#9a3f14');
+      }
+      break;
+    case 'blob':
+      tf(mk(SPH(0.36, 10, 8), C('#43e0c0'), body, 0, 0.3, 0, gold ? E : { emissive: '#0a4a3a' }), 0, 0, 0, 1, 0.8, 1);
+      eyes(0.38, 0.3, 0.1, 0.07);
+      break;
+    case 'hopper':
+      tf(mk(SPH(0.32, 8, 6), C('#7ddc5a'), body, 0, 0.32, 0, E), 0, 0, 0, 1.1, 0.8, 1.2);
+      for (const s of [-1, 1]) { mk(SPH(0.11, 7, 5), '#ffffff', body, s * 0.15, 0.58, 0.14); mk(SPH(0.06, 5, 4), '#111111', body, s * 0.15, 0.6, 0.23); }
+      mk(BOX(0.3, 0.03, 0.05), '#2b3a1a', body, 0, 0.3, 0.38);
+      for (const s of [-1, 1]) { const l = grp(body, s * 0.28, 0.25, -0.18); tf(mk(BOX(0.12, 0.3, 0.12), C('#5bbf3a'), l, 0, -0.1, 0, E), 0.7); legs.push(l); }
+      leg(-0.12, 0.2, 0.2, '#5bbf3a'); leg(0.12, 0.2, 0.2, '#5bbf3a');
+      break;
+    case 'chipbug':
+      mk(CYL(0.34, 0.34, 0.14, 12), C('#d6281b'), body, 0, 0.3, 0, E);
+      for (let i = 0; i < 6; i++) { const a = (i / 6) * PI * 2; mk(BOX(0.1, 0.15, 0.06), '#ffffff', body, Math.sin(a) * 0.33, 0.3, Math.cos(a) * 0.33).rotation.y = a; }
+      mk(SPH(0.12, 7, 5), C('#2b1d14'), body, 0, 0.3, 0.36, E);
+      eyes(0.36, 0.44, 0.06, 0.035);
+      for (const s of [-1, 1]) { tf(mk(CYL(0.012, 0.012, 0.3, 4), '#2b1d14', body, s * 0.07, 0.48, 0.5), 0.8, 0, s * 0.3); for (let i = 0; i < 3; i++) leg(s * 0.28, -0.15 + i * 0.15, 0.2, '#2b1d14'); }
+      break;
+    case 'dice':
+      mk(BOX(0.5, 0.5, 0.5), C('#ffffff'), body, 0, 0.45, 0, E);
+      for (const [x, y] of [[-0.12, 0.57], [0.12, 0.33], [0, 0.45]]) mk(BOX(0.08, 0.08, 0.02), '#111111', body, x, y, 0.26);
+      for (const s of [-1, 1]) { mk(BOX(0.06, 0.06, 0.02), '#d6281b', body, s * 0.13, 0.6, 0.26); tf(mk(BOX(0.12, 0.03, 0.02), '#111111', body, s * 0.13, 0.67, 0.26), 0, 0, s * 0.4); }
+      leg(-0.14, 0, 0.22); leg(0.14, 0, 0.22);
+      hit = 0.5;
+      break;
+    case 'mite':
+      for (const [x, y, z, r] of [[0, 0.3, 0, 0.28], [0.18, 0.36, -0.1, 0.18], [-0.18, 0.36, -0.1, 0.18], [0, 0.46, -0.12, 0.2]]) mk(ICO(r, 1), C('#f4f8ff'), body, x, y, z, E);
+      eyes(0.36, 0.24, 0.09, 0.06);
+      for (const [x, z] of [[-0.14, 0.1], [0.14, 0.1], [-0.14, -0.14], [0.14, -0.14]]) leg(x, z, 0.14, '#9fb8cc');
+      break;
+    case 'weasel':
+      tf(mk(CYL(0.16, 0.16, 0.9, 7), C('#e8f0f8'), body, 0, 0.32, 0, E), PI / 2);
+      mk(SPH(0.19, 8, 6), C('#f4f8ff'), body, 0, 0.4, 0.52, E);
+      mk(SPH(0.04, 5, 4), '#111111', body, 0, 0.4, 0.71);
+      eyes(0.47, 0.62, 0.08, 0.04);
+      for (const s of [-1, 1]) mk(CONE(0.06, 0.12, 4), C('#e8f0f8'), body, s * 0.1, 0.6, 0.48, E);
+      tf(mk(CYL(0.05, 0.1, 0.5, 6), '#2b3a4a', body, 0, 0.36, -0.65), PI / 2 + 0.3);
+      for (const [x, z] of [[-0.12, 0.3], [0.12, 0.3], [-0.12, -0.3], [0.12, -0.3]]) leg(x, z, 0.2, '#c9d6e3');
+      break;
+    case 'lsnail':
+      tf(mk(CYL(0.16, 0.2, 0.8, 7), C('#6a4c8a'), body, 0, 0.14, 0.05, E), PI / 2);
+      mk(SPH(0.3, 8, 6), C('#ff5a1f'), body, 0, 0.42, -0.12, gold ? E : { emissive: '#aa2a00' });
+      tf(mk(TOR(0.18, 0.05, 4, 10), '#ffb23e', body, 0.2, 0.42, -0.12, { emissive: '#aa5500' }), 0, PI / 2, 0);
+      for (const s of [-1, 1]) { mk(CYL(0.015, 0.015, 0.2, 4), '#6a4c8a', body, s * 0.06, 0.3, 0.42); mk(SPH(0.04, 5, 4), '#111111', body, s * 0.06, 0.4, 0.42); }
+      break;
+    case 'imp':
+      mk(BOX(0.34, 0.4, 0.26), C('#d6281b'), body, 0, 0.42, 0, E);
+      mk(ICO(0.2, 1), C('#ff5a3d'), body, 0, 0.78, 0.02, E);
+      for (const s of [-1, 1]) { tf(mk(CONE(0.05, 0.18, 4), '#2b1d14', body, s * 0.12, 0.98, 0), 0, 0, -s * 0.4); mk(SPH(0.045, 5, 4), '#fff36b', body, s * 0.07, 0.8, 0.19, { emissive: '#aa8800' }); }
+      tf(mk(CYL(0.02, 0.02, 0.4, 4), '#2b1d14', body, 0, 0.4, -0.25), -0.8);
+      for (const s of [-1, 1]) { const a = grp(body, s * 0.22, 0.58, 0); mk(BOX(0.08, 0.26, 0.08), C('#d6281b'), a, 0, -0.12, 0, E); legs.push(a); }
+      leg(-0.09, 0, 0.22, '#8a1a10'); leg(0.09, 0, 0.22, '#8a1a10');
+      hit = 0.55;
+      break;
+  }
+  if (gold) { const sp = mk(OCT(0.08), '#fff6b0', root, 0, 1.0, 0, { emissive: '#ffcc00' }); sp.castShadow = false; body.userData.spark = sp; }
+  return { root, body, legs, hit };
+}
+
 /* ---------------- tools (first-person) ---------------- */
 function buildZapperVM(color) {
   const g = new THREE.Group();

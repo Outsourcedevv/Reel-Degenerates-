@@ -206,10 +206,11 @@ class LocalPlayer {
     this.vmZap.rotation.set(-rk * 0.9, 0, rk * 0.35);
     const hs = Math.hypot(this.vel.x, this.vel.z);
     if (this.onGround && hs > 0.5) this.walkT += dt * hs * 1.25;
-    if (G.mode === 'boss' && !this.dead && !this.ghost) {
+    if ((G.mode === 'boss' || G.mode === 'planet') && !this.dead && !this.ghost) {
       this.regenT -= dt;
-      if (this.regenT <= 0 && this.hp < 100) this.hp = Math.min(100, this.hp + 6 * dt);
+      if (this.regenT <= 0 && this.hp < 100) this.hp = Math.min(100, this.hp + (G.mode === 'boss' ? 6 : 12) * dt);
     }
+    UI.planetHp(this.hp);
     // --- actions
     const busy = !canAct || this.dead || this.ghost;
     if (!busy) this.useTool(dt);
@@ -220,6 +221,25 @@ class LocalPlayer {
     // --- camera
     this.updateCamera(dt, hs);
     UI.ammo(this);
+  }
+
+  // critter bites on a planet (boss fights have their own damage rules)
+  hurtPlanet(d, fx, fz, who) {
+    if (this.inv > 0 || this.dead) return;
+    if (SAVE.armor) d = Math.round(d * 0.7);
+    this.hp -= d; this.inv = 0.5; this.regenT = 4;
+    const dx = this.pos.x - fx, dz = this.pos.z - fz, l = Math.hypot(dx, dz) || 1;
+    this.vel.x += (dx / l) * 7; this.vel.z += (dz / l) * 7; this.vel.y = 4; this.onGround = false;
+    UI.hurt();
+    G.shake = Math.max(G.shake, 0.4);
+    Sound.play('hurt');
+    if (this.hp > 0) return;
+    this.hp = 100; this.inv = 2;
+    this.teleport(Game.spawnPoint(), G.world.spawnYaw);
+    UI.bigTitle('KNOCKED OUT', `${U.pick(LINES.bitten)} (${who}: 1, you: 0)`, '#ff6b6b', 2.8);
+    SAVE.stats.deaths++;
+    persist();
+    Sound.play('death');
   }
 
   useTool(dt) {
@@ -402,7 +422,7 @@ class RemotePlayer {
   }
   update(dt) {
     const s = this.s;
-    this.visible = s.m === G.mode && s.p === G.planet && G.mode !== 'menu';
+    this.visible = s.m === G.mode && s.p === G.planet && G.mode !== 'menu' && G.mode !== 'space'; // in space everyone is inside the ship
     this.m.root.visible = this.visible;
     if (!this.visible) return;
     if (this.pos.distanceTo(this.tpos) > 8) this.pos.copy(this.tpos);
@@ -479,7 +499,9 @@ const Shots = {
           if (s.kind === 'zap') G.boss.localHit(s.dmg, s.pos);
         } else if (s.kind === 'zap' && G.boss.hitMinions(s.prev, s.pos, s.dmg)) hit = true;
       } else if (s.local && G.mode === 'planet' && s.kind === 'zap') {
-        for (const r of G.remotes.values()) {
+        const ch = Critters.hitTest(s.prev, s.pos);
+        if (ch) { hit = true; Critters.hit(ch.c, s.dmg, s.pos.clone()); }
+        for (const r of (hit ? [] : G.remotes.values())) {
           if (!r.visible || r.s.g) continue;
           if (U.segSphere(s.prev, s.pos, r.center, 0.75)) {
             hit = true;

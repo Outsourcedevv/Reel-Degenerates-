@@ -55,6 +55,8 @@
   <div id="hurt"></div>
   <div id="plist" class="hidden"></div>
   <div id="spectate" class="hidden">👻 OUT OF LIVES — SPECTATING</div>
+  <div id="flyhud" class="hidden"><div class="dest"></div><div class="dist"></div><div class="turbo"><span>TURBO</span><div class="bar"><div class="fill"></div></div></div></div>
+  <div id="flyarrow" class="hidden">➤</div>
 </div>
 
 <!-- ================= PANELS / MENUS ================= -->
@@ -75,7 +77,7 @@
 </div>
 
 <div id="menu" class="hidden">
-  <div class="menu-card">
+  <div class="menu-card" id="m-main">
     <h1 class="logo"><span class="l1">SPACE</span><span class="l2">GOOBERS</span></h1>
     <p class="tag">Deliver one pizza across the galaxy. <i>It's already cold.</i></p>
     <label for="m-name">Your name</label>
@@ -88,9 +90,18 @@
     <div id="m-status"></div>
     <button id="m-how" class="btn small ghost">❓ How to play</button>
   </div>
+  <div id="m-worlds" class="menu-card hidden">
+    <h2>🌍 Pick a world</h2>
+    <p class="tag" id="m-wtag"></p>
+    <div id="m-wlist"></div>
+    <label for="m-wname">New world</label>
+    <div class="row"><input id="m-wname" maxlength="24" placeholder="World name" autocomplete="off" spellcheck="false"><button id="m-wnew" class="btn green" style="flex:none">＋ Create</button></div>
+    <button id="m-wback" class="btn small ghost">← Back</button>
+  </div>
   <div class="menu-foot">Your pizza is <b>3 years late</b>. No pressure.</div>
 </div>
 
+<div id="flash"></div>
 <div id="loading"><div class="spinner">🍕</div><div id="loading-text">Loading...</div></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -104,9 +115,11 @@
 <script src="js/net.js"></script>
 <script src="js/player.js"></script>
 <script src="js/activities.js"></script>
+<script src="js/critters.js"></script>
 <script src="js/casino.js"></script>
 <script src="js/shop.js"></script>
 <script src="js/boss.js"></script>
+<script src="js/flight.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

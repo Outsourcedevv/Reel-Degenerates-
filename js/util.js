@@ -265,11 +265,11 @@ const SAVE_DEFAULT = {
 };
 let SAVE = JSON.parse(JSON.stringify(SAVE_DEFAULT));
 let SAVE_KEY = null;
-function loadSave(name) {
-  SAVE_KEY = 'spacegoobers_v1_' + name.toLowerCase().replace(/\s+/g, '_');
+function loadSaveKey(key) {
+  SAVE_KEY = key;
   const fresh = JSON.parse(JSON.stringify(SAVE_DEFAULT));
   try {
-    const raw = localStorage.getItem(SAVE_KEY);
+    const raw = localStorage.getItem(key);
     if (raw) {
       const d = JSON.parse(raw);
       SAVE = Object.assign(fresh, d);
@@ -277,6 +277,55 @@ function loadSave(name) {
     } else SAVE = fresh;
   } catch (e) { SAVE = fresh; }
 }
+const nameKey = (name) => name.toLowerCase().replace(/\s+/g, '_');
+// the old one-save-per-name format (still used if you join a host running an old version)
+function loadSave(name) { loadSaveKey('spacegoobers_v1_' + nameKey(name)); }
+
+/* ---------- worlds: separate playthroughs, like save slots ----------
+   Solo and host games run in one of your worlds. When you join a friend,
+   your stuff in *their* world is kept in a guest save for that world. */
+const Worlds = {
+  list() { return lsGet('spacegoobers_worlds', []); },
+  store(l) { lsSet('spacegoobers_worlds', l); },
+  key: (id) => 'spacegoobers_world_' + id,
+  guestKey: (worldId, name) => 'spacegoobers_guest_' + worldId + '_' + nameKey(name),
+  create(name) {
+    const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    const l = this.list();
+    l.push({ id, name: (name || '').trim().slice(0, 24) || 'World ' + (l.length + 1), created: Date.now(), played: Date.now() });
+    this.store(l);
+    return id;
+  },
+  remove(id) {
+    this.store(this.list().filter((w) => w.id !== id));
+    try { localStorage.removeItem(this.key(id)); } catch (e) { /* ignore */ }
+  },
+  load(id) {
+    loadSaveKey(this.key(id));
+    this.store(this.list().map((w) => (w.id === id ? Object.assign(w, { played: Date.now() }) : w)));
+  },
+  // quick facts for the world picker
+  info(id) {
+    const d = lsGet(this.key(id), null) || {};
+    return { planet: d.planet || 0, beaten: (d.beaten || []).length, bucks: d.bucks == null ? SAVE_DEFAULT.bucks : d.bucks };
+  },
+  // saves from before worlds existed become worlds, once
+  migrate() {
+    if (lsGet('spacegoobers_worlds', null) !== null) return;
+    const l = [];
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (!k || !k.startsWith('spacegoobers_v1_')) continue;
+        const id = 'old' + l.length + Date.now().toString(36);
+        localStorage.setItem(this.key(id), localStorage.getItem(k));
+        const who = k.slice('spacegoobers_v1_'.length).replace(/_/g, ' ');
+        l.push({ id, name: who + "'s world", created: Date.now(), played: Date.now() - l.length });
+      }
+    } catch (e) { /* storage off: no worlds to bring over */ }
+    this.store(l);
+  },
+};
 function persist() {
   if (!SAVE_KEY) return;
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(SAVE)); } catch (e) { /* private mode etc. */ }

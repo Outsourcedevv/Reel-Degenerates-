@@ -97,28 +97,44 @@ const Game = {
   // host: fly everyone somewhere
   travel(i) {
     if (!Net.isHost || G.mode !== 'planet' || this.summoning) return;
+    const m = { t: 'launch', to: i, seed: Math.floor(Math.random() * 1e9), from: G.planet };
+    Net.toAll(m);
+    this.launch(m);
+  },
+  // everyone: climb aboard and take off (see flight.js)
+  launch(m) {
+    if (G.panel) UI.closePanel(true);
+    G.player.releaseTargets();
+    Shots.clear();
+    G.mode = 'space';
+    G.world.group.visible = false;
+    Flight.start(m.to, m.seed, m.from);
+    this.lock();
+  },
+  // host: the ship reached the planet
+  arrive(i) {
     if (!G.worlds[i]) { const w = new PlanetWorld(i); G.scene.add(w.group); w.group.visible = false; G.worlds[i] = w; }
-    Net.toAll({ t: 'warp', p: i, taken: Activities.takenList(i) });
-    this.doTravel(i);
+    const m = { t: 'land', p: i, taken: Activities.takenList(i) };
+    Net.toAll(m);
+    this.doLand(i, m.taken);
     SAVE.planet = i;
     persist();
   },
-  doTravel(i, taken) {
-    if (G.panel) UI.closePanel(true);
-    G.mode = 'warp';
-    G.player.releaseTargets();
-    Warp.play(i, () => {
-      this.loadPlanet(i);
-      if (taken) Activities.applyTaken(i, taken);
-      G.player.teleport(this.spawnPoint(), G.world.spawnYaw);
-      G.mode = 'planet';
-      UI.hud();
-      Sound.playMusic(PLANETS[i].music);
-      const pl = PLANETS[i];
-      setTimeout(() => UI.bigTitle(`${pl.icon} ${pl.name}`, pl.blurb, '#fff', 3.4), 600);
-      setTimeout(() => UI.toast(pl.how, '', 5), 2600);
-      if (i === 2 && !SAVE.seenCasino) { SAVE.seenCasino = true; persist(); setTimeout(() => UI.toast('🎰 GAMBLING UNLOCKED. Please gamble responsibly. (You won\'t.)', 'purple', 5), 5200); }
-    });
+  doLand(i, taken) {
+    Flight.finish();
+    const fl = U.$('flash');
+    fl.classList.remove('on'); void fl.offsetWidth; fl.classList.add('on');
+    Sound.play('land');
+    this.loadPlanet(i);
+    if (taken) Activities.applyTaken(i, taken);
+    G.player.teleport(this.spawnPoint(), G.world.spawnYaw);
+    G.mode = 'planet';
+    UI.hud();
+    Sound.playMusic(PLANETS[i].music);
+    const pl = PLANETS[i];
+    setTimeout(() => UI.bigTitle(`${pl.icon} ${pl.name}`, pl.blurb, '#fff', 3.4), 600);
+    setTimeout(() => UI.toast(pl.how, '', 5), 2600);
+    if (i === 2 && !SAVE.seenCasino) { SAVE.seenCasino = true; persist(); setTimeout(() => UI.toast('🎰 GAMBLING UNLOCKED. Please gamble responsibly. (You won\'t.)', 'purple', 5), 5200); }
   },
 
   /* ---------------- start / menus ---------------- */
@@ -138,19 +154,27 @@ const Game = {
       Sound.init();
     };
     const busy = (on) => ['m-solo', 'm-host', 'm-join'].forEach((id) => (U.$(id).disabled = on));
-    U.$('m-solo').onclick = () => { readName(); this.enterGame(); };
-    U.$('m-host').onclick = () => {
-      readName(); busy(true);
-      status.className = 'ok'; status.textContent = 'Setting up your room...';
-      Net.hostGame((code) => { this.enterGame(); UI.toast(`Room code: ${code}. Send it to your friends!`, 'good', 6); }, (err) => { busy(false); status.className = ''; status.textContent = err; });
-    };
+    U.$('m-solo').onclick = () => { readName(); this.pickWorld('solo'); };
+    U.$('m-host').onclick = () => { readName(); this.pickWorld('host'); };
+    U.$('m-wback').onclick = () => { U.$('m-worlds').classList.add('hidden'); U.$('m-main').classList.remove('hidden'); };
+    U.$('m-wnew').onclick = () => { Sound.play('click'); this.startWorld(Worlds.create(U.$('m-wname').value)); };
+    U.$('m-wname').addEventListener('keydown', (e) => { if (e.key === 'Enter') U.$('m-wnew').click(); });
+    U.$('m-wlist').addEventListener('click', (e) => {
+      const b = e.target.closest('button');
+      if (!b || this.worldBusy) return;
+      Sound.play('click');
+      if (b.dataset.play) this.startWorld(b.dataset.play);
+      if (b.dataset.del) {
+        if (b.dataset.sure) { Worlds.remove(b.dataset.del); this.drawWorlds(); }
+        else { b.dataset.sure = 1; b.textContent = 'Delete?'; }
+      }
+    });
     U.$('m-join').onclick = () => {
       readName();
       const code = U.$('m-code').value.trim().toUpperCase();
       if (code.length !== 5) { status.className = ''; status.textContent = 'Room codes are 5 letters.'; return; }
       busy(true);
       status.className = 'ok'; status.textContent = 'Looking for your friend\'s ship...';
-      loadSave(G.name);
       Net.joinGame(code, () => {
         status.textContent = 'Connected! Boarding...';
         Net.toHost({ t: 'hello', s: G.player.netState() });
@@ -161,9 +185,43 @@ const Game = {
     U.$('m-how').onclick = () => { Sound.init(); UI.showHow(); };
   },
 
+  /* ---------------- worlds ---------------- */
+  pickWorld(mode) {
+    Worlds.migrate();
+    this.worldMode = mode;
+    U.$('m-main').classList.add('hidden');
+    U.$('m-worlds').classList.remove('hidden');
+    U.$('m-wtag').textContent = mode === 'host' ? 'Pick the world your friends will join.' : 'Each world is its own adventure.';
+    this.drawWorlds();
+  },
+  drawWorlds() {
+    const ago = (t) => { const m = Math.round((Date.now() - t) / 60000); return m < 1 ? 'just now' : m < 60 ? m + ' min ago' : m < 1440 ? Math.round(m / 60) + ' h ago' : Math.round(m / 1440) + ' days ago'; };
+    const l = Worlds.list().sort((a, b) => b.played - a.played);
+    U.$('m-wlist').innerHTML = l.length ? l.map((w) => {
+      const i = Worlds.info(w.id), pl = PLANETS[i.planet] || PLANETS[0];
+      return `<div class="wslot"><div class="wico" style="background:${pl.sky[1]}">${pl.icon}</div>
+        <div class="winfo"><b>${U.esc(w.name)}</b><small>${pl.name} · ${i.beaten}/5 bosses · ${U.bucks(i.bucks)} · ${ago(w.played)}</small></div>
+        <button class="btn small green" data-play="${w.id}">▶ Play</button><button class="btn small red" data-del="${w.id}" title="Delete world">🗑</button></div>`;
+    }).join('') : '<p class="wempty">No worlds yet. Make your first one below!</p>';
+  },
+  startWorld(id) {
+    G.worldId = id;
+    Worlds.load(id);
+    if (this.worldMode !== 'host') { this.enterGame(); return; }
+    const tag = U.$('m-wtag');
+    this.worldBusy = true;
+    tag.textContent = 'Setting up your room...';
+    Net.hostGame((code) => { this.enterGame(); UI.toast(`Room code: ${code}. Send it to your friends!`, 'good', 6); },
+      (err) => { this.worldBusy = false; tag.textContent = err; });
+  },
+
   enterGame(welcome) {
     if (G.started) return;
-    loadSave(G.name);
+    // solo/host already loaded their world; guests keep their stuff per host world
+    if (welcome) {
+      if (welcome.world) loadSaveKey(Worlds.guestKey(welcome.world, G.name));
+      else loadSave(G.name);
+    }
     G.online = Net.online;
     G.isHost = Net.isHost;
     if (!Net.online) Net.myId = 'solo';
@@ -395,7 +453,8 @@ const Game = {
       if (!Net.isHost) return;
       this.applyState(from, m.s);
       Net.sendTo(from, {
-        t: 'welcome', planet: G.planet, prog: G.progress, taken: Activities.takenList(G.planet), mode: G.mode,
+        t: 'welcome', planet: G.planet, prog: G.progress, taken: Activities.takenList(G.planet), mode: G.mode, world: G.worldId,
+        fl: G.mode === 'space' ? Flight.info() : null,
         snail: Casino.round && Casino.phase() === 'bet' ? { seed: Casino.round.seed, bet: Math.max(1, Casino.round.betEnd - G.time) } : null,
       });
       const html = `🚀 <b>${U.esc(m.s.n)}</b> joined the crew!`;
@@ -405,26 +464,32 @@ const Game = {
     N.on('st', (m, from) => { if (Net.isHost) this.applyState(from, m.s); });
     N.on('take', (m) => { if (Net.isHost) Activities.onTake(m); });
     N.on('snailreq', () => { if (Net.isHost) Casino.onRequest(); });
+    N.on('hitc', (m, from) => { if (Net.isHost) Critters.damage(m.id, Math.min(400, Number(m.dmg) || 0), from); });
     N.on('summon', (m, from) => { if (Net.isHost) this.onSummon(m, from); });
     N.on('hitb', (m, from) => { if (Net.isHost && G.boss && G.boss.inFight(from)) G.boss.damage(Math.min(400, Number(m.dmg) || 0)); });
     N.on('hitm', (m) => { if (Net.isHost && G.boss) G.boss.damageMinion(m.id, Math.min(400, Number(m.dmg) || 0)); });
     N.on('pst', (m, from) => { if (G.boss && m.out) G.boss.out.add(from); });
     N.on('leave', (m) => this.removeRemote(m.id));
     // --- client side
-    N.on('welcome', (m) => { clearTimeout(this.joinTimeout); this.enterGame(m); if (m.snail) Casino.startRound(m.snail.seed, m.snail.bet); if (m.mode === 'boss') UI.toast('Your crew is in a boss fight! Hang tight here.', '', 5); });
+    N.on('welcome', (m) => { clearTimeout(this.joinTimeout); this.enterGame(m); if (m.fl) this.launch(m.fl); if (m.snail) Casino.startRound(m.snail.seed, m.snail.bet); if (m.mode === 'boss') UI.toast('Your crew is in a boss fight! Hang tight here.', '', 5); });
     N.on('snap', (m) => {
       this.lastSnap = G.time;
       const seen = new Set();
       for (const id in m.p) { seen.add(id); this.applyState(id, m.p[id]); }
       for (const id of [...G.remotes.keys()]) if (!seen.has(id)) { G.remotes.get(id).dispose(); G.remotes.delete(id); }
     });
-    N.on('warp', (m) => { if (G.started) this.doTravel(m.p, m.taken); });
+    N.on('launch', (m) => { if (G.started && G.mode === 'planet') this.launch(m); });
+    N.on('fly', (m) => Flight.onSync(m));
+    N.on('fev', (m) => { if (!Net.isHost) Flight.onEvent(m); });
+    N.on('land', (m) => { if (G.started) this.doLand(m.p, m.taken); });
     N.on('prog', (m) => { G.progress = m.prog || []; UI.hud(); });
     N.on('summoning', (m) => { if (!Net.isHost) this.onSummoning(m); });
     N.on('summonno', () => UI.toast('Can\'t summon right now! Try again in a sec.', 'bad'));
     N.on('node', (m) => Activities.onNode(m));
     N.on('snail', (m) => Casino.startRound(m.seed, m.bet));
     N.on('met', (m) => { if (!Net.isHost) Meteors.spawn(m); });
+    N.on('crit', (m) => Critters.onSnap(m));
+    N.on('cdie', (m) => { if (!Net.isHost) Critters.onDie(m); });
     N.on('bstart', (m) => {
       if (!G.started || G.mode !== 'planet') return;
       if (m.ids.includes(Net.myId)) this.beginBoss(m.b, m.seed, m.ids);
@@ -513,7 +578,7 @@ const Game = {
     const dt = Math.min(0.05, (now - (this.last || now)) / 1000);
     this.last = now;
     const cam = G.camera;
-    const paused = !G.online && G.started && !G.locked && !G.panel && !G.chatting && G.mode !== 'warp';
+    const paused = !G.online && G.started && !G.locked && !G.panel && !G.chatting;
     if (!paused) {
       G.time += dt;
       this.keys();
@@ -523,9 +588,11 @@ const Game = {
         cam.position.set(Math.cos(t) * 46, 20, Math.sin(t) * 46);
         cam.lookAt(0, 3, 0);
       } else if (G.mode === 'planet' || G.mode === 'boss') G.player.update(dt);
+      else if (G.mode === 'space') Flight.update(dt);
       if (G.world && G.mode !== 'boss') G.world.update(dt, G.time);
       if (G.boss) G.boss.update(dt);
       Activities.update(dt);
+      if (G.started && G.mode !== 'space') Critters.update(dt);
       Meteors.update(dt);
       Casino.update(dt);
       Shots.update(dt);
@@ -540,7 +607,7 @@ const Game = {
     } else this.netTick(dt);
     Sky.update(dt, cam);
     G.liquid.update(G.time, cam.position.x, cam.position.z);
-    const f = G.mode === 'menu' ? new V3(0, 0, 0) : G.player.pos;
+    const f = G.mode === 'menu' ? new V3(0, 0, 0) : G.mode === 'space' ? Flight.pos : G.player.pos;
     G.sun.position.set(f.x + 30, f.y + 55, f.z + 18);
     G.sun.target.position.copy(f);
     Input.endFrame();

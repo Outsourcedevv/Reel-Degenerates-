@@ -119,11 +119,15 @@ const HATS = {
   crown: 'Tiny Crown', viking: 'Viking Helmet', halo: 'Halo (Unearned)', propeller: 'Propeller Beanie',
   cowboy: 'Space Cowboy Hat', pizza: 'Pizza Slice', party: 'Party Hat', duck: 'Rubber Duck', bucket: 'Bucket Hat',
 };
+const HAT_ICONS = {
+  none: '🚫', cone: '🚧', antenna: '📡', chef: '👨‍🍳', tophat: '🎩', crown: '👑', viking: '🪓', halo: '😇',
+  propeller: '🚁', cowboy: '🤠', pizza: '🍕', party: '🥳', duck: '🦆', bucket: '🪣',
+};
 const CRATE_HATS = ['propeller', 'cowboy', 'pizza', 'party', 'duck', 'bucket'];
 
 const SHOPS = {
   scrap: {
-    npc: 'Robo-Pawn 3000', color: '#ffb23e',
+    npc: 'Robo-Pawn 3000', color: '#ffb23e', face: '🤖',
     greet: ['BEEP. I BUY GARBAGE. YOU ARE... ALSO GARBAGE? JOKE. HA. HA.', 'WELCOME, CUSTOMER. PLEASE DO NOT LICK THE MERCHANDISE.', 'I HAVE BEEN ON THIS MOON FOR 400 YEARS. BUY SOMETHING.'],
     items: [
       { kind: 'zap', lvl: 0, price: 200, desc: 'Your first gun! Infinite batteries. Tiny battery pack.' },
@@ -135,7 +139,7 @@ const SHOPS = {
     ],
   },
   gloop: {
-    npc: 'Chef Snorbo', color: '#ff7ac8',
+    npc: 'Chef Snorbo', color: '#ff7ac8', face: '🐌',
     greet: ['Bonjour! I am a snail. I am a chef. Do not think about it too hard.', 'Berries! Bring me berries! I am making a soup. It is mostly berries.', 'You look hungry. And sticky. Mostly sticky.'],
     items: [
       { kind: 'boots', price: 600, name: 'Bounce Boots', desc: 'Double jump! Smells faintly of gummy bears.' },
@@ -146,7 +150,7 @@ const SHOPS = {
     ],
   },
   luck: {
-    npc: 'Mr. Chips', color: '#ff3df0',
+    npc: 'Mr. Chips', color: '#ff3df0', face: '👽',
     greet: ['Welcome to Luckstar, where dreams come true! (Dreams do not come true.)', 'Psst. The slots are totally fair. I checked. With my eyes closed.', 'Buy something! Or gamble! Or both! Preferably both!'],
     items: [
       { kind: 'zap', lvl: 3, price: 4000, desc: 'Every shot sounds like a slot machine. Every. Single. Shot.' },
@@ -158,7 +162,7 @@ const SHOPS = {
     ],
   },
   frost: {
-    npc: 'Penguin Pete', color: '#9fe3ff',
+    npc: 'Penguin Pete', color: '#9fe3ff', face: '🐧',
     greet: ['Heh. Nice suit. Bet it\'s cold in there. It\'s cold in here too.', 'I\'m a penguin who sells drills. Don\'t make it weird.', 'Careful, the ground\'s slippery. I\'d know. I slide everywhere.'],
     items: [
       { kind: 'drill', price: 800, name: 'Laser Drill', desc: 'For mining crystals. NOT for dentistry.' },
@@ -169,7 +173,7 @@ const SHOPS = {
     ],
   },
   zorb: {
-    npc: 'Your Manager, Dave', color: '#dfe6ee',
+    npc: 'Your Manager, Dave', color: '#dfe6ee', face: '👔',
     greet: ['Oh good, you made it. You\'re three years late. We\'ll talk about it in your review.', 'I flew here to "support" you. Also to sell you armor. From the company.', 'Remember: the customer is always right. Even when he is trying to kill you.'],
     items: [
       { kind: 'peel', price: 1200, name: 'Pizza Peel', desc: 'A giant pizza paddle. Catches meteors. Company property.' },
@@ -222,6 +226,38 @@ const BOSSES = {
     win: 'Emperor Zorblax has accepted the delivery. Reluctantly.',
   },
 };
+
+/* ---------- space critters: roam each planet, zap them, sell them ----------
+   mood: 'shy' ones run away, 'mean' ones chase you and bite. 5% of spawns are golden (worth 8x). */
+const CRITTERS = {
+  scrap: [
+    { id: 'rat', name: 'Trash Rat', icon: '🐀', mood: 'shy', hp: 18, speed: 5.2, v: 25, desc: 'Lives in garbage. Loves garbage. Is garbage.' },
+    { id: 'crab', name: 'Rust Crab', icon: '🦀', mood: 'mean', hp: 40, speed: 3.2, dmg: 8, v: 45, desc: 'Pinches first, asks questions never.' },
+  ],
+  gloop: [
+    { id: 'blob', name: 'Blobbo', icon: '🟢', mood: 'shy', hp: 30, speed: 4.6, v: 40, desc: 'A tiny sad slime. Sold by the pound.' },
+    { id: 'hopper', name: 'Gloop Hopper', icon: '🐸', mood: 'mean', hp: 55, speed: 4.0, dmg: 9, v: 70, desc: 'Jumps at your face. On purpose.' },
+  ],
+  luck: [
+    { id: 'chipbug', name: 'Chip Beetle', icon: '🪲', mood: 'shy', hp: 45, speed: 5.0, v: 60, desc: 'A beetle shaped like a poker chip. Worth more than one.' },
+    { id: 'dice', name: 'Dice Goblin', icon: '🎲', mood: 'mean', hp: 80, speed: 3.8, dmg: 10, v: 110, desc: 'Rolled a 1 on "being friendly".' },
+  ],
+  frost: [
+    { id: 'mite', name: 'Snow Mite', icon: '❄️', mood: 'shy', hp: 60, speed: 5.4, v: 90, desc: 'Fluffy. Cold. Surprisingly fast.' },
+    { id: 'weasel', name: 'Ice Weasel', icon: '🦦', mood: 'mean', hp: 110, speed: 4.4, dmg: 12, v: 160, desc: 'Weasels are mean. Space weasels are space mean.' },
+  ],
+  zorb: [
+    { id: 'lsnail', name: 'Lava Snail', icon: '🐌', mood: 'shy', hp: 90, speed: 3.0, v: 130, desc: 'Slow, hot, and crunchy.' },
+    { id: 'imp', name: 'Magma Imp', icon: '👹', mood: 'mean', hp: 150, speed: 4.6, dmg: 14, v: 230, desc: 'Works for the Emperor. Paid in lava.' },
+  ],
+};
+// every critter (and its golden version) is also something you can carry and sell
+for (const list of Object.values(CRITTERS)) {
+  for (const c of list) {
+    RES[c.id] = { name: c.name, v: c.v, icon: c.icon, desc: c.desc };
+    RES['g_' + c.id] = { name: 'Golden ' + c.name, v: c.v * 8, icon: '🌟', desc: 'Shiny! Somebody will pay a LOT for this.', rare: true };
+  }
+}
 
 /* ---------- boss summoning items: earn one on each planet, use it at the ⚠ altar ----------
    src/chance/pity: it drops from that kind of pickup, guaranteed by the pity-th try.
@@ -290,6 +326,8 @@ const LINES = {
   meteorBonk: ['A pepperoni meteor hit you. Rude.', 'BONK. You have been topped.', 'Extra pepperoni! (On your head.)',
     'You caught it with your face. Wrong tool!', 'Ow. That one was still hot.'],
   meteorCatch: ['CAUGHT!', 'NICE CATCH!', 'SLICE!', 'TOPPED!'],
+  bitten: ['You got nibbled to pieces. Respawning at the ship.', 'Knocked out by a critter. Embarrassing.', 'The critters won this round.'],
+  flyHit: ['BONK. That was an asteroid.', 'Hull integrity: vibes.', 'Who put a rock there?!', 'Dave is adding that to your bill.'],
   reload: ['SWAPPING BATTERIES', 'BLOWING ON THE BATTERY', 'FINDING AAs', 'RELOADING'],
 };
 

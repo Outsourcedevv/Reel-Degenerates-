@@ -12,36 +12,38 @@ const Shop = {
   tab: 'buy', cur: null, line: '',
 
   itemInfo(it) {
-    // returns {name, desc, stats, owned, equipped, locked, lockMsg}
-    const r = { name: it.name, desc: it.desc || '', stats: '', owned: false, locked: false, lockMsg: '' };
+    // returns {name, desc, icon, chips[], owned, locked, lockMsg}
+    const r = { name: it.name, desc: it.desc || '', icon: '📦', chips: [], owned: false, locked: false, lockMsg: '' };
     switch (it.kind) {
       case 'zap': {
         const z = ZAPPERS[it.lvl];
-        r.name = z.name;
-        r.stats = `⚡ ${z.dmg} damage · ${(1 / z.cd).toFixed(1)} shots/sec · ${z.mag}-shot battery · ${z.rl}s reload`;
+        r.name = z.name; r.icon = '🔫';
+        r.chips = [`⚡ ${z.dmg} dmg`, `🔥 ${(1 / z.cd).toFixed(1)}/s`, `🔋 ${z.mag} shots`, `⏱ ${z.rl}s reload`];
         r.owned = SAVE.zap >= it.lvl;
-        if (!r.owned && SAVE.zap < it.lvl - 1) { r.locked = true; r.lockMsg = `Needs ${ZAPPERS[it.lvl - 1].name} first`; }
+        if (!r.owned && SAVE.zap < it.lvl - 1) { r.locked = true; r.lockMsg = `Needs ${ZAPPERS[it.lvl - 1].name}`; }
         break;
       }
       case 'cargo':
-        r.stats = `🎒 Holds ${CARGO[it.lvl]} items`;
+        r.icon = '🎒'; r.chips = [`🎒 ${CARGO[it.lvl]} slots`];
         r.owned = SAVE.cargoLvl >= it.lvl;
-        if (!r.owned && SAVE.cargoLvl < it.lvl - 1) { r.locked = true; r.lockMsg = 'Needs the smaller backpack first'; }
+        if (!r.owned && SAVE.cargoLvl < it.lvl - 1) { r.locked = true; r.lockMsg = 'Needs the smaller one'; }
         break;
-      case 'vac': r.stats = `Range ${VAC[1].range}m · ${VAC[1].speed}x speed`; r.owned = SAVE.vacLvl >= 1; break;
-      case 'boots': r.stats = 'Press Space in the air to jump again'; r.owned = SAVE.boots; break;
-      case 'drill': r.stats = 'Tool 3 · hold click on crystals'; r.owned = SAVE.drill; break;
-      case 'peel': r.stats = 'Tool 4 · catches meteors (and flying pizza)'; r.owned = SAVE.peel; break;
-      case 'socks': r.stats = 'Normal grip on ice'; r.owned = SAVE.socks; break;
-      case 'armor': r.stats = '-30% damage taken'; r.owned = SAVE.armor; break;
-      case 'life': r.stats = '4 lives per boss fight instead of 3'; r.owned = SAVE.lifeIns; break;
-      case 'charm': r.stats = '+0% luck'; r.owned = SAVE.charm; break;
-      case 'nades': r.stats = `You have ${SAVE.nades}. ${NADE_DMG} damage each, big splash`; break;
-      case 'hat': r.name = HATS[it.id]; r.desc = 'Cosmetic. Friends will see it. Friends will judge.'; r.owned = SAVE.hats.includes(it.id); break;
-      case 'summon': r.name = SUMMONS[it.b].name; r.stats = `${SUMMONS[it.b].icon} Summons ${BOSSES[it.b].name} at the ⚠ altar`; r.owned = Summons.has(it.b); break;
+      case 'vac': r.icon = '🌀'; r.chips = [`📏 ${VAC[1].range}m reach`, `⚡ ${VAC[1].speed}x speed`]; r.owned = SAVE.vacLvl >= 1; break;
+      case 'boots': r.icon = '👢'; r.chips = ['⤴ double jump']; r.owned = SAVE.boots; break;
+      case 'drill': r.icon = '⛏️'; r.chips = ['🔧 tool 3', '💎 mines crystals']; r.owned = SAVE.drill; break;
+      case 'peel': r.icon = '🍕'; r.chips = ['🔧 tool 4', '☄️ catches meteors']; r.owned = SAVE.peel; break;
+      case 'socks': r.icon = '🧦'; r.chips = ['🧊 no slipping']; r.owned = SAVE.socks; break;
+      case 'armor': r.icon = '🛡️'; r.chips = ['🛡️ -30% damage']; r.owned = SAVE.armor; break;
+      case 'life': r.icon = '💖'; r.chips = ['❤️ 4 boss lives']; r.owned = SAVE.lifeIns; break;
+      case 'charm': r.icon = '🦶'; r.chips = ['🍀 +0% luck']; r.owned = SAVE.charm; break;
+      case 'nades': r.icon = '💣'; r.chips = [`💥 ${NADE_DMG} dmg`, `🎒 you have ${SAVE.nades}`]; break;
+      case 'hat': r.name = HATS[it.id]; r.icon = HAT_ICONS[it.id] || '🎩'; r.desc = 'Cosmetic. Friends will see it. Friends will judge.'; r.chips = ['✨ cosmetic']; r.owned = SAVE.hats.includes(it.id); break;
+      case 'summon': r.name = SUMMONS[it.b].name; r.icon = SUMMONS[it.b].icon; r.chips = [`⚠ summons ${BOSSES[it.b].name}`]; r.owned = Summons.has(it.b); break;
     }
     return r;
   },
+  // pricier stuff gets a fancier frame
+  tier(price) { return price >= 5000 ? 'legend' : price >= 1500 ? 'epic' : price >= 400 ? 'rare' : 'common'; },
   buy(it) {
     const info = this.itemInfo(it);
     if (info.owned || info.locked) return;
@@ -77,44 +79,58 @@ const Shop = {
     const items = SAVE.zap < 0 && !cfg.items.some((it) => it.kind === 'zap' && it.lvl === 0) ? [STARTER_GUN, ...cfg.items] : cfg.items;
     if (!G.panel) { this.line = U.pick(cfg.greet); this.tab = SAVE.cargo.length ? 'sell' : 'buy'; }
     if (tab) this.tab = tab;
-    const tabs = ['buy', 'sell', 'hats'].map((t) => `<button class="btn small ${this.tab === t ? 'sel' : ''}" data-act="tab" data-t="${t}">${{ buy: '🛒 Buy', sell: `💰 Sell (${SAVE.cargo.length})`, hats: '🎩 Hats' }[t]}</button>`).join('');
+    const cap = CARGO[SAVE.cargoLvl], value = Activities.cargoValue();
+    const tabs = [['buy', '🛒', 'Buy'], ['sell', '💰', `Sell${SAVE.cargo.length ? ` (${SAVE.cargo.length})` : ''}`], ['hats', '🎩', 'Hats']]
+      .map(([t, ic, lab]) => `<button class="stab ${this.tab === t ? 'on' : ''}" data-act="tab" data-t="${t}"><span>${ic}</span>${lab}</button>`).join('');
     let body = '';
     if (this.tab === 'buy') {
-      body = '<div class="grid">' + items.map((it, i) => {
-        const inf = this.itemInfo(it);
-        const cls = inf.owned ? 'owned' : inf.locked ? 'locked' : '';
-        const btn = inf.owned ? '<button class="btn small" disabled>✔ Owned</button>'
-          : inf.locked ? `<button class="btn small" disabled>🔒 ${U.esc(inf.lockMsg)}</button>`
-          : `<button class="btn small green" data-act="buy" data-i="${i}" ${SAVE.bucks < it.price ? 'disabled' : ''}>Buy ${U.bucks(it.price)}</button>`;
-        return `<div class="item ${cls}"><h4>${U.esc(inf.name)}</h4><div class="stats">${inf.stats}</div><div class="desc">${U.esc(inf.desc)}</div>${btn}</div>`;
+      body = '<div class="cards">' + items.map((it, i) => {
+        const inf = this.itemInfo(it), poor = SAVE.bucks < it.price;
+        const cls = inf.owned ? 'owned' : inf.locked ? 'locked' : poor ? 'poor' : '';
+        const btn = inf.owned ? '<div class="badge ok">✔ OWNED</div>'
+          : inf.locked ? `<div class="badge lock">🔒 ${U.esc(inf.lockMsg)}</div>`
+          : `<button class="price" data-act="buy" data-i="${i}" ${poor ? 'disabled' : ''}>${poor ? '💸 ' : ''}${U.bucks(it.price)}</button>`;
+        return `<div class="card2 ${this.tier(it.price)} ${cls}">
+          <div class="ic">${inf.icon}</div>
+          <div class="info"><h4>${U.esc(inf.name)}</h4><div class="chips">${inf.chips.map((c) => `<span>${U.esc(c)}</span>`).join('')}</div><p>${U.esc(inf.desc)}</p></div>
+          ${btn}</div>`;
       }).join('') + '</div>';
     } else if (this.tab === 'sell') {
       const counts = {};
       for (const id of SAVE.cargo) counts[id] = (counts[id] || 0) + 1;
-      const rows = Object.keys(counts).sort((a, b) => RES[b].v - RES[a].v).map((id) => {
+      const rows = Object.keys(counts).sort((a, b) => RES[b].v * counts[b] - RES[a].v * counts[a]).map((id) => {
         const r = RES[id];
-        return `<tr><td>${r.icon} ${U.esc(r.name)}<div class="muted">${U.esc(r.desc)}</div></td><td class="r">x${counts[id]}</td><td class="r">${U.bucks(r.v)}</td><td class="r"><b>${U.bucks(r.v * counts[id])}</b></td></tr>`;
+        return `<div class="srow ${r.rare ? 'rare' : ''}"><div class="ic">${r.icon}</div>
+          <div class="info"><b>${U.esc(r.name)}</b><small>${U.esc(r.desc)}</small></div>
+          <div class="qty">x${counts[id]}</div><div class="each">${U.bucks(r.v)} each</div>
+          <button class="price small" data-act="sell1" data-id="${id}">${U.bucks(r.v * counts[id])}</button></div>`;
       }).join('');
       body = SAVE.cargo.length
-        ? `<table class="list"><tr><th>Item</th><th class="r">Qty</th><th class="r">Each</th><th class="r">Total</th></tr>${rows}</table>
-           <div class="center" style="margin-top:14px"><button class="btn big green" data-act="sellall" style="max-width:340px">💰 Sell everything for ${U.bucks(Activities.cargoValue())}</button></div>`
-        : '<p class="center" style="font-size:18px;margin:30px 0">Your backpack is empty. Go collect stuff!</p>';
+        ? `<div class="srows">${rows}</div><button class="sellall" data-act="sellall">💰 Sell everything · <b>${U.bucks(value)}</b></button>`
+        : '<div class="empty"><div>🎒</div>Your backpack is empty.<br>Go vacuum, catch or zap something!</div>';
     } else {
       const hats = ['none', ...SAVE.hats.filter((h) => h !== 'none')];
-      body = '<div class="grid">' + hats.map((h) => `<div class="item ${SAVE.hat === h ? 'equipped' : ''}"><h4>${U.esc(HATS[h])}</h4>
-        ${SAVE.hat === h ? '<button class="btn small" disabled>Wearing</button>' : `<button class="btn small" data-act="hat" data-h="${h}">Wear</button>`}</div>`).join('') + '</div>' +
-        '<p class="center muted">Get more hats from shops, and from Mystery Crates on Luckstar.</p>';
+      body = '<div class="cards hats">' + hats.map((h) => `<div class="card2 ${SAVE.hat === h ? 'owned' : ''}"><div class="ic">${HAT_ICONS[h] || '🎩'}</div>
+        <div class="info"><h4>${U.esc(HATS[h])}</h4></div>
+        ${SAVE.hat === h ? '<div class="badge ok">WEARING</div>' : `<button class="price" data-act="hat" data-h="${h}">Wear</button>`}</div>`).join('') + '</div>' +
+        '<p class="tip">More hats come from shops, and from Mystery Crates on Luckstar.</p>';
     }
-    const html = `<h2 class="ph">${U.esc(cfg.npc)}</h2>
-      <p class="psub">Your bucks: <b>${U.bucks(SAVE.bucks)}</b> · Backpack: ${SAVE.cargo.length}/${CARGO[SAVE.cargoLvl]}</p>
-      <div class="npc-line" data-who="${U.esc(cfg.npc.toUpperCase())}">${U.esc(this.line)}</div>
-      <div class="tabs">${tabs}</div>${body}`;
+    const html = `<div class="shop2" style="--acc:${cfg.color}">
+      <aside class="keeper">
+        <div class="face">${cfg.face}</div>
+        <div class="kname">${U.esc(cfg.npc)}</div>
+        <div class="bubble">${U.esc(this.line)}</div>
+        <div class="wallet"><small>YOUR BUCKS</small><b>${U.bucks(SAVE.bucks)}</b></div>
+        <div class="bag"><small>BACKPACK ${SAVE.cargo.length}/${cap}${value ? ` · worth ${U.bucks(value)}` : ''}</small><div class="meter"><i style="width:${Math.min(100, (SAVE.cargo.length / cap) * 100)}%"></i></div></div>
+      </aside>
+      <section class="wares"><div class="stabs">${tabs}</div><div class="wbody">${body}</div></section>
+    </div>`;
     const handler = (act, d) => {
       if (act === 'tab') { this.tab = d.t; }
       if (act === 'buy') this.buy(items[Number(d.i)]);
-      if (act === 'sellall') {
-        const knots = shopId === 'zorb' && SAVE.cargo.includes('knot');
-        const v = Activities.sellAll();
+      if (act === 'sellall' || act === 'sell1') {
+        const knots = shopId === 'zorb' && (act === 'sellall' ? SAVE.cargo.includes('knot') : d.id === 'knot');
+        const v = act === 'sellall' ? Activities.sellAll() : Activities.sellType(d.id);
         this.line = v >= 1000 ? 'WOW. That\'s a lot of stuff. Are you okay?' : v >= 200 ? 'Nice haul. Pleasure doing business.' : 'That\'s... it? Okay.';
         if (knots) this.line = 'Are those GARLIC KNOTS? The Emperor has wanted those for three years! ...I\'ll keep them. For quality control.';
         UI.toast(`Sold for ${U.bucks(v)}!`, 'good');

@@ -106,6 +106,16 @@ const Activities = {
   onNode(m) { this.setNode(m.p, m.id, !m.on); },
 
   cargoValue() { return SAVE.cargo.reduce((s, id) => s + RES[id].v, 0); },
+  // sell every one of one kind of thing
+  sellType(id) {
+    const n = SAVE.cargo.filter((x) => x === id).length;
+    if (!n) return 0;
+    SAVE.cargo = SAVE.cargo.filter((x) => x !== id);
+    addBucks(RES[id].v * n);
+    Sound.play('cash');
+    UI.hud();
+    return RES[id].v * n;
+  },
   sellAll() {
     const v = this.cargoValue(), n = SAVE.cargo.length;
     if (!n) return 0;

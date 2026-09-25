@@ -512,6 +512,12 @@ class PlanetWorld {
     }
   }
   surfaceAt(x, z) { return Math.max(this.h(x, z), WATER_Y); }
+  // where a critter can walk: dry land, not into buildings
+  walkable(x, z) {
+    if (Math.hypot(x, z) > 62 || this.h(x, z) < 0.6) return false;
+    for (const b of this.boxes) if (x > b.x0 && x < b.x1 && z > b.z0 && z < b.z1) return false;
+    return true;
+  }
   // open dry ground for a meteor to hit: not a building or rock, and not the
   // flat pads (your ship and the shop are a safe zone)
   landable(x, z) {

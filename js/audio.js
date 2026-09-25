@@ -211,6 +211,7 @@ const TRACKS = {
   luck:  { bpm: 118, chords: [[62, 65, 69, 72], [67, 71, 74, 77], [60, 64, 67, 71], [57, 61, 64, 67]], pat: [0, 1, 2, 3], drums: 'swing', walk: true, wave: 'triangle' },
   frost: { bpm: 88,  chords: [[64, 67, 71], [60, 64, 67], [62, 66, 69], [59, 62, 66]], pat: [0, 1, 2, 3, 2, 1], every: 2, drums: 'soft', wave: 'sine', len: 0.5, sparkle: 0.6, oct: 1 },
   zorb:  { bpm: 96,  chords: [[57, 60, 64], [58, 62, 65], [57, 60, 64], [56, 59, 64]], pat: [0, 1, 2, 1], drums: 'soft', wave: 'sawtooth', bright: 900, bass: 'sawtooth' },
+  space: { bpm: 124, chords: [[57, 60, 64, 67], [53, 57, 60, 64], [55, 59, 62, 66], [52, 55, 59, 62]], pat: [0, 1, 2, 3, 2, 1], drums: 'hard', drive: true, wave: 'triangle', bright: 2200, sparkle: 0.4, vol: 0.8 },
   boss:  { bpm: 150, chords: [[57, 60, 64], [53, 57, 60], [55, 59, 62], [52, 56, 59]], pat: [0, 2, 1, 2], drums: 'hard', drive: true, bass: 'sawtooth', wave: 'square', bright: 1800, stabs: [0, 3, 6, 10, 12], vol: 0.9 },
   final: { bpm: 168, chords: [[50, 53, 57], [46, 50, 53], [48, 52, 55], [45, 49, 52]], pat: [0, 1, 2, 1, 0, 2], drums: 'hard', drive: true, bass: 'sawtooth', wave: 'sawtooth', bright: 1600, stabs: [0, 2, 6, 8, 11, 14], vol: 0.9 },
 };
