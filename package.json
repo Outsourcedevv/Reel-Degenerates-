@@ -1,0 +1,29 @@
+{
+  "name": "space-goobers",
+  "productName": "Space Goobers",
+  "version": "1.0.0",
+  "description": "Deliver one pizza across the galaxy with your friends.",
+  "main": "desktop/main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --publish never"
+  },
+  "devDependencies": {
+    "electron": "^44.4.5",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "com.spacegoobers.game",
+    "productName": "Space Goobers",
+    "artifactName": "Space-Goobers-${version}-${os}-${arch}.${ext}",
+    "files": ["index.html", "css/**", "js/**", "vendor/**", "desktop/**", "package.json"],
+    "directories": { "output": "dist", "buildResources": "desktop" },
+    "icon": "desktop/icon.png",
+    "win": { "target": [{ "target": "nsis", "arch": ["x64"] }, { "target": "portable", "arch": ["x64"] }] },
+    "portable": { "artifactName": "Space-Goobers-${version}-portable.exe" },
+    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true, "artifactName": "Space-Goobers-${version}-Setup.exe" },
+    "mac": { "target": [{ "target": "dmg", "arch": ["universal"] }], "category": "public.app-category.games", "identity": null },
+    "linux": { "target": [{ "target": "AppImage", "arch": ["x64"] }], "category": "Game" }
+  }
+}

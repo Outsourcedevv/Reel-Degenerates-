@@ -3,10 +3,21 @@
 A silly low-poly space game you can play with friends. You deliver **one pizza** across the galaxy to
 Emperor Zorblax. It is three years late. It is cold. Every planet has a boss in the way.
 
-## Play
+## Download the app
 
-Open `index.html` in Chrome or Edge (double-clicking it works). You need a keyboard and mouse, and an
-internet connection (the 3D engine and multiplayer load from the web).
+Get it from the [Releases page](https://github.com/Outsourcedevv/Reel-Degenerates-/releases/latest):
+
+- **Windows:** `Space-Goobers-...-Setup.exe` installs it, or `...-portable.exe` runs without installing. If Windows
+  says "Windows protected your PC", click **More info** then **Run anyway** (the app isn't code-signed).
+- **Mac:** the `.dmg`. The first time, right-click the app and choose **Open**.
+- **Linux:** the `.AppImage`.
+
+Send your friends that link, everyone installs it, and you can play together (see below). Solo works offline;
+multiplayer needs internet. Press `F11` for fullscreen.
+
+## Play in a browser
+
+Or open `index.html` in Chrome or Edge (double-clicking it works). You need a keyboard and mouse.
 
 Click **Play Solo** or **Host Game**, then pick a world or create a new one. When you create a world you pick a
 difficulty:
@@ -78,7 +89,7 @@ and you crash (it costs you a repair fee). Planets you haven't unlocked yet turn
 ## For tinkerers
 
 No build step: it's plain HTML, CSS and JavaScript using [three.js](https://threejs.org) (r128) for the
-graphics and [PeerJS](https://peerjs.com) for multiplayer. Graphics settings (bloom and color grading on
+graphics and [PeerJS](https://peerjs.com) for multiplayer (both bundled in `vendor/`). Graphics settings (bloom and color grading on
 High, off on Low for slower computers) are in the pause menu. Every sound and song is made in code. Worlds are saved
 in your browser (clearing browser data deletes them).
 
@@ -88,3 +99,6 @@ in your browser (clearing browser data deletes them).
 - `js/critters.js`: space critters · `js/flight.js`: the ship, cockpit, star map and landing · `js/shop.js`: shops, boss altars
 - `js/post.js`: bloom and color grading · `js/icons.js`: interface icons
 - `js/main.js`: game loop, menus, multiplayer glue · `js/net.js`: networking
+- `desktop/`: the desktop app (Electron). `npm install` then `npm start` runs it; `npm run dist` builds installers.
+  Pushing a tag like `v1.0.1` (bump `version` in `package.json` first) makes GitHub build Windows, Mac and Linux
+  downloads and post them on the Releases page.
