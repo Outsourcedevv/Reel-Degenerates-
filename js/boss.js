@@ -26,7 +26,7 @@ class BossFight {
     this.projs = []; this.rings = []; this.slams = []; this.lanes = [];
     this.minions = new Map();
     this.out = new Set();
-    this.lives = SAVE.lifeIns ? 4 : 3;
+    this.lives = DIFFS[G.diff].perma ? 1 : SAVE.lifeIns ? 4 : 3;
     this.flash = 0;
     this.reel = null;
     this.over = false;
@@ -720,6 +720,7 @@ class BossFight {
   hurt(d, kind) {
     const p = this.me();
     if (!this.canHurt()) return;
+    d = Math.round(d * Game.dmgMul());
     if (SAVE.armor) d = Math.round(d * 0.7);
     p.hp -= d; p.inv = 0.75; p.regenT = 4;
     UI.hurt();
@@ -736,6 +737,7 @@ class BossFight {
     SAVE.stats.deaths++;
     persist();
     Sound.play('death');
+    if (DIFFS[G.diff].perma) { Game.permaDeath(this.def.name); return; }
     if (this.lives > 0) {
       UI.bigTitle('YOU DIED', `${U.pick(LINES.death)} (${this.lives} ${this.lives === 1 ? 'life' : 'lives'} left)`, '#ff6b6b', 2.8);
       this.respawnT = 3.2;

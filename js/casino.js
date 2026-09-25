@@ -235,7 +235,7 @@ const Casino = {
     });
   },
   rollCrate() {
-    if (!Summons.has('jerry') && Math.random() < 0.12) return { tier: 'LEGENDARY', col: '#ffb21e', name: SUMMONS.jerry.name, token: true };
+    if (!Summons.has('jerry') && Math.random() < 0.03) return { tier: 'LEGENDARY', col: '#ffb21e', name: SUMMONS.jerry.name, token: true };
     const r = Math.random();
     if (r < 0.02) return { tier: 'JACKPOT', col: '#ff3d8b', name: 'JACKPOT CRATE!', bucks: 4000 };
     if (r < 0.07) return { tier: 'LEGENDARY', col: '#ffb21e', name: 'Golden Ticket', bucks: 1000 };
@@ -283,7 +283,7 @@ const Casino = {
       if (!box.isConnected) return;
       box.className = 'gachabox pop';
       box.innerHTML = icon(best.tier === 'JACKPOT' ? 'crown' : best.token ? 'token' : best.tier === 'LEGENDARY' ? 'star' : best.hat ? 'hat' : best.nades ? 'bomb' : best.tier === 'TRASH' ? 'sock' : 'cash');
-      U.$('cr-res').innerHTML = results.map((r) => `<div class="loot" style="border-color:${r.col}"><div class="rn" style="color:${r.col}">${r.tier}</div><div class="nm">${U.esc(r.name)}</div>${r.bucks ? `<div>+${U.bucks(r.bucks)}</div>` : ''}${r.hat ? '<div class="muted">Wear it at any shop → Hats</div>' : ''}${r.token ? '<div class="muted">Summons Jackpot Jerry at the ⚠ altar</div>' : ''}</div>`).join('');
+      U.$('cr-res').innerHTML = results.map((r) => `<div class="loot" style="border-color:${r.col}"><div class="rn" style="color:${r.col}">${r.tier}</div><div class="nm">${U.esc(r.name)}</div>${r.bucks ? `<div>+${U.bucks(r.bucks)}</div>` : ''}${r.hat ? '<div class="muted">Wear it at any shop → Hats</div>' : ''}${r.token ? '<div class="muted">Summons Jackpot Jerry at the boss altar</div>' : ''}</div>`).join('');
       U.$('cr-b').textContent = U.bucks(SAVE.bucks);
     }, 1200);
   },

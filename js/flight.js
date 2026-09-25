@@ -35,6 +35,12 @@ const Flight = {
   board() {
     if (!Net.isHost) { UI.toast('Only the captain (the host) can fly the ship. You\'ll be taken along.', '', 3); return; }
     if (G.mode !== 'planet' || Game.summoning) return;
+    // the S.S. Late Delivery won't start until Gary stops blocking the launch lane
+    if (!G.progress.includes('gary')) {
+      UI.toast('The ship won\'t start. Trashlord Gary is sitting on the launch lane. Beat him first!', 'bad', 3.5);
+      Sound.play('error');
+      return;
+    }
     const m = { t: 'launch', from: G.planet, wp: this.defaultWaypoint() };
     Net.toAll(m);
     Game.launch(m);

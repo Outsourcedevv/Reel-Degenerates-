@@ -634,3 +634,27 @@ table.list td.r, table.list th.r { text-align: right; }
 #hud.flying #toasts { top: 104px; }
 #hud.flying.incockpit #flyinst { display: none; }
 #hud.flying.incockpit #hint { bottom: 8px; }
+
+/* ---------- difficulty ---------- */
+.diffpick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-top: 8px; }
+.diffpick button {
+  font-family: var(--font-h); font-weight: 700; font-size: 13px; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--muted); background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: var(--r);
+  padding: 8px 4px; cursor: pointer; transition: all .15s;
+}
+.diffpick button:hover { color: #fff; border-color: var(--line2); }
+.diffpick button.on[data-d=easy] { color: #0b1a10; background: var(--green); border-color: var(--green); }
+.diffpick button.on[data-d=hard] { color: #120c00; background: var(--acc); border-color: var(--acc); }
+.diffpick button.on[data-d=hardcore] { color: #fff; background: #b3161b; border-color: #ff4b4b; box-shadow: 0 0 18px rgba(239,79,79,.45); }
+.diffdesc { margin: 4px 0 0; min-height: 34px; font-size: 12px; color: var(--muted); }
+.diffdesc.danger { color: #ff9b9b; }
+.dtag { margin-left: 8px; font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; padding: 1px 6px; border-radius: 3px; vertical-align: 2px; }
+.dtag.d-easy { color: var(--green); background: rgba(70,217,138,.12); }
+.dtag.d-hard { color: var(--acc); background: rgba(255,176,32,.14); }
+.dtag.d-hardcore { color: #fff; background: #b3161b; }
+#diffbadge { font-size: 11px; font-weight: 700; letter-spacing: 3px; padding: 2px 8px; }
+#diffbadge.d-easy { color: var(--green); }
+#diffbadge.d-hard { color: var(--acc); }
+#diffbadge.d-hardcore { color: #fff; background: #b3161b; text-shadow: none; }
+#panel-inner:has(.permadeath) { border-top-color: var(--red); width: min(560px, 100%); }
+.permadeath .ph { font-size: 54px; letter-spacing: 14px; color: var(--red); margin: 10px 0 6px; padding: 0; }

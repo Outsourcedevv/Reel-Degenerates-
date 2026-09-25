@@ -154,7 +154,14 @@ const Game = {
     U.$('m-solo').onclick = () => { readName(); this.pickWorld('solo'); };
     U.$('m-host').onclick = () => { readName(); this.pickWorld('host'); };
     U.$('m-wback').onclick = () => { U.$('m-worlds').classList.add('hidden'); U.$('m-main').classList.remove('hidden'); };
-    U.$('m-wnew').onclick = () => { Sound.play('click'); this.startWorld(Worlds.create(U.$('m-wname').value)); };
+    U.$('m-wnew').onclick = () => { Sound.play('click'); this.startWorld(Worlds.create(U.$('m-wname').value, this.newDiff)); };
+    const drawDiff = () => {
+      U.$('m-diff').querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.d === this.newDiff));
+      U.$('m-diffdesc').textContent = DIFFS[this.newDiff].desc;
+      U.$('m-diffdesc').classList.toggle('danger', this.newDiff === 'hardcore');
+    };
+    this.newDiff = 'easy'; drawDiff();
+    U.$('m-diff').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) { this.newDiff = b.dataset.d; Sound.play('click'); drawDiff(); } });
     U.$('m-wname').addEventListener('keydown', (e) => { if (e.key === 'Enter') U.$('m-wnew').click(); });
     U.$('m-wlist').addEventListener('click', (e) => {
       const b = e.target.closest('button');
@@ -197,12 +204,13 @@ const Game = {
     U.$('m-wlist').innerHTML = l.length ? l.map((w) => {
       const i = Worlds.info(w.id), pl = PLANETS[i.planet] || PLANETS[0];
       return `<div class="wslot"><div class="wico" style="background:${pl.sky[1]}">${icon('globe')}</div>
-        <div class="winfo"><b>${U.esc(w.name)}</b><small>${pl.name} · ${i.beaten}/5 bosses · ${U.bucks(i.bucks)} · ${ago(w.played)}</small></div>
+        <div class="winfo"><b>${U.esc(w.name)}<span class="dtag d-${Worlds.diff(w.id)}">${DIFFS[Worlds.diff(w.id)].name}</span></b><small>${pl.name} · ${i.beaten}/5 bosses · ${U.bucks(i.bucks)} · ${ago(w.played)}</small></div>
         <button class="btn small green" data-play="${w.id}">Play</button><button class="btn small red" data-del="${w.id}" title="Delete world">${icon('trash')}</button></div>`;
     }).join('') : '<p class="wempty">No worlds yet. Make your first one below!</p>';
   },
   startWorld(id) {
     G.worldId = id;
+    G.diff = Worlds.diff(id);
     Worlds.load(id);
     if (this.worldMode !== 'host') { this.enterGame(); return; }
     const tag = U.$('m-wtag');
@@ -216,6 +224,8 @@ const Game = {
     if (G.started) return;
     // solo/host already loaded their world; guests keep their stuff per host world
     if (welcome) {
+      G.worldId = welcome.world || null;
+      G.diff = DIFFS[welcome.diff] ? welcome.diff : 'easy';
       if (welcome.world) loadSaveKey(Worlds.guestKey(welcome.world, G.name));
       else loadSave(G.name);
     }
@@ -248,6 +258,10 @@ const Game = {
       rc.classList.remove('hidden');
     }
     UI.hud();
+    const badge = U.$('diffbadge');
+    badge.textContent = DIFFS[G.diff].name.toUpperCase();
+    badge.className = 'd-' + G.diff;
+    if (DIFFS[G.diff].perma) setTimeout(() => UI.toast('HARDCORE: if you die, you die for good.', 'bad', 5), 3800);
     Sound.init();
     Sound.setVolumes();
     Sound.playMusic(PLANETS[G.planet].music);
@@ -267,6 +281,37 @@ const Game = {
       this.updatePause();
       setTimeout(() => UI.bigTitle(PLANETS[G.planet].name, PLANETS[G.planet].blurb, '#fff', 3), 300);
     }
+  },
+
+  // how hard enemies hit in this world
+  dmgMul() { return (DIFFS[G.diff] || DIFFS.easy).dmg; },
+  // hardcore: you died, and that's it. Your save for this world is wiped.
+  permaDeath(cause) {
+    if (this.permaDead) return;
+    this.permaDead = true;
+    SAVE.stats.deaths++;
+    const html = `<b>${U.esc(G.name)}</b> died for good${cause ? ` (${U.esc(cause)})` : ''}. Hardcore is hardcore.`;
+    if (Net.online) Net.relay({ t: 'ann', html, cls: 'bad' });
+    // nothing gets saved from here on
+    SAVE_KEY = null;
+    try {
+      if (Net.online && !Net.isHost) { if (G.worldId) localStorage.removeItem(Worlds.guestKey(G.worldId, G.name)); }
+      else if (G.worldId) Worlds.remove(G.worldId);
+    } catch (e) { /* storage off */ }
+    Sound.play('death');
+    Sound.stopMusic();
+    const host = Net.online && Net.isHost, guest = Net.online && !Net.isHost;
+    setTimeout(() => {
+      Net.leave();
+      if (document.pointerLockElement) document.exitPointerLock();
+      UI.openPanel(`<div class="permadeath"><h2 class="ph center">YOU DIED</h2>
+        <p class="center psub">${cause ? U.esc(cause) + ' got you.' : 'That was it.'} This is Hardcore, so it's permanent.</p>
+        <p class="center">${guest ? 'Your stuff in your friend\'s world is gone.' : 'Your world has been deleted.'}
+        ${host ? ' Your crew lost their captain.' : ''}</p>
+        <p class="center muted">"Driver did not arrive. Pizza presumed cold." Dave has already hired your replacement.</p>
+        <div class="center"><button class="btn big" data-act="menu" style="max-width:300px">Back to menu</button></div></div>`,
+      (a) => { if (a === 'menu') location.reload(); }, null, () => location.reload());
+    }, 1400);
   },
 
   lock() {
@@ -451,7 +496,7 @@ const Game = {
       if (!Net.isHost) return;
       this.applyState(from, m.s);
       Net.sendTo(from, {
-        t: 'welcome', planet: G.planet, prog: G.progress, taken: Activities.takenList(G.planet), mode: G.mode, world: G.worldId,
+        t: 'welcome', planet: G.planet, prog: G.progress, taken: Activities.takenList(G.planet), mode: G.mode, world: G.worldId, diff: G.diff,
         fl: G.mode === 'space' ? { from: Flight.planet, wp: Flight.wp } : null,
         snail: Casino.round && Casino.phase() === 'bet' ? { seed: Casino.round.seed, bet: Math.max(1, Casino.round.betEnd - G.time) } : null,
       });

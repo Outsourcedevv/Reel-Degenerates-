@@ -233,6 +233,7 @@ class LocalPlayer {
   // critter bites on a planet (boss fights have their own damage rules)
   hurtPlanet(d, fx, fz, who) {
     if (this.inv > 0 || this.dead) return;
+    d = Math.round(d * Game.dmgMul());
     if (SAVE.armor) d = Math.round(d * 0.7);
     this.hp -= d; this.inv = 0.5; this.regenT = 4;
     const dx = this.pos.x - fx, dz = this.pos.z - fz, l = Math.hypot(dx, dz) || 1;
@@ -241,6 +242,7 @@ class LocalPlayer {
     G.shake = Math.max(G.shake, 0.4);
     Sound.play('hurt');
     if (this.hp > 0) return;
+    if (DIFFS[G.diff].perma) { this.dead = true; this.hp = 0; this.deadT = 0; Game.permaDeath(who); return; }
     this.hp = 100; this.inv = 2;
     this.teleport(Game.spawnPoint(), G.world.spawnYaw);
     UI.bigTitle('KNOCKED OUT', `${U.pick(LINES.bitten)} (${who}: 1, you: 0)`, '#ff6b6b', 2.8);
@@ -368,7 +370,7 @@ class LocalPlayer {
       if (d < bd) { bd = d; best = it; }
     }
     this.near = best;
-    UI.prompt(best ? best.label : null);
+    UI.prompt(best ? (typeof best.label === 'function' ? best.label() : best.label) : null);
     if (best && Input.tap('KeyE')) best.fn();
   }
 

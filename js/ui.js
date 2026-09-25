@@ -245,8 +245,8 @@ const UI = {
       <div><h4>The loop</h4>
         <p>1. Collect the planet's stuff (and zap critters!) and sell it at the shop.</p>
         <p>2. Buy gear. Guns aren't free: buy your first one!</p>
-        <p>3. Find the boss's summoning item, then use it at the boss altar.</p>
-        <p>4. Win, then fly your ship to the next planet.</p></div>
+        <p>3. Find the boss's summoning item (it's rare, keep at it), then use it at the boss altar.</p>
+        <p>4. Win, then fly your ship to the next planet. (The ship won't start until you beat Trashlord Gary.)</p></div>
       <div><h4>Friends & stuff</h4>
         <p>Host a game and send friends the 5-letter code.</p>
         <p>The host is the captain and flies the ship. Anyone with a summoning item can start a boss fight.</p>

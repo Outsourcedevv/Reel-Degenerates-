@@ -322,7 +322,7 @@ class PlanetWorld {
     ship.userData.dynamic = true;
     this.place(ship, 0, 0, 0);
     this.box(0, 0.5, 4.4, 11.5);
-    this.interact(4.2, 0.2, 3.2, 'Board your ship', () => Flight.board());
+    this.interact(4.2, 0.2, 3.2, () => (G.progress.includes('gary') ? 'Board your ship' : 'Ship locked: beat Trashlord Gary first'), () => Flight.board());
     const shopCfg = SHOPS[this.cfg.shop];
     const counter = buildCounter(shopCfg.color);
     this.place(counter, 14.2, -6, Math.PI / 2);

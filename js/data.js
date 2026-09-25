@@ -151,7 +151,7 @@ const SHOPS = {
     items: [
       { kind: 'zap', lvl: 3, price: 4000, desc: 'Every shot sounds like a slot machine. Every. Single. Shot.' },
       { kind: 'nades', price: 200, name: 'Goo Grenades x5', desc: 'Imported from Gloop. Tariffs included.' },
-      { kind: 'summon', b: 'jerry', price: 1500, desc: 'Summons Jackpot Jerry at the altar. Non-refundable. Like everything here.' },
+      { kind: 'summon', b: 'jerry', price: 7500, desc: 'Summons Jackpot Jerry at the altar. Non-refundable. Like everything here.' },
       { kind: 'charm', price: 77, name: 'Lucky Space Foot', desc: 'Does absolutely nothing. You will feel lucky, though.' },
       { kind: 'hat', id: 'tophat', price: 900 },
       { kind: 'hat', id: 'crown', price: 5000 },
@@ -258,16 +258,23 @@ for (const list of Object.values(CRITTERS)) {
 /* ---------- boss summoning items: earn one on each planet, use it at the boss altar ----------
    src/chance/pity: it drops from that kind of pickup, guaranteed by the pity-th try.
    heat: the final one is earned by catching that many meteors (reheating the pizza). */
+/* ---------- difficulty: picked when you make a world ---------- */
+const DIFFS = {
+  easy: { name: 'Easy', dmg: 1, desc: 'Enemies hit normally. Die and you just get back up.' },
+  hard: { name: 'Hard', dmg: 2, desc: 'Everything hits twice as hard.' },
+  hardcore: { name: 'Hardcore', dmg: 3.5, perma: true, desc: 'Everything hits WAY harder, one life in boss fights, and if you die, you die for good. The world is deleted.' },
+};
+
 const SUMMONS = {
   gary: {
-    name: 'Gary\'s Stinky Crown', icon: 'crown', src: 'scrap', chance: 0.15, pity: 6,
+    name: 'Gary\'s Stinky Crown', icon: 'crown', src: 'scrap', chance: 0.035, pity: 30,
     hint: 'find his Stinky Crown in the junk piles',
     how: 'It\'s buried in one of the junk piles. Keep vacuuming!',
     found: 'It smells like a raccoon wore it. Because one did.',
     line: 'Something in the landfill smells it...',
   },
   blorb: {
-    name: 'Royal Jelly', icon: 'jar', src: 'bigberry', chance: 0.25, pity: 4,
+    name: 'Royal Jelly', icon: 'jar', src: 'bigberry', chance: 0.06, pity: 16,
     hint: 'find Royal Jelly in the big berries on the tallest mushrooms',
     how: 'It hides in the big orange berries on top of the tall mushroom stacks. Start jumping!',
     found: 'Wobbly, sticky, royal. The Queen will want this back.',
@@ -281,14 +288,14 @@ const SUMMONS = {
     line: 'DING DING DING! The whole planet lights up...',
   },
   snowdad: {
-    name: 'Carton of Space Milk', icon: 'milk', src: 'crystal', chance: 0.2, pity: 5,
+    name: 'Carton of Space Milk', icon: 'milk', src: 'crystal', chance: 0.045, pity: 24,
     hint: 'find the Space Milk frozen in the big crystals',
     how: 'It\'s frozen inside one of the big crystals. Drill them!',
     found: 'A dad somewhere just felt a disturbance.',
     line: 'Somewhere, a dad is finally coming back with the milk...',
   },
   zorblax: {
-    name: 'Reheated Pizza', icon: 'flame', heat: 5,
+    name: 'Reheated Pizza', icon: 'flame', heat: 15,
     hint: 'reheat the pizza by catching pepperoni meteors',
     how: 'The Emperor won\'t take a cold pizza. Catch pepperoni meteors with the Pizza Peel to reheat it.',
     found: 'The pizza is WARM. First time in three years. Deliver it. NOW.',

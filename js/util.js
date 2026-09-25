@@ -5,8 +5,10 @@
 const V3 = THREE.Vector3;
 
 const G = {
-  mode: 'menu',          // menu | planet | boss | warp
+  mode: 'menu',          // menu | planet | boss | space
   planet: 0,             // index into PLANETS
+  diff: 'easy',          // world difficulty (DIFFS)
+  worldId: null,
   time: 0, paused: false,
   scene: null, camera: null, renderer: null, sun: null, hemi: null,
   player: null, world: null, worlds: {}, arena: null, boss: null, liquid: null, sky: null,
@@ -302,10 +304,10 @@ const Worlds = {
   store(l) { lsSet('spacegoobers_worlds', l); },
   key: (id) => 'spacegoobers_world_' + id,
   guestKey: (worldId, name) => 'spacegoobers_guest_' + worldId + '_' + nameKey(name),
-  create(name) {
+  create(name, diff) {
     const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     const l = this.list();
-    l.push({ id, name: (name || '').trim().slice(0, 24) || 'World ' + (l.length + 1), created: Date.now(), played: Date.now() });
+    l.push({ id, name: (name || '').trim().slice(0, 24) || 'World ' + (l.length + 1), created: Date.now(), played: Date.now(), diff: DIFFS[diff] ? diff : 'easy' });
     this.store(l);
     return id;
   },
@@ -313,6 +315,7 @@ const Worlds = {
     this.store(this.list().filter((w) => w.id !== id));
     try { localStorage.removeItem(this.key(id)); } catch (e) { /* ignore */ }
   },
+  diff(id) { const w = this.list().find((x) => x.id === id); return (w && DIFFS[w.diff]) ? w.diff : 'easy'; },
   load(id) {
     loadSaveKey(this.key(id));
     this.store(this.list().map((w) => (w.id === id ? Object.assign(w, { played: Date.now() }) : w)));

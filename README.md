@@ -8,7 +8,16 @@ Emperor Zorblax. It is three years late. It is cold. Every planet has a boss in 
 Open `index.html` in Chrome or Edge (double-clicking it works). You need a keyboard and mouse, and an
 internet connection (the 3D engine and multiplayer load from the web).
 
-Click **Play Solo** or **Host Game**, then pick a world or create a new one. Each world is its own save, like
+Click **Play Solo** or **Host Game**, then pick a world or create a new one. When you create a world you pick a
+difficulty:
+
+| Difficulty | What changes |
+| --- | --- |
+| Easy | Enemies hit normally. Die and you get back up. |
+| Hard | Everything hits twice as hard. |
+| Hardcore | Everything hits 3.5x as hard, you get one life in boss fights, and if you die, you die for good: the world is deleted (for a friend who joined you, their stuff in your world is wiped). |
+
+ Each world is its own save, like
 Minecraft worlds. When you join a friend, your stuff in their world is saved too, so it's still there next time.
 
 ## Play with friends
@@ -44,7 +53,8 @@ Each friend needs to open the game too. The easiest way is to put it online for 
 You start with just a Grabby Vac. Company policy: no free guns. On each planet you collect stuff, sell it at the
 shop and buy gear (your first gun too). Every planet also has little space critters: shy ones run away, mean ones
 bite. Zap them and sell them (golden ones are worth a fortune). Bosses don't just show up: find the planet's
-summoning item, use it at the boss altar and win. Summoning uses the item up, so a rematch needs another one.
+summoning item (they're rare, so expect to grind), use it at the boss altar and win. Summoning uses the item up, so a rematch
+needs another one. Your ship won't start until you've beaten Trashlord Gary.
 
 | # | Planet | What you do there | Boss | Summon it with |
 | --- | --- | --- | --- | --- |
@@ -52,7 +62,7 @@ summoning item, use it at the boss altar and win. Summoning uses the item up, so
 | 2 | Planet Gloop | Low gravity berry jumping · hunt Blobbos and Gloop Hoppers | Queen Blorbina ★★ | Royal Jelly, in the big berries on top |
 | 3 | Luckstar | **Gambling:** slots, snail races, coin flips, crates · hunt Chip Beetles and Dice Goblins | Jackpot Jerry ★★★ | Golden Token, from crates or Mr. Chips |
 | 4 | Frostbyte | Mine crystals with the Laser Drill · hunt Snow Mites and Ice Weasels | The Abominable Snowdad ★★★★ | Space Milk, frozen in the crystals |
-| 5 | Zorblax Prime | Catch pepperoni meteors with the Pizza Peel · hunt Lava Snails and Magma Imps | Emperor Zorblax ★★★★★ | Reheated Pizza: catch 5 meteors |
+| 5 | Zorblax Prime | Catch pepperoni meteors with the Pizza Peel · hunt Lava Snails and Magma Imps | Emperor Zorblax ★★★★★ | Reheated Pizza: catch 15 meteors |
 
 ## Flying
 
