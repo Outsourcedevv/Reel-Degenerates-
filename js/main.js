@@ -11,7 +11,7 @@ const Game = {
   async boot() {
     const lt = U.$('loading-text');
     lt.textContent = 'Warming up the pizza oven...';
-    try { await Promise.race([document.fonts.load('40px "Lilita One"'), new Promise((r) => setTimeout(r, 2500))]); } catch (e) { /* offline is fine */ }
+    try { await Promise.race([document.fonts.load('700 40px "Chakra Petch"'), new Promise((r) => setTimeout(r, 2500))]); } catch (e) { /* offline is fine */ }
 
     const r = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     r.setPixelRatio(Math.min(devicePixelRatio || 1, 1.5));
@@ -41,6 +41,7 @@ const Game = {
     UI.init();
     Input.init();
     Object.assign(G.settings, lsGet('spacegoobers_settings', {}));
+    Post.init();
     G.player = new LocalPlayer();
     G.player.vm.visible = false;
 
@@ -56,6 +57,7 @@ const Game = {
       G.camera.aspect = innerWidth / innerHeight;
       G.camera.updateProjectionMatrix();
       G.renderer.setSize(innerWidth, innerHeight);
+      Post.resize();
       G.player.layoutVM();
     });
     document.addEventListener('pointerlockchange', () => {
@@ -127,9 +129,9 @@ const Game = {
     Sound.playMusic(PLANETS[i].music);
     if (!moved) return;
     const pl = PLANETS[i];
-    setTimeout(() => UI.bigTitle(`${pl.icon} ${pl.name}`, pl.blurb, '#fff', 3.4), 600);
+    setTimeout(() => UI.bigTitle(pl.name, pl.blurb, '#fff', 3.4), 600);
     setTimeout(() => UI.toast(pl.how, '', 5), 2600);
-    if (i === 2 && !SAVE.seenCasino) { SAVE.seenCasino = true; persist(); setTimeout(() => UI.toast('🎰 GAMBLING UNLOCKED. Please gamble responsibly. (You won\'t.)', 'purple', 5), 5200); }
+    if (i === 2 && !SAVE.seenCasino) { SAVE.seenCasino = true; persist(); setTimeout(() => UI.toast('GAMBLING UNLOCKED. Please gamble responsibly. (You won\'t.)', 'purple', 5), 5200); }
   },
 
   /* ---------------- start / menus ---------------- */
@@ -194,9 +196,9 @@ const Game = {
     const l = Worlds.list().sort((a, b) => b.played - a.played);
     U.$('m-wlist').innerHTML = l.length ? l.map((w) => {
       const i = Worlds.info(w.id), pl = PLANETS[i.planet] || PLANETS[0];
-      return `<div class="wslot"><div class="wico" style="background:${pl.sky[1]}">${pl.icon}</div>
+      return `<div class="wslot"><div class="wico" style="background:${pl.sky[1]}">${icon('globe')}</div>
         <div class="winfo"><b>${U.esc(w.name)}</b><small>${pl.name} · ${i.beaten}/5 bosses · ${U.bucks(i.bucks)} · ${ago(w.played)}</small></div>
-        <button class="btn small green" data-play="${w.id}">▶ Play</button><button class="btn small red" data-del="${w.id}" title="Delete world">🗑</button></div>`;
+        <button class="btn small green" data-play="${w.id}">Play</button><button class="btn small red" data-del="${w.id}" title="Delete world">${icon('trash')}</button></div>`;
     }).join('') : '<p class="wempty">No worlds yet. Make your first one below!</p>';
   },
   startWorld(id) {
@@ -242,7 +244,7 @@ const Game = {
     U.$('hud').classList.remove('hidden');
     if (Net.online) {
       const rc = U.$('roomcode');
-      rc.innerHTML = `ROOM <b>${Net.code}</b> ${Net.isHost ? '· 👑 captain' : ''}`;
+      rc.innerHTML = `ROOM <b>${Net.code}</b> ${Net.isHost ? '· captain' : ''}`;
       rc.classList.remove('hidden');
     }
     UI.hud();
@@ -251,19 +253,19 @@ const Game = {
     Sound.playMusic(PLANETS[G.planet].music);
     if (!SAVE.seenIntro) {
       SAVE.seenIntro = true; persist();
-      UI.openPanel(`<h2 class="ph">🍕 NEW DELIVERY ASSIGNMENT</h2>
+      UI.openPanel(`<h2 class="ph">NEW DELIVERY ASSIGNMENT</h2>
         <div class="npc-line" data-who="FROM: DAVE, YOUR MANAGER">
           Deliver <b>1 large pepperoni pizza</b> to <b>Emperor Zorblax</b>, Zorblax Prime.<br>
           Order placed: <b>3 years ago</b>. Customer mood: <b>furious</b>.<br><br>
           Your ship, the S.S. Late Delivery, is mostly held together by tape. Each planet on the way has a boss guarding the route,
-          because of course it does. Bosses don't just show up, though: find the thing that summons them and use it at the ⚠ altar.<br><br>
+          because of course it does. Bosses don't just show up, though: find the thing that summons them and use it at the boss altar.<br><br>
           Company policy: no free guns (liability). Buy your own at the pawn shop.
           Do NOT gamble the company's money. (There's a casino planet. I know you.)
         </div>${UI.howHtml().replace('<h2 class="ph">How to play</h2>', '')}
-        <div class="row2"><button class="btn big green" data-act="close" style="max-width:320px">Let's deliver this pizza 🚀</button></div>`);
+        <div class="row2"><button class="btn big green" data-act="close" style="max-width:320px">Let's deliver this pizza</button></div>`);
     } else {
       this.updatePause();
-      setTimeout(() => UI.bigTitle(`${PLANETS[G.planet].icon} ${PLANETS[G.planet].name}`, PLANETS[G.planet].blurb, '#fff', 3), 300);
+      setTimeout(() => UI.bigTitle(PLANETS[G.planet].name, PLANETS[G.planet].blurb, '#fff', 3), 300);
     }
   },
 
@@ -285,8 +287,9 @@ const Game = {
   },
   setupPause() {
     const s = G.settings;
-    const sens = U.$('s-sens'), vol = U.$('s-vol'), mus = U.$('s-mus');
-    sens.value = s.sens; vol.value = s.vol; mus.value = s.music;
+    const sens = U.$('s-sens'), vol = U.$('s-vol'), mus = U.$('s-mus'), q = U.$('s-q');
+    sens.value = s.sens; vol.value = s.vol; mus.value = s.music; q.value = s.quality;
+    q.addEventListener('change', () => { s.quality = q.value; lsSet('spacegoobers_settings', s); Post.apply(); });
     U.$('v-sens').textContent = Number(s.sens).toFixed(1);
     const save = () => {
       s.sens = Number(sens.value); s.vol = Number(vol.value); s.music = Number(mus.value);
@@ -401,8 +404,8 @@ const Game = {
     if (G.mode !== 'planet') return;
     if (G.panel && !document.getElementById('ending')) UI.closePanel(true);
     G.world.summonFx(m.b);
-    UI.bigTitle(`${s.icon} SUMMONING ${b.name.toUpperCase()}`, `${m.n} used ${s.name}! ${s.line}`, b.color, 2.8);
-    UI.feed(`${s.icon} <b>${U.esc(m.n)}</b> used <b>${U.esc(s.name)}</b> at the altar!`, 'ann');
+    UI.bigTitle(`SUMMONING ${b.name.toUpperCase()}`, `${m.n} used ${s.name}! ${s.line}`, b.color, 2.8);
+    UI.feed(`<b>${U.esc(m.n)}</b> used <b>${U.esc(s.name)}</b> at the altar!`, 'ann');
     Sound.play('summon');
     G.shake = Math.max(G.shake, 0.9);
     this.lock();
@@ -437,7 +440,7 @@ const Game = {
   removeRemote(id) {
     const r = G.remotes.get(id);
     if (!r) return;
-    UI.feed(`👋 <b>${U.esc(r.name)}</b> left the crew.`, 'bad');
+    UI.feed(`<b>${U.esc(r.name)}</b> left the crew.`, 'bad');
     r.dispose();
     G.remotes.delete(id);
   },
@@ -452,7 +455,7 @@ const Game = {
         fl: G.mode === 'space' ? { from: Flight.planet, wp: Flight.wp } : null,
         snail: Casino.round && Casino.phase() === 'bet' ? { seed: Casino.round.seed, bet: Math.max(1, Casino.round.betEnd - G.time) } : null,
       });
-      const html = `🚀 <b>${U.esc(m.s.n)}</b> joined the crew!`;
+      const html = `<b>${U.esc(m.s.n)}</b> joined the crew!`;
       UI.feed(html, 'good'); Net.toAll({ t: 'ann', html, cls: 'good' }, from);
       Sound.play('chat');
     });
@@ -500,7 +503,7 @@ const Game = {
     N.on('bend', (m) => { if (G.boss && !Net.isHost) G.boss.finish(m.won); });
     N.on('hostgone', () => {
       if (document.pointerLockElement) document.exitPointerLock();
-      UI.openPanel(`<h2 class="ph">📡 Lost the captain</h2><p class="psub">The host left the game (or their internet sneezed). Your bucks and gear are saved.</p>
+      UI.openPanel(`<h2 class="ph">Lost the captain</h2><p class="psub">The host left the game (or their internet sneezed). Your bucks and gear are saved.</p>
         <div class="center"><button class="btn big" data-act="reload" style="max-width:300px">Back to menu</button></div>`, (a) => { if (a === 'reload') location.reload(); }, null, () => location.reload());
     });
     // --- everyone
@@ -607,7 +610,7 @@ const Game = {
     G.sun.position.set(f.x + 30, f.y + 55, f.z + 18);
     G.sun.target.position.copy(f);
     Input.endFrame();
-    if (!hidden) G.renderer.render(G.scene, cam);
+    if (!hidden) Post.render(cam, dt);
   },
   keys() {
     if (!G.started) return;

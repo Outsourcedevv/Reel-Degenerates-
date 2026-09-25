@@ -64,12 +64,12 @@ const Activities = {
     let rare = false;
     for (const id of ids) {
       const r = RES[id];
-      UI.pickup(`+ ${r.icon} ${r.name}  (${U.bucks(r.v)})`, r.rare ? '#ffd23f' : '#ffffff');
+      UI.pickup(`+ ${r.name}  (${U.bucks(r.v)})`, r.rare ? '#ffd23f' : '#ffffff');
       if (r.rare) {
         rare = true;
-        UI.toast(`RARE FIND! ${r.icon} ${r.name}!`, 'gold', 3);
-        UI.feed(`🌟 <b>${U.esc(G.name)}</b> found a <b>${U.esc(r.name)}</b>!`, 'ann');
-        Net.relay({ t: 'ann', html: `🌟 <b>${U.esc(G.name)}</b> found a <b>${U.esc(r.name)}</b>!` });
+        UI.toast(`RARE FIND! ${r.name}!`, 'gold', 3);
+        UI.feed(`<b>${U.esc(G.name)}</b> found a <b>${U.esc(r.name)}</b>!`, 'ann');
+        Net.relay({ t: 'ann', html: `<b>${U.esc(G.name)}</b> found a <b>${U.esc(r.name)}</b>!` });
       }
     }
     return rare;
@@ -257,7 +257,7 @@ const Meteors = {
 
 /* ---------------- boss summoning items ----------------
    Bosses only show up when someone uses the planet's summoning item at the
-   ⚠ altar. You get it by doing the planet's thing: it drops from junk, big
+   boss altar. You get it by doing the planet's thing: it drops from junk, big
    berries or crystals (guaranteed after a few tries), comes out of Luckstar's
    crates and shop, or (final boss) you earn it by reheating the pizza. */
 const Summons = {
@@ -267,9 +267,9 @@ const Summons = {
     SAVE.summons[b] = 1;
     SAVE.pity[b] = 0;
     persist();
-    UI.bigTitle(`${s.icon} ${s.name}!`, s.found, BOSSES[b].color, 3.4);
-    UI.toast(`Take it to the ⚠ boss altar to summon ${BOSSES[b].name}!`, 'gold', 4);
-    const html = `${s.icon} <b>${U.esc(G.name)}</b> found <b>${U.esc(s.name)}</b>! Boss fight incoming...`;
+    UI.bigTitle(`${s.name}!`, s.found, BOSSES[b].color, 3.4);
+    UI.toast(`Take it to the boss altar to summon ${BOSSES[b].name}!`, 'gold', 4);
+    const html = `<b>${U.esc(G.name)}</b> found <b>${U.esc(s.name)}</b>! Boss fight incoming...`;
     UI.feed(html, 'ann');
     Net.relay({ t: 'ann', html });
     Sound.play('rare');
@@ -289,7 +289,7 @@ const Summons = {
     if (this.has('zorblax')) return;
     SAVE.heat = (SAVE.heat || 0) + 1;
     if (SAVE.heat >= s.heat) { SAVE.heat = 0; this.give('zorblax'); return; }
-    UI.toast(`🔥 The pizza is warming up! (${SAVE.heat}/${s.heat})`, 'gold', 2);
+    UI.toast(`The pizza is warming up! (${SAVE.heat}/${s.heat})`, 'gold', 2);
     persist();
     UI.hud();
   },
@@ -307,13 +307,13 @@ const Summons = {
   goal() {
     if (!G.started || G.mode !== 'planet') return { text: '' };
     const b = PLANETS[G.planet].boss, s = SUMMONS[b], boss = BOSSES[b];
-    if (SAVE.zap < 0) return { text: `🎯 Buy your first gun from ${SHOPS[PLANETS[G.planet].shop].npc}` + (G.planet === 0 ? ' (vacuum junk and sell it)' : '') };
-    if (this.has(b)) return { text: `🎯 ${s.icon} ${s.name} ready! Use it at the ⚠ boss altar`, ready: true };
+    if (SAVE.zap < 0) return { text: `Buy your first gun from ${SHOPS[PLANETS[G.planet].shop].npc}` + (G.planet === 0 ? ' (vacuum junk and sell it)' : '') };
+    if (this.has(b)) return { text: `${s.name} ready. Use it at the boss altar`, ready: true };
     if (G.progress.includes(b)) {
       const next = PLANETS[G.planet + 1];
-      return { text: next ? `🎯 ${boss.name} beaten! Fly to ${next.name} from your ship` : '🎯 Pizza delivered. The casino is still open.' };
+      return { text: next ? `${boss.name} beaten! Fly to ${next.name} from your ship` : 'Pizza delivered. The casino is still open.' };
     }
     const heat = b === 'zorblax' ? ` (${SAVE.heat || 0}/${s.heat})` : '';
-    return { text: `🎯 Summon ${boss.name}: ${s.hint}${heat}${this.needs(b, true)}` };
+    return { text: `Summon ${boss.name}: ${s.hint}${heat}${this.needs(b, true)}` };
   },
 };

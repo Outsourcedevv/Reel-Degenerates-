@@ -5,7 +5,7 @@
    ========================================================= */
 const MINION_KIND = { blorb: 'slime', snowdad: 'snow', zorblax: 'guard' };
 const RING_COL = { gary: '#b8d86b', blorb: '#ff9ad5', jerry: '#ffd23f', snowdad: '#bff6ff', zorblax: '#ff3df0' };
-const JERRY_W = { '🍒': 3, '🔔': 3, '7': 2, '💰': 3, '🍋': 3, '💀': 1 };
+const JERRY_W = { cherry: 3, bell: 3, 7: 2, cash: 3, lemon: 3, skull: 1 };
 
 class BossFight {
   constructor(id, seed, ids) {
@@ -260,7 +260,7 @@ class BossFight {
   }
   attack_jerry() {
     const p2 = this.phase === 2;
-    const w = Object.entries(JERRY_W).map(([s, x]) => [s, s === '💀' && p2 ? 2 : x]);
+    const w = Object.entries(JERRY_W).map(([s, x]) => [s, s === 'skull' && p2 ? 2 : x]);
     const syms = [0, 1, 2].map(() => U.weighted(w));
     this.fire({ k: 'reels', s: syms });
     this.later(1.5, () => {
@@ -271,10 +271,10 @@ class BossFight {
       const l = [];
       const tg = this.randTarget();
       for (const [s, c] of Object.entries(counts)) {
-        if (s === '🍒') l.push(this.rain(Math.round(6 * c), 'cherry', 14, 0.6));
-        if (s === '🔔') for (let i = 0; i < Math.round(c); i++) l.push(this.ring(this.pos.x, this.pos.z, 10, 14, i * 0.7));
-        if (s === '💰') l.push(this.spiral(this.mouth().setY(DECK_Y + 1.1), 2, Math.round(18 * c), 1.8, 10, 'coin', 9, 0.45));
-        if (s === '🍋' && tg) l.push(this.aimed(this.mouth(), tg.p, Math.round(7 * c), 0.9, 12, 'lemon', 10, 0.5));
+        if (s === 'cherry') l.push(this.rain(Math.round(6 * c), 'cherry', 14, 0.6));
+        if (s === 'bell') for (let i = 0; i < Math.round(c); i++) l.push(this.ring(this.pos.x, this.pos.z, 10, 14, i * 0.7));
+        if (s === 'cash') l.push(this.spiral(this.mouth().setY(DECK_Y + 1.1), 2, Math.round(18 * c), 1.8, 10, 'coin', 9, 0.45));
+        if (s === 'lemon' && tg) l.push(this.aimed(this.mouth(), tg.p, Math.round(7 * c), 0.9, 12, 'lemon', 10, 0.5));
         if (s === '7') {
           const tgs = this.targets();
           for (let i = 0; i < Math.round(2 * c); i++) {
@@ -285,7 +285,7 @@ class BossFight {
             l.push(this.lane(new V3(t.p.x - dx, 0, t.p.z - dz), new V3(t.p.x + dx, 0, t.p.z + dz), 1.5, 1.1 + i * 0.25, 0.5, 22));
           }
         }
-        if (s === '💀') for (const t of this.targets()) l.push(this.slam(t.p.x, t.p.z, 3, 1.3, 25));
+        if (s === 'skull') for (const t of this.targets()) l.push(this.slam(t.p.x, t.p.z, 3, 1.3, 25));
       }
       this.fire({ k: 'multi', l });
     });
@@ -808,7 +808,7 @@ class BossFight {
       persist();
       Sound.play('victory');
       const nextIdx = G.planet + 1;
-      const unlock = nextIdx < PLANETS.length ? `<p class="center" style="font-size:18px">🚀 New planet unlocked: <b>${PLANETS[nextIdx].icon} ${U.esc(PLANETS[nextIdx].name)}</b>! Fly there from your ship.</p>` : '';
+      const unlock = nextIdx < PLANETS.length ? `<p class="center" style="font-size:18px">New planet unlocked: <b>${U.esc(PLANETS[nextIdx].name)}</b>! Fly there from your ship.</p>` : '';
       html = `<h2 class="ph center" style="color:#1e9b3a;padding:0">VICTORY!</h2>
         <p class="center psub">${U.esc(b.win)}</p>
         <div class="bigmsg win">+${U.bucks(reward)}</div>${unlock}`;
@@ -819,7 +819,7 @@ class BossFight {
       html = `<h2 class="ph center" style="color:#c8281b;padding:0">DEFEAT</h2>
         <p class="center psub">${U.esc(b.name)} wins this time. The pizza gets colder.</p>
         <div class="bigmsg lose">Space hospital bill: -${U.bucks(bill)}</div>
-        <p class="center">For a rematch you'll need another ${SUMMONS[this.id].icon} <b>${U.esc(SUMMONS[this.id].name)}</b>.</p>
+        <p class="center">For a rematch you'll need another <b>${U.esc(SUMMONS[this.id].name)}</b>.</p>
         <p class="center muted">Tip: upgrade your zapper at the shop, grab Goo Grenades, reload when it's safe, and jump over the rings!</p>`;
     }
     setTimeout(() => {

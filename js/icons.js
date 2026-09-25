@@ -36,6 +36,23 @@ const ICON_PATHS = {
   skull: 'M12 3a8 8 0 0 0-8 8c0 3 2 5 3 5v4h10v-4c1 0 3-2 3-5a8 8 0 0 0-8-8z M9 12h.01 M15 12h.01 M10 20v-3 M14 20v-3',
   alert: 'M12 3l10 18H2z M12 10v5 M12 18h.01',
   person: 'M12 8m-4 0a4 4 0 1 0 8 0a4 4 0 1 0-8 0 M4 21c0-4 4-7 8-7s8 3 8 7',
+  trash: 'M4 7h16 M9 7V4h6v3 M6 7l1 14h10l1-14 M10 11v6 M14 11v6',
+  rocket: 'M12 2c3 2 5 6 5 10l-2 5H9l-2-5c0-4 2-8 5-10z M12 9m-1.5 0a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0-3 0 M9 17l-3 3 M15 17l3 3 M12 17v4',
+  alien: 'M12 3c-5 0-8 3-8 7 0 5 4 11 8 11s8-6 8-11c0-4-3-7-8-7z M7 11l4 2 M17 11l-4 2',
+  snail: 'M3 19h15a3 3 0 0 0 3-3V9 M11 12m-5 0a5 5 0 1 0 10 0a5 5 0 1 0-10 0 M19 9l-1-4 M21 9l1-4',
+  flag: 'M5 21V4 M5 4h12l-2 4 2 4H5',
+  ghost: 'M5 21V10a7 7 0 0 1 14 0v11l-2.5-2-2.5 2-2-2-2 2-2.5-2z M9 10h.01 M15 10h.01',
+  close: 'M6 6l12 12 M18 6L6 18',
+  exit: 'M14 4h5v16h-5 M10 8l-4 4 4 4 M6 12h10',
+  help: 'M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0-18 0 M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .9-1 1.7 M12 17h.01',
+  home: 'M3 11l9-8 9 8 M5 9v12h14V9',
+  link: 'M10 14a4 4 0 0 0 5.6 0l3-3a4 4 0 0 0-5.6-5.6l-1 1 M14 10a4 4 0 0 0-5.6 0l-3 3a4 4 0 0 0 5.6 5.6l1-1',
+  play: 'M7 4l13 8-13 8z',
+  bolt: 'M13 2L4 14h7l-1 8 9-12h-7z',
+  signal: 'M12 20h.01 M8.5 16.5a5 5 0 0 1 7 0 M5 13a10 10 0 0 1 14 0 M2 9.5a15 15 0 0 1 20 0',
+  target: 'M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0-18 0 M12 12m-4 0a4 4 0 1 0 8 0a4 4 0 1 0-8 0 M12 12h.01',
+  trend: 'M3 6l7 7 4-4 7 7 M21 11v5h-5',
+  globe: 'M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0-18 0 M3 12h18 M12 3a14 14 0 0 1 0 18 M12 3a14 14 0 0 0 0 18',
 };
 function icon(name, cls = '') {
   const d = ICON_PATHS[name] || ICON_PATHS.box;
@@ -43,3 +60,5 @@ function icon(name, cls = '') {
 }
 // initials for portraits (shopkeepers, bosses) so nothing needs pictures
 const initials = (name) => name.replace(/[^A-Za-z0-9 ]/g, '').split(' ').filter((w) => w && !/^(the|your|of|mr)$/i.test(w)).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
+// static markup asks for icons with data-ico="name"
+document.querySelectorAll('[data-ico]').forEach((e) => { e.innerHTML = icon(e.dataset.ico) + e.innerHTML; });

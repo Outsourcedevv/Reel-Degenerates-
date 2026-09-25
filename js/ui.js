@@ -42,18 +42,18 @@ const UI = {
 
   hud() {
     const cap = CARGO[SAVE.cargoLvl];
-    this.el.cargo.textContent = `🎒 ${SAVE.cargo.length}/${cap}`;
+    this.el.cargo.innerHTML = `${icon('bag')}<span>${SAVE.cargo.length}/${cap}</span>`;
     this.el.cargo.classList.toggle('full', SAVE.cargo.length >= cap);
-    this.el.nades.textContent = `💣 Goo Grenades x${SAVE.nades}`;
+    this.el.nades.innerHTML = `${icon('bomb')}<span>Goo Grenades x${SAVE.nades}</span>`;
     this.show('nades', SAVE.nades > 0);
     const pl = PLANETS[G.planet];
     let pizza = pl.pizza;
-    if (pl.boss === 'zorblax') pizza = Summons.has('zorblax') ? 'WARM! (a miracle)' : SAVE.heat ? `Warming up 🔥 ${SAVE.heat}/${SUMMONS.zorblax.heat}` : pizza;
-    this.el.pizza.textContent = `🍕 Pizza: 3 yrs late · ${pizza}`;
+    if (pl.boss === 'zorblax') pizza = Summons.has('zorblax') ? 'WARM! (a miracle)' : SAVE.heat ? `Warming up ${SAVE.heat}/${SUMMONS.zorblax.heat}` : pizza;
+    this.el.pizza.textContent = `Pizza: 3 yrs late · ${pizza}`;
     const goal = Summons.goal();
     if (this.el.goal.textContent !== goal.text) this.el.goal.textContent = goal.text;
     this.el.goal.classList.toggle('ready', !!goal.ready);
-    this.el.planetname.textContent = `${pl.icon} ${pl.name}`;
+    this.el.planetname.textContent = pl.name;
     this.bucks(0);
     const p = G.player;
     document.querySelectorAll('#hotbar .slot').forEach((s) => {
@@ -140,7 +140,7 @@ const UI = {
     this._ammoKey = key;
     a.classList.toggle('reloading', rel);
     a.classList.toggle('low', !rel && p.ammo <= mag * 0.25);
-    a.querySelector('.n').innerHTML = `⚡${rel ? 0 : p.ammo}<small>/${mag}</small>`;
+    a.querySelector('.n').innerHTML = `${rel ? 0 : p.ammo}<small>/${mag}</small>`;
     a.querySelector('.fill').style.width = ((rel ? 1 - p.reloadT / p.reloadDur : p.ammo / mag) * 100).toFixed(1) + '%';
     a.querySelector('.lbl').textContent = rel ? p.reloadMsg + '...' : p.ammo <= mag * 0.25 ? 'PRESS R TO RELOAD' : 'BATTERY · ∞ SPARES';
   },
@@ -148,7 +148,7 @@ const UI = {
   /* ----- panels ----- */
   openPanel(html, handler, tick, onClose) {
     if (G.panel && this.onClose) { const cb = this.onClose; this.onClose = null; cb(); }
-    this.el['panel-inner'].innerHTML = '<button class="btn small x" data-act="close">✕</button>' + html;
+    this.el['panel-inner'].innerHTML = `<button class="btn small x" data-act="close">${icon('close')}</button>` + html;
     this.panelHandler = handler || null;
     this.panelTick = tick || null;
     this.onClose = onClose || null;
@@ -158,7 +158,7 @@ const UI = {
     Sound.play('open');
   },
   setPanel(html) {
-    this.el['panel-inner'].innerHTML = '<button class="btn small x" data-act="close">✕</button>' + html;
+    this.el['panel-inner'].innerHTML = `<button class="btn small x" data-act="close">${icon('close')}</button>` + html;
   },
   closePanel(noLock) {
     if (!G.panel) return;
@@ -174,6 +174,7 @@ const UI = {
   },
 
   hurt() {
+    Post.hurt(0.7);
     const h = this.el.hurt;
     h.classList.add('on');
     setTimeout(() => h.classList.remove('on'), 80);
@@ -207,11 +208,11 @@ const UI = {
     const f = this.el.phud;
     f.querySelector('.fill').style.width = U.clamp(hp, 0, 100) + '%';
     f.querySelector('.hp span').textContent = Math.ceil(Math.max(0, hp)) + ' HP';
-    const txt = lives > 0 ? '❤️'.repeat(lives) : '💀';
-    if (f.querySelector('.lives').textContent !== txt) f.querySelector('.lives').textContent = txt;
+    const txt = lives > 0 ? icon('heart', 'full').repeat(lives) : icon('skull');
+    if (f.querySelector('.lives').innerHTML !== txt) f.querySelector('.lives').innerHTML = txt;
   },
   team(rows) {
-    const html = rows.map((r) => `<div>${r.out ? '👻' : r.hp <= 0 ? '💀' : '🧑‍🚀'} ${U.esc(r.name)} ${r.out ? '(out)' : Math.max(0, Math.round(r.hp)) + 'hp'}</div>`).join('');
+    const html = rows.map((r) => `<div>${icon(r.out ? 'ghost' : r.hp <= 0 ? 'skull' : 'person')} ${U.esc(r.name)} ${r.out ? '(out)' : Math.max(0, Math.round(r.hp)) + 'hp'}</div>`).join('');
     const t = this.el.phud.querySelector('.team');
     if (t.innerHTML !== html) t.innerHTML = html;
   },
@@ -222,8 +223,8 @@ const UI = {
     const rows = [{ n: G.name + ' (you)', b: SAVE.bucks }];
     for (const r of G.remotes.values()) rows.push({ n: r.name, b: r.s.$ || 0 });
     rows.sort((a, b) => b.b - a.b);
-    this.el.plist.innerHTML = `<h3>🧑‍🚀 Crew ${G.online ? '· Room ' + Net.code : '· Solo'}</h3>` +
-      rows.map((r, i) => `<div class="pl"><span>${i === 0 && rows.length > 1 ? '👑 ' : ''}${U.esc(r.n)}</span><span>${U.bucks(r.b)}</span></div>`).join('');
+    this.el.plist.innerHTML = `<h3>Crew ${G.online ? '· Room ' + Net.code : '· Solo'}</h3>` +
+      rows.map((r, i) => `<div class="pl"><span>${i === 0 && rows.length > 1 ? icon('crown') + ' ' : ''}${U.esc(r.n)}</span><span>${U.bucks(r.b)}</span></div>`).join('');
   },
 
   howHtml() {
@@ -234,7 +235,7 @@ const UI = {
         <p><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move · <kbd>Shift</kbd> sprint</p>
         <p><kbd>Space</kbd> jump (double jump with Bounce Boots)</p>
         <p><kbd>E</kbd> talk / use · <kbd>Esc</kbd> pause</p>
-        <p>🚀 In the ship: mouse steers, <kbd>W</kbd>/<kbd>S</kbd> speed, <kbd>Shift</kbd> turbo</p></div>
+        <p>In the ship: mouse steers, <kbd>W</kbd>/<kbd>S</kbd> throttle, <kbd>Shift</kbd> boost, <kbd>M</kbd> star map, <kbd>V</kbd> camera</p></div>
       <div><h4>Tools</h4>
         <p><kbd>1</kbd> Zapper: click to shoot, <kbd>R</kbd> reload (buy your first one at Robo-Pawn)</p>
         <p><kbd>2</kbd> Grabby Vac: hold click on glowing junk</p>
@@ -244,12 +245,12 @@ const UI = {
       <div><h4>The loop</h4>
         <p>1. Collect the planet's stuff (and zap critters!) and sell it at the shop.</p>
         <p>2. Buy gear. Guns aren't free: buy your first one!</p>
-        <p>3. Find the boss's summoning item, then use it at the ⚠ altar.</p>
+        <p>3. Find the boss's summoning item, then use it at the boss altar.</p>
         <p>4. Win, then fly your ship to the next planet.</p></div>
       <div><h4>Friends & stuff</h4>
         <p>Host a game and send friends the 5-letter code.</p>
         <p>The host is the captain and flies the ship. Anyone with a summoning item can start a boss fight.</p>
-        <p>Gambling unlocks on planet 3, Luckstar. 🎰</p>
+        <p>Gambling unlocks on planet 3, Luckstar.</p>
         <p><kbd>T</kbd> chat · <kbd>Tab</kbd> crew list · <kbd>M</kbd> music</p></div>
     </div>`;
   },
@@ -268,7 +269,7 @@ function showEnding() {
   const el = document.createElement('div');
   el.id = 'ending';
   el.innerHTML = `
-    <button class="btn skip" data-act="done">Keep Playing ▶</button>
+    <button class="btn skip" data-act="done">Keep Playing</button>
     <div class="roll">
       <h1>DELIVERY COMPLETE</h1>
       <p>Emperor Zorblax opened the box.</p>

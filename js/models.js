@@ -671,8 +671,25 @@ function buildZapperVM(color) {
   for (let i = 0; i < 3; i++) tf(mk(TOR(0.05, 0.014, 4, 10), color, g, 0, 0.03, -0.14 - i * 0.07), 0, 0, 0);
   const tip = mk(SPH(0.04, 6, 5), color, g, 0, 0.03, -0.35, { emissive: color });
   const muzzle = grp(g, 0, 0.03, -0.4);
-  g.userData = { tip, muzzle };
+  // muzzle flash: a bright star that shows for a frame or two when firing
+  const flash = new THREE.Mesh(new THREE.PlaneGeometry(0.26, 0.26), new THREE.MeshBasicMaterial({ map: flashTex(), color, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
+  flash.position.set(0, 0.03, -0.44); flash.visible = false; flash.renderOrder = 5;
+  g.add(flash);
+  g.userData = { tip, muzzle, flash };
   return g;
+}
+let _flashTex = null;
+function flashTex() {
+  if (_flashTex) return _flashTex;
+  _flashTex = canvasTex(128, 128, (c) => {
+    const gr = c.createRadialGradient(64, 64, 0, 64, 64, 64);
+    gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.25, 'rgba(255,255,255,.8)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+    c.fillStyle = gr;
+    c.beginPath();
+    for (let i = 0; i < 12; i++) { const a = (i / 12) * Math.PI * 2, r = i % 2 ? 22 : 64; c.lineTo(64 + Math.cos(a) * r, 64 + Math.sin(a) * r); }
+    c.fill();
+  });
+  return _flashTex;
 }
 function buildVacVM() {
   const g = new THREE.Group();
@@ -770,7 +787,30 @@ function buildBlorb() {
   return { root, body, hit: [{ o: new V3(0, 2.4, 0), r: 2.8 }], mouth: new V3(0, 2.2, 2.6) };
 }
 
-const JERRY_SYMS = ['🍒', '🔔', '7', '💰', '🍋', '💀'];
+const JERRY_SYMS = ['cherry', 'bell', '7', 'cash', 'lemon', 'skull'];
+// reel symbols drawn as shapes so they look the same on every computer
+function drawSlotSym(c, s, x, y, u) {
+  c.save(); c.translate(x, y); c.lineWidth = u * 0.08; c.strokeStyle = '#1a1a2a'; c.lineJoin = 'round';
+  const disc = (px, py, r, col) => { c.beginPath(); c.arc(px, py, r, 0, Math.PI * 2); c.fillStyle = col; c.fill(); c.stroke(); };
+  if (s === 'cherry') {
+    c.beginPath(); c.moveTo(-u * 0.25, u * 0.1); c.quadraticCurveTo(-u * 0.1, -u * 0.35, u * 0.15, -u * 0.45); c.moveTo(u * 0.25, u * 0.15); c.quadraticCurveTo(u * 0.2, -u * 0.2, u * 0.15, -u * 0.45);
+    c.strokeStyle = '#2f7a2a'; c.stroke(); c.strokeStyle = '#1a1a2a';
+    disc(-u * 0.25, u * 0.22, u * 0.2, '#d6281b'); disc(u * 0.25, u * 0.27, u * 0.2, '#d6281b');
+  } else if (s === 'bell') {
+    c.beginPath(); c.moveTo(-u * 0.38, u * 0.28); c.quadraticCurveTo(-u * 0.3, -u * 0.4, 0, -u * 0.42); c.quadraticCurveTo(u * 0.3, -u * 0.4, u * 0.38, u * 0.28); c.closePath();
+    c.fillStyle = '#ffc21a'; c.fill(); c.stroke(); disc(0, u * 0.36, u * 0.09, '#ffc21a');
+  } else if (s === 'lemon') {
+    c.beginPath(); c.ellipse(0, 0, u * 0.42, u * 0.28, -0.3, 0, Math.PI * 2); c.fillStyle = '#ffe23a'; c.fill(); c.stroke();
+  } else if (s === 'skull') {
+    disc(0, -u * 0.08, u * 0.34, '#f2efe6'); c.fillStyle = '#f2efe6'; c.fillRect(-u * 0.18, u * 0.12, u * 0.36, u * 0.24); c.strokeRect(-u * 0.18, u * 0.12, u * 0.36, u * 0.24);
+    c.fillStyle = '#1a1a2a'; c.beginPath(); c.arc(-u * 0.13, -u * 0.08, u * 0.08, 0, 7); c.arc(u * 0.13, -u * 0.08, u * 0.08, 0, 7); c.fill();
+  } else {
+    c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.font = `900 ${u * (s === '7' ? 1.0 : 0.85)}px ${FONT}`; c.fillStyle = s === '7' ? '#d6281b' : '#1f9d4a';
+    c.fillText(s === 'cash' ? '$' : s, 0, u * 0.04);
+  }
+  c.restore();
+}
 function drawJerryReels(tex, syms, spinning) {
   const cv = tex.userData.canvas, c = cv.getContext('2d');
   const w = cv.width, h = cv.height;
@@ -779,10 +819,7 @@ function drawJerryReels(tex, syms, spinning) {
     const x = 12 + i * ((w - 24) / 3);
     c.fillStyle = '#fff8e6'; roundRect(c, x + 6, 14, (w - 24) / 3 - 12, h - 28, 18); c.fill();
     const s = spinning ? JERRY_SYMS[Math.floor(Math.random() * JERRY_SYMS.length)] : syms[i];
-    c.textAlign = 'center'; c.textBaseline = 'middle';
-    if (s === '7') { c.font = `bold ${h * 0.62}px ${FONT}`; c.fillStyle = '#d6281b'; }
-    else { c.font = `${h * 0.5}px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif`; c.fillStyle = '#000'; }
-    c.fillText(s, x + (w - 24) / 6, h / 2 + 6);
+    drawSlotSym(c, s, x + (w - 24) / 6, h / 2 + 4, h * 0.62);
   }
   tex.needsUpdate = true;
 }

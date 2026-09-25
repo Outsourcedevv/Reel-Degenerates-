@@ -89,25 +89,45 @@ const Flight = {
     });
     // cockpit interior (only drawn in cockpit view)
     const ck = (this.cockpit = grp(this.pivot));
-    const dark = '#1c2230', trim = '#3a4356';
-    mk(BOX(2.4, 0.5, 0.9), dark, ck, 0, 2.95, 3.3);
-    mk(BOX(2.5, 0.08, 1.0), trim, ck, 0, 3.22, 3.25);
+    const shell = '#171c26', panel = '#10141c', trim = '#2c3444', metal = '#5b6477';
+    const glow = (col) => ({ emissive: col, emissiveIntensity: 1 });
+    const TILT = 0.75; // instrument panel leans back toward the pilot
+    const dash = grp(ck, 0, -0.08, 0.4);
+    // dashboard body, glare hood over the instruments, and the sloped panel itself
+    mk(BOX(2.8, 0.55, 0.9), shell, dash, 0, 2.92, 3.45);
+    mk(BOX(2.7, 0.07, 0.42), shell, dash, 0, 3.62, 3.42);
+    tf(mk(BOX(2.5, 0.62, 0.05), panel, dash, 0, 3.3, 3.2), TILT, Math.PI, 0);
+    // a thin light strip along the hood and the panel edge
+    mk(BOX(2.5, 0.015, 0.015), '#3df0ff', dash, 0, 3.585, 3.22, glow('#3df0ff'));
+    mk(BOX(2.5, 0.015, 0.015), '#ffb020', dash, 0, 3.05, 2.99, glow('#ffb020'));
+    // canopy frame
     for (const s of [-1, 1]) {
-      tf(mk(BOX(0.08, 1.9, 0.08), trim, ck, s * 1.15, 4.1, 3.3), 0.35, 0, s * 0.25);
-      mk(BOX(0.35, 0.9, 1.8), dark, ck, s * 1.3, 3.3, 2.4);
+      tf(mk(BOX(0.09, 1.9, 0.09), trim, ck, s * 1.2, 4.2, 3.35), 0.35, 0, s * 0.28);
+      mk(BOX(0.42, 0.55, 1.9), shell, ck, s * 1.36, 3.05, 2.35);
+      mk(BOX(0.3, 0.02, 1.7), '#3df0ff', ck, s * 1.36, 3.33, 2.35, glow('#1d8fa0'));
     }
-    mk(BOX(2.3, 0.08, 0.08), trim, ck, 0, 4.95, 3.0);
-    mk(BOX(0.06, 0.06, 1.3), trim, ck, 0, 5.0, 2.5);
-    // screens: radar on the left, readouts on the right
-    this.dashTex = canvasTex(256, 128, () => {});
-    const scr = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 0.5), new THREE.MeshBasicMaterial({ map: this.dashTex }));
-    scr.position.set(0.55, 3.27, 3.05); scr.rotation.set(-1.0, Math.PI, 0); ck.add(scr);
+    mk(BOX(2.4, 0.09, 0.09), trim, ck, 0, 5.05, 3.0);
+    mk(BOX(0.07, 0.07, 1.4), trim, ck, 0, 5.1, 2.5);
+    // screens on the sloped panel: radar left, flight data right, warning lights in the middle
+    const onPanel = (m, x) => { m.position.set(x, 3.3, 3.2); m.rotation.set(TILT, Math.PI, 0); m.translateZ(0.035); dash.add(m); return m; };
     this.radarTex = canvasTex(128, 128, () => {});
-    const rs = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.5), new THREE.MeshBasicMaterial({ map: this.radarTex }));
-    rs.position.set(-0.55, 3.27, 3.05); rs.rotation.set(-1.0, Math.PI, 0); ck.add(rs);
-    this.stick = grp(ck, 0, 2.7, 2.6);
-    mk(CYL(0.035, 0.05, 0.5, 6), '#555a66', this.stick, 0, 0.25, 0);
-    mk(SPH(0.07, 6, 5), '#d6281b', this.stick, 0, 0.52, 0, { emissive: '#550000' });
+    onPanel(new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.5), new THREE.MeshBasicMaterial({ map: this.radarTex })), 0.72);
+    this.dashTex = canvasTex(256, 128, () => {});
+    onPanel(new THREE.Mesh(new THREE.PlaneGeometry(0.84, 0.42), new THREE.MeshBasicMaterial({ map: this.dashTex })), -0.6);
+    this.lights = [];
+    for (let i = 0; i < 6; i++) {
+      const l = onPanel(new THREE.Mesh(new THREE.PlaneGeometry(0.07, 0.04), new THREE.MeshBasicMaterial({ color: '#223' })), -0.13 + (i % 3) * 0.13);
+      l.translateY(i < 3 ? 0.1 : -0.02);
+      this.lights.push(l);
+    }
+    // flight stick between your knees, throttle on the left console
+    this.stick = grp(ck, 0, 2.75, 2.7);
+    mk(CYL(0.035, 0.05, 0.5, 6), metal, this.stick, 0, 0.25, 0);
+    mk(BOX(0.09, 0.16, 0.09), '#20252f', this.stick, 0, 0.55, 0);
+    mk(BOX(0.03, 0.03, 0.03), '#d6281b', this.stick, 0, 0.64, 0.03, glow('#ff2a1a'));
+    this.throttleL = grp(ck, 1.3, 3.33, 2.2);
+    mk(BOX(0.04, 0.35, 0.04), metal, this.throttleL, 0, 0.17, 0);
+    mk(BOX(0.14, 0.08, 0.1), '#20252f', this.throttleL, 0, 0.36, 0);
     ck.traverse((c) => { if (c.isMesh) c.castShadow = false; });
     this.setView(this.view);
   },
@@ -116,6 +136,7 @@ const Flight = {
     if (!this.hull) return;
     this.hull.visible = v !== 'cockpit';
     this.cockpit.visible = v === 'cockpit';
+    UI.el.hud.classList.toggle('incockpit', v === 'cockpit');
   },
 
   /* ---------------- atmosphere: over a planet ---------------- */
@@ -359,6 +380,7 @@ const Flight = {
     for (const f of this.flames) f.scale.set(1, 0.4 + thr * 1.8 + Math.random() * 0.3, 1);
     Sound.engineLevel(thr);
     this.stick.rotation.set(U.clamp(-Input.dy * 0.02, -0.4, 0.4), 0, U.clamp(-Input.dx * 0.02, -0.4, 0.4));
+    this.throttleL.rotation.x = -0.6 + U.clamp((this.speed || 0) / FLY.space.turbo, 0, 1) * 1.2;
     if (this.ph === 'space') {
       for (const r of this.rocks) r.m.rotation.y += r.spin * dt;
       for (const c of this.coins) if (!c.taken) c.m.rotation.y += dt * 3;
@@ -433,7 +455,7 @@ const Flight = {
       this.pivot.updateMatrixWorld(true);
       cam.position.copy(this.pivot.localToWorld(SEAT.clone()));
       // cameras look down -Z, the ship's nose is +Z: turn around
-      cam.rotation.set(this.pitch + (Math.random() - 0.5) * sh, this.yaw + Math.PI + (Math.random() - 0.5) * sh, -this.bank, 'YXZ');
+      cam.rotation.set(this.pitch - 0.1 + (Math.random() - 0.5) * sh, this.yaw + Math.PI + (Math.random() - 0.5) * sh, -this.bank, 'YXZ');
     } else {
       const f = this.ph === 'space' ? this.fwd() : new V3(Math.sin(this.yaw), 0, Math.cos(this.yaw));
       const want = this.pos.clone().addScaledVector(f, -18).add(new V3(0, 7, 0));
@@ -454,11 +476,11 @@ const Flight = {
     const w = G.worlds[this.planet];
     const alt = this.ph === 'atmo' ? this.pos.y - Math.max(w.h(this.pos.x, this.pos.z), WATER_Y) : 0;
     const vs = this.ph === 'atmo' ? this.vel.y : 0;
-    hud.querySelector('.dest').textContent = this.ph === 'space' ? `DESTINATION: ${PLANETS[this.wp].name.toUpperCase()}` : `${PLANETS[this.planet].name.toUpperCase()} · ${this.grounded ? 'LANDED' : 'IN FLIGHT'}`;
+    hud.querySelector('.dest').innerHTML = this.ph === 'space' ? `<small>DESTINATION</small>${U.esc(PLANETS[this.wp].name)}` : `<small>${this.grounded ? 'LANDED' : 'ON APPROACH'}</small>${U.esc(PLANETS[this.planet].name)}`;
     hud.querySelector('.dist').textContent = this.ph === 'space' ? `${Math.round(tg.d).toLocaleString()} m to go` : `Landing pad ${Math.round(tg.d)} m away`;
     hud.querySelector('.fill').style.width = (this.turbo * 100).toFixed(0) + '%';
     hud.querySelector('.turbo').classList.toggle('hidden', this.ph !== 'space');
-    const warn = vs < -FLY.hardVS ? 'warn' : vs < -FLY.hardVS * 0.7 ? 'care' : '';
+    const warn = vs < -FLY.hardVS ? 'bad' : vs < -FLY.hardVS * 0.7 ? 'warn' : this.ph === 'atmo' && vs < -0.5 ? 'ok' : '';
     U.$('flyinst').innerHTML = `<div><small>SPEED</small><b>${Math.round(this.speed || 0)}</b></div>` +
       (this.ph === 'atmo' ? `<div><small>ALTITUDE</small><b>${Math.round(alt)} m</b></div><div class="${warn}"><small>DESCENT</small><b>${vs < 0 ? (-vs).toFixed(1) : '0.0'} m/s</b></div>` : `<div><small>TURBO</small><b>${Math.round(this.turbo * 100)}%</b></div>`);
     let hint;
@@ -477,7 +499,7 @@ const Flight = {
     if (!onScreen) { const l = Math.max(Math.abs(x), Math.abs(y)) || 1; x = (x / l) * 0.88; y = (y / l) * 0.85; }
     el.style.left = (50 + x * 50).toFixed(1) + '%';
     el.style.top = (50 - y * 50).toFixed(1) + '%';
-    el.querySelector('.arrow').style.transform = `rotate(${Math.atan2(-y, x)}rad)`;
+    el.querySelector('.arrow').style.transform = `rotate(${Math.atan2(-y, x) + Math.PI / 2}rad)`;
     el.querySelector('.lbl').textContent = `${tg.name} · ${Math.round(tg.d).toLocaleString()} m`;
     if ((this.t * 10 | 0) % 2 === 0) { this.drawRadar(); this.drawDash(alt, vs); }
   },
@@ -500,9 +522,9 @@ const Flight = {
         const rr = edge ? 3.5 : rad;
         ctx.fillStyle = col; ctx.beginPath(); ctx.arc(r + px, r + py, rr, 0, Math.PI * 2); ctx.fill();
         if (hi) { ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(r + px, r + py, rr + 3, 0, Math.PI * 2); ctx.stroke(); }
-        if (label && size > 100) { ctx.fillStyle = '#dfefff'; ctx.font = `600 ${Math.round(size / 15)}px Rajdhani, sans-serif`; ctx.textAlign = 'center'; ctx.fillText(label, r + px, r + py - rr - 5); }
+        if (label && size > 100) { ctx.fillStyle = '#dfefff'; ctx.font = `600 ${Math.round(size / 15)}px "Chakra Petch", sans-serif`; ctx.textAlign = 'center'; ctx.fillText(label, r + px, r + py - rr - 5); }
       };
-      if (this.ph === 'space') PLANETS.forEach((pl, i) => dot(SYSTEM[i].x, SYSTEM[i].z, planetUnlocked(i) ? pl.ground[0] : '#555a66', 6, pl.name.split(' ').pop().toUpperCase(), i === this.wp));
+      if (this.ph === 'space') PLANETS.forEach((pl, i) => dot(SYSTEM[i].x, SYSTEM[i].z, planetUnlocked(i) ? pl.ground[0] : '#555a66', 6, i === this.wp ? pl.name.split(' ').pop().toUpperCase() : '', i === this.wp));
       else dot(0, 0, '#3df0ff', 6, 'PAD', true);
       ctx.fillStyle = '#7dff8a'; ctx.beginPath(); ctx.moveTo(r, r - 8); ctx.lineTo(r - 5, r + 6); ctx.lineTo(r + 5, r + 6); ctx.closePath(); ctx.fill();
     };
@@ -513,13 +535,23 @@ const Flight = {
   drawDash(alt, vs) {
     if (!this.dashTex) return;
     const c = this.dashTex.userData.canvas.getContext('2d');
-    c.fillStyle = '#081018'; c.fillRect(0, 0, 256, 128);
-    c.fillStyle = '#7dffea'; c.font = '600 26px Rajdhani, sans-serif'; c.textAlign = 'left';
-    c.fillText(`SPD ${Math.round(this.speed || 0)}`, 14, 40);
-    c.fillText(this.ph === 'atmo' ? `ALT ${Math.round(alt)}` : `TRB ${Math.round(this.turbo * 100)}%`, 14, 76);
-    c.fillStyle = vs < -FLY.hardVS ? '#ff6b6b' : '#7dffea';
-    c.fillText(this.ph === 'atmo' ? `V/S ${vs.toFixed(1)}` : PLANETS[this.wp].name.toUpperCase(), 14, 112);
+    const g = c.createLinearGradient(0, 0, 0, 128);
+    g.addColorStop(0, '#0b1a24'); g.addColorStop(1, '#050b10');
+    c.fillStyle = g; c.fillRect(0, 0, 256, 128);
+    c.strokeStyle = 'rgba(125,255,234,.25)'; c.lineWidth = 2; c.strokeRect(3, 3, 250, 122);
+    const row = (y, lab, val, col) => {
+      c.fillStyle = 'rgba(125,255,234,.55)'; c.font = '600 14px "Chakra Petch", sans-serif'; c.textAlign = 'left'; c.fillText(lab, 14, y);
+      c.fillStyle = col || '#b9fff3'; c.font = '700 26px "Chakra Petch", sans-serif'; c.textAlign = 'right'; c.fillText(val, 242, y + 2);
+    };
+    const bad = vs < -FLY.hardVS;
+    row(38, 'SPEED', String(Math.round(this.speed || 0)));
+    row(76, this.ph === 'atmo' ? 'ALTITUDE' : 'BOOST', this.ph === 'atmo' ? `${Math.round(alt)} m` : `${Math.round(this.turbo * 100)}%`);
+    row(114, this.ph === 'atmo' ? 'DESCENT' : 'TARGET', this.ph === 'atmo' ? `${Math.max(0, -vs).toFixed(1)}` : PLANETS[this.wp].name.split(' ').pop().toUpperCase(), bad ? '#ff6b6b' : null);
     this.dashTex.needsUpdate = true;
+    // status lights: power, grounded, space, boost low, sink rate, blink
+    const blink = (this.t * 4 | 0) % 2 === 0;
+    const on = ['#46d98a', this.grounded ? '#46d98a' : '', this.ph === 'space' ? '#3ab4ff' : '', this.turbo < 0.25 ? '#ffb020' : '', bad && blink ? '#ff3b3b' : '', blink ? '#3df0ff' : ''];
+    this.lights.forEach((l, i) => l.material.color.set(on[i] || '#1c2230'));
   },
   toggleMap() {
     if (this.mapOpen) { UI.closePanel(); return; }
@@ -549,9 +581,9 @@ const Flight = {
       c.fillStyle = open ? pl.ground[0] : '#3a3f4c';
       c.beginPath(); c.arc(x, y, rr, 0, Math.PI * 2); c.fill();
       c.lineWidth = i === this.wp ? 4 : 2; c.strokeStyle = i === this.wp ? '#ffffff' : 'rgba(255,255,255,.3)'; c.stroke();
-      c.fillStyle = open ? '#ffffff' : '#8a90a0'; c.font = '700 17px Rajdhani, sans-serif'; c.textAlign = 'center';
+      c.fillStyle = open ? '#ffffff' : '#8a90a0'; c.font = '700 17px "Chakra Petch", sans-serif'; c.textAlign = 'center';
       c.fillText(pl.name.toUpperCase(), x, y + rr + 20);
-      c.font = '500 13px Rajdhani, sans-serif'; c.fillStyle = '#9fb3c8';
+      c.font = '500 13px "Chakra Petch", sans-serif'; c.fillStyle = '#9fb3c8';
       c.fillText(!open ? 'LOCKED' : G.progress.includes(pl.boss) ? 'BOSS DEFEATED' : 'BOSS: ' + BOSSES[pl.boss].name.toUpperCase(), x, y + rr + 36);
       this.mapHits.push({ x, y, r: rr + 12, i });
     });

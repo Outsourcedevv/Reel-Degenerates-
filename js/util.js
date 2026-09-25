@@ -16,7 +16,7 @@ const G = {
   panel: null, chatting: false, locked: false, started: false,
   progress: [],          // boss ids beaten (the host's save is the source of truth)
   shake: 0,
-  settings: { sens: 1, vol: 0.7, music: 0.45 },
+  settings: { sens: 1, vol: 0.7, music: 0.45, quality: 'high' },
 };
 
 const U = {
@@ -133,7 +133,7 @@ const CONE = (r, h, s = 8) => new THREE.ConeGeometry(r, h, s);
 const TOR = (r, t, rs = 6, ts = 14) => new THREE.TorusGeometry(r, t, rs, ts);
 
 /* ---------- canvas textures & text ---------- */
-const FONT = '"Lilita One", "Arial Black", Impact, sans-serif';
+const FONT = '"Chakra Petch", "Arial Narrow", Arial, sans-serif';
 function roundRect(c, x, y, w, h, r) {
   c.beginPath();
   c.moveTo(x + r, y);
@@ -156,7 +156,7 @@ function canvasTex(w, h, draw) {
 }
 function textSprite(text, o = {}) {
   const size = o.size || 48, pad = o.pad == null ? 16 : o.pad;
-  const font = `${size}px ${FONT}`;
+  const font = `700 ${size}px ${FONT}`;
   const mc = document.createElement('canvas').getContext('2d');
   mc.font = font;
   const w = Math.ceil(mc.measureText(text).width) + pad * 2, h = Math.ceil(size * 1.4);
@@ -190,8 +190,8 @@ function signMesh(lines, w, h, o = {}) {
     c.textAlign = 'center'; c.textBaseline = 'middle';
     lines.forEach((ln, i) => {
       let f = fs * (i === 0 && n > 1 ? 1.05 : 0.85);
-      c.font = `${f}px ${FONT}`;
-      while (c.measureText(ln).width > px * 0.88 && f > 8) { f -= 2; c.font = `${f}px ${FONT}`; }
+      c.font = `700 ${f}px ${FONT}`;
+      while (c.measureText(ln).width > px * 0.88 && f > 8) { f -= 2; c.font = `700 ${f}px ${FONT}`; }
       c.fillStyle = (o.colors && o.colors[i]) || o.color || '#ffffff';
       if (o.glow) { c.shadowColor = c.fillStyle; c.shadowBlur = f * 0.35; }
       c.fillText(ln, px / 2, (py / n) * (i + 0.5) + f * 0.04);
@@ -209,6 +209,19 @@ function disposeObj(o) {
       c.material.dispose();
     }
   });
+}
+
+// glue several non-indexed geometries into one, flat-shaded
+function mergeGeos(list) {
+  let n = 0;
+  for (const g of list) n += g.attributes.position.count;
+  const pos = new Float32Array(n * 3);
+  let off = 0;
+  for (const g of list) { pos.set(g.attributes.position.array, off); off += g.attributes.position.array.length; g.dispose(); }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.computeVertexNormals();
+  return geo;
 }
 
 /* ---------- merge static meshes by material (big draw-call saver) ---------- */
@@ -314,9 +327,10 @@ const Worlds = {
     if (lsGet('spacegoobers_worlds', null) !== null) return;
     const l = [];
     try {
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i);
-        if (!k || !k.startsWith('spacegoobers_v1_')) continue;
+      // collect the keys first: adding worlds while looping shuffles localStorage's order
+      const old = [];
+      for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.startsWith('spacegoobers_v1_')) old.push(k); }
+      for (const k of old) {
         const id = 'old' + l.length + Date.now().toString(36);
         localStorage.setItem(this.key(id), localStorage.getItem(k));
         const who = k.slice('spacegoobers_v1_'.length).replace(/_/g, ' ');

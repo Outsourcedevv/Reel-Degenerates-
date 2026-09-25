@@ -46,6 +46,7 @@ class LocalPlayer {
     this.tool = 'zap';
     this.hp = 100; this.inv = 0; this.regenT = 0; this.dead = false; this.ghost = false;
     this.cd = 0; this.nadeCd = 0; this.walkT = 0; this.recoil = 0; this.deadT = 0;
+    this.swapT = 0; this.sprintK = 0; this.landK = 0; this.swayX = 0; this.swayY = 0; this.lastYaw = 0; this.lastPitch = 0; this.flashT = 0;
     this.vacT = 0; this.vacTarget = null; this.drillT = 0; this.drillTarget = null;
     this.slideSnd = 0; this.swing = 0;
     this.ammo = 0; this.reloadT = 0; this.reloadDur = 1; this.reloadMsg = '';
@@ -95,7 +96,7 @@ class LocalPlayer {
       return;
     }
     if (this.tool !== t) {
-      if (!quiet) Sound.play('click');
+      if (!quiet) { Sound.play('click'); this.swapT = 1; }
       this.reloadT = 0; // putting the zapper away cancels a reload
     }
     this.tool = t;
@@ -185,6 +186,7 @@ class LocalPlayer {
     this.pos.y += this.vel.y * dt;
     if (this.pos.y <= gnd) {
       if (!this.onGround && this.vel.y < -12) FX.burst(this.pos, '#ffffff', 5, 2);
+      if (!this.onGround && this.vel.y < -5) this.landK = Math.min(1, -this.vel.y / 16);
       this.pos.y = gnd; this.vel.y = Math.max(0, this.vel.y);
       this.onGround = true; this.jumps = 0;
     } else if (this.pos.y > gnd + 0.08) this.onGround = false;
@@ -206,6 +208,11 @@ class LocalPlayer {
     this.vmZap.rotation.set(-rk * 0.9, 0, rk * 0.35);
     const hs = Math.hypot(this.vel.x, this.vel.z);
     if (this.onGround && hs > 0.5) this.walkT += dt * hs * 1.25;
+    this.sprintK = U.damp(this.sprintK, sprint && hs > 6.5 && this.onGround ? 1 : 0, 6, dt);
+    this.swapT = Math.max(0, this.swapT - dt * 4);
+    this.landK = U.damp(this.landK, 0, 7, dt);
+    this.flashT -= dt;
+    if (this.vmZap.userData.flash) this.vmZap.userData.flash.visible = this.flashT > 0;
     if ((G.mode === 'boss' || G.mode === 'planet') && !this.dead && !this.ghost) {
       this.regenT -= dt;
       if (this.regenT <= 0 && this.hp < 100) this.hp = Math.min(100, this.hp + (G.mode === 'boss' ? 6 : 12) * dt);
@@ -330,6 +337,9 @@ class LocalPlayer {
     Net.relay({ t: 'shoot', k: 'zap', o: [U.r2(o.x), U.r2(o.y), U.r2(o.z)], d: [U.r2(d.x), U.r2(d.y), U.r2(d.z)], c: z.color });
     Sound.play(SAVE.zap === 3 ? 'coin' : 'zap');
     this.recoil = 0.08;
+    this.flashT = 0.05;
+    const fl = this.vmZap.userData.flash;
+    if (fl) { fl.rotation.z = Math.random() * 6; fl.scale.setScalar(0.8 + Math.random() * 0.5); fl.material.color.set(z.color); }
   }
   throwNade() {
     if (G.mode !== 'boss') { UI.toast(SAVE.nades ? 'Save your grenades for boss fights!' : 'No grenades. Chef Snorbo sells them on Gloop.', '', 1.8); return; }
@@ -365,16 +375,27 @@ class LocalPlayer {
   updateCamera(dt, hs) {
     const cam = G.camera;
     const bob = this.onGround ? Math.sin(this.walkT * 2) * 0.05 * U.clamp(hs / 6, 0, 1) : 0;
-    let eye = 1.65 + bob;
+    let eye = 1.65 + bob - this.landK * 0.22;
     if (this.dead) { this.deadT += dt; eye = U.lerp(1.65, 0.35, U.clamp(this.deadT * 2, 0, 1)); }
     cam.position.set(this.pos.x, this.pos.y + eye, this.pos.z);
     G.shake = Math.max(0, G.shake - dt * 2.2);
     const sh = G.shake * G.shake;
     cam.rotation.set(this.pitch + (Math.random() - 0.5) * sh * 0.08, this.yaw + (Math.random() - 0.5) * sh * 0.08, this.dead ? Math.min(this.deadT, 0.5) : 0, 'YXZ');
-    // viewmodel sway
+    // sprinting widens the view a little
+    const fov = 72 + this.sprintK * 7;
+    if (Math.abs(cam.fov - fov) > 0.05) { cam.fov = fov; cam.updateProjectionMatrix(); }
+    // viewmodel: lags behind the mouse, bobs with steps, dips on landing, drops out of view when swapping tools
+    const k = Math.min(1, dt * 60);
+    this.swayX = U.damp(this.swayX, U.clamp(U.angDiff(this.lastYaw, this.yaw) * 1.6 * k, -0.08, 0.08), 10, dt);
+    this.swayY = U.damp(this.swayY, U.clamp((this.pitch - this.lastPitch) * 1.6 * k, -0.08, 0.08), 10, dt);
+    this.lastYaw = this.yaw; this.lastPitch = this.pitch;
+    const sw = this.swapT * this.swapT, run = this.sprintK;
     this.vm.visible = !this.dead && !this.ghost;
-    this.vm.position.set(Math.cos(this.walkT) * 0.012, Math.abs(Math.sin(this.walkT)) * 0.012 + (this.onGround ? 0 : 0.02), this.recoil);
-    this.vm.rotation.x = this.recoil * 1.5;
+    this.vm.position.set(
+      Math.cos(this.walkT) * (0.012 + run * 0.02) + this.swayX * 0.5,
+      Math.abs(Math.sin(this.walkT)) * (0.012 + run * 0.02) + (this.onGround ? 0 : 0.02) - sw * 0.3 - this.landK * 0.05 - this.swayY * 0.4 - run * 0.03,
+      this.recoil);
+    this.vm.rotation.set(this.recoil * 1.5 - sw * 0.9 + run * 0.25 - this.swayY, this.swayX * 1.2 + run * 0.3, -this.swayX * 0.8);
   }
 
   netState() {
@@ -397,7 +418,7 @@ class RemotePlayer {
     this.tag = textSprite(s.n, { size: 44, bg: 'rgba(20,20,40,.55)', scale: 0.0065 });
     this.tag.position.y = 2.75;
     this.m.root.add(this.tag);
-    this.ghostTag = textSprite('👻', { size: 80, pad: 4, scale: 0.012 });
+    this.ghostTag = textSprite('OUT', { size: 60, pad: 8, scale: 0.012 });
     this.ghostTag.position.y = 1.2;
     this.ghostTag.visible = false;
     this.m.root.add(this.ghostTag);
