@@ -60,6 +60,7 @@ class LocalPlayer {
     this.dashT = 0; this.dashCd = 0; this.dashDir = new V3(); this.airDash = false; this.stomping = false;
     this.fuel = JET.fuel; this.spaceHold = 0; this.jetting = false; this.gliding = false;
     this.launchT = 0; this.padCd = 0; this.inVent = false; this.booT = 0; this.aimLost = 0;
+    this.slowK = 1; this.ext = new V3(); // (set by boss fights every frame: goo slows you, wind drags you)
     this.vm = new THREE.Group();
     G.camera.add(this.vm);
     this.vmDrill = buildDrillVM();
@@ -173,7 +174,7 @@ class LocalPlayer {
       if (Input.keys.KeyD) mx += 1;
     }
     const sprint = Input.keys.ShiftLeft || Input.keys.ShiftRight;
-    const speed = (sprint ? 8.6 * (SAVE.skates ? 1.35 : 1) : 5.6) * (this.ghost ? 1.3 : 1); // (Duct-Tape Skates: faster sprinting)
+    const speed = (sprint ? 8.6 * (SAVE.skates ? 1.35 : 1) : 5.6) * (this.ghost ? 1.3 : 1) * this.slowK; // (Duct-Tape Skates: faster sprinting)
     const sy = Math.sin(this.yaw), cy = Math.cos(this.yaw);
     let tx = (-sy * mz + cy * mx), tz = (-cy * mz - sy * mx);
     const len = Math.hypot(tx, tz);
@@ -227,7 +228,7 @@ class LocalPlayer {
     // --- updrafts (Nimbus-9) and jump pads (Gigopolis)
     if (w.vents && w.vents.length) this.useVents(w, cfg);
     // --- integrate horizontal with collisions
-    const nx = this.pos.x + this.vel.x * dt, nz = this.pos.z + this.vel.z * dt;
+    const nx = this.pos.x + (this.vel.x + this.ext.x) * dt, nz = this.pos.z + (this.vel.z + this.ext.z) * dt;
     if (!w.blocked(nx, nz, this.pos.y)) { this.pos.x = nx; this.pos.z = nz; }
     else if (!w.blocked(nx, this.pos.z, this.pos.y)) { this.pos.x = nx; this.vel.z *= 0.5; }
     else if (!w.blocked(this.pos.x, nz, this.pos.y)) { this.pos.z = nz; this.vel.x *= 0.5; }
@@ -945,7 +946,7 @@ class RemotePlayer {
 const _boltGeo = new THREE.SphereGeometry(0.09, 6, 4);
 const _nadeGeo = new THREE.IcosahedronGeometry(0.22, 0);
 const _gooGeo = new THREE.IcosahedronGeometry(0.2, 1);
-const _beamGeo = (() => { const g = new THREE.CylinderGeometry(0.03, 0.05, 1, 8, 1, true); g.translate(0, 0.5, 0); return g; })();
+const _beamGeo = (() => { const g = new THREE.CylinderGeometry(0.03, 0.05, 1, 8, 1, true); g.translate(0, 0.5, 0); g.userData.shared = true; return g; })();
 const _wispGeo = new THREE.SphereGeometry(0.13, 8, 6);
 const _parcelGeo = new THREE.BoxGeometry(0.3, 0.3, 0.42);
 const _tapeGeo = new THREE.BoxGeometry(0.31, 0.06, 0.43);
@@ -1144,7 +1145,7 @@ const Shots = {
     const consider = (p, get) => { const v = p.clone().sub(from), d = v.length(); if (d < 0.5 || d > 60) return; const dot = v.dot(dir) / d; if (dot > bs) { bs = dot; best = get; } };
     if (G.mode === 'boss' && G.boss && G.boss.st === 'fight') {
       const b = G.boss, h = b.m.hit[0];
-      consider(b.world(h.o), () => (G.boss === b && b.st === 'fight' ? b.world(h.o) : null));
+      if (!b.hidden) consider(b.world(h.o), () => (G.boss === b && b.st === 'fight' && !b.hidden ? b.world(h.o) : null));
       for (const m of b.minions.values()) if (m.mesh) consider(m.mesh.position.clone().setY(m.mesh.position.y + 0.6), () => (m.mesh && b.minions.has(m.id) ? m.mesh.position.clone().setY(m.mesh.position.y + 0.6) : null));
     } else if (G.mode === 'planet') {
       const w = G.worlds[G.planet];
@@ -1158,7 +1159,7 @@ const Shots = {
     const consider = (t, p) => { if (skip.has(t.key)) return; const d = p.distanceTo(pos); if (d < bd) { bd = d; best = { t, pos: p }; } };
     if (G.mode === 'boss' && G.boss) {
       const b = G.boss;
-      if (b.st === 'fight') for (const h of b.m.hit) consider({ k: 'boss', key: 'boss' }, b.world(h.o));
+      if (b.st === 'fight' && !b.hidden) for (const h of b.m.hit) consider({ k: 'boss', key: 'boss' }, b.world(h.o));
       for (const m of b.minions.values()) if (m.mesh) consider({ k: 'minion', m, key: 'm' + m.id }, m.mesh.position.clone().setY(m.mesh.position.y + 0.6));
     } else if (G.mode === 'planet') {
       const w = G.worlds[G.planet];
@@ -1255,7 +1256,7 @@ const Shots = {
 };
 
 /* ---------------- little particle effects ---------------- */
-const _fxGeo = new THREE.BoxGeometry(0.16, 0.16, 0.16);
+const _fxGeo = new THREE.IcosahedronGeometry(0.1, 1);
 const FX = {
   parts: [], rings: [], texts: [],
   burst(pos, color, n = 8, speed = 4) {

@@ -1,3 +1,17 @@
+## New in 1.7: better boss fights
+
+- **Smoother bosses.** Every boss has been rebuilt with round, smoothly shaded shapes (no more blocky corners), a soft
+  glow around the edges, and it flashes when you hit it. Boss minions and everything bosses throw got the same treatment.
+- **Better animations.** Bosses turn smoothly, walk, bob and breathe, squash when they land and stretch when they jump,
+  flinch when you hit them hard, and roar when they go into phase 2.
+- **You can see every attack coming.** Each attack starts with a wind-up: the boss strikes a pose and glows, and the
+  attack's name appears under its health bar with a bar that fills until it goes off. Red on the floor shows what's
+  about to hurt. **JUMP!**, **MOVE!** and **RUN!** tell you what to do. Shots glow and leave trails, and arrows
+  around your crosshair point at danger coming from behind and at the boss when it's off screen.
+- **Two new attacks for every boss**, like Gary's boomerang lid, Count Carbula's Mist Step, Stormy's Eye of the
+  Storm and Emperor Zorblax's Royal Gaze.
+- The Frostbyte, Nimbus-9 and Planet Gloop arenas have new floor colors, so their bosses stand out.
+
 ## New in 1.6
 
 - **Three new planets** between Frostbyte and Zorblax Prime, each with its own boss:

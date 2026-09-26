@@ -153,6 +153,13 @@ const Sound = {
       case 'boo': T(220, 0.5, { type: 'sawtooth', slide: 150, vol: 0.14, filter: 1200, vib: 6 }); T(330, 0.45, { type: 'triangle', slide: 200, vol: 0.08, vib: 5 }); break;
       case 'ding': T(1319, 0.3, { type: 'sine', vol: 0.12 }); T(1760, 0.4, { type: 'sine', vol: 0.1, delay: 0.12 }); break;
       case 'laugh': [0, 1, 2, 3].forEach((i) => T(260 - i * 18, 0.13, { type: 'sawtooth', vol: 0.1, filter: 1400, vib: 12, delay: i * 0.16 })); break;
+      // boss fights: a wind-up (something's coming), you're the target, and the newer hazards
+      case 'charge': T(260, 0.4, { type: 'sawtooth', slide: 820, vol: 0.035, filter: 1600 }); N(0.35, { ftype: 'bandpass', freq: 700, slide: 2400, vol: 0.05, q: 1.4, attack: 0.15 }); break;
+      case 'warn': T(1320, 0.07, { type: 'square', vol: 0.05 }); T(1320, 0.07, { type: 'square', vol: 0.05, delay: 0.11 }); break;
+      case 'whoosh': N(0.4, { ftype: 'bandpass', freq: 500, slide: 2400, vol: 0.2, q: 1.1, attack: 0.08 }); break;
+      case 'sizzle': N(0.22, { ftype: 'highpass', freq: 3200, vol: 0.05 }); break;
+      case 'swirl': N(1.4, { ftype: 'bandpass', freq: 260, slide: 1300, vol: 0.22, q: 0.8, attack: 0.35 }); T(110, 1.2, { type: 'sine', slide: 60, vol: 0.12, attack: 0.3 }); break;
+      case 'mist': T(900, 0.45, { type: 'sine', slide: 180, vol: 0.08, vib: 9 }); N(0.45, { ftype: 'highpass', freq: 2400, vol: 0.09 }); break;
       case 'rimshot': T(180, 0.08, { vol: 0.15 }); N(0.08, { ftype: 'highpass', freq: 1800, vol: 0.12, delay: 0.12 }); N(0.5, { ftype: 'highpass', freq: 6000, vol: 0.08, delay: 0.3 }); break;
     }
   },

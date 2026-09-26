@@ -10,7 +10,7 @@ const UI = {
   init() {
     ['hud', 'bucks', 'pizza', 'goal', 'ammo', 'cargo', 'nades', 'roomcode', 'planetname', 'crosshair', 'prompt', 'hint', 'actbar',
       'bossbar', 'phud', 'feed', 'chat', 'chatinput', 'toasts', 'subtitle', 'bigtitle', 'pickups', 'hurt', 'plist',
-      'spectate', 'deathscreen', 'panel', 'panel-inner', 'flyhud', 'gig', 'fuel'].forEach((id) => (this.el[id] = U.$(id)));
+      'spectate', 'deathscreen', 'panel', 'panel-inner', 'flyhud', 'gig', 'fuel', 'bosscall', 'threats'].forEach((id) => (this.el[id] = U.$(id)));
     this.el['panel-inner'].addEventListener('click', (e) => {
       const b = e.target.closest('[data-act]');
       if (!b || b.disabled) return;
@@ -232,7 +232,7 @@ const UI = {
   bossBar(on, def) {
     this.show('bossbar', on);
     this.el.hud.classList.toggle('inboss', on);
-    if (!on) return;
+    if (!on) { this.bossCall(null); this.threatHud(null); return; }
     this.el.bossbar.querySelector('.name').textContent = def.name;
     this.el.bossbar.querySelector('.diff').textContent = '★'.repeat(def.stars) + ' ' + def.diff;
     this.el.bossbar.classList.remove('p2');
@@ -243,6 +243,80 @@ const UI = {
     this.el.bossbar.querySelector('.fill').style.width = w;
     this.el.bossbar.querySelector('.lag').style.width = w;
     if (p2) this.el.bossbar.classList.add('p2');
+  },
+  // what the boss is winding up, under its health bar: the name and a bar that fills until it goes off
+  // (you: it's aimed at you). null hides it. The fight moves the bar along with bossCallSet (on game time,
+  // so it stays in step with the attack even when the game runs slow).
+  bossCall(name, col, you) {
+    const b = this.el.bosscall;
+    if (!b) return;
+    if (!name) { b.classList.add('hidden'); return; }
+    b.querySelector('.n').textContent = name;
+    b.querySelector('.you').classList.toggle('hidden', !you);
+    b.style.setProperty('--c', col || '#ffd23f');
+    b.querySelector('.fill').style.width = '0%';
+    b.classList.remove('hidden', 'go');
+    b.style.animation = 'none'; void b.offsetWidth; b.style.animation = '';
+  },
+  // k: how far along the wind-up is (0-1); at 1 it goes off and fades out
+  bossCallSet(k) {
+    const b = this.el.bosscall;
+    if (!b) return;
+    const w = (U.clamp(k, 0, 1) * 100).toFixed(1) + '%', f = b.querySelector('.fill');
+    if (f.style.width !== w) f.style.width = w;
+    if (k >= 1 && !b.classList.contains('go')) b.classList.add('go');
+  },
+  /* the danger overlay in boss fights (drawn around the crosshair):
+     arrows: shots about to pass close by from where you aren't looking · bossA: where the boss is when
+     it's off screen · hits: where recent hits came from · cue: JUMP! / MOVE! / RUN!
+     (angles are from straight ahead, clockwise; null clears it) */
+  threatHud(d) {
+    const cv = this.el.threats;
+    if (!cv) return;
+    const c = cv.getContext('2d');
+    this.lastCue = d ? d.cue : null;
+    if (!d) { if (this._thr) { c.clearRect(0, 0, cv.width, cv.height); this._thr = false; } return; }
+    this._thr = true;
+    if (cv.width !== innerWidth || cv.height !== innerHeight) { cv.width = innerWidth; cv.height = innerHeight; }
+    const w = cv.width, h = cv.height, cx = w / 2, cy = h / 2, t = performance.now() / 1000;
+    c.clearRect(0, 0, w, h);
+    c.lineJoin = 'round';
+    // where hits came from: red arcs close to the crosshair
+    for (const hh of d.hits) {
+      c.strokeStyle = `rgba(255,50,40,${0.85 * hh.k})`;
+      c.lineWidth = 7;
+      c.beginPath(); c.arc(cx, cy, 64, hh.a - Math.PI / 2 - 0.42, hh.a - Math.PI / 2 + 0.42); c.stroke();
+    }
+    // incoming shots: glowing wedges a bit further out, pointing at them
+    for (const a of d.arrows) {
+      const r = 104, x = cx + Math.sin(a.a) * r, y = cy - Math.cos(a.a) * r, s = 11 + 7 * a.k;
+      c.save(); c.translate(x, y); c.rotate(a.a);
+      c.globalAlpha = 0.45 + 0.55 * a.k;
+      c.fillStyle = a.c; c.strokeStyle = 'rgba(0,0,0,0.7)'; c.lineWidth = 2.5;
+      c.beginPath(); c.moveTo(0, -s); c.lineTo(s * 0.8, s * 0.55); c.lineTo(-s * 0.8, s * 0.55); c.closePath(); c.stroke(); c.fill();
+      c.restore();
+    }
+    // the boss, when it's off screen: a big arrow near the edge of the screen
+    if (d.bossA != null) {
+      const rx = w * 0.4, ry = h * 0.38, x = cx + Math.sin(d.bossA) * rx, y = cy - Math.cos(d.bossA) * ry;
+      c.save(); c.translate(x, y); c.rotate(d.bossA);
+      c.globalAlpha = 0.75 + 0.25 * Math.sin(t * 6);
+      c.fillStyle = d.bossCol; c.strokeStyle = 'rgba(0,0,0,0.75)'; c.lineWidth = 3;
+      c.beginPath(); c.moveTo(0, -22); c.lineTo(18, 10); c.lineTo(0, 3); c.lineTo(-18, 10); c.closePath(); c.stroke(); c.fill();
+      c.rotate(-d.bossA);
+      c.font = `700 12px ${FONT}`; c.textAlign = 'center'; c.fillStyle = '#ffffff'; c.globalAlpha = 0.9;
+      c.fillText('BOSS', 0, 30);
+      c.restore();
+    }
+    // what to do about it, right under the crosshair
+    if (d.cue) {
+      const k = 1 + 0.08 * Math.sin(t * 16);
+      c.save(); c.translate(cx, cy + 92); c.scale(k, k);
+      c.font = `700 34px ${FONT}`; c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.lineWidth = 6; c.strokeStyle = 'rgba(0,0,0,0.75)'; c.strokeText(d.cue, 0, 0);
+      c.fillStyle = d.cue === 'JUMP!' ? '#7dfff0' : '#ff4a3a'; c.fillText(d.cue, 0, 0);
+      c.restore();
+    }
   },
   phud(on) { this.show('phud', on); this.el.phud.classList.remove('planet'); },
   // health bar on planets, only while you're hurt

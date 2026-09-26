@@ -210,11 +210,12 @@ function setAtmosphere(cfg, bossTint) {
   G.scene.fog.near = cfg.fog[1];
   G.scene.fog.far = cfg.fog[2];
   G.renderer.setClearColor(fogCol);
+  const dim = G.mode === 'boss' && ARENA_SKIN[cfg.id] ? ARENA_SKIN[cfg.id].light || 1 : 1;
   G.sun.color.set(cfg.sun[0]);
-  G.sun.intensity = cfg.sun[1];
+  G.sun.intensity = cfg.sun[1] * dim;
   G.hemi.color.set(cfg.hemi[0]);
   G.hemi.groundColor.set(cfg.hemi[1]);
-  G.hemi.intensity = cfg.hemi[2];
+  G.hemi.intensity = cfg.hemi[2] * dim;
   G.liquid.set(cfg.liquid);
   // how much things glow (bloom) depends on how bright the place is: bright planets bloom a lot less,
   // or their pastel ground and sunlit mushrooms turn into white glare
@@ -1273,12 +1274,12 @@ class PlanetWorld {
 /* ---------------- boss arena (reskinned per planet) ---------------- */
 const ARENA_SKIN = {
   scrap: { deck: '#7a6a5a', ring: '#5a4a3a', post: '#3b3f4a', rail: '#ffb23e', deco: '#8f6b52' },
-  gloop: { deck: '#e27cbf', ring: '#ff5fb8', post: '#f3e9d2', rail: '#43e0c0', deco: '#9b5de5' },
+  gloop: { deck: '#9a58c4', ring: '#ff5fb8', post: '#f3e9d2', rail: '#43e0c0', deco: '#9b5de5' }, // (the arena floors contrast with their bosses)
   luck:  { deck: '#2a1c48', ring: '#ffd23f', post: '#ff3df0', rail: '#3df0ff', deco: '#ffd23f', neon: true },
-  frost: { deck: '#dff6ff', ring: '#9fe3ff', post: '#8fa3b8', rail: '#ffffff', deco: '#c9e6f5' },
+  frost: { deck: '#8ec0e0', ring: '#e8f8ff', post: '#5d7a96', rail: '#ffffff', deco: '#c9e6f5', light: 0.7 }, // (light: dimmer, so a white boss isn't lost in the glare)
   zorb:  { deck: '#3a2448', ring: '#ffd23f', post: '#2a1f2e', rail: '#ff5a1f', deco: '#ff5a1f', neon: true },
   spook: { deck: '#3a3348', ring: '#7dff8a', post: '#2a2238', rail: '#b9a4ff', deco: '#44523f', neon: true },
-  cloud: { deck: '#eef3ff', ring: '#8fd0ff', post: '#c9d2e6', rail: '#ffd6f4', deco: '#ffffff' },
+  cloud: { deck: '#aebfe6', ring: '#ffffff', post: '#8e9cc4', rail: '#ffd6f4', deco: '#ffffff', light: 0.8 },
   city:  { deck: '#3c404c', ring: '#ffd23f', post: '#2f3340', rail: '#3df0ff', deco: '#5a4a7a', neon: true },
 };
 class Arena {
@@ -1287,27 +1288,32 @@ class Arena {
     this.cfg = cfg;
     this.group = new THREE.Group();
     const st = grp(this.group);
-    mk(CYL(ARENA_R, ARENA_R + 0.6, 1.6, 28), sk.deck, st, 0, DECK_Y - 0.8, 0);
-    mk(CYL(ARENA_R - 2, ARENA_R - 2, 0.04, 28), sk.ring, st, 0, DECK_Y + 0.01, 0);
-    mk(CYL(ARENA_R - 2.4, ARENA_R - 2.4, 0.05, 28), sk.deck, st, 0, DECK_Y + 0.02, 0);
-    mk(CYL(3, 3, 0.06, 16), sk.ring, st, 0, DECK_Y + 0.03, 0);
-    mk(CYL(2.6, 2.6, 0.07, 16), sk.deck, st, 0, DECK_Y + 0.035, 0);
-    for (let i = 0; i < 20; i++) {
-      const a = (i / 20) * Math.PI * 2;
-      mk(CYL(0.2, 0.24, 1.2, 6), sk.post, st, Math.cos(a) * (ARENA_R - 0.3), DECK_Y + 0.6, Math.sin(a) * (ARENA_R - 0.3));
-      if (sk.neon && i % 2 === 0) mk(SPH(0.22, 6, 5), sk.rail, st, Math.cos(a) * (ARENA_R - 0.3), DECK_Y + 1.35, Math.sin(a) * (ARENA_R - 0.3), { emissive: sk.rail });
-    }
-    tf(mk(TOR(ARENA_R - 0.3, 0.09, 4, 60), sk.rail, st, 0, DECK_Y + 1.15, 0, sk.neon ? { emissive: sk.rail } : undefined), Math.PI / 2);
-    for (let i = 0; i < 10; i++) {
-      const a = (i / 10) * Math.PI * 2;
-      mk(CYL(0.6, 0.8, 8, 6), sk.post, st, Math.cos(a) * (ARENA_R - 2), DECK_Y - 5, Math.sin(a) * (ARENA_R - 2));
-    }
-    const rng = U.seeded(99 + idx);
-    for (let i = 0; i < 14; i++) {
-      const a = rng() * Math.PI * 2, r = 42 + rng() * 40;
-      const h = 4 + rng() * 14;
-      mk(CONE(2 + rng() * 3, h, 5), sk.deco, st, Math.cos(a) * r, h / 2 - 2, Math.sin(a) * r);
-    }
+    // (built smooth and round, like the bosses that fight on it)
+    withHi(null, () => {
+      mk(CYL(ARENA_R, ARENA_R + 0.6, 1.6, 128), sk.deck, st, 0, DECK_Y - 0.8, 0);
+      tf(mk(TOR(ARENA_R + 0.02, 0.1, 8, 160), sk.deck, st, 0, DECK_Y - 0.08, 0), Math.PI / 2); // (a rounded lip on the edge)
+      mk(CYL(ARENA_R - 2, ARENA_R - 2, 0.04, 128), sk.ring, st, 0, DECK_Y + 0.01, 0);
+      mk(CYL(ARENA_R - 2.4, ARENA_R - 2.4, 0.05, 128), sk.deck, st, 0, DECK_Y + 0.02, 0);
+      mk(CYL(3, 3, 0.06, 48), sk.ring, st, 0, DECK_Y + 0.03, 0);
+      mk(CYL(2.6, 2.6, 0.07, 48), sk.deck, st, 0, DECK_Y + 0.035, 0);
+      for (let i = 0; i < 20; i++) {
+        const a = (i / 20) * Math.PI * 2;
+        mk(CYL(0.2, 0.24, 1.2, 6), sk.post, st, Math.cos(a) * (ARENA_R - 0.3), DECK_Y + 0.6, Math.sin(a) * (ARENA_R - 0.3));
+        mk(SPH(0.24), sk.post, st, Math.cos(a) * (ARENA_R - 0.3), DECK_Y + 1.2, Math.sin(a) * (ARENA_R - 0.3));
+        if (sk.neon && i % 2 === 0) mk(SPH(0.22, 6, 5), sk.rail, st, Math.cos(a) * (ARENA_R - 0.3), DECK_Y + 1.35, Math.sin(a) * (ARENA_R - 0.3), { emissive: sk.rail });
+      }
+      tf(mk(TOR(ARENA_R - 0.3, 0.09, 8, 180), sk.rail, st, 0, DECK_Y + 1.15, 0, sk.neon ? { emissive: sk.rail } : undefined), Math.PI / 2);
+      for (let i = 0; i < 10; i++) {
+        const a = (i / 10) * Math.PI * 2;
+        mk(CYL(0.6, 0.8, 8, 6), sk.post, st, Math.cos(a) * (ARENA_R - 2), DECK_Y - 5, Math.sin(a) * (ARENA_R - 2));
+      }
+      const rng = U.seeded(99 + idx);
+      for (let i = 0; i < 14; i++) {
+        const a = rng() * Math.PI * 2, r = 42 + rng() * 40;
+        const h = 4 + rng() * 14;
+        mk(CONE(2 + rng() * 3, h, 5), sk.deco, st, Math.cos(a) * r, h / 2 - 2, Math.sin(a) * r);
+      }
+    });
     const floor = new THREE.Mesh(new THREE.CircleGeometry(400, 24), new THREE.MeshBasicMaterial({ color: new THREE.Color(cfg.liquid.color).multiplyScalar(0.35) }));
     floor.rotation.x = -Math.PI / 2; floor.position.y = -14;
     this.group.add(floor);

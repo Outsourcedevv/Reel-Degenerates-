@@ -88,6 +88,7 @@ const TOON_GRAD = (() => {
 
 const _mats = new Map();
 function M(color, opts) {
+  if (HI && HI.mat) return MH(color, opts, HI.mat);
   const key = String(color) + '|' + (opts ? JSON.stringify(opts) : '');
   let m = _mats.get(key);
   if (!m) {
@@ -95,6 +96,79 @@ function M(color, opts) {
     m.userData.shared = true;
     _mats.set(key, m);
   }
+  return m;
+}
+
+/* ---------- smooth mode: round, smoothly shaded shapes (bosses, their minions and shots) ----------
+   While HI is set (see withHi), the shape helpers below make many-sided shapes and rounded
+   boxes, and mk() keeps their smooth normals instead of flattening them. HI.mat picks a
+   material set: 'boss' / 'fx' add a rim light plus the hit flash and charge glow the boss
+   fight drives (HI_U), null keeps the plain shared materials. */
+let HI = null;
+function withHi(mat, fn) {
+  const prev = HI;
+  HI = { mat };
+  try { return fn(); } finally { HI = prev; }
+}
+// how many sides a round thing of radius r gets in smooth mode
+const hiSeg = (r, lo = 12, hi = 40) => U.clamp(Math.round(12 + r * 16), lo, hi);
+const smoothGeo = (geo) => { geo.userData.smooth = true; return geo; };
+// keep a smooth shape's normals but drop the index (mergeLocal / mergeStatic only glue unindexed shapes)
+function unindex(geo) {
+  if (!geo.index) return geo;
+  const g = geo.toNonIndexed();
+  geo.dispose();
+  g.userData.smooth = true;
+  return g;
+}
+// a box with rounded edges and corners, flat faces (after three.js's RoundedBoxGeometry)
+function roundBox(w, h, d, r, seg = 2) {
+  r = Math.min(r, w / 2 - 1e-3, h / 2 - 1e-3, d / 2 - 1e-3);
+  if (r < 0.012) return new THREE.BoxGeometry(w, h, d);
+  const n = seg * 2 + 1;
+  const src = new THREE.BoxGeometry(1, 1, 1, n, n, n), g = src.toNonIndexed();
+  src.dispose();
+  const pos = g.attributes.position.array, nor = g.attributes.normal.array;
+  const bx = w / 2 - r, by = h / 2 - r, bz = d / 2 - r, half = 0.5 / n, v = new V3();
+  for (let i = 0; i < pos.length; i += 3) {
+    const sx = Math.sign(pos[i]), sy = Math.sign(pos[i + 1]), sz = Math.sign(pos[i + 2]);
+    v.set(pos[i] - sx * half, pos[i + 1] - sy * half, pos[i + 2] - sz * half).normalize();
+    pos[i] = bx * sx + v.x * r; pos[i + 1] = by * sy + v.y * r; pos[i + 2] = bz * sz + v.z * r;
+    nor[i] = v.x; nor[i + 1] = v.y; nor[i + 2] = v.z;
+  }
+  return smoothGeo(g);
+}
+
+// the smooth material sets: the usual toon shading plus a rim light, and two effects the boss
+// fight turns up and down for everything in the set at once (uFlash: flash white when hit,
+// uGlow: glow in the attack's color while winding up)
+const HI_U = {};
+for (const s of ['boss', 'fx']) {
+  HI_U[s] = { uFlash: { value: 0 }, uGlow: { value: 0 }, uGlowCol: { value: new THREE.Color('#ffffff') }, uRim: { value: new THREE.Color('#ffffff') }, uRimK: { value: s === 'boss' ? 0.42 : 0.3 } };
+}
+const HI_FRAG_PARS = 'uniform float uFlash, uGlow, uRimK;\nuniform vec3 uGlowCol, uRim;\n';
+const HI_FRAG_MAIN = `
+  float rimD = 1.0 - clamp(dot(normal, normalize(vViewPosition)), 0.0, 1.0);
+  outgoingLight += uRim * uRimK * smoothstep(0.52, 0.8, rimD);
+  outgoingLight += uGlowCol * uGlow * (0.25 + 0.75 * rimD);
+  outgoingLight = mix(outgoingLight, vec3(1.0), uFlash);
+  gl_FragColor = vec4( outgoingLight, diffuseColor.a );`;
+const _hiMats = new Map();
+function MH(color, opts, set) {
+  const key = set + '|' + String(color) + '|' + (opts ? JSON.stringify(opts) : '');
+  let m = _hiMats.get(key);
+  if (m) return m;
+  m = new THREE.MeshToonMaterial(Object.assign({ color, gradientMap: TOON_GRAD }, opts || {}));
+  m.userData.shared = true;
+  const u = HI_U[set];
+  m.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, u);
+    sh.fragmentShader = sh.fragmentShader
+      .replace('void main() {', HI_FRAG_PARS + 'void main() {')
+      .replace('gl_FragColor = vec4( outgoingLight, diffuseColor.a );', HI_FRAG_MAIN);
+  };
+  m.customProgramCacheKey = () => 'hi';
+  _hiMats.set(key, m);
   return m;
 }
 
@@ -107,7 +181,7 @@ function flat(geo) {
 }
 function mk(geo, color, parent, x = 0, y = 0, z = 0, opts) {
   const mat = color && color.isMaterial ? color : M(color, opts);
-  const m = new THREE.Mesh(flat(geo), mat);
+  const m = new THREE.Mesh(geo.userData.smooth ? unindex(geo) : flat(geo), mat);
   m.position.set(x, y, z);
   m.castShadow = true;
   m.receiveShadow = true;
@@ -126,15 +200,21 @@ function grp(parent, x = 0, y = 0, z = 0) {
   if (parent) parent.add(g);
   return g;
 }
-const BOX = (w, h, d) => new THREE.BoxGeometry(w, h, d);
-const CYL = (rt, rb, h, s = 8, open = false) => new THREE.CylinderGeometry(rt, rb, h, s, 1, open);
-const SPH = (r, w = 8, h = 6) => new THREE.SphereGeometry(r, w, h);
-const HEMI = (r, w = 10, h = 5) => new THREE.SphereGeometry(r, w, h, 0, Math.PI * 2, 0, Math.PI / 2);
-const ICO = (r, d = 0) => new THREE.IcosahedronGeometry(r, d);
+// (in smooth mode: rounded boxes, and anything with more than 3 sides gets plenty of them;
+//  3-sided cylinders and cones stay prisms and pyramids, gems stay faceted)
+const BOX = (w, h, d) => HI ? roundBox(w, h, d, Math.min(0.35, Math.min(w, h, d) * 0.22)) : new THREE.BoxGeometry(w, h, d);
+const CYL = (rt, rb, h, s = 8, open = false) => HI && s > 3
+  ? smoothGeo(new THREE.CylinderGeometry(rt, rb, h, Math.max(s, hiSeg(Math.max(rt, rb))), 1, open))
+  : new THREE.CylinderGeometry(rt, rb, h, s, 1, open);
+const SPH = (r, w = 8, h = 6) => HI ? smoothGeo(new THREE.SphereGeometry(r, hiSeg(r, 16, 36), Math.round(hiSeg(r, 16, 36) * 0.7))) : new THREE.SphereGeometry(r, w, h);
+const HEMI = (r, w = 10, h = 5) => HI
+  ? smoothGeo(new THREE.SphereGeometry(r, hiSeg(r, 16, 36), Math.round(hiSeg(r, 16, 36) * 0.35) + 2, 0, Math.PI * 2, 0, Math.PI / 2))
+  : new THREE.SphereGeometry(r, w, h, 0, Math.PI * 2, 0, Math.PI / 2);
+const ICO = (r, d = 0) => HI ? smoothGeo(new THREE.IcosahedronGeometry(r, r > 1 ? 6 : 4)) : new THREE.IcosahedronGeometry(r, d);
 const DOD = (r) => new THREE.DodecahedronGeometry(r, 0);
 const OCT = (r) => new THREE.OctahedronGeometry(r, 0);
-const CONE = (r, h, s = 8) => new THREE.ConeGeometry(r, h, s);
-const TOR = (r, t, rs = 6, ts = 14) => new THREE.TorusGeometry(r, t, rs, ts);
+const CONE = (r, h, s = 8) => HI && s > 3 ? smoothGeo(new THREE.ConeGeometry(r, h, Math.max(s, hiSeg(r)))) : new THREE.ConeGeometry(r, h, s);
+const TOR = (r, t, rs = 6, ts = 14) => HI ? smoothGeo(new THREE.TorusGeometry(r, t, Math.max(rs, 10), Math.max(ts, hiSeg(r, 24, 64)))) : new THREE.TorusGeometry(r, t, rs, ts);
 
 /* ---------- canvas textures & text ---------- */
 const FONT = '"Chakra Petch", "Arial Narrow", Arial, sans-serif';
@@ -207,9 +287,9 @@ function signMesh(lines, w, h, o = {}) {
 
 function disposeObj(o) {
   o.traverse((c) => {
-    if (c.geometry) c.geometry.dispose();
+    if (c.geometry && !c.geometry.userData.shared) c.geometry.dispose();
     if (c.material && !c.material.userData.shared) {
-      if (c.material.map) c.material.map.dispose();
+      if (c.material.map && !c.material.map.userData.shared) c.material.map.dispose();
       c.material.dispose();
     }
   });

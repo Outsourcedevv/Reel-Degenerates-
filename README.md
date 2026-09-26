@@ -105,6 +105,34 @@ health but hit a bit softer than they look. Your ship won't start until you've b
 | 7 | Gigopolis | Delivery gigs: take a parcel at the GigHub kiosk and race it to a door or rooftop (jump pads get you up there) | Rogue Drones, Trash Pandas, Unpaid Intern Bots, Feral E-Scooters | CEO Chad Grindset ★★★★★★★ | Mandatory Meeting Invite, from a delivery customer |
 | 8 | Zorblax Prime | Catch pepperoni meteors with the Pizza Peel | Lava Snails, Magma Imps, Ember Bugs, Royal Hounds | Emperor Zorblax ★★★★★★★★ | Reheated Pizza: catch 15 meteors |
 
+### Boss fights
+
+Every attack is telegraphed, so you can read the fight:
+
+- **Wind-ups.** Before a boss attacks it strikes a pose (arm back to throw, arms up to slam, a crouch before it
+  jumps) and glows. The attack's name shows under its health bar, with a bar that fills until it goes off. With
+  friends, **AT YOU** means you're the target.
+- **Red on the floor means it's about to hurt.** Circles fill up until they go off. Striped lanes are about to be lasered. Arrows in a lane
+  show which way a boss is about to charge. A curved arrow means a beam is about to sweep around the floor.
+- **What to do** flashes under your crosshair: **JUMP!** (a shockwave or a sweeping beam is about to reach you),
+  **MOVE!** (you're standing in the red) or **RUN!** (something is chasing you, or the wind is dragging you).
+- **Where it's coming from.** Everything a boss throws glows and leaves a trail. Arrows around your crosshair point at
+  shots coming from where you aren't looking, a red arc shows which way a hit came from, and a big arrow at the edge
+  of the screen points at the boss when it's off screen.
+
+Each boss has its own set of attacks. Some of the nastier ones:
+
+| Boss | Watch out for |
+| --- | --- |
+| Trashlord Gary | **Lid Toss** (his lid, thrown like a boomerang: it comes back) · **Stink Cloud** (green gas that stays put) |
+| Queen Blorbina | **Triple Bounce** (three belly flops in a row) · **Goo Puddles** (lobbed goo that slows you down) |
+| Jackpot Jerry | **Deal 'Em** (fans of playing cards) · **Lucky Spin** (a spotlight sweeps the floor: jump it) |
+| The Abominable Snowdad | **Belly Slide** (a charge across the arena) · **Avalanche** (giant rolling snowballs) |
+| Count Carbula | **Mist Step** (vanishes and reappears right behind you) · **Bat Cage** (a ring of bats closes in: find the gap) |
+| Stormy McStormface | **Chain Lightning** (strikes walking across the floor at you) · **Eye of the Storm** (the wind drags you toward a lightning strike) |
+| CEO Chad Grindset | **Pivot!** (a laser sweep: jump it) · **Hustle Culture** (three charges in a row) |
+| Emperor Zorblax | **Royal Gaze** (an eye beam that follows you) · **Pizza Wall** (a wall of slices with one gap; the Pizza Peel catches them) |
+
 Every planet sells a different gun, and each one shoots differently:
 
 | Gun | Where | What it does |

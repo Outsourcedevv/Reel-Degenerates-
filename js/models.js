@@ -1352,17 +1352,39 @@ function buildPeelVM() {
 }
 
 /* ---------------- bosses (return {root, body, hit:[{o,r}], ...}) ---------------- */
+// bosses are built in smooth mode (rounded shapes, smooth shading, rim light), then every
+// part that moves on its own keeps its own group and the rest is glued together per group
 function buildBossModel(id) {
-  switch (id) {
-    case 'gary': return buildGary();
-    case 'blorb': return buildBlorb();
-    case 'jerry': return buildJerry();
-    case 'snowdad': return buildSnowdad();
-    case 'count': return buildCount();
-    case 'stormy': return buildStormy();
-    case 'chad': return buildChad();
-    case 'zorblax': return buildZorblax();
+  const m = withHi('boss', () => {
+    switch (id) {
+      case 'gary': return buildGary();
+      case 'blorb': return buildBlorb();
+      case 'jerry': return buildJerry();
+      case 'snowdad': return buildSnowdad();
+      case 'count': return buildCount();
+      case 'stormy': return buildStormy();
+      case 'chad': return buildChad();
+      case 'zorblax': return buildZorblax();
+    }
+  });
+  mergeParts(m.root, m);
+  return m;
+}
+// glue each group's static meshes together, leaving alone the parts listed in `parts`
+// (the named Object3Ds and arrays of them a model hands back for animating)
+function mergeParts(root, parts) {
+  const moving = new Set();
+  for (const [k, v] of Object.entries(parts)) {
+    if (k === 'root') continue;
+    for (const o of Array.isArray(v) ? v : [v]) if (o && o.isObject3D) moving.add(o);
   }
+  for (const g of [root, ...moving]) {
+    if (g.isMesh) continue;
+    mergeLocal(g, [...moving].filter((o) => o !== g));
+  }
+  // they still cast shadows, but don't take them: the toon shading does that job, and smooth
+  // curved surfaces would pick up shadow speckles
+  root.traverse((c) => { if (c.isMesh) c.receiveShadow = false; });
 }
 
 function buildGary() {
@@ -1388,7 +1410,10 @@ function buildGary() {
   for (const s of [-1, 1]) {
     const arm = grp(body, s * 2.0, 4.2, 0);
     for (let i = 0; i < 3; i++) tf(mk(TOR(0.42, 0.2, 5, 10), '#2a2a2a', arm, 0, -0.35 - i * 0.6, 0), PI / 2);
-    mk(DOD(0.7), '#1f2a1f', arm, 0, -2.3, 0.2);
+    // a full trash bag for a fist (tied at the top)
+    tf(mk(SPH(0.72), '#1f2a1f', arm, 0, -2.35, 0.2), 0.2, 0, 0, 1, 0.92, 1.05);
+    tf(mk(CONE(0.26, 0.42, 8), '#1f2a1f', arm, 0, -1.6, 0.2), PI);
+    mk(SPH(0.13), '#2c3a2c', arm, 0, -1.74, 0.2);
     arms.push(arm);
   }
   const flies = [];
@@ -1410,7 +1435,7 @@ function buildBlorb() {
   mk(CYL(0.9, 0.8, 0.6, 8), '#ffd23f', crown, 0, 0, 0);
   for (let i = 0; i < 8; i++) { const a = (i / 8) * PI * 2; mk(CONE(0.15, 0.45, 4), '#ffd23f', crown, Math.sin(a) * 0.85, 0.45, Math.cos(a) * 0.85); }
   mk(OCT(0.22), '#3aa7ff', crown, 0, 0.1, 0.85, { emissive: '#0a4a8a' });
-  return { root, body, hit: [{ o: new V3(0, 2.4, 0), r: 2.8 }], mouth: new V3(0, 2.2, 2.6) };
+  return { root, body, crown, hit: [{ o: new V3(0, 2.4, 0), r: 2.8 }], mouth: new V3(0, 2.2, 2.6) };
 }
 
 const JERRY_SYMS = ['cherry', 'bell', '7', 'cash', 'lemon', 'skull'];
@@ -1518,7 +1543,7 @@ function buildSnowdad() {
   tf(mk(TOR(0.2, 0.06, 4, 8), '#ffffff', mug, 0.4, 0, 0), 0, PI / 2, 0);
   const lbl = signMesh(['#1 DAD'], 0.55, 0.3, { bg: '#ffffff', color: '#c0392b', border: false });
   lbl.position.set(0, 0, 0.36); mug.add(lbl);
-  return { root, body, arms, legs, hit: [{ o: new V3(0, 3.4, 0), r: 2.4 }, { o: new V3(0, 5.6, 0.2), r: 1.3 }], mouth: new V3(0, 5.3, 1.4) };
+  return { root, body, arms, legs, head, hit: [{ o: new V3(0, 3.4, 0), r: 2.4 }, { o: new V3(0, 5.6, 0.2), r: 1.3 }], mouth: new V3(0, 5.3, 1.4) };
 }
 
 function buildZorblax() {
@@ -1555,7 +1580,14 @@ function buildZorblax() {
 }
 
 /* ---------------- minions ---------------- */
+// (smooth like their boss; the flapping and spinning parts stay separate, the rest is glued together)
 function buildMinion(kind) {
+  const g = withHi('fx', () => buildMinionParts(kind));
+  const ud = g.userData;
+  mergeParts(g, { wings: ud.wings, spin: ud.spin, body: ud.body });
+  return g;
+}
+function buildMinionParts(kind) {
   const g = new THREE.Group();
   if (kind === 'slime') {
     tf(mk(SPH(0.6, 8, 6), '#ff7ac8', g, 0, 0.5, 0), 0, 0, 0, 1, 0.8, 1);
@@ -1601,7 +1633,24 @@ function buildMinion(kind) {
 }
 
 /* ---------------- boss projectile meshes ---------------- */
+// one smooth template per kind and size, handed out as copies that share its geometry and
+// materials (so a spiral of 40 shots doesn't build 40 spheres; the shared parts are never freed, see disposeObj)
+const _projTpl = new Map();
 function projMesh(kind, r) {
+  const key = kind + '|' + r;
+  let t = _projTpl.get(key);
+  if (!t) {
+    t = withHi('fx', () => projParts(kind, r));
+    mergeLocal(t);
+    t.traverse((c) => { if (c.isMesh) c.receiveShadow = false; });
+    t.traverse((c) => { if (c.geometry) c.geometry.userData.shared = true; });
+    _projTpl.set(key, t);
+  }
+  const g = t.clone();
+  g.userData.shared = true;
+  return g;
+}
+function projParts(kind, r) {
   const g = new THREE.Group();
   switch (kind) {
     case 'trash': tf(mk(DOD(r), '#1f2a1f', g), 0, 0, 0); mk(BOX(r * 0.4, r * 0.4, r * 0.4), '#ffd23f', g, 0, r * 0.9, 0); break;
@@ -1635,6 +1684,20 @@ function projMesh(kind, r) {
       mk(CYL(r * 0.58, r * 0.5, r * 0.5, 8), '#8a5a2b', g, 0, -r * 0.05, 0);
       break;
     case 'slip': mk(BOX(r * 1.5, 0.05, r * 1.1), '#ff9ad5', g, 0, 0, 0, { emissive: '#6a2a4a' }); break;
+    case 'card': // (Jackpot Jerry deals these)
+      mk(BOX(r * 1.1, 0.05, r * 1.55), '#ffffff', g, 0, 0, 0, { emissive: '#3a3a3a' });
+      mk(BOX(r * 0.86, 0.06, r * 1.3), '#d6281b', g, 0, 0, 0, { emissive: '#3a0808' });
+      mk(SPH(r * 0.2), '#ffffff', g, 0, 0.04, 0);
+      break;
+    case 'bigsnow': // (Snowdad's avalanche: it rolls)
+      mk(SPH(r), '#f4f8ff', g, 0, 0, 0);
+      for (const [x, y, z] of [[0.75, 0.3, 0.1], [-0.4, 0.6, 0.5], [0.1, -0.5, -0.7], [-0.6, -0.3, -0.4]]) mk(SPH(r * 0.34), '#dde7f4', g, x * r, y * r, z * r);
+      break;
+    case 'lid': // (Trashlord Gary's lid, thrown like a boomerang)
+      mk(CYL(r, r, 0.22, 24), '#8fa085', g, 0, 0, 0);
+      mk(TOR(r * 0.96, 0.07, 6, 28), '#66755c', g, 0, 0, 0).rotation.x = PI / 2;
+      mk(TOR(0.28, 0.07, 6, 12), '#66755c', g, 0, 0.2, 0);
+      break;
     default: mk(SPH(r, 6, 5), '#ffffff', g, 0, 0, 0, { emissive: '#666666' });
   }
   g.traverse((c) => { if (c.isMesh) c.castShadow = false; });
@@ -2082,12 +2145,15 @@ function buildCount() {
   mk(BOX(0.4, 0.34, 0.16), '#b8142e', body, 0, 3.65, 0.84);
   tf(mk(CYL(0.22, 0.22, 0.06, 12), '#ffd23f', body, 0, 3.25, 0.86, { emissive: '#664400' }), PI / 2);
   tf(mk(TOR(0.6, 0.06, 4, 16), '#b8142e', body, 0, 1.75, 0), PI / 2);
-  // the cape: two wings that flutter (see BossFight.animate), red inside, black outside
+  // the cape: two curved halves hanging from the shoulders, black outside, red inside, that billow and
+  // flare out (see BossFight.animate)
   const cape = [];
   for (const s of [-1, 1]) {
     const w = grp(body, s * 0.55, 3.95, -0.45);
-    tf(mk(BOX(2.3, 3.9, 0.12), '#0a0a12', w, s * 1.05, -1.75, -0.06), 0, 0, s * 0.1);
-    tf(mk(BOX(2.2, 3.8, 0.06), '#8a0f22', w, s * 1.05, -1.75, 0.04), 0, 0, s * 0.1);
+    const t0 = s > 0 ? PI / 2 - 0.12 : PI, tl = PI / 2 + 0.12;
+    for (const [r0, r1, col] of [[1.16, 2.12, '#0a0a12'], [1.1, 2.04, '#8a0f22']]) {
+      mk(smoothGeo(new THREE.CylinderGeometry(r0, r1, 3.9, 20, 1, true, t0, tl)), col, w, -s * 0.55, -1.95, 0.45, { side: THREE.DoubleSide });
+    }
     cape.push(w);
   }
   for (const s of [-1, 1]) tf(mk(CONE(0.62, 1.5, 3), '#8a0f22', body, s * 0.55, 4.6, -0.3), 0, 0, -s * 0.35, 1, 1, 0.3);
@@ -2168,7 +2234,7 @@ function buildChad() {
   mk(BOX(1.04, 0.22, 0.08), '#111111', head, 0, 0.14, 0.48);
   mk(BOX(0.9, 0.04, 0.02), '#3df0ff', head, 0, 0.18, 0.53, { emissive: '#3df0ff' });
   mk(BOX(0.5, 0.1, 0.05), '#ffffff', head, 0, -0.32, 0.47);
-  mk(new THREE.TorusGeometry(0.55, 0.05, 4, 16, PI), '#2a2a30', head, 0, 0.2, 0);
+  mk(smoothGeo(new THREE.TorusGeometry(0.55, 0.05, 8, 28, PI)), '#2a2a30', head, 0, 0.2, 0);
   for (const s of [-1, 1]) tf(mk(CYL(0.15, 0.15, 0.12, 10), '#2a2a30', head, s * 0.52, 0.12, 0), 0, 0, PI / 2);
   rod(head, new V3(-0.55, 0.05, 0.05), new V3(-0.25, -0.35, 0.55), 0.025, '#2a2a30');
   mk(SPH(0.06, 6, 5), '#3df0ff', head, -0.22, -0.37, 0.58, { emissive: '#3df0ff' });

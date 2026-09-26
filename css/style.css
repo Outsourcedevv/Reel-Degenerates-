@@ -292,6 +292,19 @@ kbd {
 #bossbar .fill { background: linear-gradient(90deg, #a3161a, #ef4f4f); }
 #bossbar.p2 .fill { background: linear-gradient(90deg, #5a1ea8, #b06bff); animation: pulse .5s infinite alternate; }
 @keyframes pulse { from { filter: brightness(1); } to { filter: brightness(1.4); } }
+/* what the boss is winding up (the bar fills until it goes off) */
+#bosscall { position: absolute; top: 76px; left: 50%; transform: translateX(-50%); min-width: 340px; padding: 5px 34px 7px; text-align: center; color: #fff; --c: #ffd23f; animation: callIn .18s ease-out; pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(8,8,14,.62) 22%, rgba(8,8,14,.62) 78%, transparent); }
+#bosscall .n { display: inline-block; font-size: 21px; font-weight: 700; letter-spacing: 5px; text-transform: uppercase; color: var(--c); text-shadow: 0 2px 10px rgba(0,0,0,.9), 0 0 2px rgba(0,0,0,.95); }
+#bosscall .you { display: inline-block; margin-left: 10px; padding: 1px 7px; font-size: 11px; font-weight: 700; letter-spacing: 2px; color: #fff; background: #d8261d; vertical-align: 3px; animation: pulse .25s infinite alternate; }
+#bosscall .you.hidden { display: none; }
+#bosscall .bar { height: 4px; margin: 5px auto 0; width: 220px; background: rgba(0,0,0,.5); border: 1px solid rgba(255,255,255,.15); overflow: hidden; }
+#bosscall .fill { height: 100%; width: 0; background: var(--c); box-shadow: 0 0 8px var(--c); }
+#bosscall.go { transition: opacity .9s ease-in .2s; opacity: 0; }
+#bosscall.go .n { animation: callGo .25s ease-out; }
+@keyframes callIn { from { opacity: 0; transform: translate(-50%, -6px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@keyframes callGo { 0% { transform: scale(1.35); filter: brightness(1.8); } 100% { transform: none; } }
+#threats { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; }
 
 #phud { position: absolute; left: 22px; bottom: 24px; width: 270px; }
 #phud .lives { display: flex; gap: 4px; margin-bottom: 24px; color: var(--red); font-size: 18px; }
@@ -544,6 +557,7 @@ table.list td.r, table.list th.r { text-align: right; }
 
 @media (max-width: 1000px) {
   #bossbar { top: 120px; width: 90vw; }
+  #bosscall { top: 176px; }
 }
 @media (max-width: 700px) {
   .how { grid-template-columns: 1fr; }
@@ -781,5 +795,5 @@ img.thumb.inline { display: inline-block; width: 32px; height: 32px; vertical-al
 #deathscreen .hold { position: relative; margin-top: 30px; width: min(380px, 82vw); height: 38px; border: 1px solid rgba(255,255,255,.4); background: rgba(0,0,0,.45); overflow: hidden; }
 #deathscreen .hold .fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: var(--acc); box-shadow: 0 0 18px rgba(255,176,32,.6); }
 #deathscreen .hold span { position: relative; line-height: 38px; font-size: 13px; letter-spacing: 3px; color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,.8); }
-#hud.dead #hotbar, #hud.dead #ammo, #hud.dead #crosshair, #hud.dead #prompt, #hud.dead #hint { display: none; }
+#hud.dead #hotbar, #hud.dead #ammo, #hud.dead #crosshair, #hud.dead #prompt, #hud.dead #hint, #hud.dead #threats { display: none; }
 @media (max-width: 700px) { #deathscreen .t { font-size: 38px; letter-spacing: 5px; } }

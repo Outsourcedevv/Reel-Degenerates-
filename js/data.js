@@ -353,7 +353,7 @@ const BOSSES = {
     win: 'CEO Chad Grindset has been let go. Effective immediately.',
   },
   zorblax: {
-    name: 'Emperor Zorblax the Unsatisfied', diff: 'UNREASONABLE', stars: 8, hp: 40000, reward: 25000, color: '#9b5de5', icon: 'skull',
+    name: 'Emperor Zorblax the Unsatisfied', diff: 'UNREASONABLE', stars: 8, hp: 50000, reward: 25000, color: '#9b5de5', icon: 'skull',
     quote: 'Ordered one large pepperoni three years ago. Has been waiting ever since.',
     taunts: ['THREE YEARS! I ORDERED THIS THREE YEARS AGO!', 'I will be leaving a VERY detailed review!', 'Is that pineapple?! I can SMELL pineapple!', 'Where are my garlic knots?!', 'I DEMAND A REFUND!'],
     taunts2: ['I WANT TO SPEAK TO YOUR MANAGER!', 'ZERO STARS! NEGATIVE STARS!', 'GUARDS! THIS DELIVERY IS UNACCEPTABLE!', 'I\'M CALLING CORPORATE!'],
