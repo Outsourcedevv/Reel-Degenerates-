@@ -37,8 +37,8 @@ const SPACE_ATMO = {
 const nameOf = (id) => (id === Net.myId ? 'you' : (G.remotes.get(id) && G.remotes.get(id).name) || 'someone');
 
 // an astronaut sitting down (for whoever is in a seat)
-function seatedAstronaut(color, hat) {
-  const a = buildAstronaut({ color, hat });
+function seatedAstronaut(color, hat, look) {
+  const a = buildAstronaut({ color, hat, look });
   a.legL.rotation.x = a.legR.rotation.x = -1.45;
   a.armL.rotation.x = a.armR.rotation.x = -0.9;
   a.root.traverse((c) => { if (c.isMesh) c.castShadow = false; });
@@ -269,7 +269,7 @@ const Flight = {
       const eye = seat === 'pilot' ? SEAT : PASS_SEATS[pi++ % PASS_SEATS.length];
       if (mine && inside) continue;
       const r = G.remotes.get(id);
-      const a = seatedAstronaut(mine ? G.color : r ? r.s.c : '#ffffff', mine ? SAVE.hat : r ? r.s.h : 'none');
+      const a = seatedAstronaut(mine ? G.color : r ? r.s.c : '#ffffff', mine ? SAVE.hat : r ? r.s.h : 'none', mine ? G.look : r ? r.s.lk : '');
       a.root.position.set(eye.x, eye.y - 1.9, eye.z - 0.08);
       this.crewGroup.add(a.root);
     }
@@ -290,7 +290,7 @@ const Flight = {
     if (!w || !w.parked) return;
     if (pid && !w.parkedDummy) {
       const r = G.remotes.get(pid), mine = pid === Net.myId;
-      const a = seatedAstronaut(mine ? G.color : r ? r.s.c : '#ffffff', mine ? SAVE.hat : r ? r.s.h : 'none');
+      const a = seatedAstronaut(mine ? G.color : r ? r.s.c : '#ffffff', mine ? SAVE.hat : r ? r.s.h : 'none', mine ? G.look : r ? r.s.lk : '');
       a.root.position.set(SEAT.x, SEAT.y - 1.9, SEAT.z - 0.08);
       a.root.userData.id = pid;
       w.parkedDummy = a.root;

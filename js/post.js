@@ -54,7 +54,9 @@ const Post = {
   },
   build() {
     const r = G.renderer, size = r.getDrawingBufferSize(new THREE.Vector2());
-    const opts = { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBAFormat };
+    // (a stencil buffer too, only because it brings a 24-bit depth buffer with it instead of a 16-bit one:
+    //  without it, surfaces lying close together, like the stripes on a suit, flicker through each other)
+    const opts = { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBAFormat, stencilBuffer: true };
     // keep edges smooth: render into a multisampled target where the browser supports it
     const rt = r.capabilities.isWebGL2 && THREE.WebGLMultisampleRenderTarget
       ? Object.assign(new THREE.WebGLMultisampleRenderTarget(size.x, size.y, opts), { samples: 4 })

@@ -5,46 +5,354 @@
 const PI = Math.PI;
 
 /* ---------------- people ---------------- */
+// your suit's accent color (belt, collar, gloves, backpack; the gloves you see in first person)
+const ACCENT_COLORS = ['#ff7a3d', '#ff4b6e', '#3aa7ff', '#3fcf6a', '#ffd23f', '#9b5de5', '#2ad4c4', '#ff8ad8',
+  '#e5383b', '#1f5fd6', '#8bd33a', '#ff9f1c', '#b3b9c4', '#2b2f38', '#ffffff', '#8a5a34'];
+// everything else you can change about your astronaut (see Custom). Each part is picked by its
+// place in its list, and a whole look travels as a short code: one character per part, in this order
+const LOOK_PARTS = [
+  { k: 'body', label: 'Suit', tab: 'suit', colors: ['#f4f1ea', '#c9ced6', '#3b3f4a', '#1f2229', '#26335c', '#f3e2c0', '#6b7a3a', '#6e2233', '#bfe3ff', '#c8f5d8', '#ddd0ff', '#ffd0e6'] },
+  { k: 'pattern', label: 'Pattern', tab: 'suit', opts: ['Plain', 'Stripes', 'Racing stripe', 'Two-tone', 'Half and half', 'Shoulder pads', 'Spots'] },
+  { k: 'badge', label: 'Chest badge', tab: 'suit', opts: ['Buttons', 'Star', 'Heart', 'Lightning', 'Pizza', 'Moon', 'None'] },
+  { k: 'pack', label: 'Backpack', tab: 'suit', opts: ['Air tanks', 'Jet pack', 'Pizza box', 'Rocket', 'None'] },
+  { k: 'visor', label: 'Helmet glass', tab: 'face', colors: ['#bfe8ff', '#5ab4ff', '#ffc23a', '#ff8ad8', '#6dff9a', '#4a5060'] },
+  { k: 'skin', label: 'Skin', tab: 'face', colors: ['#f2c9a0', '#ffe0c4', '#e0ac7e', '#c68652', '#8d5a3b', '#5c3a26', '#9be07a', '#8fb8ff', '#c7a4ff'] },
+  { k: 'hair', label: 'Hair', tab: 'face', opts: ['None', 'Tuft', 'Bowl cut', 'Spiky', 'Bun', 'Mohawk', 'Curly', 'Long'] },
+  { k: 'hairCol', label: 'Hair color', tab: 'face', colors: ['#2b1d14', '#6b3e1f', '#c9772f', '#f0d27a', '#d9482b', '#e9e4dc', '#ff5ab4', '#3aa7ff', '#3fcf6a', '#9b5de5'] },
+  { k: 'eyes', label: 'Eyes', tab: 'face', opts: ['Round', 'Happy', 'Sleepy', 'Angry', 'Big', 'Dots', 'Cyclops'] },
+  { k: 'mouth', label: 'Mouth', tab: 'face', opts: ['Smile', 'Grin', 'Flat', 'Surprised', 'Tongue', 'Fangs', 'Smirk'] },
+  { k: 'extra', label: 'Extra', tab: 'face', opts: ['None', 'Mustache', 'Beard', 'Freckles', 'Blush', 'Glasses', 'Clown nose'] },
+];
+// a look code (or a look, or nothing) -> { body: 0, pattern: 2, ... } (anything unknown: the first choice)
+function lookFrom(code) {
+  if (code && typeof code === 'object') code = lookCode(code);
+  const l = {}, s = typeof code === 'string' ? code : '';
+  LOOK_PARTS.forEach((p, i) => {
+    const n = parseInt(s[i] || '0', 36);
+    l[p.k] = n >= 0 && n < (p.colors || p.opts).length ? n : 0;
+  });
+  return l;
+}
+const lookCode = (l) => LOOK_PARTS.map((p) => ((l && l[p.k]) | 0).toString(36)).join('');
+// one of a look's colors ('body', 'skin', 'visor', 'hairCol')
+const lookColor = (code, k) => { const p = LOOK_PARTS.find((q) => q.k === k); return p.colors[lookFrom(code)[k]]; };
+
+// the torso: a rounded barrel (a lathe of this outline, squashed front to back)
+const TORSO = [[0, 0], [0.17, 0], [0.262, 0.028], [0.316, 0.095], [0.338, 0.21], [0.343, 0.37], [0.336, 0.51], [0.312, 0.615], [0.265, 0.695], [0.195, 0.752], [0.1, 0.782], [0, 0.79]];
+const TORSO_Y = 0.83, TORSO_Z = 0.68;
+function torsoR(y) {
+  for (let i = 1; i < TORSO.length; i++) {
+    const [r0, y0] = TORSO[i - 1], [r1, y1] = TORSO[i];
+    if (y <= y1) return y1 > y0 ? r0 + ((r1 - r0) * (y - y0)) / (y1 - y0) : r1;
+  }
+  return 0;
+}
+// a piece of the torso's skin from height y0 to y1 (above its bottom), standing out by `out`: stripes,
+// panels. phi0 / len: only part of the way around (angle 0 is straight ahead)
+function torsoPart(y0, y1, out = 0.012, phi0 = 0, len = PI * 2) {
+  const pts = [new THREE.Vector2(Math.max(0.001, torsoR(y0) - 0.01), y0)];
+  const rows = Math.max(1, Math.round((y1 - y0) / 0.06));
+  for (let i = 0; i <= rows; i++) { const y = y0 + ((y1 - y0) * i) / rows; pts.push(new THREE.Vector2(Math.max(0.001, torsoR(y) + out), y)); }
+  pts.push(new THREE.Vector2(Math.max(0.001, torsoR(y1) - 0.01), y1));
+  const g = new THREE.LatheGeometry(pts, len > 3 ? 36 : 14, phi0, len);
+  g.scale(1, 1, TORSO_Z);
+  return smoothGeo(g);
+}
+// where the torso's skin is at angle phi and height y (root coordinates), and which way it faces
+function torsoAt(phi, y, out = 0) {
+  const r = torsoR(y) + out;
+  return { p: new V3(Math.sin(phi) * r, TORSO_Y + y, Math.cos(phi) * r * TORSO_Z), n: new V3(Math.sin(phi), 0, Math.cos(phi) / TORSO_Z).normalize() };
+}
+const _Z1 = new V3(0, 0, 1);
+// a smooth ball with a sensible number of sides for its size
+const smoothBall = (r) => { const n = U.clamp(Math.round(8 + r * 50), 8, 22); return smoothGeo(new THREE.SphereGeometry(r, n, Math.round(n * 0.7))); };
+// a capsule standing on y (a rod of length len with round ends), as one smooth shape
+function capsuleGeo(r, len, sides) {
+  const pts = [], k = 4, n = sides || U.clamp(Math.round(8 + r * 60), 8, 20);
+  for (let i = 0; i <= k; i++) { const a = -PI / 2 + (i / k) * (PI / 2); pts.push(new THREE.Vector2(Math.max(1e-4, Math.cos(a) * r), -len / 2 + Math.sin(a) * r)); }
+  for (let i = 0; i <= k; i++) { const a = (i / k) * (PI / 2); pts.push(new THREE.Vector2(Math.max(1e-4, Math.cos(a) * r), len / 2 + Math.sin(a) * r)); }
+  return smoothGeo(new THREE.LatheGeometry(pts, n));
+}
+// a rounded rod from a to b inside `parent` (arms, legs, eyebrows)
+function limb(parent, a, b, r, color) {
+  const d = b.clone().sub(a), len = d.length() || 0.001;
+  const m = mk(capsuleGeo(r, len), color, parent, (a.x + b.x) / 2, (a.y + b.y) / 2, (a.z + b.z) / 2);
+  m.quaternion.setFromUnitVectors(new V3(0, 1, 0), d.divideScalar(len));
+  return m;
+}
+// a flat shape pushed out into a chunky, rounded-edged badge
+const badgeGeo = (shape, depth = 0.018) => new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: true, bevelThickness: 0.007, bevelSize: 0.007, bevelSegments: 2, curveSegments: 12 });
+function starShape(r1, r2) {
+  const s = new THREE.Shape();
+  for (let i = 0; i < 10; i++) { const a = (i / 10) * PI * 2, r = i % 2 ? r2 : r1; s[i ? 'lineTo' : 'moveTo'](Math.sin(a) * r, Math.cos(a) * r); }
+  return s;
+}
+
+// a spacesuited goober. o: color (accent), look (a look code, see LOOK_PARTS), hat
 function buildAstronaut(o = {}) {
-  const suit = o.color || '#ff7a3d', white = '#f4f1ea', dark = '#3b3f4a';
-  const root = new THREE.Group();
-  const legs = [];
-  for (const s of [-1, 1]) {
-    const leg = grp(root, s * 0.16, 0.82, 0);
-    mk(BOX(0.24, 0.62, 0.26), white, leg, 0, -0.3, 0);
-    mk(BOX(0.26, 0.1, 0.28), suit, leg, 0, -0.1, 0);
-    mk(BOX(0.28, 0.22, 0.34), dark, leg, 0, -0.72, 0.03);
-    legs.push(leg);
-  }
-  mk(BOX(0.66, 0.72, 0.42), white, root, 0, 1.18, 0);
-  mk(BOX(0.68, 0.16, 0.44), suit, root, 0, 0.9, 0);
-  mk(BOX(0.3, 0.22, 0.05), dark, root, 0, 1.24, 0.22);
-  mk(BOX(0.06, 0.06, 0.04), '#ff4b3e', root, -0.08, 1.26, 0.25);
-  mk(BOX(0.06, 0.06, 0.04), '#3fcf6a', root, 0, 1.26, 0.25);
-  mk(BOX(0.06, 0.06, 0.04), '#ffd23f', root, 0.08, 1.26, 0.25);
-  mk(BOX(0.5, 0.6, 0.26), suit, root, 0, 1.2, -0.33);
-  for (const s of [-1, 1]) mk(CYL(0.08, 0.08, 0.5, 6), '#c9ced6', root, s * 0.14, 1.22, -0.5);
-  const arms = [];
-  for (const s of [-1, 1]) {
-    const arm = grp(root, s * 0.43, 1.48, 0);
-    mk(BOX(0.2, 0.56, 0.22), white, arm, 0, -0.24, 0);
-    mk(BOX(0.22, 0.1, 0.24), suit, arm, 0, -0.04, 0);
-    mk(BOX(0.2, 0.18, 0.22), suit, arm, 0, -0.58, 0); // (gloves in the suit color, like in first person)
-    arm.userData.hand = grp(arm, 0, -0.62, 0.06);
-    arms.push(arm);
-  }
-  const head = grp(root, 0, 1.9, 0);
-  mk(ICO(0.24, 1), o.skin || '#f2c9a0', head, 0, -0.02, 0.02);
-  for (const s of [-1, 1]) {
-    mk(SPH(0.075, 6, 5), '#ffffff', head, s * 0.09, 0.03, 0.2);
-    mk(SPH(0.04, 5, 4), '#111111', head, s * 0.09, 0.03, 0.26);
-  }
-  mk(BOX(0.12, 0.03, 0.03), '#6b2d2d', head, 0, -0.11, 0.23);
-  const glass = mk(SPH(0.38, 12, 9), M('#bfe8ff', { transparent: true, opacity: 0.3, depthWrite: false }), head, 0, 0, 0);
-  glass.castShadow = false;
-  tf(mk(TOR(0.3, 0.06, 5, 14), suit, head, 0, -0.3, 0), PI / 2);
-  const hatSlot = grp(head, 0, 0.34, 0);
-  const r = { root, legL: legs[0], legR: legs[1], armL: arms[0], armR: arms[1], head, hatSlot, hand: arms[1].userData.hand };
+  const L = lookFrom(o.look), C = (k) => lookColor(L, k);
+  const acc = o.color || '#ff7a3d', body = C('body'), boot = '#353945', dark = '#2a2d36';
+  const r = withHi(null, () => {
+    const root = new THREE.Group();
+    // legs: rounded, with chunky boots
+    const legs = [];
+    for (const s of [-1, 1]) {
+      const leg = grp(root, s * 0.16, 0.82, 0);
+      limb(leg, new V3(0, 0.02, 0), new V3(0, -0.54, 0), 0.128, body);
+      mk(smoothGeo(new THREE.CylinderGeometry(0.138, 0.134, 0.07, 22)), acc, leg, 0, -0.56, 0);
+      mk(roundBox(0.27, 0.2, 0.36, 0.085, 2), boot, leg, 0, -0.69, 0.04);
+      mk(roundBox(0.29, 0.05, 0.38, 0.024, 2), dark, leg, 0, -0.795, 0.04);
+      legs.push(leg);
+    }
+    // the torso, and its belt
+    const torso = new THREE.LatheGeometry(TORSO.map(([x, y]) => new THREE.Vector2(x, y)), 36);
+    torso.scale(1, 1, TORSO_Z);
+    mk(smoothGeo(torso), body, root, 0, TORSO_Y, 0);
+    mk(torsoPart(0.035, 0.12, 0.014), acc, root, 0, TORSO_Y, 0);
+    // arms: shoulder, sleeve, cuff, a round glove with a thumb
+    const arms = [];
+    for (const s of [-1, 1]) {
+      const arm = grp(root, s * 0.43, 1.48, 0), sleeve = L.pattern === 4 && s > 0 ? acc : body; // (half and half: one sleeve too)
+      mk(smoothBall(0.13), L.pattern === 3 ? acc : sleeve, arm, 0, -0.02, 0); // (two-tone: the shoulders too)
+      limb(arm, new V3(0, -0.02, 0), new V3(0, -0.44, 0), 0.103, sleeve);
+      mk(smoothGeo(new THREE.CylinderGeometry(0.114, 0.112, 0.07, 20)), acc, arm, 0, -0.46, 0);
+      tf(mk(smoothBall(0.1), acc, arm, 0, -0.565, 0.012), 0, 0, 0, 1, 1.08, 1);
+      limb(arm, new V3(-s * 0.05, -0.52, 0.05), new V3(-s * 0.075, -0.575, 0.085), 0.035, acc);
+      arm.userData.hand = grp(arm, 0, -0.62, 0.06);
+      arms.push(arm);
+    }
+    // the pattern on the suit
+    switch (L.pattern) {
+      case 1: for (const y of [0.3, 0.44]) mk(torsoPart(y, y + 0.065, 0.011), acc, root, 0, TORSO_Y); break;
+      case 2: for (const f of [0, PI]) mk(torsoPart(0.13, 0.78, 0.009, f - 0.19, 0.38), acc, root, 0, TORSO_Y); break;
+      case 3: mk(torsoPart(0.43, 0.782, 0.008), acc, root, 0, TORSO_Y); break;
+      case 4: mk(torsoPart(0.13, 0.782, 0.008, 0, PI), acc, root, 0, TORSO_Y); break;
+      case 5: for (const a of arms) tf(mk(smoothBall(0.155), acc, a, 0, 0.0, 0), 0, 0, 0, 1.05, 0.72, 1.05); break;
+      case 6: {
+        const spots = [[-0.55, 0.62], [0.6, 0.55], [-0.2, 0.28], [0.95, 0.3], [-1.1, 0.42], [0.25, 0.6], [2.6, 0.5], [-2.4, 0.3], [3.2, 0.62], [1.7, 0.2], [-1.7, 0.6], [2.1, 0.66]];
+        for (const [phi, y] of spots) {
+          const at = torsoAt(phi, y, -0.004);
+          const d = tf(mk(smoothBall(0.045), acc, root), 0, 0, 0, 1, 1, 0.28);
+          d.position.copy(at.p); d.quaternion.setFromUnitVectors(_Z1, at.n);
+        }
+        break;
+      }
+    }
+    // the badge on the chest
+    const chest = torsoAt(0, 0.45, 0.004), badge = grp(root, chest.p.x, chest.p.y, chest.p.z - 0.008);
+    badge.rotation.x = -0.06;
+    // (every badge but the buttons sits on a round patch, so it stands out whatever the suit's colors)
+    if (L.badge > 0 && L.badge < 6) {
+      tf(mk(smoothGeo(new THREE.CylinderGeometry(0.125, 0.125, 0.04, 28)), '#1d2540', badge, 0, 0, -0.012), PI / 2);
+      mk(smoothGeo(new THREE.TorusGeometry(0.125, 0.013, 8, 32)), acc, badge, 0, 0, 0.008);
+    }
+    switch (L.badge) {
+      case 0:
+        mk(roundBox(0.3, 0.2, 0.05, 0.03), '#3b3f4a', badge, 0, 0, 0);
+        ['#ff4b3e', '#3fcf6a', '#ffd23f'].forEach((c, i) => tf(mk(smoothBall(0.03), c, badge, -0.08 + i * 0.08, 0.01, 0.024), 0, 0, 0, 1, 1, 0.6));
+        break;
+      case 1: mk(badgeGeo(starShape(0.1, 0.045)), '#ffd23f', badge, 0, 0, 0); break;
+      case 2: {
+        const h = new THREE.Shape();
+        h.moveTo(0, -0.085);
+        h.bezierCurveTo(-0.05, -0.04, -0.1, -0.005, -0.1, 0.035);
+        h.bezierCurveTo(-0.1, 0.075, -0.07, 0.095, -0.047, 0.095);
+        h.bezierCurveTo(-0.022, 0.095, -0.006, 0.08, 0, 0.06);
+        h.bezierCurveTo(0.006, 0.08, 0.022, 0.095, 0.047, 0.095);
+        h.bezierCurveTo(0.07, 0.095, 0.1, 0.075, 0.1, 0.035);
+        h.bezierCurveTo(0.1, -0.005, 0.05, -0.04, 0, -0.085);
+        mk(badgeGeo(h), '#ff3d6e', badge, 0, 0, 0);
+        break;
+      }
+      case 3: {
+        const b = new THREE.Shape();
+        [[0.035, 0.1], [-0.055, -0.005], [-0.005, -0.005], [-0.035, -0.1], [0.06, 0.02], [0.01, 0.02], [0.045, 0.1]].forEach(([x, y], i) => b[i ? 'lineTo' : 'moveTo'](x, y));
+        mk(badgeGeo(b), '#ffd23f', badge, 0, 0, 0);
+        break;
+      }
+      case 4: {
+        const sl = new THREE.Shape();
+        sl.moveTo(-0.085, 0.06); sl.lineTo(0.085, 0.06); sl.lineTo(0, -0.1); sl.lineTo(-0.085, 0.06);
+        mk(badgeGeo(sl), '#ffc94a', badge, 0, 0, 0);
+        limb(badge, new V3(-0.088, 0.068, 0.012), new V3(0.088, 0.068, 0.012), 0.022, '#d9933d');
+        for (const [x, y] of [[-0.03, 0.025], [0.03, 0.02], [0, -0.035]]) tf(mk(smoothBall(0.02), '#d63a2a', badge, x, y, 0.026), 0, 0, 0, 1, 1, 0.35);
+        break;
+      }
+      case 5: {
+        // a crescent: the edge of one circle, then back along a smaller circle bitten out of it
+        const R = 0.09, R2 = 0.078, d = 0.046, ix = (R * R - R2 * R2 + d * d) / (2 * d), iy = Math.sqrt(R * R - ix * ix);
+        const m = new THREE.Shape(), a0 = Math.atan2(iy, ix), b0 = Math.atan2(iy, ix - d);
+        m.absarc(0, 0, R, a0, PI * 2 - a0, false);
+        m.absarc(d, 0, R2, PI * 2 - b0, b0, true);
+        mk(badgeGeo(m), '#fff1b0', badge, 0, 0, 0);
+        break;
+      }
+    }
+    // the backpack
+    switch (L.pack) {
+      case 0:
+        mk(roundBox(0.5, 0.58, 0.2, 0.075, 2), acc, root, 0, 1.22, -0.31);
+        for (const s of [-1, 1]) {
+          limb(root, new V3(s * 0.13, 0.98, -0.45), new V3(s * 0.13, 1.44, -0.45), 0.078, '#c9ced6');
+          mk(smoothGeo(new THREE.CylinderGeometry(0.03, 0.03, 0.06, 12)), dark, root, s * 0.13, 1.54, -0.45);
+        }
+        break;
+      case 1:
+        mk(roundBox(0.5, 0.52, 0.2, 0.075, 2), '#5a606c', root, 0, 1.24, -0.31);
+        mk(roundBox(0.52, 0.08, 0.21, 0.035, 2), acc, root, 0, 1.36, -0.31);
+        for (const s of [-1, 1]) {
+          mk(smoothGeo(new THREE.CylinderGeometry(0.09, 0.1, 0.4, 20)), '#c9ced6', root, s * 0.16, 1.1, -0.46);
+          mk(smoothBall(0.09), '#c9ced6', root, s * 0.16, 1.3, -0.46);
+          mk(smoothGeo(new THREE.CylinderGeometry(0.08, 0.11, 0.1, 20)), dark, root, s * 0.16, 0.86, -0.46);
+          tf(mk(smoothGeo(new THREE.TorusGeometry(0.095, 0.014, 8, 24)), '#ff9a3d', root, s * 0.16, 0.81, -0.46, { emissive: '#aa4400' }), PI / 2);
+        }
+        break;
+      case 2: {
+        const box = grp(root, 0, 1.2, -0.33);
+        mk(roundBox(0.6, 0.6, 0.12, 0.025, 2), '#e3b26a', box, 0, 0, 0);
+        mk(roundBox(0.61, 0.03, 0.125, 0.012, 2), '#c99a55', box, 0, 0.22, 0);
+        tf(mk(smoothGeo(new THREE.CylinderGeometry(0.15, 0.15, 0.02, 28)), '#d63a2a', box, 0, -0.02, -0.062), PI / 2);
+        tf(mk(smoothGeo(new THREE.CylinderGeometry(0.1, 0.1, 0.02, 24)), '#fff3dc', box, 0, -0.02, -0.07), PI / 2);
+        break;
+      }
+      case 3: {
+        const rk = grp(root, 0, 1.2, -0.44);
+        mk(roundBox(0.3, 0.3, 0.16, 0.06, 2), '#5a606c', root, 0, 1.2, -0.3);
+        mk(smoothGeo(new THREE.CylinderGeometry(0.13, 0.13, 0.46, 24)), '#f4f1ea', rk, 0, 0, 0);
+        mk(smoothGeo(new THREE.CylinderGeometry(0.133, 0.133, 0.07, 24)), acc, rk, 0, 0.1, 0);
+        mk(smoothGeo(new THREE.ConeGeometry(0.13, 0.26, 24)), acc, rk, 0, 0.36, 0);
+        mk(smoothGeo(new THREE.CylinderGeometry(0.07, 0.11, 0.09, 20)), dark, rk, 0, -0.27, 0);
+        tf(mk(smoothBall(0.045), '#7fd8ff', rk, 0, 0.04, -0.12), 0, 0, 0, 1, 1, 0.5);
+        for (let i = 0; i < 3; i++) {
+          const a = PI + (i - 1) * 2.1, f = grp(rk, Math.sin(a) * 0.13, -0.16, Math.cos(a) * 0.13);
+          f.rotation.y = a;
+          mk(roundBox(0.024, 0.18, 0.12, 0.01, 2), acc, f, 0, 0, 0.04);
+        }
+        break;
+      }
+    }
+    // the head, inside a glass bubble
+    const head = grp(root, 0, 1.9, 0);
+    const skin = C('skin'), hc = C('hairCol'), HC = new V3(0, -0.02, 0.02), HR = 0.24;
+    mk(smoothBall(HR), skin, head, HC.x, HC.y, HC.z);
+    for (const s of [-1, 1]) tf(mk(smoothBall(0.055), skin, head, s * 0.235, -0.03, 0.01), 0, 0, 0, 0.6, 1, 1);
+    // a little group sitting on the face at (sideways angle a, upward angle b), facing out; things
+    // inside it are laid out flat (x across, y up, z out of the face)
+    const face = (a, b, lift = 0) => {
+      const n = new V3(Math.sin(a) * Math.cos(b), Math.sin(b), Math.cos(a) * Math.cos(b));
+      const g = grp(head);
+      g.position.copy(n).multiplyScalar(HR + lift).add(HC);
+      g.quaternion.setFromUnitVectors(_Z1, n);
+      return g;
+    };
+    const arc = (r, t, len = PI) => smoothGeo(new THREE.TorusGeometry(r, t, 6, 14, len));
+    // eyes
+    const ey = 0.13, ex = 0.36;
+    const eye = (a, b, R, pr) => {
+      mk(smoothBall(R), '#ffffff', face(a, b, -R * 0.45), 0, 0, 0);
+      const p = face(a, b - 0.02, R * 0.45);
+      tf(mk(smoothBall(pr), '#15151c', p, 0, 0, 0), 0, 0, 0, 1, 1, 0.6);
+      return p;
+    };
+    switch (L.eyes) {
+      case 1: for (const s of [-1, 1]) mk(arc(0.042, 0.012), '#15151c', face(s * ex, ey, 0.004), 0, -0.015, 0); break;
+      case 2:
+        for (const s of [-1, 1]) {
+          eye(s * ex, ey - 0.02, 0.066, 0.034);
+          const lid = face(s * ex, ey - 0.02, -0.024);
+          tf(mk(smoothGeo(new THREE.SphereGeometry(0.075, 18, 10, 0, PI * 2, 0, PI / 2)), skin, lid, 0, 0, 0), 0.1, 0, 0);
+        }
+        break;
+      case 3:
+        for (const s of [-1, 1]) {
+          eye(s * ex, ey - 0.02, 0.066, 0.036);
+          const br = face(s * ex, ey + 0.2, 0.006);
+          limb(br, new V3(-s * 0.055, -0.018, 0), new V3(s * 0.05, 0.014, 0), 0.014, hc === '#e9e4dc' ? '#9a948c' : hc);
+        }
+        break;
+      case 4:
+        for (const s of [-1, 1]) {
+          const p = eye(s * ex, ey, 0.085, 0.054);
+          mk(smoothBall(0.017), '#ffffff', p, -0.018, 0.022, 0.03);
+        }
+        break;
+      case 5: for (const s of [-1, 1]) mk(smoothBall(0.03), '#15151c', face(s * 0.33, ey, -0.006), 0, 0, 0); break;
+      case 6: { const p = eye(0, ey + 0.02, 0.1, 0.058); mk(smoothBall(0.02), '#ffffff', p, -0.022, 0.026, 0.03); break; }
+      default: for (const s of [-1, 1]) eye(s * ex, ey, 0.07, 0.038);
+    }
+    // mouth
+    const mb = -0.34, lip = '#5a2424';
+    switch (L.mouth) {
+      case 1: {
+        const g = face(0, mb + 0.02, 0.002);
+        const d = new THREE.Shape();
+        d.moveTo(-0.075, 0); d.lineTo(0.075, 0); d.absarc(0, 0, 0.075, 0, PI, true);
+        mk(badgeGeo(d, 0.006), '#3a1616', g, 0, 0.012, -0.012);
+        mk(roundBox(0.12, 0.024, 0.014, 0.006), '#ffffff', g, 0, 0.0, 0.004);
+        break;
+      }
+      case 2: limb(face(0, mb, 0.002), new V3(-0.055, 0, 0), new V3(0.055, 0, 0), 0.012, lip); break;
+      case 3: tf(mk(smoothBall(0.036), '#3a1616', face(0, mb, -0.008), 0, 0, 0), 0, 0, 0, 0.9, 1.15, 0.5); break;
+      case 6: tf(mk(arc(0.055, 0.012, PI * 0.8), lip, face(0.08, mb + 0.02, 0.002), 0, 0.02, 0), 0, 0, PI + 0.55); break;
+      default: {
+        const g = face(0, mb + 0.04, 0.002);
+        tf(mk(arc(0.06, 0.012), lip, g, 0, 0, 0), 0, 0, PI);
+        if (L.mouth === 4) tf(mk(smoothBall(0.028), '#ff6b8a', g, 0.012, -0.066, 0.004), 0, 0, 0, 1, 1.2, 0.5);
+        if (L.mouth === 5) for (const s of [-1, 1]) tf(mk(smoothGeo(new THREE.ConeGeometry(0.013, 0.035, 10)), '#ffffff', g, s * 0.032, -0.06, 0.004), 0, 0, PI);
+      }
+    }
+    // extras
+    switch (L.extra) {
+      case 1: for (const s of [-1, 1]) tf(mk(smoothBall(0.05), hc, face(s * 0.12, -0.2, -0.01), 0, 0, 0), 0, 0, s * 0.35, 1.35, 0.55, 0.55); break;
+      case 2: {
+        const bd = smoothGeo(new THREE.SphereGeometry(0.258, 28, 10, PI / 2 - 1.2, 2.4, 1.98, PI - 1.98));
+        mk(bd, hc, head, HC.x, HC.y, HC.z);
+        break;
+      }
+      case 3: for (const s of [-1, 1]) for (const [a, b] of [[0.3, -0.1], [0.4, -0.08], [0.35, -0.16]]) mk(smoothBall(0.011), '#9a5a35', face(s * a, b, -0.004), 0, 0, 0); break;
+      case 4: for (const s of [-1, 1]) tf(mk(smoothBall(0.045), '#ff8a9a', face(s * 0.42, -0.14, -0.008), 0, 0, 0), 0, 0, 0, 1.3, 0.8, 0.25); break;
+      case 5:
+        for (const s of [-1, 1]) mk(smoothGeo(new THREE.TorusGeometry(0.077, 0.012, 8, 24)), '#22242c', face(s * ex, ey, 0.062), 0, 0, 0);
+        limb(face(0, ey, 0.066), new V3(-0.018, 0, 0), new V3(0.018, 0, 0), 0.01, '#22242c');
+        break;
+      case 6: mk(smoothBall(0.048), '#ff2a2a', face(0, -0.1, 0.012), 0, 0, 0); break;
+    }
+    // hair (kept inside the helmet)
+    const cap = (theta, tilt = -0.35, rr = 0.256) => tf(mk(smoothGeo(new THREE.SphereGeometry(rr, 32, 14, 0, PI * 2, 0, theta)), hc, head, HC.x, HC.y, HC.z), tilt, 0, 0);
+    const spike = (a, b, h, w, sx = 1) => {
+      const g = face(a, b, -0.02);
+      tf(mk(smoothGeo(new THREE.ConeGeometry(w, h, 14)), hc, g, 0, 0, h / 2), PI / 2, 0, 0, sx, 1, 1);
+    };
+    switch (L.hair) {
+      case 1: cap(0.55, -0.1, 0.25); spike(0, 1.2, 0.12, 0.035); spike(0.4, 1.05, 0.1, 0.03); spike(-0.4, 1.05, 0.1, 0.03); break;
+      case 2: cap(1.3, -0.42); break;
+      case 3: cap(1.1, -0.45); for (const [a, b] of [[0, 1.35], [0.9, 0.95], [-0.9, 0.95], [0, 0.95], [2.2, 0.9], [-2.2, 0.9], [PI, 0.7], [1.6, 0.6], [-1.6, 0.6]]) spike(a, b, 0.12, 0.045); break;
+      case 4: cap(1.25, -0.42); mk(smoothBall(0.085), hc, head, 0, 0.2, -0.13); break;
+      case 5: for (let i = 0; i < 6; i++) spike(0, 0.55 + i * 0.36, 0.12 - Math.abs(i - 2.5) * 0.012, 0.05, 0.4); break;
+      case 6: {
+        cap(1.15, -0.4, 0.245);
+        const curls = [[0, 1.4], [0.8, 1.05], [-0.8, 1.05], [0, 0.95], [1.6, 0.85], [-1.6, 0.85], [2.4, 0.85], [-2.4, 0.85], [PI, 0.7], [0.45, 0.75], [-0.45, 0.75], [1.2, 0.5], [-1.2, 0.5], [2.9, 0.3], [-2.9, 0.3]];
+        for (const [a, b] of curls) mk(smoothBall(0.058), hc, face(a, b, -0.015), 0, 0, 0);
+        break;
+      }
+      case 7:
+        cap(1.3, -0.42);
+        mk(smoothGeo(new THREE.SphereGeometry(0.262, 32, 16, PI, PI, 0.4, 2.1)), hc, head, HC.x, HC.y, HC.z);
+        break;
+    }
+    // the glass bubble (tinted), a shine on it, and the collar ring it sits in
+    const vis = C('visor'), op = { '#4a5060': 0.52, '#ffc23a': 0.42, '#bfe8ff': 0.28 }[vis] || 0.36;
+    const glass = mk(smoothGeo(new THREE.SphereGeometry(0.38, 28, 18)), M(vis, { transparent: true, opacity: op, depthWrite: false }), head, 0, 0, 0);
+    glass.castShadow = false;
+    const shine = tf(mk(smoothBall(0.07), M('#ffffff', { transparent: true, opacity: 0.55, depthWrite: false }), head, -0.17, 0.2, 0.28), 0, 0, 0.6, 1.4, 0.55, 0.3);
+    shine.quaternion.setFromUnitVectors(_Z1, new V3(-0.45, 0.53, 0.72).normalize());
+    shine.castShadow = false;
+    tf(mk(smoothGeo(new THREE.TorusGeometry(0.3, 0.068, 10, 32)), acc, head, 0, -0.3, 0), PI / 2, 0, 0, 1, 0.86, 1);
+    const hatSlot = grp(head, 0, 0.34, 0);
+    return { root, legL: legs[0], legR: legs[1], armL: arms[0], armR: arms[1], head, hatSlot, hand: arms[1].userData.hand, handL: arms[0].userData.hand };
+  });
+  mergeParts(r.root, r);
+  r.look = lookCode(L);
   setHat(r, o.hat || 'none');
   return r;
 }
@@ -53,157 +361,170 @@ function setHat(ch, id) {
   if (ch.hatId === id) return;
   ch.hatId = id;
   while (ch.hatSlot.children.length) { const c = ch.hatSlot.children[0]; ch.hatSlot.remove(c); disposeObj(c); }
-  if (id && id !== 'none') ch.hatSlot.add(buildHat(id));
+  if (id && id !== 'none') {
+    const h = buildHat(id);
+    h.traverse((c) => { if (c.isMesh) c.receiveShadow = false; }); // (smooth, like the rest of you: see mergeParts)
+    ch.hatSlot.add(h);
+  }
 }
 
 function buildHat(id) {
-  const g = new THREE.Group();
-  switch (id) {
-    case 'cone':
-      mk(BOX(0.46, 0.05, 0.46), '#ff7b1f', g, 0, 0, 0);
-      mk(CONE(0.2, 0.56, 8), '#ff7b1f', g, 0, 0.3, 0);
-      mk(CYL(0.125, 0.15, 0.09, 8), '#ffffff', g, 0, 0.24, 0);
-      break;
-    case 'antenna':
-      for (const s of [-1, 1]) {
-        tf(mk(CYL(0.015, 0.015, 0.36, 4), '#3fcf6a', g, s * 0.1, 0.14, 0), 0, 0, -s * 0.35);
-        mk(SPH(0.065, 6, 5), '#7dff8a', g, s * 0.17, 0.32, 0, { emissive: '#2a8a2a' });
+  return withHi(null, () => { // (smooth, like the heads they sit on)
+    const g = new THREE.Group();
+    switch (id) {
+      case 'cone':
+        mk(BOX(0.46, 0.05, 0.46), '#ff7b1f', g, 0, 0, 0);
+        mk(CONE(0.2, 0.56, 8), '#ff7b1f', g, 0, 0.3, 0);
+        mk(CYL(0.125, 0.15, 0.09, 8), '#ffffff', g, 0, 0.24, 0);
+        break;
+      case 'antenna':
+        for (const s of [-1, 1]) {
+          tf(mk(CYL(0.015, 0.015, 0.36, 4), '#3fcf6a', g, s * 0.1, 0.14, 0), 0, 0, -s * 0.35);
+          mk(SPH(0.065, 6, 5), '#7dff8a', g, s * 0.17, 0.32, 0, { emissive: '#2a8a2a' });
+        }
+        break;
+      case 'chef':
+        mk(CYL(0.2, 0.2, 0.26, 10), '#ffffff', g, 0, 0.1, 0);
+        tf(mk(SPH(0.27, 10, 6), '#ffffff', g, 0, 0.32, 0), 0, 0, 0, 1, 0.7, 1);
+        break;
+      case 'tophat':
+        mk(CYL(0.4, 0.4, 0.03, 12), '#222222', g, 0, 0, 0);
+        mk(CYL(0.24, 0.24, 0.48, 12), '#222222', g, 0, 0.25, 0);
+        mk(CYL(0.245, 0.245, 0.08, 12), '#c0392b', g, 0, 0.06, 0);
+        break;
+      case 'crown':
+        mk(CYL(0.22, 0.2, 0.14, 8), '#ffd23f', g, 0, 0.06, 0);
+        for (let i = 0; i < 6; i++) {
+          const a = (i / 6) * PI * 2;
+          mk(CONE(0.06, 0.16, 4), '#ffd23f', g, Math.sin(a) * 0.19, 0.2, Math.cos(a) * 0.19);
+          mk(SPH(0.03, 5, 4), i % 2 ? '#ff3d6e' : '#3aa7ff', g, Math.sin(a) * 0.215, 0.07, Math.cos(a) * 0.215);
+        }
+        break;
+      case 'viking':
+        mk(HEMI(0.3), '#9aa3ad', g, 0, -0.1, 0);
+        for (const s of [-1, 1]) tf(mk(CONE(0.07, 0.34, 6), '#f4ecd6', g, s * 0.32, 0.08, 0), 0, 0, -s * 1.0);
+        break;
+      case 'halo':
+        tf(mk(TOR(0.22, 0.035, 5, 16), '#ffe66b', g, 0, 0.2, 0, { emissive: '#ffcc00' }), PI / 2);
+        g.userData.bob = true;
+        break;
+      case 'propeller': {
+        mk(HEMI(0.2), '#3aa7ff', g, 0, -0.03, 0);
+        mk(CYL(0.02, 0.02, 0.16, 4), '#888888', g, 0, 0.14, 0);
+        const p = grp(g, 0, 0.22, 0);
+        mk(BOX(0.46, 0.02, 0.08), '#ff4b3e', p, 0, 0, 0);
+        mk(BOX(0.08, 0.02, 0.46), '#ffd23f', p, 0, 0.005, 0);
+        g.userData.spin = p;
+        break;
       }
-      break;
-    case 'chef':
-      mk(CYL(0.2, 0.2, 0.26, 10), '#ffffff', g, 0, 0.1, 0);
-      tf(mk(SPH(0.27, 10, 6), '#ffffff', g, 0, 0.32, 0), 0, 0, 0, 1, 0.7, 1);
-      break;
-    case 'tophat':
-      mk(CYL(0.4, 0.4, 0.03, 12), '#222222', g, 0, 0, 0);
-      mk(CYL(0.24, 0.24, 0.48, 12), '#222222', g, 0, 0.25, 0);
-      mk(CYL(0.245, 0.245, 0.08, 12), '#c0392b', g, 0, 0.06, 0);
-      break;
-    case 'crown':
-      mk(CYL(0.22, 0.2, 0.14, 8), '#ffd23f', g, 0, 0.06, 0);
-      for (let i = 0; i < 6; i++) {
-        const a = (i / 6) * PI * 2;
-        mk(CONE(0.06, 0.16, 4), '#ffd23f', g, Math.sin(a) * 0.19, 0.2, Math.cos(a) * 0.19);
-        mk(SPH(0.03, 5, 4), i % 2 ? '#ff3d6e' : '#3aa7ff', g, Math.sin(a) * 0.215, 0.07, Math.cos(a) * 0.215);
+      case 'cowboy':
+        tf(mk(CYL(0.46, 0.46, 0.04, 12), '#8b5a2b', g, 0, 0, 0), 0, 0, 0, 1, 1, 0.8);
+        mk(CYL(0.19, 0.23, 0.26, 10), '#8b5a2b', g, 0, 0.15, 0);
+        mk(CYL(0.235, 0.235, 0.05, 10), '#3b2414', g, 0, 0.06, 0);
+        break;
+      case 'pizza': {
+        const s = grp(g, 0, 0.05, 0);
+        s.rotation.x = -0.35;
+        tf(mk(CYL(0.34, 0.34, 0.05, 3), '#ffc94a', s, 0, 0, 0.05), 0, 0, 0, 1, 1, 1.2);
+        mk(BOX(0.55, 0.08, 0.1), '#d9933d', s, 0, 0.01, -0.17);
+        for (const [x, z] of [[-0.08, 0.02], [0.1, 0.08], [0, 0.22]]) mk(CYL(0.05, 0.05, 0.03, 8), '#d63a2a', s, x, 0.035, z);
+        break;
       }
-      break;
-    case 'viking':
-      mk(HEMI(0.3), '#9aa3ad', g, 0, -0.1, 0);
-      for (const s of [-1, 1]) tf(mk(CONE(0.07, 0.34, 6), '#f4ecd6', g, s * 0.32, 0.08, 0), 0, 0, -s * 1.0);
-      break;
-    case 'halo':
-      tf(mk(TOR(0.22, 0.035, 5, 16), '#ffe66b', g, 0, 0.2, 0, { emissive: '#ffcc00' }), PI / 2);
-      g.userData.bob = true;
-      break;
-    case 'propeller': {
-      mk(HEMI(0.2), '#3aa7ff', g, 0, -0.03, 0);
-      mk(CYL(0.02, 0.02, 0.16, 4), '#888888', g, 0, 0.14, 0);
-      const p = grp(g, 0, 0.22, 0);
-      mk(BOX(0.46, 0.02, 0.08), '#ff4b3e', p, 0, 0, 0);
-      mk(BOX(0.08, 0.02, 0.46), '#ffd23f', p, 0, 0.005, 0);
-      g.userData.spin = p;
-      break;
-    }
-    case 'cowboy':
-      tf(mk(CYL(0.46, 0.46, 0.04, 12), '#8b5a2b', g, 0, 0, 0), 0, 0, 0, 1, 1, 0.8);
-      mk(CYL(0.19, 0.23, 0.26, 10), '#8b5a2b', g, 0, 0.15, 0);
-      mk(CYL(0.235, 0.235, 0.05, 10), '#3b2414', g, 0, 0.06, 0);
-      break;
-    case 'pizza': {
-      const s = grp(g, 0, 0.05, 0);
-      s.rotation.x = -0.35;
-      tf(mk(CYL(0.34, 0.34, 0.05, 3), '#ffc94a', s, 0, 0, 0.05), 0, 0, 0, 1, 1, 1.2);
-      mk(BOX(0.55, 0.08, 0.1), '#d9933d', s, 0, 0.01, -0.17);
-      for (const [x, z] of [[-0.08, 0.02], [0.1, 0.08], [0, 0.22]]) mk(CYL(0.05, 0.05, 0.03, 8), '#d63a2a', s, x, 0.035, z);
-      break;
-    }
-    case 'party':
-      mk(CONE(0.16, 0.46, 10), '#ff4fa3', g, 0, 0.22, 0);
-      mk(CYL(0.1, 0.12, 0.06, 10), '#ffd23f', g, 0, 0.12, 0);
-      mk(SPH(0.06, 6, 5), '#ffd23f', g, 0, 0.47, 0);
-      break;
-    case 'duck':
-      tf(mk(SPH(0.2, 8, 6), '#ffd92e', g, 0, 0.1, 0), 0, 0, 0, 1, 0.8, 1.2);
-      mk(SPH(0.13, 8, 6), '#ffd92e', g, 0, 0.3, 0.12);
-      tf(mk(CONE(0.06, 0.14, 6), '#ff8a1f', g, 0, 0.28, 0.27), PI / 2);
-      for (const s of [-1, 1]) mk(SPH(0.025, 4, 3), '#111111', g, s * 0.07, 0.34, 0.22);
-      break;
-    case 'bucket':
-      mk(CYL(0.24, 0.28, 0.2, 10), '#6b8e4e', g, 0, 0.1, 0);
-      mk(CYL(0.42, 0.42, 0.03, 12), '#6b8e4e', g, 0, 0.0, 0);
-      break;
-    case 'witch': {
-      mk(CYL(0.46, 0.46, 0.03, 14), '#3a2a5a', g, 0, 0, 0);
-      const c = grp(g, 0, 0.02, 0); c.rotation.z = -0.22;
-      mk(CONE(0.23, 0.64, 10), '#3a2a5a', c, 0.02, 0.33, 0);
-      mk(CYL(0.235, 0.245, 0.08, 10), '#9b5de5', g, 0, 0.06, 0);
-      mk(BOX(0.1, 0.08, 0.04), '#ffd23f', g, 0, 0.06, 0.23);
-      break;
-    }
-    case 'pumpkin':
-      tf(mk(SPH(0.3, 10, 8), '#ff8a1f', g, 0, 0.12, 0), 0, 0, 0, 1, 0.8, 1);
-      for (let i = 0; i < 3; i++) tf(mk(SPH(0.3, 10, 8), '#e8741a', g, 0, 0.12, 0), 0, (i / 3) * PI, 0, 0.4, 0.82, 1.03);
-      mk(CYL(0.04, 0.06, 0.14, 5), '#3f6a2a', g, 0, 0.38, 0);
-      for (const x of [-0.1, 0.1]) tf(mk(CONE(0.05, 0.07, 3), '#ffe066', g, x, 0.18, 0.27, { emissive: '#ffaa00' }), PI / 2, 0, 0);
-      mk(BOX(0.2, 0.04, 0.03), '#ffe066', g, 0, 0.06, 0.28, { emissive: '#ffaa00' });
-      break;
-    case 'aviator':
-      tf(mk(HEMI(0.31, 10, 5), '#8a5a2b', g, 0, -0.1, 0), 0, 0, 0, 1, 0.9, 1);
-      for (const s of [-1, 1]) {
-        mk(BOX(0.06, 0.3, 0.18), '#8a5a2b', g, s * 0.3, -0.18, 0);
-        tf(mk(TOR(0.08, 0.025, 5, 12), '#c9a227', g, s * 0.1, 0.1, 0.25), -0.5, 0, 0);
-        tf(mk(CYL(0.07, 0.07, 0.02, 10), '#7fd8ff', g, s * 0.1, 0.1, 0.25, { emissive: '#1a5a7a' }), PI / 2 - 0.5, 0, 0);
+      case 'party':
+        mk(CONE(0.16, 0.46, 10), '#ff4fa3', g, 0, 0.22, 0);
+        mk(CYL(0.1, 0.12, 0.06, 10), '#ffd23f', g, 0, 0.12, 0);
+        mk(SPH(0.06, 6, 5), '#ffd23f', g, 0, 0.47, 0);
+        break;
+      case 'duck':
+        tf(mk(SPH(0.2, 8, 6), '#ffd92e', g, 0, 0.1, 0), 0, 0, 0, 1, 0.8, 1.2);
+        mk(SPH(0.13, 8, 6), '#ffd92e', g, 0, 0.3, 0.12);
+        tf(mk(CONE(0.06, 0.14, 6), '#ff8a1f', g, 0, 0.28, 0.27), PI / 2);
+        for (const s of [-1, 1]) mk(SPH(0.025, 4, 3), '#111111', g, s * 0.07, 0.34, 0.22);
+        break;
+      case 'bucket':
+        mk(CYL(0.24, 0.28, 0.2, 10), '#6b8e4e', g, 0, 0.1, 0);
+        mk(CYL(0.42, 0.42, 0.03, 12), '#6b8e4e', g, 0, 0.0, 0);
+        break;
+      case 'witch': {
+        mk(CYL(0.46, 0.46, 0.03, 14), '#3a2a5a', g, 0, 0, 0);
+        const c = grp(g, 0, 0.02, 0); c.rotation.z = -0.22;
+        mk(CONE(0.23, 0.64, 10), '#3a2a5a', c, 0.02, 0.33, 0);
+        mk(CYL(0.235, 0.245, 0.08, 10), '#9b5de5', g, 0, 0.06, 0);
+        mk(BOX(0.1, 0.08, 0.04), '#ffd23f', g, 0, 0.06, 0.23);
+        break;
       }
-      tf(mk(TOR(0.3, 0.02, 4, 16), '#3b2a1a', g, 0, 0.05, 0), PI / 2 + 0.35, 0, 0);
-      break;
-    case 'umbrella': {
-      mk(TOR(0.22, 0.03, 4, 14), '#3b3f4a', g, 0, 0.0, 0).rotation.x = PI / 2;
-      mk(CYL(0.02, 0.02, 0.4, 4), '#3b3f4a', g, 0, 0.2, 0);
-      const top = grp(g, 0, 0.44, 0);
-      mk(CONE(0.5, 0.24, 8), '#ff4b6e', top, 0, 0, 0);
-      for (let i = 0; i < 4; i++) tf(mk(CONE(0.5, 0.24, 8, true), '#ffffff', top, 0, 0.002, 0), 0, (i / 4) * PI * 2, 0, 0.22, 1.01, 1.01);
-      mk(SPH(0.04, 6, 5), '#ffd23f', top, 0, 0.14, 0);
-      g.userData.spin = top;
-      break;
-    }
-    case 'headset': // for hustling hands-free
-      mk(new THREE.TorusGeometry(0.33, 0.035, 4, 18, PI), '#1a1a22', g, 0, -0.12, 0);
-      for (const s of [-1, 1]) {
-        tf(mk(CYL(0.12, 0.12, 0.1, 12), '#1a1a22', g, s * 0.34, -0.14, 0), 0, 0, PI / 2);
-        tf(mk(TOR(0.11, 0.015, 4, 14), '#3df0ff', g, s * 0.39, -0.14, 0, { emissive: '#3df0ff' }), 0, PI / 2, 0);
+      case 'pumpkin':
+        tf(mk(SPH(0.3, 10, 8), '#ff8a1f', g, 0, 0.12, 0), 0, 0, 0, 1, 0.8, 1);
+        for (let i = 0; i < 3; i++) tf(mk(SPH(0.3, 10, 8), '#e8741a', g, 0, 0.12, 0), 0, (i / 3) * PI, 0, 0.4, 0.82, 1.03);
+        mk(CYL(0.04, 0.06, 0.14, 5), '#3f6a2a', g, 0, 0.38, 0);
+        for (const x of [-0.1, 0.1]) tf(mk(CONE(0.05, 0.07, 3), '#ffe066', g, x, 0.18, 0.27, { emissive: '#ffaa00' }), PI / 2, 0, 0);
+        mk(BOX(0.2, 0.04, 0.03), '#ffe066', g, 0, 0.06, 0.28, { emissive: '#ffaa00' });
+        break;
+      case 'aviator':
+        tf(mk(HEMI(0.31, 10, 5), '#8a5a2b', g, 0, -0.1, 0), 0, 0, 0, 1, 0.9, 1);
+        for (const s of [-1, 1]) {
+          mk(BOX(0.06, 0.3, 0.18), '#8a5a2b', g, s * 0.3, -0.18, 0);
+          tf(mk(TOR(0.08, 0.025, 5, 12), '#c9a227', g, s * 0.1, 0.1, 0.25), -0.5, 0, 0);
+          tf(mk(CYL(0.07, 0.07, 0.02, 10), '#7fd8ff', g, s * 0.1, 0.1, 0.25, { emissive: '#1a5a7a' }), PI / 2 - 0.5, 0, 0);
+        }
+        tf(mk(TOR(0.3, 0.02, 4, 16), '#3b2a1a', g, 0, 0.05, 0), PI / 2 + 0.35, 0, 0);
+        break;
+      case 'umbrella': {
+        mk(TOR(0.22, 0.03, 4, 14), '#3b3f4a', g, 0, 0.0, 0).rotation.x = PI / 2;
+        mk(CYL(0.02, 0.02, 0.4, 4), '#3b3f4a', g, 0, 0.2, 0);
+        const top = grp(g, 0, 0.44, 0);
+        mk(CONE(0.5, 0.24, 8), '#ff4b6e', top, 0, 0, 0);
+        for (let i = 0; i < 4; i++) tf(mk(CONE(0.5, 0.24, 8, true), '#ffffff', top, 0, 0.002, 0), 0, (i / 4) * PI * 2, 0, 0.22, 1.01, 1.01);
+        mk(SPH(0.04, 6, 5), '#ffd23f', top, 0, 0.14, 0);
+        g.userData.spin = top;
+        break;
       }
-      rod(g, new V3(-0.36, -0.2, 0.05), new V3(-0.18, -0.46, 0.34), 0.018, '#1a1a22');
-      mk(SPH(0.04, 6, 5), '#3df0ff', g, -0.16, -0.47, 0.36, { emissive: '#3df0ff' });
-      break;
-    case 'cap':
-      mk(HEMI(0.27, 10, 5), '#ff9a1f', g, 0, -0.06, 0);
-      tf(mk(CYL(0.22, 0.22, 0.03, 12), '#ff9a1f', g, 0, -0.05, 0.25), 0, 0, 0, 1, 1, 1.15);
-      mk(BOX(0.14, 0.1, 0.02), '#ffffff', g, 0, 0.06, 0.25);
-      mk(BOX(0.08, 0.06, 0.021), '#c9a36b', g, 0, 0.06, 0.255);
-      mk(SPH(0.03, 5, 4), '#ff9a1f', g, 0, 0.22, 0);
-      break;
-  }
-  return g;
+      case 'headset': // for hustling hands-free
+        mk(new THREE.TorusGeometry(0.33, 0.035, 4, 18, PI), '#1a1a22', g, 0, -0.12, 0);
+        for (const s of [-1, 1]) {
+          tf(mk(CYL(0.12, 0.12, 0.1, 12), '#1a1a22', g, s * 0.34, -0.14, 0), 0, 0, PI / 2);
+          tf(mk(TOR(0.11, 0.015, 4, 14), '#3df0ff', g, s * 0.39, -0.14, 0, { emissive: '#3df0ff' }), 0, PI / 2, 0);
+        }
+        rod(g, new V3(-0.36, -0.2, 0.05), new V3(-0.18, -0.46, 0.34), 0.018, '#1a1a22');
+        mk(SPH(0.04, 6, 5), '#3df0ff', g, -0.16, -0.47, 0.36, { emissive: '#3df0ff' });
+        break;
+      case 'cap':
+        mk(HEMI(0.27, 10, 5), '#ff9a1f', g, 0, -0.06, 0);
+        tf(mk(CYL(0.22, 0.22, 0.03, 12), '#ff9a1f', g, 0, -0.05, 0.25), 0, 0, 0, 1, 1, 1.15);
+        mk(BOX(0.14, 0.1, 0.02), '#ffffff', g, 0, 0.06, 0.25);
+        mk(BOX(0.08, 0.06, 0.021), '#c9a36b', g, 0, 0.06, 0.255);
+        mk(SPH(0.03, 5, 4), '#ff9a1f', g, 0, 0.22, 0);
+        break;
+    }
+    return g;
+  });
 }
 
+// (the people you meet are built smooth, like you: rounded boxes, round heads, see withHi)
 // generic human-ish NPC body
 function buildHumanoid(o) {
-  const root = new THREE.Group();
-  for (const s of [-1, 1]) {
-    mk(BOX(0.24, 0.8, 0.26), o.pants || '#34405e', root, s * 0.15, 0.42, 0);
-    mk(BOX(0.26, 0.14, 0.34), o.shoe || '#2a2a2a', root, s * 0.15, 0.06, 0.04);
-  }
-  mk(BOX(0.64, 0.74, 0.38), o.shirt || '#ffffff', root, 0, 1.18, 0);
-  const arms = [];
-  for (const s of [-1, 1]) {
-    const arm = grp(root, s * 0.42, 1.48, 0);
-    mk(BOX(0.18, 0.58, 0.2), o.sleeve || o.shirt || '#ffffff', arm, 0, -0.26, 0);
-    mk(BOX(0.16, 0.16, 0.18), o.skin || '#f2c9a0', arm, 0, -0.62, 0);
-    arms.push(arm);
-  }
-  const head = grp(root, 0, 1.86, 0);
-  tf(mk(ICO(o.headR || 0.3, 1), o.skin || '#f2c9a0', head, 0, 0, 0), 0, 0, 0, 1, o.headY || 1.08, 0.95);
-  return { root, head, armL: arms[0], armR: arms[1] };
+  return withHi(null, () => {
+    const root = new THREE.Group(), shirt = o.shirt || '#ffffff', sleeve = o.sleeve || shirt, skin = o.skin || '#f2c9a0';
+    for (const s of [-1, 1]) {
+      limb(root, new V3(s * 0.15, 0.8, 0), new V3(s * 0.15, 0.2, 0), 0.115, o.pants || '#34405e');
+      mk(roundBox(0.25, 0.15, 0.34, 0.065), o.shoe || '#2a2a2a', root, s * 0.15, 0.075, 0.04);
+    }
+    // the same rounded barrel of a body as an astronaut's, a little slimmer (see TORSO)
+    const torso = new THREE.LatheGeometry(TORSO.map(([x, y]) => new THREE.Vector2(x, y)), 32);
+    torso.scale(0.93, 0.94, TORSO_Z * 0.88);
+    mk(smoothGeo(torso), shirt, root, 0, 0.8, 0);
+    const arms = [];
+    for (const s of [-1, 1]) {
+      const arm = grp(root, s * 0.4, 1.46, 0);
+      mk(smoothBall(0.105), sleeve, arm, 0, -0.01, 0);
+      limb(arm, new V3(0, -0.01, 0), new V3(0, -0.5, 0), 0.088, sleeve);
+      tf(mk(smoothBall(0.085), skin, arm, 0, -0.6, 0.01), 0, 0, 0, 0.95, 1.1, 1);
+      arms.push(arm);
+    }
+    const head = grp(root, 0, 1.86, 0);
+    tf(mk(ICO(o.headR || 0.3, 1), skin, head, 0, 0, 0), 0, 0, 0, 1, o.headY || 1.08, 0.95);
+    return { root, head, armL: arms[0], armR: arms[1] };
+  });
 }
 
 function addEyes(parent, y, z, spread, r = 0.08, n = 2) {
@@ -216,100 +537,111 @@ function addEyes(parent, y, z, spread, r = 0.08, n = 2) {
 }
 
 function buildRobotNPC() {
-  const root = new THREE.Group();
-  mk(BOX(1.1, 0.4, 0.9), '#3b3f4a', root, 0, 0.25, 0);
-  for (const s of [-1, 1]) tf(mk(CYL(0.22, 0.22, 0.95, 8), '#222222', root, s * 0.6, 0.25, 0), PI / 2);
-  mk(BOX(0.9, 0.9, 0.7), '#ffb23e', root, 0, 0.95, 0);
-  mk(BOX(0.4, 0.3, 0.05), '#2b1d14', root, 0, 1.0, 0.36);
-  mk(CYL(0.1, 0.1, 0.25, 6), '#9aa3ad', root, 0, 1.52, 0);
-  const head = grp(root, 0, 1.9, 0);
-  mk(BOX(0.8, 0.6, 0.6), '#ffb23e', head, 0, 0, 0);
-  const face = signMesh(['$ _ $'], 0.62, 0.4, { bg: '#10221a', color: '#7dff8a', border: '#333', glow: true });
-  face.position.set(0, 0, 0.305); head.add(face);
-  mk(CYL(0.02, 0.02, 0.35, 4), '#9aa3ad', head, 0.2, 0.45, 0);
-  const bulb = mk(SPH(0.07, 6, 5), '#ff3d3d', head, 0.2, 0.64, 0, { emissive: '#aa0000' });
-  const arms = [];
-  for (const s of [-1, 1]) {
-    const arm = grp(root, s * 0.55, 1.2, 0);
-    tf(mk(BOX(0.14, 0.6, 0.14), '#9aa3ad', arm, 0, -0.25, 0.1), -0.4);
-    mk(BOX(0.22, 0.12, 0.22), '#3b3f4a', arm, 0, -0.55, 0.25);
-    arms.push(arm);
-  }
-  return { root, head, armL: arms[0], armR: arms[1], bulb };
+  return withHi(null, () => {
+    const root = new THREE.Group();
+    mk(BOX(1.1, 0.4, 0.9), '#3b3f4a', root, 0, 0.25, 0);
+    for (const s of [-1, 1]) tf(mk(CYL(0.22, 0.22, 0.95, 8), '#222222', root, s * 0.6, 0.25, 0), PI / 2);
+    mk(BOX(0.9, 0.9, 0.7), '#ffb23e', root, 0, 0.95, 0);
+    mk(BOX(0.4, 0.3, 0.05), '#2b1d14', root, 0, 1.0, 0.36);
+    mk(CYL(0.1, 0.1, 0.25, 6), '#9aa3ad', root, 0, 1.52, 0);
+    const head = grp(root, 0, 1.9, 0);
+    mk(BOX(0.8, 0.6, 0.6), '#ffb23e', head, 0, 0, 0);
+    const face = signMesh(['$ _ $'], 0.62, 0.4, { bg: '#10221a', color: '#7dff8a', border: '#333', glow: true });
+    face.position.set(0, 0, 0.305); head.add(face);
+    mk(CYL(0.02, 0.02, 0.35, 4), '#9aa3ad', head, 0.2, 0.45, 0);
+    const bulb = mk(SPH(0.07, 6, 5), '#ff3d3d', head, 0.2, 0.64, 0, { emissive: '#aa0000' });
+    const arms = [];
+    for (const s of [-1, 1]) {
+      const arm = grp(root, s * 0.55, 1.2, 0);
+      tf(mk(BOX(0.14, 0.6, 0.14), '#9aa3ad', arm, 0, -0.25, 0.1), -0.4);
+      mk(BOX(0.22, 0.12, 0.22), '#3b3f4a', arm, 0, -0.55, 0.25);
+      arms.push(arm);
+    }
+    return { root, head, armL: arms[0], armR: arms[1], bulb };
+  });
 }
 
 function buildSnailChef() {
-  const root = new THREE.Group();
-  tf(mk(SPH(0.6, 10, 6), '#b7e36a', root, 0, 0.3, 0.1), 0, 0, 0, 0.9, 0.5, 1.8);
-  const neck = mk(CYL(0.28, 0.36, 1.1, 8), '#b7e36a', root, 0, 0.9, 0.85);
-  neck.rotation.x = 0.15;
-  const head = grp(root, 0, 1.55, 0.95);
-  mk(SPH(0.36, 8, 6), '#b7e36a', head, 0, 0, 0);
-  for (const s of [-1, 1]) {
-    tf(mk(CYL(0.04, 0.05, 0.5, 5), '#b7e36a', head, s * 0.16, 0.42, 0), 0, 0, -s * 0.25);
-    mk(SPH(0.1, 6, 5), '#ffffff', head, s * 0.24, 0.68, 0.02);
-    mk(SPH(0.05, 5, 4), '#111111', head, s * 0.24, 0.68, 0.1);
-  }
-  mk(BOX(0.4, 0.07, 0.07), '#2b1d14', head, 0, -0.08, 0.34);
-  for (const s of [-1, 1]) tf(mk(BOX(0.18, 0.06, 0.06), '#2b1d14', head, s * 0.24, -0.04, 0.33), 0, 0, s * 0.4);
-  const hat = buildHat('chef'); hat.position.set(0, 0.28, 0); head.add(hat);
-  const shell = grp(root, 0, 1.05, -0.35);
-  [[0.75, 0.3, '#e4845a'], [0.5, 0.24, '#f0a070'], [0.28, 0.18, '#f7c090']].forEach(([r, t, c], i) =>
-    tf(mk(TOR(r, t, 6, 14), c, shell, 0, i * 0.12, i * 0.06), 0, PI / 2, 0));
-  return { root, head };
+  return withHi(null, () => {
+    const root = new THREE.Group();
+    tf(mk(SPH(0.6, 10, 6), '#b7e36a', root, 0, 0.3, 0.1), 0, 0, 0, 0.9, 0.5, 1.8);
+    const neck = mk(CYL(0.28, 0.36, 1.1, 8), '#b7e36a', root, 0, 0.9, 0.85);
+    neck.rotation.x = 0.15;
+    const head = grp(root, 0, 1.55, 0.95);
+    mk(SPH(0.36, 8, 6), '#b7e36a', head, 0, 0, 0);
+    for (const s of [-1, 1]) {
+      tf(mk(CYL(0.04, 0.05, 0.5, 5), '#b7e36a', head, s * 0.16, 0.42, 0), 0, 0, -s * 0.25);
+      mk(SPH(0.1, 6, 5), '#ffffff', head, s * 0.24, 0.68, 0.02);
+      mk(SPH(0.05, 5, 4), '#111111', head, s * 0.24, 0.68, 0.1);
+    }
+    mk(BOX(0.4, 0.07, 0.07), '#2b1d14', head, 0, -0.08, 0.34);
+    for (const s of [-1, 1]) tf(mk(BOX(0.18, 0.06, 0.06), '#2b1d14', head, s * 0.24, -0.04, 0.33), 0, 0, s * 0.4);
+    const hat = buildHat('chef'); hat.position.set(0, 0.28, 0); head.add(hat);
+    const shell = grp(root, 0, 1.05, -0.35);
+    [[0.75, 0.3, '#e4845a'], [0.5, 0.24, '#f0a070'], [0.28, 0.18, '#f7c090']].forEach(([r, t, c], i) =>
+      tf(mk(TOR(r, t, 6, 14), c, shell, 0, i * 0.12, i * 0.06), 0, PI / 2, 0));
+    return { root, head };
+  });
 }
 
 function buildAlien(o = {}) {
-  const b = buildHumanoid({ shirt: o.vest || '#9b5de5', sleeve: '#7ddc5a', skin: '#7ddc5a', pants: '#2b2140', headR: 0.36, headY: 1.2 });
-  b.head.position.y = 1.95;
-  addEyes(b.head, 0.08, 0.3, 0.16, 0.085, 3);
-  mk(BOX(0.2, 0.04, 0.04), '#2b3a1a', b.head, 0, -0.18, 0.32);
-  for (const s of [-1, 1]) {
-    tf(mk(CYL(0.02, 0.02, 0.3, 4), '#7ddc5a', b.head, s * 0.14, 0.48, 0), 0, 0, -s * 0.3);
-    mk(SPH(0.06, 6, 5), '#ffd23f', b.head, s * 0.2, 0.64, 0, { emissive: '#886600' });
-  }
-  if (o.bowtie) {
-    mk(BOX(0.28, 0.12, 0.06), '#ff3d6e', b.root, 0, 1.5, 0.21);
-  }
-  if (o.shades) {
-    mk(BOX(0.62, 0.12, 0.06), '#111111', b.head, 0, 0.12, 0.36);
-    tf(mk(TOR(0.22, 0.03, 4, 12), '#ffd23f', b.root, 0, 1.42, 0.12), PI / 2 - 0.3);
-  }
-  return b;
+  return withHi(null, () => {
+    const b = buildHumanoid({ shirt: o.vest || '#9b5de5', sleeve: '#7ddc5a', skin: '#7ddc5a', pants: '#2b2140', headR: 0.36, headY: 1.2 });
+    b.head.position.y = 1.95;
+    addEyes(b.head, 0.08, 0.3, 0.16, 0.085, 3);
+    mk(BOX(0.2, 0.04, 0.04), '#2b3a1a', b.head, 0, -0.18, 0.32);
+    for (const s of [-1, 1]) {
+      tf(mk(CYL(0.02, 0.02, 0.3, 4), '#7ddc5a', b.head, s * 0.14, 0.48, 0), 0, 0, -s * 0.3);
+      mk(SPH(0.06, 6, 5), '#ffd23f', b.head, s * 0.2, 0.64, 0, { emissive: '#886600' });
+    }
+    if (o.bowtie) {
+      for (const s of [-1, 1]) tf(mk(CONE(0.07, 0.15, 12), '#ff3d6e', b.root, s * 0.07, 1.44, 0.17), 0, 0, s * PI / 2, 1, 1, 0.5);
+      mk(smoothBall(0.035), '#ff3d6e', b.root, 0, 1.44, 0.18);
+    }
+    if (o.shades) {
+      mk(BOX(0.62, 0.12, 0.06), '#111111', b.head, 0, 0.12, 0.36);
+      tf(mk(TOR(0.22, 0.03, 4, 12), '#ffd23f', b.root, 0, 1.42, 0.12), PI / 2 - 0.3);
+    }
+    return b;
+  });
 }
 
 function buildPenguin() {
-  const root = new THREE.Group();
-  tf(mk(SPH(0.55, 10, 8), '#1d2230', root, 0, 0.8, 0), 0, 0, 0, 1, 1.4, 0.9);
-  tf(mk(SPH(0.45, 10, 8), '#ffffff', root, 0, 0.75, 0.16), 0, 0, 0, 1, 1.3, 0.8);
-  const head = grp(root, 0, 1.55, 0);
-  mk(SPH(0.38, 10, 8), '#1d2230', head, 0, 0, 0);
-  tf(mk(SPH(0.28, 8, 6), '#ffffff', head, 0, -0.04, 0.15), 0, 0, 0, 1, 0.9, 0.8);
-  addEyes(head, 0.06, 0.3, 0.12, 0.065);
-  tf(mk(CONE(0.1, 0.28, 6), '#ff9a1f', head, 0, -0.06, 0.42), PI / 2);
-  for (const s of [-1, 1]) {
-    tf(mk(BOX(0.1, 0.6, 0.3), '#1d2230', root, s * 0.55, 0.85, 0), 0, 0, s * 0.25);
-    mk(BOX(0.22, 0.06, 0.32), '#ff9a1f', root, s * 0.18, 0.03, 0.12);
-  }
-  tf(mk(TOR(0.33, 0.09, 5, 12), '#d63a2a', root, 0, 1.25, 0), PI / 2);
-  mk(BOX(0.16, 0.45, 0.06), '#d63a2a', root, 0.22, 1.0, 0.33);
-  return { root, head };
+  return withHi(null, () => {
+    const root = new THREE.Group();
+    tf(mk(SPH(0.55, 10, 8), '#1d2230', root, 0, 0.8, 0), 0, 0, 0, 1, 1.4, 0.9);
+    tf(mk(SPH(0.45, 10, 8), '#ffffff', root, 0, 0.75, 0.16), 0, 0, 0, 1, 1.3, 0.8);
+    const head = grp(root, 0, 1.55, 0);
+    mk(SPH(0.38, 10, 8), '#1d2230', head, 0, 0, 0);
+    tf(mk(SPH(0.28, 8, 6), '#ffffff', head, 0, -0.04, 0.15), 0, 0, 0, 1, 0.9, 0.8);
+    addEyes(head, 0.06, 0.3, 0.12, 0.065);
+    tf(mk(CONE(0.1, 0.28, 6), '#ff9a1f', head, 0, -0.06, 0.42), PI / 2);
+    for (const s of [-1, 1]) {
+      tf(mk(BOX(0.1, 0.6, 0.3), '#1d2230', root, s * 0.55, 0.85, 0), 0, 0, s * 0.25);
+      mk(BOX(0.22, 0.06, 0.32), '#ff9a1f', root, s * 0.18, 0.03, 0.12);
+    }
+    tf(mk(TOR(0.33, 0.09, 5, 12), '#d63a2a', root, 0, 1.25, 0), PI / 2);
+    mk(BOX(0.16, 0.45, 0.06), '#d63a2a', root, 0.22, 1.0, 0.33);
+    return { root, head };
+  });
 }
 
 function buildManager() {
-  const b = buildHumanoid({ shirt: '#ffffff', sleeve: '#ffffff', pants: '#2b2b33', skin: '#f0c29a' });
-  mk(BOX(0.1, 0.5, 0.05), '#c0392b', b.root, 0, 1.25, 0.2);
-  mk(BOX(0.66, 0.06, 0.4), '#2b2b33', b.root, 0, 0.84, 0);
-  addEyes(b.head, 0.05, 0.25, 0.1, 0.06);
-  for (const s of [-1, 1]) tf(mk(TOR(0.08, 0.015, 4, 10), '#111111', b.head, s * 0.1, 0.05, 0.3), 0, 0, 0);
-  mk(BOX(0.06, 0.015, 0.02), '#111111', b.head, 0, 0.05, 0.31);
-  tf(mk(BOX(0.4, 0.05, 0.3), '#6b4a2b', b.head, 0.02, 0.3, 0), 0, 0, -0.15);
-  mk(BOX(0.16, 0.03, 0.03), '#6b2d2d', b.head, 0, -0.13, 0.27);
-  const mug = grp(b.armR, 0, -0.66, 0.14);
-  mk(CYL(0.09, 0.08, 0.18, 8), '#ffffff', mug, 0, 0, 0);
-  tf(mk(TOR(0.05, 0.015, 4, 8), '#ffffff', mug, 0.1, 0, 0), 0, PI / 2, 0);
-  b.armR.rotation.x = -0.9;
-  return b;
+  return withHi(null, () => {
+    const b = buildHumanoid({ shirt: '#ffffff', sleeve: '#ffffff', pants: '#2b2b33', skin: '#f0c29a' });
+    mk(roundBox(0.1, 0.46, 0.04, 0.018), '#c0392b', b.root, 0, 1.25, 0.2);
+    tf(mk(CYL(0.3, 0.29, 0.07, 24), '#2b2b33', b.root, 0, 0.86, 0), 0, 0, 0, 1, 1, 0.62);
+    addEyes(b.head, 0.05, 0.25, 0.1, 0.06);
+    for (const s of [-1, 1]) tf(mk(TOR(0.08, 0.015, 4, 10), '#111111', b.head, s * 0.1, 0.05, 0.3), 0, 0, 0);
+    mk(BOX(0.06, 0.015, 0.02), '#111111', b.head, 0, 0.05, 0.31);
+    tf(mk(smoothGeo(new THREE.SphereGeometry(0.312, 24, 10, 0, PI * 2, 0, 0.95)), '#6b4a2b', b.head, 0, 0.02, -0.03), -0.4, 0, -0.14, 1, 1.08, 0.95);
+    mk(BOX(0.16, 0.03, 0.03), '#6b2d2d', b.head, 0, -0.13, 0.27);
+    const mug = grp(b.armR, 0, -0.66, 0.14);
+    mk(CYL(0.09, 0.08, 0.18, 8), '#ffffff', mug, 0, 0, 0);
+    tf(mk(TOR(0.05, 0.015, 4, 8), '#ffffff', mug, 0.1, 0, 0), 0, PI / 2, 0);
+    b.armR.rotation.x = -0.9;
+    return b;
+  });
 }
 
 // the shopkeeper who runs each planet's shop
@@ -1352,7 +1684,8 @@ function buildPeelVM() {
 }
 
 /* ---------------- first-person hands (your suit's gloves and sleeves) ---------------- */
-// (the gloves are in your suit color, so they stand out against the guns; glove: that material)
+// (the gloves are in your accent color, so they stand out against the guns; glove: that material.
+//  sleeve: your suit's material)
 const SLEEVE = '#f4f1ea', SEAL = '#30343f';
 // a rounded rod from a to b (a finger, a thumb, a wrist)
 function capsule(parent, a, b, r, color) {
@@ -1365,16 +1698,16 @@ function capsule(parent, a, b, r, color) {
   return g;
 }
 // the glove's wrist, the suit's seal and the sleeve, from `at` heading off along `dir` (out of view)
-function forearm(g, at, dir, glove) {
+function forearm(g, at, dir, glove, sleeve) {
   const q = new THREE.Quaternion().setFromUnitVectors(new V3(0, 1, 0), dir);
   const put = (m, d) => { m.position.copy(at).addScaledVector(dir, d); m.quaternion.copy(q); };
   put(mk(CYL(0.045, 0.054, 0.075, 16), glove, g), 0.02);
   put(mk(TOR(0.052, 0.012, 8, 20).rotateX(Math.PI / 2), SEAL, g), 0.06); // (a ring around the wrist)
-  put(mk(CYL(0.062, 0.08, 0.6, 16), SLEEVE, g), 0.365);
+  put(mk(CYL(0.062, 0.08, 0.6, 16), sleeve || SLEEVE, g), 0.365);
 }
 // a right hand around a pistol grip. The group sits in the middle of the grip, tilted like it: the grip
 // runs along y and the fingers wrap around its front (-z). gw, gd: how wide and deep the grip is.
-function buildGripHand(glove, gw = 0.07, gd = 0.09) {
+function buildGripHand(glove, gw = 0.07, gd = 0.09, sleeve) {
   return withHi(null, () => {
     const g = new THREE.Group(), hx = gw / 2, hz = gd / 2;
     tf(mk(roundBox(0.048, 0.112, 0.122, 0.021), glove, g, hx + 0.02, 0.012, 0.006), 0, -0.12, 0); // the back of the hand, on the right side
@@ -1388,14 +1721,14 @@ function buildGripHand(glove, gw = 0.07, gd = 0.09) {
     }
     // the thumb, along the left side toward the front
     capsule(g, new V3(-hx + 0.006, 0.062, hz + 0.016), new V3(-hx - 0.014, 0.05, -hz + 0.012), 0.017, glove);
-    forearm(g, new V3(0.022, -0.03, hz + 0.03), new V3(0.42, -0.6, 0.68).normalize(), glove);
+    forearm(g, new V3(0.022, -0.03, hz + 0.03), new V3(0.42, -0.6, 0.68).normalize(), glove, sleeve);
     mergeLocal(g);
     return g;
   });
 }
 // a left hand holding something up from underneath (a barrel, a pump, a tube): the group sits on its
 // middle line; R: how far down its underside is, W: half its width
-function buildSupportHand(glove, R, W) {
+function buildSupportHand(glove, R, W, sleeve) {
   return withHi(null, () => {
     const g = new THREE.Group();
     mk(roundBox(W * 2 + 0.03, 0.036, 0.104, 0.016), glove, g, -0.006, -R - 0.02, 0.006); // the palm, underneath
@@ -1409,7 +1742,7 @@ function buildSupportHand(glove, R, W) {
     }
     // the thumb, lying along the left side
     capsule(g, new V3(-W - 0.006, -R - 0.008, 0.036), new V3(-W - 0.012, Math.max(-R * 0.4, -R - 0.008 + 0.045), -0.022), 0.016, glove);
-    forearm(g, new V3(-0.02, -R - 0.032, 0.05), new V3(-0.5, -0.42, 0.76).normalize(), glove);
+    forearm(g, new V3(-0.02, -R - 0.032, 0.05), new V3(-0.5, -0.42, 0.76).normalize(), glove, sleeve);
     mergeLocal(g);
     return g;
   });
@@ -1429,17 +1762,17 @@ const HAND_SPEC = {
   drill: { grip: [0, -0.12, 0.08, 0.25, 0.09, 0.11], support: [0, 0.02, -0.08, 0.08, 0.08] },
   peel: { grip: [0, -0.1, 0.1, 0.3, 0.07, 0.09], support: [0, -0.01, -0.13, 0.03, 0.03] },
 };
-// put your hands on something you're holding (kind: 'vac', 'drill', 'peel', or a gun type; glove: the
-// glove material, in your suit color)
-function addHands(vm, kind, glove) {
+// put your hands on something you're holding (kind: 'vac', 'drill', 'peel', or a gun type; glove, sleeve:
+// the glove and sleeve materials, in your colors)
+function addHands(vm, kind, glove, sleeve) {
   const spec = HAND_SPEC[kind] || {}, gp = spec.grip || HAND_SPEC.zap.grip, hands = {};
-  hands.grip = buildGripHand(glove, gp[4], gp[5]);
+  hands.grip = buildGripHand(glove, gp[4], gp[5], sleeve);
   hands.grip.position.set(gp[0], gp[1], gp[2]);
   hands.grip.rotation.x = gp[3];
   vm.add(hands.grip);
   if (spec.support) {
     const s = spec.support;
-    hands.support = buildSupportHand(glove, s[3], s[4]);
+    hands.support = buildSupportHand(glove, s[3], s[4], sleeve);
     hands.support.position.set(s[0], s[1], s[2]);
     hands.support.userData.home = hands.support.position.clone();
     vm.add(hands.support);
@@ -2151,79 +2484,85 @@ function buildWaterTower() {
 /* ---------------- the new shopkeepers ---------------- */
 // Sheets McGhost: a bedsheet with a bowtie and very good manners
 function buildSheetGhost() {
-  const root = new THREE.Group(), cloth = '#eef3ff', lit = { emissive: '#3a4a6a' };
-  const body = grp(root, 0, 0.35, 0);
-  mk(CYL(0.55, 0.78, 1.35, 12), cloth, body, 0, 0.7, 0, lit);
-  for (let i = 0; i < 8; i++) { const a = (i / 8) * PI * 2; tf(mk(CONE(0.16, 0.3, 5), cloth, body, Math.sin(a) * 0.68, -0.08, Math.cos(a) * 0.68, lit), PI, 0, 0); }
-  for (const s of [-1, 1]) tf(mk(SPH(0.2, 7, 5), cloth, body, s * 0.72, 1.0, 0.1, lit), 0, 0, -s * 0.5, 1.4, 0.7, 0.7);
-  tf(mk(BOX(0.3, 0.14, 0.08), '#b9a4ff', body, 0, 1.3, 0.56), 0, 0, 0);
-  for (const s of [-1, 1]) tf(mk(CONE(0.1, 0.18, 4), '#b9a4ff', body, s * 0.14, 1.3, 0.57), 0, 0, s * PI / 2);
-  const head = grp(root, 0, 1.95, 0);
-  mk(SPH(0.6, 12, 10), cloth, head, 0, 0, 0, lit);
-  for (const s of [-1, 1]) tf(mk(SPH(0.1, 6, 5), '#1a1a2a', head, s * 0.2, 0.08, 0.54), 0, 0, 0, 1, 1.5, 0.6);
-  tf(mk(SPH(0.11, 6, 5), '#1a1a2a', head, 0, -0.18, 0.55), 0, 0, 0, 1.2, 0.8, 0.5);
-  const hat = buildHat('tophat'); hat.scale.setScalar(0.75); hat.position.set(0.05, 0.5, 0); hat.rotation.z = -0.15; head.add(hat);
-  return { root, head };
+  return withHi(null, () => {
+    const root = new THREE.Group(), cloth = '#eef3ff', lit = { emissive: '#3a4a6a' };
+    const body = grp(root, 0, 0.35, 0);
+    mk(CYL(0.55, 0.78, 1.35, 12), cloth, body, 0, 0.7, 0, lit);
+    for (let i = 0; i < 8; i++) { const a = (i / 8) * PI * 2; tf(mk(CONE(0.16, 0.3, 5), cloth, body, Math.sin(a) * 0.68, -0.08, Math.cos(a) * 0.68, lit), PI, 0, 0); }
+    for (const s of [-1, 1]) tf(mk(SPH(0.2, 7, 5), cloth, body, s * 0.72, 1.0, 0.1, lit), 0, 0, -s * 0.5, 1.4, 0.7, 0.7);
+    tf(mk(BOX(0.3, 0.14, 0.08), '#b9a4ff', body, 0, 1.3, 0.56), 0, 0, 0);
+    for (const s of [-1, 1]) tf(mk(CONE(0.1, 0.18, 4), '#b9a4ff', body, s * 0.14, 1.3, 0.57), 0, 0, s * PI / 2);
+    const head = grp(root, 0, 1.95, 0);
+    mk(SPH(0.6, 12, 10), cloth, head, 0, 0, 0, lit);
+    for (const s of [-1, 1]) tf(mk(SPH(0.1, 6, 5), '#1a1a2a', head, s * 0.2, 0.08, 0.54), 0, 0, 0, 1, 1.5, 0.6);
+    tf(mk(SPH(0.11, 6, 5), '#1a1a2a', head, 0, -0.18, 0.55), 0, 0, 0, 1.2, 0.8, 0.5);
+    const hat = buildHat('tophat'); hat.scale.setScalar(0.75); hat.position.set(0.05, 0.5, 0); hat.rotation.z = -0.15; head.add(hat);
+    return { root, head };
+  });
 }
 // Skipper Gale: an albatross who sails the sky (no boat)
 function buildAlbatross() {
-  const root = new THREE.Group();
-  for (const s of [-1, 1]) {
-    mk(CYL(0.05, 0.05, 0.6, 5), '#ff9a3d', root, s * 0.22, 0.3, 0);
-    mk(BOX(0.26, 0.05, 0.3), '#ff9a3d', root, s * 0.22, 0.03, 0.08);
-  }
-  tf(mk(SPH(0.62, 10, 8), '#f4f4f0', root, 0, 1.15, 0), 0, 0, 0, 1, 1.25, 0.95);
-  tf(mk(SPH(0.46, 10, 8), '#ffffff', root, 0, 1.05, 0.2), 0, 0, 0, 1, 1.2, 0.8);
-  for (const s of [-1, 1]) {
-    const w = grp(root, s * 0.6, 1.5, -0.05);
-    tf(mk(BOX(0.2, 1.1, 0.5), '#e8e8e4', w, s * 0.05, -0.45, 0), 0, 0, s * 0.18);
-    tf(mk(BOX(0.18, 0.4, 0.46), '#4a4f5a', w, s * 0.12, -1.05, 0), 0, 0, s * 0.18);
-  }
-  tf(mk(CONE(0.26, 0.5, 3), '#3a8fd8', root, 0, 1.72, 0.3), PI, 0, 0, 1, 1, 0.5); // neckerchief
-  const head = grp(root, 0, 2.15, 0.08);
-  mk(SPH(0.38, 10, 8), '#ffffff', head, 0, 0, 0);
-  tf(mk(CONE(0.12, 0.6, 6), '#ffd23f', head, 0, -0.08, 0.6), PI / 2, 0, 0);
-  mk(SPH(0.07, 6, 5), '#e0a820', head, 0, -0.16, 0.86);
-  for (const s of [-1, 1]) { mk(SPH(0.07, 6, 5), '#111111', head, s * 0.2, 0.08, 0.3); tf(mk(BOX(0.16, 0.035, 0.03), '#6d7480', head, s * 0.2, 0.18, 0.31), 0, 0, -s * 0.2); }
-  mk(CYL(0.36, 0.34, 0.24, 12), '#1d2a4a', head, 0, 0.36, 0);
-  mk(CYL(0.44, 0.44, 0.04, 12), '#111111', head, 0, 0.25, 0.05);
-  mk(BOX(0.16, 0.12, 0.04), '#ffd23f', head, 0, 0.38, 0.36, { emissive: '#664400' });
-  return { root, head };
+  return withHi(null, () => {
+    const root = new THREE.Group();
+    for (const s of [-1, 1]) {
+      mk(CYL(0.05, 0.05, 0.6, 5), '#ff9a3d', root, s * 0.22, 0.3, 0);
+      mk(BOX(0.26, 0.05, 0.3), '#ff9a3d', root, s * 0.22, 0.03, 0.08);
+    }
+    tf(mk(SPH(0.62, 10, 8), '#f4f4f0', root, 0, 1.15, 0), 0, 0, 0, 1, 1.25, 0.95);
+    tf(mk(SPH(0.46, 10, 8), '#ffffff', root, 0, 1.05, 0.2), 0, 0, 0, 1, 1.2, 0.8);
+    for (const s of [-1, 1]) {
+      const w = grp(root, s * 0.6, 1.5, -0.05);
+      tf(mk(BOX(0.2, 1.1, 0.5), '#e8e8e4', w, s * 0.05, -0.45, 0), 0, 0, s * 0.18);
+      tf(mk(BOX(0.18, 0.4, 0.46), '#4a4f5a', w, s * 0.12, -1.05, 0), 0, 0, s * 0.18);
+    }
+    tf(mk(CONE(0.26, 0.5, 3), '#3a8fd8', root, 0, 1.72, 0.3), PI, 0, 0, 1, 1, 0.5); // neckerchief
+    const head = grp(root, 0, 2.15, 0.08);
+    mk(SPH(0.38, 10, 8), '#ffffff', head, 0, 0, 0);
+    tf(mk(CONE(0.12, 0.6, 6), '#ffd23f', head, 0, -0.08, 0.6), PI / 2, 0, 0);
+    mk(SPH(0.07, 6, 5), '#e0a820', head, 0, -0.16, 0.86);
+    for (const s of [-1, 1]) { mk(SPH(0.07, 6, 5), '#111111', head, s * 0.2, 0.08, 0.3); tf(mk(BOX(0.16, 0.035, 0.03), '#6d7480', head, s * 0.2, 0.18, 0.31), 0, 0, -s * 0.2); }
+    mk(CYL(0.36, 0.34, 0.24, 12), '#1d2a4a', head, 0, 0.36, 0);
+    mk(CYL(0.44, 0.44, 0.04, 12), '#111111', head, 0, 0.25, 0.05);
+    mk(BOX(0.16, 0.12, 0.04), '#ffd23f', head, 0, 0.38, 0.36, { emissive: '#664400' });
+    return { root, head };
+  });
 }
 // Trench Coat Trevor: definitely one normal adult man (three raccoons)
 function buildTrenchRaccoons() {
-  const root = new THREE.Group(), coat = '#b08a5a', fur = '#8a8f98', mask = '#2a2a30';
-  for (const s of [-1, 1]) mk(BOX(0.22, 0.14, 0.34), mask, root, s * 0.2, 0.07, 0.06);
-  mk(CYL(0.46, 0.64, 1.9, 10), coat, root, 0, 1.1, 0);
-  mk(CYL(0.43, 0.47, 0.34, 10), coat, root, 0, 2.15, 0);
-  tf(mk(TOR(0.52, 0.06, 4, 16), '#6b4a2b', root, 0, 1.25, 0), PI / 2);
-  for (const s of [-1, 1]) {
-    tf(mk(BOX(0.18, 0.7, 0.06), '#9a7648', root, s * 0.2, 1.8, 0.44), 0, 0, s * 0.35);
-    const arm = grp(root, s * 0.52, 1.95, 0);
-    tf(mk(CYL(0.13, 0.16, 1.1, 8), coat, arm, 0, -0.5, 0.05), 0.2, 0, s * 0.12);
-    mk(SPH(0.1, 6, 5), mask, arm, s * 0.07, -1.06, 0.16);
-  }
-  for (const y of [0.9, 1.45]) mk(SPH(0.04, 5, 4), '#3b2a1a', root, 0.12, y, 0.6);
-  // raccoon #2, peeking out of the coat
-  const r2 = grp(root, -0.05, 1.62, 0.42);
-  mk(SPH(0.17, 8, 6), fur, r2, 0, 0, 0);
-  mk(BOX(0.3, 0.07, 0.06), mask, r2, 0, 0.03, 0.14);
-  for (const s of [-1, 1]) mk(SPH(0.03, 5, 4), '#ffffff', r2, s * 0.07, 0.04, 0.17);
-  // raccoon #3, under the hem, with a tail out the back
-  for (const s of [-1, 1]) mk(SPH(0.035, 5, 4), '#fff36b', root, s * 0.08, 0.3, 0.58, { emissive: '#887700' });
-  const tail = grp(root, 0.1, 0.25, -0.55); tail.rotation.x = -0.7;
-  for (let i = 0; i < 4; i++) mk(CYL(0.1, 0.1, 0.18, 8), i % 2 ? mask : fur, tail, 0, -0.1 - i * 0.18, 0).rotation.x = 0;
-  // raccoon #1 (the head of the operation), wearing a fedora
-  const head = grp(root, 0, 2.55, 0.02);
-  mk(SPH(0.34, 10, 8), fur, head, 0, 0, 0);
-  mk(BOX(0.62, 0.14, 0.12), mask, head, 0, 0.04, 0.26);
-  for (const s of [-1, 1]) { mk(SPH(0.06, 6, 5), '#ffffff', head, s * 0.14, 0.05, 0.32); mk(SPH(0.03, 5, 4), '#111111', head, s * 0.14, 0.05, 0.37); mk(CONE(0.09, 0.18, 4), fur, head, s * 0.22, 0.32, 0); }
-  tf(mk(SPH(0.14, 8, 6), '#c9ced6', head, 0, -0.12, 0.28), 0, 0, 0, 1, 0.8, 1);
-  mk(SPH(0.05, 5, 4), '#111111', head, 0, -0.08, 0.41);
-  mk(CYL(0.5, 0.5, 0.04, 14), '#5a4a3a', head, 0, 0.26, 0);
-  mk(CYL(0.26, 0.3, 0.3, 12), '#5a4a3a', head, 0, 0.42, 0);
-  mk(CYL(0.305, 0.305, 0.07, 12), '#2a2a30', head, 0, 0.32, 0);
-  return { root, head };
+  return withHi(null, () => {
+    const root = new THREE.Group(), coat = '#b08a5a', fur = '#8a8f98', mask = '#2a2a30';
+    for (const s of [-1, 1]) mk(BOX(0.22, 0.14, 0.34), mask, root, s * 0.2, 0.07, 0.06);
+    mk(CYL(0.46, 0.64, 1.9, 10), coat, root, 0, 1.1, 0);
+    mk(CYL(0.43, 0.47, 0.34, 10), coat, root, 0, 2.15, 0);
+    tf(mk(TOR(0.52, 0.06, 4, 16), '#6b4a2b', root, 0, 1.25, 0), PI / 2);
+    for (const s of [-1, 1]) {
+      tf(mk(BOX(0.18, 0.7, 0.06), '#9a7648', root, s * 0.2, 1.8, 0.44), 0, 0, s * 0.35);
+      const arm = grp(root, s * 0.52, 1.95, 0);
+      tf(mk(CYL(0.13, 0.16, 1.1, 8), coat, arm, 0, -0.5, 0.05), 0.2, 0, s * 0.12);
+      mk(SPH(0.1, 6, 5), mask, arm, s * 0.07, -1.06, 0.16);
+    }
+    for (const y of [0.9, 1.45]) mk(SPH(0.04, 5, 4), '#3b2a1a', root, 0.12, y, 0.6);
+    // raccoon #2, peeking out of the coat
+    const r2 = grp(root, -0.05, 1.62, 0.42);
+    mk(SPH(0.17, 8, 6), fur, r2, 0, 0, 0);
+    mk(BOX(0.3, 0.07, 0.06), mask, r2, 0, 0.03, 0.14);
+    for (const s of [-1, 1]) mk(SPH(0.03, 5, 4), '#ffffff', r2, s * 0.07, 0.04, 0.17);
+    // raccoon #3, under the hem, with a tail out the back
+    for (const s of [-1, 1]) mk(SPH(0.035, 5, 4), '#fff36b', root, s * 0.08, 0.3, 0.58, { emissive: '#887700' });
+    const tail = grp(root, 0.1, 0.25, -0.55); tail.rotation.x = -0.7;
+    for (let i = 0; i < 4; i++) mk(CYL(0.1, 0.1, 0.18, 8), i % 2 ? mask : fur, tail, 0, -0.1 - i * 0.18, 0).rotation.x = 0;
+    // raccoon #1 (the head of the operation), wearing a fedora
+    const head = grp(root, 0, 2.55, 0.02);
+    mk(SPH(0.34, 10, 8), fur, head, 0, 0, 0);
+    mk(BOX(0.62, 0.14, 0.12), mask, head, 0, 0.04, 0.26);
+    for (const s of [-1, 1]) { mk(SPH(0.06, 6, 5), '#ffffff', head, s * 0.14, 0.05, 0.32); mk(SPH(0.03, 5, 4), '#111111', head, s * 0.14, 0.05, 0.37); mk(CONE(0.09, 0.18, 4), fur, head, s * 0.22, 0.32, 0); }
+    tf(mk(SPH(0.14, 8, 6), '#c9ced6', head, 0, -0.12, 0.28), 0, 0, 0, 1, 0.8, 1);
+    mk(SPH(0.05, 5, 4), '#111111', head, 0, -0.08, 0.41);
+    mk(CYL(0.5, 0.5, 0.04, 14), '#5a4a3a', head, 0, 0.26, 0);
+    mk(CYL(0.26, 0.3, 0.3, 12), '#5a4a3a', head, 0, 0.42, 0);
+    mk(CYL(0.305, 0.305, 0.07, 12), '#2a2a30', head, 0, 0.32, 0);
+    return { root, head };
+  });
 }
 
 /* ---------------- the new bosses ---------------- */

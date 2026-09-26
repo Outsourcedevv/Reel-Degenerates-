@@ -413,9 +413,9 @@ const UI = {
           : `<div class="empty"><div>${Thumbs.img('cargo:' + SAVE.cargoLvl, '', 'bag')}</div>Your backpack is empty.</div>`;
       } else {
         const crew = [...G.remotes.values()];
-        body = !crew.length ? `<div class="empty"><div>${Thumbs.img(Thumbs.crewKey(G.color, SAVE.hat), '', 'person')}</div>You're flying solo.<br>Host a game and invite friends to share money and loot.</div>`
+        body = !crew.length ? `<div class="empty"><div>${Thumbs.img(Thumbs.crewKey(G.color, SAVE.hat, G.look), '', 'person')}</div>You're flying solo.<br>Host a game and invite friends to share money and loot.</div>`
           : `<p class="psub">You have <b>${U.bucks(SAVE.bucks)}</b>. Send some to a crewmate:</p>` + crew.map((r) => `<div class="srow crewrow">
-              <div class="ic">${Thumbs.img(Thumbs.crewKey(r.s.c, r.s.h), '', 'person')}</div>
+              <div class="ic">${Thumbs.img(Thumbs.crewKey(r.s.c, r.s.h, r.s.lk), '', 'person')}</div>
               <div class="info"><b>${U.esc(r.name)}</b><small>${U.bucks(r.s.$ || 0)} · ${r.s.m === 'space' ? 'in the ship' : r.s.m === 'boss' ? 'fighting a boss' : PLANETS[r.s.p] ? PLANETS[r.s.p].name : ''}</small></div>
               <div class="gifts">${[10, 50, 100, 500].map((a) => `<button class="btn small" data-act="give" data-id="${U.esc(r.id)}" data-a="${a}" ${SAVE.bucks < a ? 'disabled' : ''}>${U.bucks(a)}</button>`).join('')}
               <button class="btn small green" data-act="givehalf" data-id="${U.esc(r.id)}" ${SAVE.bucks < 2 ? 'disabled' : ''}>Half</button></div></div>`).join('');

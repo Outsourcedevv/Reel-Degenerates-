@@ -155,7 +155,7 @@ const Shop = {
       const forSale = items.map((it, i) => [it, i]).filter(([it]) => this.section(it) === 'looks');
       const hats = ['none', ...SAVE.hats.filter((h) => h !== 'none')];
       body = (forSale.length ? `<h5 class="shead">For sale</h5><div class="cards">${forSale.map(([it, i]) => card(it, i)).join('')}</div>` : '') +
-        `<h5 class="shead">Your hats</h5><div class="cards hats">` + hats.map((h) => `<div class="card2 ${SAVE.hat === h ? 'owned' : ''}"><div class="ic">${Thumbs.img(h === 'none' ? Thumbs.crewKey(G.color, 'none') : 'hat:' + h, '', 'hat')}</div>
+        `<h5 class="shead">Your hats</h5><div class="cards hats">` + hats.map((h) => `<div class="card2 ${SAVE.hat === h ? 'owned' : ''}"><div class="ic">${Thumbs.img(h === 'none' ? Thumbs.crewKey(G.color, 'none', G.look) : 'hat:' + h, '', 'hat')}</div>
         <div class="info"><h4>${U.esc(HATS[h])}</h4></div>
         ${SAVE.hat === h ? '<div class="badge ok">WEARING</div>' : `<button class="price" data-act="hat" data-h="${h}">Wear</button>`}</div>`).join('') + '</div>' +
         '<p class="tip">Your hats come with you to every world. More come from other shops, and from Mystery Crates on Luckstar.</p>';

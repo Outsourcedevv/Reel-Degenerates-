@@ -138,10 +138,19 @@ kbd {
 .row.join #m-code { width: 130px; flex: none; text-align: center; text-transform: uppercase; letter-spacing: 6px; font-family: var(--font-h); font-size: 18px; }
 .row.join .btn { flex: 1; justify-content: center !important; padding-left: 0 !important; }
 .row2 { display: flex; gap: 8px; justify-content: center; margin-top: 12px; }
-#m-colors { display: flex; gap: 8px; flex-wrap: wrap; }
-#m-colors .sw { width: 28px; height: 28px; border-radius: 4px; cursor: pointer; transition: transform .1s, box-shadow .1s; box-shadow: inset 0 0 0 1px rgba(0,0,0,.3); }
-#m-colors .sw:hover { transform: translateY(-2px); }
-#m-colors .sw.sel { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px #fff; }
+/* your astronaut on the title screen: opens the customize screen */
+.lookcard {
+  display: flex; align-items: center; gap: 12px; width: 100%; padding: 6px 14px 6px 6px; cursor: pointer; text-align: left;
+  color: var(--text); background: rgba(255,255,255,.05); border: 1px solid var(--line2); border-radius: var(--r);
+  transition: background .15s, border-color .15s;
+}
+.lookcard:hover { background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.35); }
+.lookcard .pic { width: 56px; height: 56px; flex: none; border-radius: 4px; overflow: hidden; background: radial-gradient(circle at 50% 40%, rgba(255,176,32,.22), rgba(0,0,0,.25) 70%); display: flex; align-items: center; justify-content: center; }
+.lookcard .pic img, .lookcard .pic .ico { width: 100%; height: 100%; }
+.lookcard .txt { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.lookcard b { font-family: var(--font-h); font-weight: 600; font-size: 17px; letter-spacing: 1.5px; text-transform: uppercase; }
+.lookcard small { font-size: 12px; color: var(--muted); }
+.lookcard .go { color: var(--acc); font-size: 20px; }
 #m-status { min-height: 20px; font-size: 13px; color: #ff8a8a; }
 #m-status.ok { color: var(--green); }
 #m-how { align-self: flex-start; }
@@ -797,3 +806,41 @@ img.thumb.inline { display: inline-block; width: 32px; height: 32px; vertical-al
 #deathscreen .hold span { position: relative; line-height: 38px; font-size: 13px; letter-spacing: 3px; color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,.8); }
 #hud.dead #hotbar, #hud.dead #ammo, #hud.dead #crosshair, #hud.dead #prompt, #hud.dead #hint, #hud.dead #threats { display: none; }
 @media (max-width: 700px) { #deathscreen .t { font-size: 38px; letter-spacing: 5px; } }
+
+/* ---------- customize your astronaut ---------- */
+#panel-inner:has(.cust) { width: min(960px, 100%); }
+.cust { display: grid; grid-template-columns: minmax(260px, 340px) 1fr; gap: 18px; }
+.cust-view {
+  position: relative; height: min(60vh, 470px); border: 1px solid var(--line); border-radius: 8px; overflow: hidden;
+  background: radial-gradient(ellipse at 50% 35%, rgba(255,176,32,.16), rgba(255,255,255,0) 62%), linear-gradient(180deg, #151b28, #0a0d14);
+}
+.cust-view canvas { display: block; width: 100%; height: 100%; cursor: grab; touch-action: none; }
+.cust-view canvas:active { cursor: grabbing; }
+.cust-view small { position: absolute; left: 0; right: 0; bottom: 8px; text-align: center; pointer-events: none; font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); }
+.cust-side { display: flex; flex-direction: column; min-width: 0; }
+.cust-side .stabs { margin-right: 0; }
+.cust-body { max-height: min(52vh, 410px); overflow-y: auto; padding: 2px 6px 4px 2px; }
+.cgroup { margin-bottom: 14px; }
+.cgroup h5 { margin: 0 0 7px; font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); }
+.cgroup h5 b { margin-left: 8px; color: var(--text); font-weight: 600; letter-spacing: 1px; text-transform: none; font-size: 12px; }
+.swrow { display: flex; flex-wrap: wrap; gap: 7px; }
+.csw { width: 28px; height: 28px; padding: 0; border: 0; border-radius: 50%; cursor: pointer; box-shadow: inset 0 0 0 1px rgba(0,0,0,.35), inset 0 -6px 10px rgba(0,0,0,.18); transition: transform .1s, box-shadow .1s; }
+.csw:hover { transform: translateY(-2px); }
+.csw.on { box-shadow: 0 0 0 2px var(--panel), 0 0 0 4px #fff; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; cursor: pointer;
+  font-family: var(--font-h); font-weight: 600; font-size: 13px; letter-spacing: 1px;
+  color: var(--text); background: rgba(255,255,255,.05); border: 1px solid var(--line2); border-radius: 999px;
+  transition: background .12s, border-color .12s;
+}
+.chip:hover { background: rgba(255,255,255,.12); }
+.chip.on { background: var(--acc); border-color: var(--acc); color: #120c00; }
+.hatchips .chip:has(img) { padding: 3px 12px 3px 4px; }
+.hatchips .chip img { width: 26px; height: 26px; }
+.cust .tip { margin: 8px 0 0; font-size: 12px; color: var(--muted); }
+@media (max-width: 720px) {
+  .cust { grid-template-columns: 1fr; }
+  .cust-view { height: 280px; }
+  .cust-body { max-height: none; }
+}

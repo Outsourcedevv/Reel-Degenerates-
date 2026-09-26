@@ -81,6 +81,7 @@
     <div class="setting"><label for="s-q">Graphics</label><select id="s-q"><option value="high">High (bloom, color grading)</option><option value="low">Low (faster)</option></select></div>
     <div class="setting ffrow"><label>Friendly fire <b id="v-ff">OFF</b></label><button id="s-ff" class="btn small">Turn on</button><small id="ff-note"></small></div>
     <div class="row2">
+      <button id="p-cust" class="btn small">Customize</button>
       <button id="p-how" class="btn small">Controls</button>
       <button id="p-leave" class="btn small red">Leave Game</button>
     </div>
@@ -93,8 +94,8 @@
     <p class="tag">Deliver one pizza across the galaxy. <i>It's already cold.</i></p>
     <label for="m-name">Your name</label>
     <input id="m-name" maxlength="14" autocomplete="off" spellcheck="false">
-    <label>Suit color</label>
-    <div id="m-colors"></div>
+    <label>Your astronaut</label>
+    <button id="m-cust" class="lookcard" type="button"><span class="pic"></span><span class="txt"><b>Customize</b><small>Suit, colors, face, hair, backpack</small></span><span class="go" data-ico="brush"></span></button>
     <div class="row"><button id="m-solo" class="btn big">Play Solo</button></div>
     <div class="row"><button id="m-host" class="btn big">Host Game</button></div>
     <div class="row join"><input id="m-code" maxlength="5" placeholder="CODE" autocomplete="off" spellcheck="false"><button id="m-join" class="btn big blue">Join</button></div>
@@ -111,7 +112,7 @@
     <div class="row"><input id="m-wname" maxlength="24" placeholder="World name" autocomplete="off" spellcheck="false"><button id="m-wnew" class="btn green" style="flex:none">Create</button></div>
     <button id="m-wback" class="btn small ghost">Back</button>
   </div>
-  <div class="menu-foot"><span>v1.7.1</span><span>Your pizza is 3 years late. No pressure.</span></div>
+  <div class="menu-foot"><span>v1.8.0</span><span>Your pizza is 3 years late. No pressure.</span></div>
 </div>
 
 <div id="flash"></div>
@@ -135,6 +136,7 @@
 <script src="js/icons.js"></script>
 <script src="js/thumbs.js"></script>
 <script src="js/ui.js"></script>
+<script src="js/custom.js"></script>
 <script src="js/net.js"></script>
 <script src="js/player.js"></script>
 <script src="js/activities.js"></script>

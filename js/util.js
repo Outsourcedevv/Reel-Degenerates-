@@ -318,11 +318,13 @@ function mergeStatic(root) {
     let p = o, skip = false;
     while (p && p !== root) { if (p.userData.dynamic) { skip = true; break; } p = p.parent; }
     if (skip) return;
-    if (!buckets.has(o.material)) buckets.set(o.material, []);
-    buckets.get(o.material).push(o);
+    // (things that shouldn't take shadows, like smooth characters, stay apart from the things that do)
+    const key = o.material.uuid + (o.receiveShadow ? '' : '|nr');
+    if (!buckets.has(key)) buckets.set(key, { mat: o.material, meshes: [], recv: o.receiveShadow });
+    buckets.get(key).meshes.push(o);
   });
   const v = new V3(), nm = new THREE.Matrix3();
-  for (const [mat, meshes] of buckets) {
+  for (const { mat, meshes, recv } of buckets.values()) {
     if (meshes.length < 2) continue;
     let count = 0;
     for (const m of meshes) count += m.geometry.attributes.position.count;
@@ -346,7 +348,7 @@ function mergeStatic(root) {
     geo.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
     geo.computeBoundingSphere();
     const mm = new THREE.Mesh(geo, mat);
-    mm.castShadow = true; mm.receiveShadow = true;
+    mm.castShadow = true; mm.receiveShadow = recv;
     root.add(mm);
   }
 }

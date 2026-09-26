@@ -42,7 +42,7 @@ const Thumbs = {
 
   // what a picture key shows, and how to frame it
   model(key) {
-    const [k, a, b] = key.split(':');
+    const [k, a, b, c] = key.split(':');
     switch (k) {
       case 'zap': { const z = buildZapperVM(ZAPPERS[+a] ? +a : 0); z.remove(z.userData.flash); return { o: z, look: 'tool' }; }
       case 'vac': return { o: buildVacVM(a === '1'), look: 'tool' };
@@ -54,7 +54,7 @@ const Thumbs = {
       case 'snail': return { o: buildSnail(SNAILS[+a].color), look: 'side' };
       case 'face': return { o: buildShopkeeper(a).root, look: 'portrait' };
       case 'boss': return { o: buildBossModel(a).root, look: 'boss' };
-      case 'astro': return { o: buildAstronaut({ color: a, hat: b || 'none' }).root, look: 'portrait' };
+      case 'astro': return { o: buildAstronaut({ color: a, hat: b || 'none', look: c }).root, look: 'portrait' };
       case 'planet': return { o: buildPlanetGlobe(+a || 0), look: 'planet' };
       case 'sym': return { o: buildSlotSymbol(a), look: 'front' };
     }
@@ -177,6 +177,8 @@ const Thumbs = {
     const gold = key.startsWith('g_'), id = (gold ? key.slice(2) : key).split(':')[0];
     return 'crit:' + id + (gold ? ':gold' : '');
   },
-  // your crewmates (and you): an astronaut in their color and hat
-  crewKey(color, hat) { return `astro:${color || '#ffffff'}:${hat || 'none'}`; },
+  // your crewmates (and you): an astronaut in their colors, look and hat
+  crewKey(color, hat, look) {
+    return `astro:${/^#[0-9a-f]{6}$/i.test(color) ? color : '#ffffff'}:${HATS[hat] ? hat : 'none'}:${lookCode(lookFrom(look))}`;
+  },
 };

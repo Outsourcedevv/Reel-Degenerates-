@@ -1,3 +1,16 @@
+## New in 1.8: dress up your astronaut
+
+- **Customize your astronaut.** A new **Customize** button on the title screen (and in the pause menu) opens a
+  screen with a turning 3D preview. Pick your suit color and accent color, a pattern (stripes, racing stripe,
+  two-tone, half and half, shoulder pads or spots), a chest badge, a backpack (air tanks, jet pack, pizza box or
+  rocket), skin, hair and hair color, eyes, mouth, extras like a mustache, glasses or a clown nose, the tint of your
+  helmet glass, and which hat to wear. Or hit **Randomize**. Your friends see your new look straight away, even
+  mid-game.
+- **Rounder, smoother characters.** Astronauts have been rebuilt from scratch with round shapes and smooth shading,
+  with no more boxes. Shopkeepers, aliens and every hat got smoothed out too.
+- Your first-person sleeves now match your suit color.
+- On High graphics, surfaces that sit close together no longer flicker through each other.
+
 ## New in 1.7.1
 
 - **You can see your hands.** Gloves in your suit color hold whatever you've got out: every gun, the Grabby Vac,

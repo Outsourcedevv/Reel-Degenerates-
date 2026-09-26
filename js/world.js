@@ -446,6 +446,8 @@ class PlanetWorld {
     if (model.bulb) model.bulb.userData.keep = true;
     mergeLocal(model.root, model.head ? [model.head] : []);
     if (model.head) mergeLocal(model.head);
+    // (they're smooth and round: their toon shading does the shading, and taking shadows would speckle them)
+    model.root.traverse((c) => { if (c.isMesh) c.receiveShadow = false; });
     this.npcs.push({ m: model, x, z, ry, t: this.rng() * 5 });
     this.circle(x, z, 0.6);
   }
@@ -809,6 +811,7 @@ class PlanetWorld {
       fan.armL.rotation.x = i % 3 === 0 ? -2.8 : -0.4;
       fan.armR.rotation.x = i % 2 ? -2.8 : -0.2;
       fan.root.position.set(x, y, z); fan.root.rotation.y = Math.PI;
+      fan.root.traverse((c) => { if (c.isMesh) c.receiveShadow = false; }); // (smooth and round: the toon shading shades them)
       S.add(fan.root);
     });
     sign(['SNAIL DERBY', 'BET ON A SNAIL. WIN BIG!*'], 10, 2.6, TX, 5.0, inZ - 0.02, Math.PI, ['#ffd23f', '#3df0ff'], '#ff3df0');

@@ -2,7 +2,6 @@
 /* =========================================================
    SPACE GOOBERS — boot, menus, game loop, travel, net glue
    ========================================================= */
-const COLORS = ['#ff7a3d', '#ff4b6e', '#3aa7ff', '#3fcf6a', '#ffd23f', '#9b5de5', '#2ad4c4', '#ff8ad8'];
 
 const Game = {
   last: 0, sendT: 0, hintT: 0, tickT: 0, summoning: false, summonAt: 0,
@@ -138,14 +137,18 @@ const Game = {
   },
 
   /* ---------------- start / menus ---------------- */
+  // your astronaut's picture on the title screen
+  drawLook() {
+    const pic = !G.started && document.querySelector('#m-cust .pic');
+    if (pic) pic.innerHTML = Thumbs.img(Thumbs.crewKey(G.color, Custom.hats().hat, G.look), '', 'person');
+  },
   setupMenu() {
     const nameEl = U.$('m-name'), status = U.$('m-status');
     nameEl.value = lsGet('spacegoobers_name', '') || 'Goober' + U.randi(10, 99);
-    G.color = lsGet('spacegoobers_color', null) || U.pick(COLORS);
-    const sw = U.$('m-colors');
-    const drawSw = () => { sw.innerHTML = COLORS.map((c) => `<div class="sw ${c === G.color ? 'sel' : ''}" data-c="${c}" style="background:${c}"></div>`).join(''); };
-    drawSw();
-    sw.addEventListener('click', (e) => { const c = e.target.dataset.c; if (c) { G.color = c; drawSw(); Sound.init(); Sound.play('click'); } });
+    G.color = lsGet('spacegoobers_color', null) || U.pick(ACCENT_COLORS);
+    Custom.load();
+    this.drawLook();
+    U.$('m-cust').onclick = () => { Sound.init(); Custom.open(); };
     const readName = () => {
       const n = (nameEl.value || '').replace(/[^\w \-.'!]/g, '').trim().slice(0, 14) || 'Goober';
       G.name = n;
@@ -361,6 +364,7 @@ const Game = {
     [sens, vol, mus].forEach((e) => e.addEventListener('input', save));
     U.$('p-resume').onclick = () => this.lock();
     U.$('p-how').onclick = () => UI.showHow(true);
+    U.$('p-cust').onclick = () => Custom.open(true);
     U.$('p-leave').onclick = () => { persist(); Net.leave(); location.reload(); };
     U.$('s-ff').onclick = () => { Sound.play('click'); this.setFF(!G.ff); };
   },

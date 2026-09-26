@@ -77,14 +77,15 @@ class LocalPlayer {
     this.kickP = 0; this.kickY = 0; this.recoilRot = 0; this.recoilRoll = 0; // (see kick)
     this.vm = new THREE.Group();
     G.camera.add(this.vm);
-    // your gloves (in your suit color) hold whatever you're holding
+    // your gloves (in your accent color) and sleeves (your suit's color) hold whatever you're holding
     this.gloveMat = new THREE.MeshToonMaterial({ color: G.color || '#ff7a3d', gradientMap: TOON_GRAD });
-    this.gloveMat.userData.shared = true; // (every hand uses it, for as long as you play: never freed)
-    this.gloveCol = G.color;
+    this.sleeveMat = new THREE.MeshToonMaterial({ color: lookColor(G.look, 'body'), gradientMap: TOON_GRAD });
+    this.gloveMat.userData.shared = this.sleeveMat.userData.shared = true; // (every hand uses them, for as long as you play: never freed)
+    this.gloveCol = G.color; this.sleeveLook = G.look;
     this.vmDrill = buildDrillVM();
     this.vmPeel = buildPeelVM();
-    addHands(this.vmDrill, 'drill', this.gloveMat);
-    addHands(this.vmPeel, 'peel', this.gloveMat);
+    addHands(this.vmDrill, 'drill', this.gloveMat, this.sleeveMat);
+    addHands(this.vmPeel, 'peel', this.gloveMat, this.sleeveMat);
     for (const o of [this.vmDrill, this.vmPeel]) this.vm.add(o);
     this.vmZap = null; this.vmVac = null;
     this.refreshGear();
@@ -96,8 +97,8 @@ class LocalPlayer {
     for (const o of [this.vmZap, this.vmVac]) if (o) { this.vm.remove(o); disposeObj(o); }
     this.vmZap = buildZapperVM(Math.max(0, SAVE.zap));
     this.vmVac = buildVacVM(SAVE.vacLvl > 0);
-    addHands(this.vmZap, (ZAPPERS[Math.max(0, SAVE.zap)] || {}).type, this.gloveMat);
-    addHands(this.vmVac, 'vac', this.gloveMat);
+    addHands(this.vmZap, (ZAPPERS[Math.max(0, SAVE.zap)] || {}).type, this.gloveMat, this.sleeveMat);
+    addHands(this.vmVac, 'vac', this.gloveMat, this.sleeveMat);
     this.vm.add(this.vmZap, this.vmVac);
     this.vm.traverse((c) => { if (c.isMesh) { c.castShadow = false; c.receiveShadow = false; } });
     this.layoutVM();
@@ -861,6 +862,7 @@ class LocalPlayer {
     this.recoilRot = U.damp(this.recoilRot, 0, 11, dt); this.recoilRoll = U.damp(this.recoilRoll, 0, 10, dt);
     this.vm.rotation.set(this.recoilRot - sw * 0.9 + run * 0.25 - this.swayY, this.swayX * 1.2 + run * 0.3, -this.swayX * 0.8 + this.recoilRoll);
     if (this.gloveCol !== G.color) { this.gloveCol = G.color; this.gloveMat.color.set(G.color || '#ff7a3d'); }
+    if (this.sleeveLook !== G.look) { this.sleeveLook = G.look; this.sleeveMat.color.set(lookColor(G.look, 'body')); }
   }
 
   netState() {
@@ -868,7 +870,7 @@ class LocalPlayer {
       x: U.r2(this.pos.x), y: U.r2(this.pos.y), z: U.r2(this.pos.z), yw: U.r2(this.yaw),
       vx: Math.round(this.vel.x * 10) / 10, vy: Math.round(this.vel.y * 10) / 10, vz: Math.round(this.vel.z * 10) / 10,
       og: this.onGround ? 1 : 0, st: Flight.on ? (Flight.seat === 'pilot' ? 1 : 2) : 0,
-      t: TOOLS.indexOf(this.tool), h: SAVE.hat, c: G.color, n: G.name, m: G.mode, p: G.planet,
+      t: TOOLS.indexOf(this.tool), h: SAVE.hat, c: G.color, lk: G.look, n: G.name, m: G.mode, p: G.planet,
       hp: Math.round(this.hp), g: this.ghost ? 1 : 0, d: this.dead ? 1 : 0, dn: this.down ? 1 : 0, $: SAVE.bucks, zp: SAVE.zap,
       u: (this.vacTarget || this.drillTarget || (this.tool === 'zap' && Input.mouseL)) ? 1 : 0,
       mv: (this.jetting ? 1 : 0) | (this.gliding ? 2 : 0), // (so friends see your jet flames and your cape)
@@ -880,8 +882,8 @@ class LocalPlayer {
 class RemotePlayer {
   constructor(id, s) {
     this.id = id; this.s = s; this.name = s.n;
-    this.m = buildAstronaut({ color: s.c, hat: s.h });
-    this.color = s.c;
+    this.m = buildAstronaut({ color: s.c, hat: s.h, look: s.lk });
+    this.color = s.c; this.look = s.lk || '';
     G.scene.add(this.m.root);
     this.tag = textSprite(s.n, { size: 44, bg: 'rgba(20,20,40,.55)', scale: 0.0065 });
     this.tag.position.y = 2.75;
@@ -899,10 +901,26 @@ class RemotePlayer {
     this.center = new V3();
     this.visible = true;
     // a cape that only shows while they're gliding
-    this.cape = grp(this.m.root, 0, 1.55, -0.3);
-    mk(BOX(0.72, 1.2, 0.05), '#b8142e', this.cape, 0, -0.6, 0);
-    mk(BOX(0.74, 0.08, 0.06), '#ffd23f', this.cape, 0, 0, 0);
+    this.cape = grp(this.m.root, 0, 1.55, -0.34);
+    withHi(null, () => {
+      mk(roundBox(0.72, 1.2, 0.05, 0.024), '#b8142e', this.cape, 0, -0.6, 0);
+      mk(roundBox(0.74, 0.08, 0.07, 0.03), '#ffd23f', this.cape, 0, 0, 0);
+    });
+    this.cape.traverse((c) => { if (c.isMesh) c.receiveShadow = false; });
     this.cape.visible = false;
+  }
+  // they changed their colors or look: a new astronaut, wearing everything the old one had on
+  rebuild(s) {
+    const old = this.m;
+    this.m = buildAstronaut({ color: s.c, hat: s.h, look: s.lk });
+    this.color = s.c; this.look = s.lk || '';
+    for (const o of [this.tag, this.ghostTag, this.downTag, this.cape]) if (o) this.m.root.add(o);
+    this.tools.forEach((t) => this.m.hand.add(t));
+    this.m.root.position.copy(old.root.position);
+    this.m.root.rotation.copy(old.root.rotation);
+    this.m.root.visible = old.root.visible;
+    G.scene.remove(old.root); disposeObj(old.root);
+    G.scene.add(this.m.root);
   }
   apply(s) {
     const prev = this.s;
@@ -914,6 +932,7 @@ class RemotePlayer {
     // teleports (landing, respawning, starting a boss fight, changing planets) snap straight there
     // instead of sliding across the map, so everyone sees each other where they really are
     if (!prev || prev.m !== s.m || prev.p !== s.p || this.pos.distanceTo(this.tpos) > 3) this.snapNext = true;
+    if (s.c !== this.color || (s.lk || '') !== this.look) this.rebuild(s);
     if (s.h !== this.m.hatId) setHat(this.m, s.h);
     const zl = Math.max(0, s.zp || 0);
     if (zl !== this.zl && ZAPPERS[zl]) { // they bought a better zapper

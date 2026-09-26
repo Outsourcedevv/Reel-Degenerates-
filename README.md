@@ -32,6 +32,18 @@ difficulty:
 Minecraft worlds. When you join a friend, your stuff in their world is saved too, so it's still there next time.
 Hats are the exception: once you own a hat, it's yours in every world (and when you visit friends).
 
+**Your astronaut.** Click **Customize** on the title screen (or in the pause menu) to dress up your astronaut, with
+a turning preview:
+
+- **Suit:** suit color, accent color (belt, collar, gloves and backpack), pattern (stripes, racing stripe, two-tone,
+  half and half, shoulder pads, spots), chest badge (buttons, star, heart, lightning, pizza, moon) and backpack
+  (air tanks, jet pack, pizza box, rocket, or none).
+- **Face & helmet:** skin, hair and hair color, eyes, mouth, extras (mustache, beard, freckles, blush, glasses, clown
+  nose), the tint of your helmet glass, and which of your hats to wear.
+
+Your look is saved on your computer and your crew sees it (even if you change it in the middle of a game). New
+players start with a random face. **Randomize** rolls a whole new astronaut.
+
 When you die on a planet, you stay down until you hold left click to respawn at the ship. Everything except your
 Grabby Vac (your zapper, drill, pizza peel, grenades and whatever was in your backpack) drops in a grave where you
 fell. Follow its beam of light to get it all back. Only you can pick it up, and it waits for you even if you quit
@@ -147,8 +159,8 @@ Every planet sells a different gun, and each one shoots differently:
 | Same-Day Launcher | Gigopolis | exploding parcels; shoot the ground under you mid-jump to rocket-jump |
 | Pizza Cutter | Zorblax Prime | spinning cutters that slice through everything and come back |
 
-You can see your hands holding whatever you've got out, in gloves the color of your suit (two hands on the
-bigger guns). Guns kick when they fire: your view jumps up and settles back, but a little of the kick stays, so
+You can see your hands holding whatever you've got out, in your accent-colored gloves and suit-colored sleeves (two
+hands on the bigger guns). Guns kick when they fire: your view jumps up and settles back, but a little of the kick stays, so
 pull down a bit between shots. The Scattergun and the Same-Day Launcher kick hardest. The Pew Pew Zapper and the
 Wisp Caller barely move.
 
@@ -210,6 +222,7 @@ in your browser (clearing browser data deletes them).
 - `js/critters.js`: space critters · `js/flight.js`: the ship, cockpit, star map and landing · `js/shop.js`: shops, boss altars
 - `js/items.js`: models of the items you buy, carry and win · `js/thumbs.js`: turns models into the pictures the
   menus show (shop items, backpack, hotbar, faces)
+- `js/custom.js`: the Customize screen (the looks themselves are `LOOK_PARTS` and `buildAstronaut` in `models.js`)
 - `js/post.js`: bloom and color grading · `js/icons.js`: interface icons
 - `js/main.js`: game loop, menus, multiplayer glue · `js/net.js`: networking
 - `desktop/`: the desktop app (Electron). `npm install` then `npm start` runs it; `npm run dist` builds installers.
