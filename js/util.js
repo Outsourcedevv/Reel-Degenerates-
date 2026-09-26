@@ -322,8 +322,10 @@ function mergeLocal(root, keep = []) {
 
 /* ---------- save data (per player name, in this browser) ---------- */
 const SAVE_DEFAULT = {
+  v: 2, // save format: 2 = with the three newer planets (see migrateSave)
   bucks: 100, zap: -1, cargoLvl: 0, vacLvl: 0, // zap -1 = no gun yet
   drill: false, boots: false, socks: false, armor: false, lifeIns: false, charm: false, peel: false,
+  skates: false, dash: false, stomp: false, springs: false, cape: false, jetpack: false, // movement gear
   nades: 0, cargo: [], hats: ['none'], hat: 'none',
   beaten: [], seenIntro: false,
   summons: {}, pity: {}, heat: 0, // boss summoning items held, tries since the last drop, pizza warmth
@@ -338,12 +340,27 @@ function loadSaveKey(key) {
   try {
     const raw = localStorage.getItem(key);
     if (raw) {
-      const d = JSON.parse(raw);
+      const d = migrateSave(JSON.parse(raw));
       SAVE = Object.assign(fresh, d);
       SAVE.stats = Object.assign(JSON.parse(JSON.stringify(SAVE_DEFAULT.stats)), d.stats || {});
     } else SAVE = fresh;
   } catch (e) { SAVE = fresh; }
   Wardrobe.apply(); // your hats come with you
+}
+// Saves from before Spookulon, Nimbus-9 and Gigopolis: Zorblax Prime used to be planet 4 (it's 7 now) and
+// the Pizza Cutter used to be gun 5 (it's 8 now). Anyone who had already made it to Zorblax Prime keeps it open.
+function migrateSave(d) {
+  if (!d || d.v >= 2) return d;
+  const OLD_ZORB = 4, NEW_ZORB = PLANETS.findIndex((p) => p.id === 'zorb');
+  if (d.planet === OLD_ZORB) d.planet = NEW_ZORB;
+  if (OLD_TO_NEW_ZAP[d.zap] != null) d.zap = OLD_TO_NEW_ZAP[d.zap];
+  d.graves = (d.graves || []).map((g) => Object.assign({}, g, {
+    p: g.p === OLD_ZORB ? NEW_ZORB : g.p,
+    items: (g.items || []).map((e) => { const m = /^gear:zap:(\d+)$/.exec(e); return m && OLD_TO_NEW_ZAP[+m[1]] != null ? 'gear:zap:' + OLD_TO_NEW_ZAP[+m[1]] : e; }),
+  }));
+  if ((d.beaten || []).includes('snowdad')) { d.zorbOpen = true; d.newPlanets = true; }
+  d.v = 2;
+  return d;
 }
 const nameKey = (name) => name.toLowerCase().replace(/\s+/g, '_');
 // the old one-save-per-name format (still used if you join a host running an old version)
@@ -377,7 +394,7 @@ const Worlds = {
   },
   // quick facts for the world picker
   info(id) {
-    const d = lsGet(this.key(id), null) || {};
+    const d = migrateSave(lsGet(this.key(id), null) || {});
     return { planet: d.planet || 0, beaten: (d.beaten || []).length, bucks: d.bucks == null ? SAVE_DEFAULT.bucks : d.bucks };
   },
   // saves from before worlds existed become worlds, once

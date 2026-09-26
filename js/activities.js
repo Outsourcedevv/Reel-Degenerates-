@@ -4,7 +4,10 @@
    drilling crystals, catching pepperoni meteors.
    Pickups are shared between players.
    ========================================================= */
-const RESPAWN = { scrap: 30, berry: 35, bigberry: 45, crystal: 45 };
+const RESPAWN = { scrap: 30, berry: 35, bigberry: 45, crystal: 45, ghost: 40, pearl: 35, bigpearl: 50 };
+const WALK_IN = new Set(['berry', 'bigberry', 'pearl', 'bigpearl']); // (you grab these just by walking into them)
+// how each kind of pickup looks and sounds when you get it: [burst color, burst size, sound]
+const PICKUP_FX = { crystal: ['#9fe3ff', 16, 'shatter'], scrap: ['#7dff8a', 8, 'slurp'], ghost: ['#b9ffc8', 14, 'ghost'], pearl: ['#ffffff', 8, 'pickup'], bigpearl: ['#ffe9a8', 14, 'pickup'] };
 
 const Activities = {
   respawn: new Map(),   // host only: "planet:id" -> time it comes back
@@ -15,7 +18,7 @@ const Activities = {
     if (G.mode === 'planet' && G.world && G.player && !G.player.dead) {
       const p = G.player.pos, cap = CARGO[SAVE.cargoLvl];
       for (const n of G.world.nodes) {
-        if (n.taken || (n.kind !== 'berry' && n.kind !== 'bigberry')) continue;
+        if (n.taken || !WALK_IN.has(n.kind)) continue;
         const dx = n.x - p.x, dz = n.z - p.z, dy = n.y - p.y;
         if (dx * dx + dz * dz < 1.6 && dy > -1.2 && dy < 1.9) {
           if (SAVE.cargo.length >= cap) {
@@ -36,12 +39,13 @@ const Activities = {
       }
     }
     Drops.update(dt);
+    Gigs.update(dt);
   },
 
   collect(n) {
     const cap = CARGO[SAVE.cargoLvl];
     const table = LOOT[n.kind];
-    const count = n.kind === 'crystal' ? 2 : 1;
+    const count = n.kind === 'crystal' || n.kind === 'ghost' ? 2 : 1;
     const got = [];
     for (let i = 0; i < count && SAVE.cargo.length < cap; i++) {
       const id = U.weighted(table);
@@ -53,9 +57,10 @@ const Activities = {
     Net.toHost({ t: 'take', p: G.planet, id: n.id });
     const rare = this.showLoot(got);
     if (got.length) Summons.tryDrop(n.kind);
-    Sound.play(rare ? 'rare' : n.kind === 'crystal' ? 'shatter' : n.kind === 'scrap' ? 'slurp' : 'pickup');
-    const col = n.kind === 'crystal' ? '#9fe3ff' : n.kind === 'scrap' ? '#7dff8a' : '#c9b3ff';
-    FX.burst(new V3(n.x, n.y + 0.8, n.z), col, n.kind === 'crystal' ? 16 : 8, 4);
+    const [col, size, snd] = PICKUP_FX[n.kind] || ['#c9b3ff', 8, 'pickup'];
+    Sound.play(rare ? 'rare' : snd);
+    FX.burst(new V3(n.x, n.y + 0.8, n.z), col, size, 4);
+    if (n.kind === 'ghost') FX.text(new V3(n.x, n.y + 1.6, n.z), U.pick(LINES.ghostCaught), '#b9ffc8', 48);
     if (SAVE.cargo.length >= cap) UI.toast('Backpack full! Go sell stuff at the shop.', 'bad', 2.2);
     persist();
     UI.hud();
@@ -82,7 +87,7 @@ const Activities = {
     const n = w.nodes[id];
     n.taken = taken;
     n.mesh.visible = !taken;
-    if (!taken) { n.mesh.position.set(n.x, n.y, n.z); n.mesh.scale.setScalar(1); }
+    if (!taken) { n.grab = false; n.home = null; n.mesh.position.set(n.x, n.y, n.z); n.mesh.scale.setScalar(1); }
   },
   takenList(pi) {
     const w = G.worlds[pi];
@@ -253,6 +258,78 @@ const Meteors = {
     G.shake = Math.max(G.shake, 0.8);
     Sound.play('bonk');
     UI.toast(U.pick(LINES.meteorBonk) + (SAVE.peel ? ' (Press 4 for the Pizza Peel!)' : ' Dave sells a Pizza Peel for catching these.'), 'purple', 2.4);
+  },
+};
+
+/* ---------------- Gigopolis: delivery gigs ----------------
+   Take a parcel at the GigHub kiosk and run it to the glowing door (or rooftop) before the
+   timer runs out. You get paid on the spot, plus a tip for being quick, and customers often
+   leave a little something too. Every delivery also counts toward the crew's Mandatory
+   Meeting Invite (the host rolls for it, like the other summoning items). Gigs are your own:
+   friends can take their own at the same time. */
+const Gigs = {
+  cur: null, last: null,
+  label() { return this.cur ? `GigHub: you already have a parcel for ${this.cur.to.name}` : 'GigHub: take a delivery gig'; },
+  take() {
+    const w = G.world;
+    if (!w || !w.gigSpots) return;
+    if (this.cur) { UI.toast(`You already have a parcel! Take it to ${this.cur.to.name}.`, 'bad', 2.2); Sound.play('error'); return; }
+    const k = w.gigKiosk, p = G.player.pos;
+    const to = U.pick(w.gigSpots.filter((s) => s !== this.last && Math.hypot(s.x - k.x, s.z - k.z) > 14));
+    const dist = Math.hypot(to.x - p.x, to.z - p.z) + (to.roof ? to.y - p.y : 0);
+    const dur = Math.round(12 + dist / 3.2 + (to.roof ? 9 : 0));
+    this.last = to;
+    this.cur = { to, t: dur, dur, pay: Math.round(40 + dist * 2 + (to.roof ? 60 : 0)), w, beacon: this.beacon(w, to) };
+    Sound.play('ding');
+    UI.bigTitle('NEW GIG', `${to.name} · ${Math.round(dist)} m · ${dur} seconds`, '#ffd23f', 2.4);
+    UI.toast(U.pick(LINES.gigTake) + (to.roof ? ' It\'s a ROOF drop: use the jump pads.' : ''), 'good', 3);
+  },
+  // a tall glowing beam over the drop-off (only you can see yours)
+  beacon(w, to) {
+    const g = new THREE.Group();
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, 60, 12, 1, true), new THREE.MeshBasicMaterial({ color: '#ffd23f', transparent: true, opacity: 0.25, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, fog: false }));
+    beam.position.y = 30;
+    const ring = new THREE.Mesh(new THREE.RingGeometry(1.7, 2.3, 32), new THREE.MeshBasicMaterial({ color: '#ffd23f', transparent: true, opacity: 0.8, side: THREE.DoubleSide, depthWrite: false }));
+    ring.rotation.x = -Math.PI / 2; ring.position.y = 0.2;
+    const box = grp(g, 0, 1.6, 0);
+    mk(BOX(0.6, 0.5, 0.6), '#c9a36b', box, 0, 0, 0);
+    mk(BOX(0.62, 0.08, 0.14), '#e8d8a0', box, 0, 0.22, 0);
+    g.add(beam, ring);
+    g.position.set(to.x, to.y, to.z);
+    g.userData = { beam, box };
+    w.dyn.add(g);
+    return g;
+  },
+  update(dt) {
+    const c = this.cur;
+    if (!c) return;
+    if (G.mode !== 'planet' || G.world !== c.w || G.player.dead) { this.end(); UI.toast('Gig cancelled. The customer will live. Probably.', '', 2.5); return; }
+    c.t -= dt;
+    const p = G.player.pos, to = c.to, d = Math.hypot(p.x - to.x, p.z - to.z), b = c.beacon.userData;
+    b.box.rotation.y += dt * 2; b.box.position.y = 1.6 + Math.sin(G.time * 3) * 0.2;
+    b.beam.material.opacity = 0.18 + 0.1 * Math.sin(G.time * 5);
+    if (d < 2.4 && Math.abs(p.y - to.y) < 2.2) { this.deliver(); return; }
+    if (c.t <= 0) { this.end(); Sound.play('error'); UI.toast(U.pick(LINES.gigLate), 'bad', 3); return; }
+    UI.gig(to.name, Math.round(d), c.t, c.dur);
+  },
+  deliver() {
+    const c = this.cur;
+    const tip = Math.round(c.pay * 0.9 * U.clamp(c.t / c.dur, 0, 1)); // (faster = bigger tip)
+    this.end();
+    addBucks(c.pay + tip);
+    Sound.play('cash');
+    UI.bigTitle('DELIVERED!', `${U.pick(LINES.gigDone)} +${U.bucks(c.pay)}${tip ? ` (+${U.bucks(tip)} tip)` : ''}`, '#7dff8a', 2.6);
+    SAVE.stats.gigs = (SAVE.stats.gigs || 0) + 1;
+    if (Math.random() < 0.6 && cargoFree() > 0) { const id = U.weighted(LOOT.deliver); SAVE.cargo.push(id); SAVE.stats.collected++; Activities.showLoot([id]); }
+    Summons.tryDrop('deliver');
+    persist();
+    UI.hud();
+  },
+  end() {
+    const c = this.cur;
+    this.cur = null;
+    if (c && c.beacon) { if (c.beacon.parent) c.beacon.parent.remove(c.beacon); disposeObj(c.beacon); }
+    UI.gig(null);
   },
 };
 

@@ -3,8 +3,12 @@
    Boss fights. The host runs the AI and sends attacks; every
    client simulates the hazards and checks hits on itself.
    ========================================================= */
-const MINION_KIND = { blorb: 'slime', snowdad: 'snow', zorblax: 'guard' };
-const RING_COL = { gary: '#b8d86b', blorb: '#ff9ad5', jerry: '#ffd23f', snowdad: '#bff6ff', zorblax: '#ff3df0' };
+const MINION_KIND = { blorb: 'slime', snowdad: 'snow', count: 'bat', stormy: 'tornado', chad: 'intern', zorblax: 'guard' };
+const MINION_SPD = { guard: 4.2, snow: 3.8, bat: 4.4, tornado: 4.8, intern: 3.6 };
+const RING_COL = { gary: '#b8d86b', blorb: '#ff9ad5', jerry: '#ffd23f', snowdad: '#bff6ff', count: '#ff3d6e', stormy: '#b8d8ff', chad: '#3df0ff', zorblax: '#ff3df0' };
+const LANE_COL = { jerry: '#ffd23f', count: '#d6281b', stormy: '#fff36b', chad: '#3df0ff' }; // (the rest: pink lasers)
+// in phase 2 attacks come faster and faster, down to this fraction of the normal wait
+const MIN_COMP = { count: 0.75, stormy: 0.7, chad: 0.65, zorblax: 0.55 };
 const JERRY_W = { cherry: 3, bell: 3, 7: 2, cash: 3, lemon: 3, skull: 1 };
 const BOSS_DMG = 0.8; // every boss attack hits this much as hard as it's listed
 
@@ -109,7 +113,7 @@ class BossFight {
     for (let i = 0; i < n && this.minions.size < 9; i++) {
       const a = Math.random() * Math.PI * 2;
       const id = this.ai.mid++;
-      this.minions.set(id, { id, x: Math.cos(a) * (ARENA_R - 1.5), z: Math.sin(a) * (ARENA_R - 1.5), tx: 0, tz: 0, hp, kind, spd: kind === 'guard' ? 4.2 : kind === 'snow' ? 3.8 : 3.3, mesh: null, hitT: 0 });
+      this.minions.set(id, { id, x: Math.cos(a) * (ARENA_R - 1.5), z: Math.sin(a) * (ARENA_R - 1.5), tx: 0, tz: 0, hp, kind, spd: MINION_SPD[kind] || 3.3, mesh: null, hitT: 0 });
     }
     this.fire({ k: 'fx', snd: 'alarm' });
   }
@@ -134,7 +138,7 @@ class BossFight {
     else if (this.st === 'fight') {
       if (!ai.mv) this['move_' + this.id](dt);
       ai.atkT -= dt;
-      if (this.phase === 2) ai.comp = Math.max(this.id === 'zorblax' ? 0.55 : 0.8, ai.comp - dt * 0.01);
+      if (this.phase === 2) ai.comp = Math.max(MIN_COMP[this.id] || 0.8, ai.comp - dt * 0.01);
       if (ai.atkT <= 0 && !ai.mv && this.targets().length) {
         const cd = this['attack_' + this.id]();
         ai.atkT = (cd || 2.4) * ai.comp * U.rand(0.85, 1.15);
@@ -175,6 +179,15 @@ class BossFight {
     } else if (id === 'jerry') {
       this.pos.set(0, DECK_Y, -30);
       this.later(0.6, () => this.jumpTo(new V3(0, DECK_Y, -12), 1.6, 6, () => this.fire({ k: 'fx', snd: 'boom', shake: 0.6 })));
+    } else if (id === 'count') { // floats down out of the dark, cackling
+      this.pos.set(0, 30, -10);
+      this.later(0.4, () => this.jumpTo(new V3(0, DECK_Y + 1.2, -10), 2.2, 0, () => this.fire({ k: 'fx', snd: 'laugh', shake: 0.6 })));
+    } else if (id === 'stormy') { // rolls in from the sky with a clap of thunder
+      this.pos.set(0, 40, -10);
+      this.later(0.4, () => this.jumpTo(new V3(0, DECK_Y + 4.5, -10), 2.2, 0, () => this.fire({ k: 'multi', l: [this.ring(0, -10, 9, 10), { k: 'fx', snd: 'thunder', shake: 0.8 }] })));
+    } else if (id === 'chad') { // jumps in on his hoverboard
+      this.pos.set(0, DECK_Y + 0.5, -30);
+      this.later(0.6, () => this.jumpTo(new V3(0, DECK_Y + 0.5, -12), 1.6, 6, () => this.fire({ k: 'multi', l: [this.ring(0, -12, 9, 10), { k: 'fx', snd: 'boom', shake: 0.7 }] })));
     } else {
       this.pos.set(0, 40, -10);
       this.later(0.4, () => this.jumpTo(new V3(0, DECK_Y + 2.5, -10), 2.2, 0, () => this.fire({ k: 'fx', snd: 'roar', shake: 0.6 })));
@@ -211,6 +224,35 @@ class BossFight {
     const tg = this.nearestTarget(this.pos.x, this.pos.z);
     if (tg) this.face(tg.p.x - this.pos.x, tg.p.z - this.pos.z);
     this.contact = 0;
+  }
+
+  // Count Carbula glides after you, hovering, and keeps just out of reach
+  move_count(dt) {
+    const ai = this.ai;
+    ai.tgtT -= dt;
+    if (ai.tgtT <= 0 || !ai.tgt) { ai.tgt = this.nearestTarget(this.pos.x, this.pos.z) || this.randTarget(); ai.tgtT = 4; }
+    const tg = ai.tgt ? ai.tgt.p : new V3();
+    const dx = tg.x - this.pos.x, dz = tg.z - this.pos.z, d = Math.hypot(dx, dz), spd = this.phase === 2 ? 3.4 : 2.4;
+    this.face(dx, dz);
+    if (d > 5) { this.pos.x += (dx / d) * spd * dt; this.pos.z += (dz / d) * spd * dt; }
+    this.clampDeck(this.pos, ARENA_R - 2.5);
+    this.pos.y = DECK_Y + 1.2 + Math.sin(this.t * 2) * 0.3;
+    this.contact = 2.2; this.contactDmg = 16;
+  }
+  // Stormy circles overhead, glaring at whoever is closest
+  move_stormy(dt) {
+    const ai = this.ai;
+    ai.ang += dt * (this.phase === 2 ? 0.4 : 0.26);
+    this.pos.set(Math.cos(ai.ang) * 10, DECK_Y + 4.5 + Math.sin(this.t * 1.5) * 0.4, Math.sin(ai.ang) * 10);
+    const tg = this.nearestTarget(this.pos.x, this.pos.z);
+    if (tg) this.face(tg.p.x - this.pos.x, tg.p.z - this.pos.z);
+    this.contact = 0;
+  }
+  // Chad rides his hoverboard straight at you
+  move_chad(dt) {
+    this.walkToward(dt, this.phase === 2 ? 4.2 : 3.2, 3.6);
+    this.pos.y = DECK_Y + 0.5 + Math.sin(this.t * 3) * 0.12;
+    this.contact = 2.5; this.contactDmg = 18;
   }
 
   /* ----- attacks per boss (return cooldown) ----- */
@@ -351,6 +393,107 @@ class BossFight {
     return p2 ? 1.6 : 2.3;
   }
 
+  attack_count() {
+    const p2 = this.phase === 2;
+    const a = this.pickAtk([['bats', 3], ['leap', 2.2], ['bread', 2], ['spin', 1.6], ['swarm', 1.2], ['sauce', p2 ? 1.8 : 0]]);
+    const tg = this.randTarget();
+    if (!tg) return 2;
+    if (a === 'bats') { // a volley of bats at (up to) two goobers
+      const l = [], tgs = this.targets();
+      for (let i = 0; i < Math.min(2, tgs.length); i++) l.push(...this.aimed(this.mouth(), tgs[i].p, p2 ? 7 : 5, 0.8, 12, 'bat', 11, 0.5, { w: i * 0.4 }).l);
+      this.fire({ k: 'proj', l });
+    } else if (a === 'leap') { // turns to mist and comes down right on top of you
+      const to = this.clampDeck(new V3(tg.p.x, DECK_Y + 1.2, tg.p.z), ARENA_R - 3);
+      this.fire({ k: 'multi', l: [this.slam(to.x, to.z, 3.8, 1.1, 26), { k: 'fx', snd: 'laugh' }] });
+      this.jumpTo(to, 1.1, 7, () => this.fire({ k: 'multi', l: [this.ring(to.x, to.z, 10, 14), { k: 'fx', snd: 'boom', shake: 0.8 }] }));
+    } else if (a === 'bread') { // it's raining breadsticks
+      this.fire({ k: 'multi', l: [this.rain(p2 ? 18 : 13, 'breadstick', 14, 0.5), { k: 'fx', text: 'CARB LOADING!' }] });
+    } else if (a === 'spin') { // a cape spin that flings bats every which way
+      this.fire(this.spiral(new V3(this.pos.x, DECK_Y + 1.2, this.pos.z), 4, p2 ? 44 : 32, 2.2, 9, 'bat', 10, 0.45, 2.8));
+    } else if (a === 'swarm') {
+      this.spawnMinions(p2 ? 4 : 3);
+      const text = 'Children of the night! Fetch me CARBS!';
+      this.onTaunt(text); Net.toAll({ t: 'btaunt', text });
+    } else { // phase 2: rivers of marinara across the floor
+      const l = [], tgs = this.targets();
+      for (let i = 0; i < (tgs.length > 1 ? 3 : 2); i++) {
+        const t = tgs[i % tgs.length], an = Math.random() * Math.PI, dx = Math.cos(an) * 20, dz = Math.sin(an) * 20;
+        l.push(this.lane(new V3(t.p.x - dx, 0, t.p.z - dz), new V3(t.p.x + dx, 0, t.p.z + dz), 1.6, 1.2 + i * 0.35, 0.6, 22));
+      }
+      this.fire({ k: 'multi', l: l.concat([{ k: 'fx', text: 'MARINARA!' }]) });
+    }
+    return p2 ? 1.7 : 2.3;
+  }
+  attack_stormy() {
+    const p2 = this.phase === 2;
+    const a = this.pickAtk([['strike', 3], ['hail', 2.2], ['gust', 2], ['bolts', 2.4], ['twisters', 1.2], ['front', p2 ? 1.8 : 0]]);
+    const tg = this.randTarget();
+    if (!tg) return 2;
+    if (a === 'strike') { // lightning strikes wherever you're standing
+      const l = this.targets().map((t) => this.slam(t.p.x, t.p.z, 3.2, 1.0, 26));
+      if (p2) { const r = Math.random() * (ARENA_R - 3), an = Math.random() * 6; l.push(this.slam(Math.cos(an) * r, Math.sin(an) * r, 3.2, 1.3, 26)); }
+      this.fire({ k: 'multi', l: l.concat([{ k: 'fx', snd: 'thunder' }]) });
+    } else if (a === 'hail') {
+      this.fire({ k: 'multi', l: [this.rain(p2 ? 22 : 15, 'hail', 12, 0.45), { k: 'fx', text: 'HAIL TO THE KING!' }] });
+    } else if (a === 'gust') { // gusts of wind rolling across the floor (jump them!)
+      const c = this.clampDeck(new V3(this.pos.x, 0, this.pos.z), ARENA_R - 2);
+      this.fire({ k: 'multi', l: [this.ring(c.x, c.z, 10, 14), this.ring(c.x, c.z, 10, 14, 0.8)].concat(p2 ? [this.ring(0, 0, 9, 14, 1.6)] : []) });
+    } else if (a === 'bolts') {
+      this.fire(this.aimed(this.mouth(), tg.p, p2 ? 7 : 5, 0.6, 16, 'bolt', 11, 0.5, { step: 0.12 }));
+    } else if (a === 'twisters') {
+      this.spawnMinions(p2 ? 4 : 3);
+      const text = 'Twisters! Go mess up their HAIR!';
+      this.onTaunt(text); Net.toAll({ t: 'btaunt', text });
+    } else { // phase 2: a cold front, lanes of lightning across the arena
+      const l = [], tgs = this.targets();
+      for (let i = 0; i < 3; i++) {
+        const t = tgs[i % tgs.length], an = Math.random() * Math.PI, dx = Math.cos(an) * 20, dz = Math.sin(an) * 20;
+        l.push(this.lane(new V3(t.p.x - dx, 0, t.p.z - dz), new V3(t.p.x + dx, 0, t.p.z + dz), 1.5, 1.1 + i * 0.3, 0.5, 24));
+      }
+      this.fire({ k: 'multi', l: l.concat([{ k: 'fx', text: 'COLD FRONT!', snd: 'thunder' }]) });
+    }
+    return p2 ? 1.6 : 2.2;
+  }
+  attack_chad() {
+    const p2 = this.phase === 2;
+    const a = this.pickAtk([['emails', 3], ['review', 2.4], ['layoffs', 2], ['coffee', 2], ['interns', 1.2], ['dash', 1.6], ['slips', p2 ? 2 : 0]]);
+    const tg = this.randTarget();
+    if (!tg) return 2;
+    if (a === 'emails') { // reply-all: a spiral of emails
+      this.fire({ k: 'multi', l: [this.spiral(new V3(this.pos.x, DECK_Y + 1.1, this.pos.z), 3, p2 ? 42 : 30, 2.2, 10, 'email', 10, 0.45), { k: 'fx', snd: 'ding' }] });
+    } else if (a === 'review') { // performance review: one star each (and a slam)
+      this.fire({ k: 'multi', l: this.targets().map((t) => this.slam(t.p.x, t.p.z, 3.4, 1.2, 28)).concat([{ k: 'fx', text: '1 STAR!' }]) });
+    } else if (a === 'layoffs') {
+      const l = [], tgs = this.targets();
+      for (let i = 0; i < (p2 ? 3 : 2); i++) {
+        const t = tgs[i % tgs.length], an = Math.random() * Math.PI, dx = Math.cos(an) * 20, dz = Math.sin(an) * 20;
+        l.push(this.lane(new V3(t.p.x - dx, 0, t.p.z - dz), new V3(t.p.x + dx, 0, t.p.z + dz), 1.5, 1.2 + i * 0.3, 0.5, 24));
+      }
+      this.fire({ k: 'multi', l: l.concat([{ k: 'fx', text: 'LAYOFFS!' }]) });
+    } else if (a === 'coffee') { // lobbed hot coffee (the red circles show where it lands)
+      const l = [], tgs = this.targets();
+      for (let i = 0; i < (p2 ? 6 : 4); i++) {
+        const t = tgs[i % tgs.length], to = new V3(t.p.x + (Math.random() - 0.5) * 3, t.p.y - 1, t.p.z + (Math.random() - 0.5) * 3);
+        l.push(...this.aimed(this.mouth(), to, 1, 0, 11, 'coffee', 14, 0.5, { g: 18, w: i * 0.25, sp: 1.8, tl: 1 }).l);
+      }
+      this.fire({ k: 'proj', l });
+    } else if (a === 'interns') {
+      this.spawnMinions(p2 ? 4 : 3);
+      const text = 'Interns! Get me a coffee! Then get THEM!';
+      this.onTaunt(text); Net.toAll({ t: 'btaunt', text });
+    } else if (a === 'dash') { // a hoverboard charge straight through you (the red lane shows where)
+      const from = this.pos.clone(), dir = new V3(tg.p.x - from.x, 0, tg.p.z - from.z);
+      if (dir.lengthSq() < 0.01) dir.set(0, 0, 1);
+      const to = this.clampDeck(from.clone().addScaledVector(dir.normalize(), 18), ARENA_R - 2.5);
+      to.y = DECK_Y + 0.5;
+      this.fire({ k: 'multi', l: [this.lane(from, to, 1.9, 1.0, 0.45, 26), { k: 'fx', text: 'DISRUPTING!' }] });
+      this.later(1.0, () => this.jumpTo(to, 0.45, 0.4));
+    } else { // phase 2: pink slips for everyone
+      this.fire(this.aimed(this.mouth(), tg.p, 9, 1.4, 12, 'slip', 12, 0.5));
+    }
+    return p2 ? 1.6 : 2.2;
+  }
+
   /* ----- minions (host) ----- */
   hostMinions(dt) {
     for (const m of this.minions.values()) {
@@ -437,15 +580,17 @@ class BossFight {
   }
   nearFactor(p) { const d = Math.hypot(p.x - this.me().pos.x, p.z - this.me().pos.z); return U.clamp(1.4 - d / 20, 0.2, 1); }
   onTaunt(text) {
-    UI.subtitle({ gary: 'GARY', blorb: 'QUEEN BLORBINA', jerry: 'JACKPOT JERRY', snowdad: 'SNOWDAD', zorblax: 'ZORBLAX' }[this.id], text);
-    Sound.play(this.id === 'snowdad' ? 'rimshot' : this.id === 'blorb' ? 'blub' : 'dad');
+    UI.subtitle({ gary: 'GARY', blorb: 'QUEEN BLORBINA', jerry: 'JACKPOT JERRY', snowdad: 'SNOWDAD', count: 'COUNT CARBULA', stormy: 'STORMY', chad: 'CHAD', zorblax: 'ZORBLAX' }[this.id], text);
+    Sound.play({ snowdad: 'rimshot', blorb: 'blub', count: 'laugh', stormy: 'thunder', chad: 'ding' }[this.id] || 'dad');
   }
   onPhase2() {
-    UI.bigTitle('PHASE 2', this.id === 'zorblax' ? '"I WANT TO SPEAK TO YOUR MANAGER!"' : `${this.def.name} is ANGRY now`, '#ff6bd6', 2.6);
+    const line = { zorblax: '"I WANT TO SPEAK TO YOUR MANAGER!"', count: '"THE HUNGER! IT BURNS!"', stormy: '"CATEGORY SIX!"', chad: '"I\'M PIVOTING TO VIOLENCE!"' }[this.id];
+    UI.bigTitle('PHASE 2', line || `${this.def.name} is ANGRY now`, '#ff6bd6', 2.6);
     UI.bossHp(this.hp / this.maxHp, true);
     Sound.play('phase');
     G.shake = 1;
-    if (this.id === 'zorblax') setAtmosphere(PLANETS[G.planet], '#ff0000');
+    const tint = { zorblax: '#ff0000', count: '#6a0018', stormy: '#1a2040' }[this.id];
+    if (tint) setAtmosphere(PLANETS[G.planet], tint);
   }
   onDying() {
     Sound.play('roar');
@@ -512,6 +657,16 @@ class BossFight {
     } else if (this.id === 'zorblax') {
       m.body.position.y = Math.sin(t * 2) * 0.2;
       m.head.rotation.z = Math.sin(t * 1.3) * 0.08;
+    } else if (this.id === 'count') { // the cape billows (and flares out when he swoops)
+      const flap = Math.sin(t * 3) * 0.12 + (this.speed > 4 ? 0.5 : 0);
+      m.cape[0].rotation.y = -(0.25 + flap); m.cape[1].rotation.y = 0.25 + flap;
+      m.head.rotation.z = Math.sin(t * 1.4) * 0.06;
+    } else if (this.id === 'stormy') { // it rains under him, always
+      m.body.rotation.y = Math.sin(t * 0.8) * 0.1;
+      for (const d of m.rain) { d.position.y -= dt * 9; if (d.position.y < -4) d.position.y = 0.2; }
+    } else if (this.id === 'chad') {
+      m.board.position.y = 0.35 + Math.sin(t * 3) * 0.08;
+      m.head.rotation.y = Math.sin(t * 1.1) * 0.3;
     }
     if (this.st === 'dying' || (this.over && this.won)) {
       m.body.rotation.z = U.damp(m.body.rotation.z, Math.PI / 2, 2, dt);
@@ -610,7 +765,7 @@ class BossFight {
         ln.mesh.rotation.z = -Math.atan2(bx - ax, bz - az);
         ln.mesh.position.set((ax + bx) / 2, DECK_Y + 0.06, (az + bz) / 2);
         G.scene.add(ln.mesh);
-        ln.beam = new THREE.Mesh(new THREE.BoxGeometry(s.hw * 1.4, 1.6, len), new THREE.MeshBasicMaterial({ color: this.id === 'jerry' ? '#ffd23f' : '#ff3df0', transparent: true, opacity: 0.8 }));
+        ln.beam = new THREE.Mesh(new THREE.BoxGeometry(s.hw * 1.4, 1.6, len), new THREE.MeshBasicMaterial({ color: LANE_COL[this.id] || '#ff3df0', transparent: true, opacity: 0.8 }));
         ln.beam.rotation.y = Math.atan2(bx - ax, bz - az);
         ln.beam.position.set((ax + bx) / 2, DECK_Y + 0.8, (az + bz) / 2);
         ln.beam.visible = false;
@@ -664,6 +819,9 @@ class BossFight {
       m.mesh.position.x = U.damp(px, m.tx, 10, dt);
       m.mesh.position.z = U.damp(pz, m.tz, 10, dt);
       m.mesh.position.y = DECK_Y + Math.abs(Math.sin(this.t * 8 + m.id)) * 0.3;
+      const ud = m.mesh.userData;
+      if (ud.wings) ud.wings.forEach((w, i) => { w.rotation.z = (i ? -1 : 1) * Math.sin(this.t * 18 + m.id) * 0.8; });
+      if (ud.spin) ud.spin.rotation.y += dt * 10;
       const dx = m.mesh.position.x - px, dz = m.mesh.position.z - pz;
       if (Math.abs(dx) + Math.abs(dz) > 0.001) m.mesh.rotation.y = Math.atan2(dx, dz);
       m.hitT -= dt;

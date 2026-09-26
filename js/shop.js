@@ -2,7 +2,8 @@
 /* =========================================================
    Planet shops (buy / sell / hats), galaxy map, boss panel
    ========================================================= */
-const BOSS_REC = { gary: 0, blorb: 1, jerry: 2, snowdad: 3, zorblax: 5 };
+const BOSS_REC = { gary: 0, blorb: 1, jerry: 2, snowdad: 3, count: 4, stormy: 5, chad: 6, zorblax: 8 };
+const MAX_STARS = 8; // (boss difficulty stars: Zorblax is the only 8)
 // what a gun does, in a few words (for its shop card)
 function gunChips(z) {
   const rate = `${(1 / z.cd).toFixed(1)} / SEC`, mag = `${z.mag} MAG`, rl = `${z.rl}s RELOAD`;
@@ -12,13 +13,17 @@ function gunChips(z) {
     case 'jackpot': return ['LUCKY SHOTS', `${z.dmg} DMG`, 'x2 · 777 · JACKPOT', mag];
     case 'beam': return ['FREEZE RAY', `${Math.round(z.dmg / z.cd)} DMG / SEC`, 'FREEZES CRITTERS', `${(z.mag * z.cd).toFixed(0)}s CHARGE`];
     case 'cutter': return ['BOOMERANG', `${z.dmg} DMG PER SLICE`, 'SLICES THROUGH', `${z.mag} CUTTERS`];
+    case 'homing': return ['HOMING', `${z.dmg} DMG`, rate, `${z.mag} WISPS`];
+    case 'chain': return ['CHAIN LIGHTNING', `${z.dmg} DMG`, `JUMPS ${z.jumps}x`, 'STUNS CRITTERS'];
+    case 'rocket': return ['ROCKETS', `${z.dmg} SPLASH DMG`, 'ROCKET JUMPS', `${z.mag} PARCELS`];
     default: return ['BLASTER', `${z.dmg} DMG`, rate, mag, rl];
   }
 }
 // every shop sells the starter gun to anyone without one (e.g. a friend who joins on a later planet)
 const STARTER_GUN = { kind: 'zap', lvl: 0, price: 200, desc: 'Starter gun for new hires. Infinite batteries. Tiny battery pack.' };
 
-function planetUnlocked(i) { return i === 0 || G.progress.includes(PLANETS[i - 1].boss); }
+// (saves from before the three newer planets had already reached Zorblax Prime: it stays open for them)
+function planetUnlocked(i) { return i === 0 || G.progress.includes(PLANETS[i - 1].boss) || (PLANETS[i].boss === 'zorblax' && !!SAVE.zorbOpen); }
 
 const Shop = {
   tab: 'buy', cur: null, line: '',
@@ -43,6 +48,12 @@ const Shop = {
         break;
       case 'vac': r.icon = 'vac'; r.chips = [`${VAC[1].range}m REACH`, `${VAC[1].speed}x SPEED`]; r.owned = SAVE.vacLvl >= 1; break;
       case 'boots': r.icon = 'boots'; r.chips = ['DOUBLE JUMP']; r.owned = SAVE.boots; break;
+      case 'skates': r.icon = 'boots'; r.chips = ['SPRINT +35%']; r.owned = SAVE.skates; break;
+      case 'dash': r.icon = 'boots'; r.chips = ['Q: DASH', 'WORKS IN THE AIR']; r.owned = SAVE.dash; break;
+      case 'stomp': r.icon = 'boots'; r.chips = ['C (IN THE AIR): SLAM', `${STOMP.dmg} DMG SHOCKWAVE`]; r.owned = SAVE.stomp; break;
+      case 'springs': r.icon = 'boots'; r.chips = ['SUPER JUMP']; r.owned = SAVE.springs; break;
+      case 'cape': r.icon = 'star'; r.chips = ['HOLD SPACE: GLIDE']; r.owned = SAVE.cape; break;
+      case 'jetpack': r.icon = 'rocket'; r.chips = ['HOLD SPACE: FLY', `${JET.fuel}s OF FUEL`]; r.owned = SAVE.jetpack; break;
       case 'drill': r.icon = 'drill'; r.chips = ['TOOL 3', 'MINES CRYSTALS']; r.owned = SAVE.drill; break;
       case 'peel': r.icon = 'peel'; r.chips = ['TOOL 4', 'CATCHES METEORS']; r.owned = SAVE.peel; break;
       case 'socks': r.icon = 'sock'; r.chips = ['NO SLIPPING']; r.owned = SAVE.socks; break;
@@ -72,6 +83,12 @@ const Shop = {
       case 'cargo': SAVE.cargoLvl = Math.max(SAVE.cargoLvl, it.lvl); UI.toast(`Backpack upgraded: ${CARGO[SAVE.cargoLvl]} slots!`, 'good', 2.5); break;
       case 'vac': SAVE.vacLvl = 1; G.player.refreshGear(); break;
       case 'boots': SAVE.boots = true; UI.toast('Double jump unlocked! Press Space twice.', 'good', 3); break;
+      case 'skates': SAVE.skates = true; UI.toast('Duct-Tape Skates on! Hold Shift to really go.', 'good', 3); break;
+      case 'dash': SAVE.dash = true; UI.toast('Getaway Sneakers! Press Q to dash (once in the air, too).', 'good', 3.5); break;
+      case 'stomp': SAVE.stomp = true; UI.toast('Yeti Stompers! Jump, then press C to slam down.', 'good', 3.5); break;
+      case 'springs': SAVE.springs = true; UI.toast('Spring-Heeled Jacks! Your jumps are WAY higher now.', 'good', 3.5); break;
+      case 'cape': SAVE.cape = true; UI.toast('Glider Cape! Hold Space while you fall to glide.', 'good', 3.5); break;
+      case 'jetpack': SAVE.jetpack = true; UI.toast('Jet Pack! In the air, hold Space to fly. Fuel refills on the ground.', 'good', 4); break;
       case 'drill': SAVE.drill = true; G.player.refreshGear(); G.player.setTool('drill', true); UI.toast('Laser Drill equipped! (Press 3)', 'good', 3); break;
       case 'peel': SAVE.peel = true; G.player.refreshGear(); G.player.setTool('peel', true); UI.toast('Pizza Peel equipped! (Press 4) Stand in the landing circles!', 'good', 3); break;
       case 'socks': SAVE.socks = true; break;
@@ -193,7 +210,7 @@ const Shop = {
       <h2 class="ph">Boss Altar</h2>
       <div class="boss" style="margin-top:10px">
         <div class="ico" style="background:${b.color}">${Thumbs.img('boss:' + bid, '', null) || initials(b.name)}</div>
-        <div><h4>${U.esc(b.name)}</h4><div class="stars">${'★'.repeat(b.stars)}${'☆'.repeat(5 - b.stars)} ${b.diff}</div><div class="q">"${U.esc(b.quote)}"</div></div>
+        <div><h4>${U.esc(b.name)}</h4><div class="stars">${'★'.repeat(b.stars)}${'☆'.repeat(Math.max(0, MAX_STARS - b.stars))} ${b.diff}</div><div class="q">"${U.esc(b.quote)}"</div></div>
         <div></div>
       </div>
       <div class="npc-line" data-who="TO SUMMON: ${U.esc(sm.name.toUpperCase())}">${have ? 'You have it! Use it here to summon the boss.' : U.esc(Summons.howText(bid))}</div>

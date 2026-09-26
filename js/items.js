@@ -52,6 +52,16 @@ function buildBackpackItem(lvl) {
       for (const [x, z] of [[-0.22, -0.16], [0.22, -0.16], [-0.22, 0.16], [0.22, 0.16]]) mk(BOX(0.06, 0.04, 0.06), '#3b3f4a', g, x, 0.02, z);
       straps(-0.24);
       break;
+    case 4: { // Coffin Backpack: roomy, pre-owned
+      const c = grp(g, 0, 0.5, 0);
+      tf(mk(CYL(0.36, 0.3, 1.0, 6), '#5a3a2a', c, 0, 0, 0), 0, 0, 0, 0.9, 1, 0.45);
+      tf(mk(CYL(0.37, 0.31, 0.06, 6), '#3a2418', c, 0, 0.32, 0), 0, 0, 0, 0.9, 1, 0.47);
+      mk(BOX(0.06, 0.36, 0.03), '#c9a227', c, 0, 0.12, 0.155);
+      mk(BOX(0.2, 0.06, 0.03), '#c9a227', c, 0, 0.2, 0.155);
+      for (const y of [-0.3, 0.42]) mk(BOX(0.1, 0.04, 0.03), '#c9a227', c, 0.18, y, 0.14);
+      straps(-0.17);
+      break;
+    }
     default: // the standard-issue pack: a box and two air tanks
       mk(BOX(0.5, 0.6, 0.26), '#ff7a3d', g, 0, 0.3, 0);
       for (const s of [-1, 1]) {
@@ -137,6 +147,77 @@ function buildLuckyFootItem() {
   sparkle(g, 0.22, 0.38, 0.05);
   return g;
 }
+/* ---------------- movement gear ---------------- */
+// a pair of shoes, built by fn(shoe group, side) for each foot
+function shoePair(fn) {
+  const g = new THREE.Group();
+  for (const s of [-1, 1]) { const b = grp(g, s * 0.16, 0, s * 0.05); b.rotation.y = s * 0.15; fn(b, s); }
+  return g;
+}
+function buildSkatesItem() { // roller skates held together with duct tape
+  return shoePair((b) => {
+    mk(BOX(0.2, 0.06, 0.44), '#3b3f4a', b, 0, 0.12, 0.03);
+    mk(BOX(0.18, 0.16, 0.38), '#e8e4dc', b, 0, 0.23, 0.04);
+    mk(BOX(0.17, 0.3, 0.18), '#e8e4dc', b, 0, 0.42, -0.06);
+    for (const y of [0.3, 0.46]) mk(BOX(0.19, 0.05, 0.2), '#9aa3ad', b, 0, y, -0.06);
+    tf(mk(BOX(0.19, 0.05, 0.2), '#9aa3ad', b, 0, 0.24, 0.12), 0, 0, 0.1);
+    for (const z of [-0.14, 0.02, 0.18]) tf(mk(CYL(0.06, 0.06, 0.08, 10), '#ff5a36', b, 0, 0.06, z), 0, 0, PI / 2);
+  });
+}
+function buildSneakersItem() { // Getaway Sneakers: they're fast. Look at the speed lines.
+  const g = shoePair((b) => {
+    mk(BOX(0.2, 0.05, 0.44), '#ffffff', b, 0, 0.03, 0.04);
+    mk(BOX(0.19, 0.14, 0.4), '#d6281b', b, 0, 0.12, 0.04);
+    mk(BOX(0.18, 0.2, 0.18), '#d6281b', b, 0, 0.26, -0.08);
+    tf(mk(BOX(0.195, 0.04, 0.3), '#ffffff', b, 0, 0.14, 0.04), 0, 0, 0.35);
+    for (let k = 0; k < 3; k++) mk(BOX(0.12, 0.02, 0.02), '#ffffff', b, 0, 0.2 + k * 0.04, 0.12 - k * 0.04);
+  });
+  for (const [y, l] of [[0.1, 0.4], [0.2, 0.55], [0.3, 0.35]]) mk(BOX(0.02, 0.02, l), '#7dfff0', g, -0.36, y, -0.3 - l / 2, { emissive: '#1a8a8a' });
+  return g;
+}
+function buildStompersItem() { // Yeti Stompers: big furry boots
+  return shoePair((b) => {
+    mk(BOX(0.28, 0.08, 0.5), '#6d7480', b, 0, 0.04, 0.03);
+    mk(ICO(0.2, 1), '#f4f8ff', b, 0, 0.2, 0.08);
+    mk(ICO(0.19, 1), '#f4f8ff', b, 0, 0.36, -0.06);
+    mk(ICO(0.17, 1), '#e8f0f8', b, 0, 0.5, -0.06);
+    for (const x of [-0.08, 0, 0.08]) mk(CONE(0.03, 0.07, 4), '#c9d6e3', b, x, 0.08, 0.3).rotation.x = PI / 2;
+  });
+}
+function buildSpringsItem() { // Spring-Heeled Jacks: boots on bedsprings
+  return shoePair((b) => {
+    for (let i = 0; i < 4; i++) tf(mk(TOR(0.08, 0.018, 5, 12), '#c9ced6', b, 0, 0.04 + i * 0.05, 0.02), PI / 2);
+    mk(BOX(0.2, 0.05, 0.42), '#2b1d14', b, 0, 0.24, 0.04);
+    mk(BOX(0.18, 0.14, 0.36), '#6a2a8a', b, 0, 0.33, 0.05);
+    mk(BOX(0.17, 0.28, 0.18), '#6a2a8a', b, 0, 0.5, -0.06);
+    mk(BOX(0.185, 0.05, 0.19), '#ffd23f', b, 0, 0.64, -0.06);
+  });
+}
+function buildCapeItem() { // Glider Cape: red, gold trim, very dramatic
+  const g = new THREE.Group(), c = grp(g, 0, 0.62, 0);
+  c.rotation.x = -0.25;
+  for (let i = 0; i < 5; i++) {
+    const x = -0.36 + i * 0.18, bend = Math.abs(i - 2) * 0.06;
+    tf(mk(BOX(0.19, 0.8, 0.03), i % 2 ? '#b8142e' : '#d6281b', c, x, -0.36, bend), 0.1, (i - 2) * 0.2, 0);
+  }
+  mk(BOX(0.94, 0.06, 0.05), '#ffd23f', c, 0, 0.04, 0.05);
+  for (const s of [-1, 1]) mk(SPH(0.05, 6, 5), '#ffd23f', c, s * 0.42, 0.04, 0.08, { emissive: '#664400' });
+  return g;
+}
+function buildJetpackItem() { // Jet Pack: found in a dumpster, works fine (probably)
+  const g = new THREE.Group();
+  mk(BOX(0.4, 0.5, 0.16), '#3b3f4a', g, 0, 0.52, -0.06);
+  for (const s of [-1, 1]) {
+    mk(CYL(0.12, 0.12, 0.62, 12), '#d6281b', g, s * 0.2, 0.55, 0.06);
+    mk(SPH(0.12, 10, 6), '#d6281b', g, s * 0.2, 0.86, 0.06);
+    mk(CYL(0.1, 0.07, 0.12, 10), '#6d7480', g, s * 0.2, 0.18, 0.06);
+    mk(CONE(0.07, 0.24, 8), '#ffb23e', g, s * 0.2, 0.02, 0.06, { emissive: '#ff6a1f' }).rotation.x = PI;
+    mk(BOX(0.05, 0.6, 0.04), '#2b2f38', g, s * 0.12, 0.55, -0.16);
+  }
+  mk(BOX(0.12, 0.08, 0.03), '#ffd23f', g, 0, 0.62, 0.03, { emissive: '#664400' });
+  return g;
+}
+
 // a Goo Grenade: a glass ball of pink goo in a metal cage (the same pink goo you throw in boss fights)
 function buildGrenadeItem() {
   const g = new THREE.Group();
@@ -217,6 +298,43 @@ function buildReheatedPizza() {
   for (const [x, z] of [[0.1, 0.08], [-0.12, 0.1], [0.02, -0.14], [-0.1, -0.08], [0.16, -0.1]]) mk(CYL(0.05, 0.05, 0.02, 10), '#d63a2a', g, x, 0.105, z);
   // it's WARM (a miracle)
   for (const [x, y, s] of [[-0.08, 0.3, 0.05], [0.06, 0.42, 0.06], [-0.02, 0.56, 0.045], [0.12, 0.3, 0.04]]) mk(SPH(s, 6, 5), '#ffffff', g, x, y, 0.05, { emissive: '#666666' });
+  return g;
+}
+
+function buildDinnerBell() {
+  const g = new THREE.Group(), b = grp(g, 0, 0, 0);
+  b.rotation.z = 0.25;
+  mk(CONE(0.28, 0.42, 14), '#d4a52a', b, 0, 0.34, 0, { emissive: '#3a2a00' });
+  mk(CYL(0.3, 0.3, 0.05, 14), '#c9951a', b, 0, 0.14, 0);
+  mk(SPH(0.07, 8, 6), '#8a6a1a', b, 0, 0.1, 0);
+  mk(CYL(0.035, 0.045, 0.3, 8), '#5a3a2a', b, 0, 0.7, 0);
+  mk(SPH(0.07, 8, 6), '#5a3a2a', b, 0, 0.86, 0);
+  tf(mk(TOR(0.08, 0.025, 5, 12), '#b8142e', b, 0, 0.56, 0), PI / 2);
+  sparkle(g, 0.3, 0.7, 0.1);
+  return g;
+}
+function buildWeatherBalloon() {
+  const g = new THREE.Group();
+  mk(SPH(0.3, 14, 10), '#ffffff', g, 0, 0.72, 0, { emissive: '#3a3a3a' });
+  mk(CONE(0.06, 0.1, 8), '#e8e8e8', g, 0, 0.38, 0).rotation.x = PI;
+  mk(CYL(0.006, 0.006, 0.26, 3), '#3b3f4a', g, 0, 0.21, 0);
+  mk(BOX(0.16, 0.12, 0.12), '#ffd23f', g, 0, 0.06, 0);
+  mk(BOX(0.06, 0.04, 0.005), '#3b3f4a', g, 0, 0.07, 0.061);
+  const l = itemLabel(['NIMBUS', 'WEATHER'], 0.26, 0.12, { bg: 'rgba(0,0,0,0)', colors: ['#3a8fd8', '#3a8fd8'], border: false, transparent: true });
+  l.position.set(0, 0.74, 0.305); g.add(l);
+  return g;
+}
+function buildMeetingInvite() {
+  const g = new THREE.Group(), e = grp(g, 0, 0.3, 0);
+  e.rotation.set(-0.35, 0.3, 0.05);
+  mk(BOX(0.62, 0.4, 0.03), '#f4f1ea', e, 0, 0, 0);
+  for (const s of [-1, 1]) tf(mk(BOX(0.36, 0.02, 0.035), '#d8d2c4', e, s * 0.15, 0.08, 0.005), 0, 0, s * 0.55);
+  const card = grp(e, 0, 0.18, -0.02);
+  mk(BOX(0.5, 0.36, 0.01), '#ffffff', card, 0, 0, 0);
+  mk(BOX(0.5, 0.08, 0.012), '#d6281b', card, 0, 0.14, 0);
+  const l = itemLabel(['MANDATORY', 'Q4 SYNERGY'], 0.44, 0.18, { bg: '#ffffff', colors: ['#d6281b', '#2b2b33'], border: false });
+  l.position.set(0, -0.04, 0.007); card.add(l);
+  mk(CYL(0.05, 0.05, 0.02, 10), '#b8142e', e, 0, -0.05, 0.02).rotation.x = PI / 2;
   return g;
 }
 
@@ -476,6 +594,115 @@ function buildSlotSymbol(k) {
   return g;
 }
 
+/* ---------------- Spookulon, Nimbus-9 and Gigopolis stuff ---------------- */
+function buildEctoJar() {
+  const g = new THREE.Group();
+  mk(CYL(0.16, 0.16, 0.3, 14), '#7dff8a', g, 0, 0.16, 0, { emissive: '#1a8a2a' });
+  mk(CYL(0.19, 0.19, 0.4, 14), M('#dff6ff', { transparent: true, opacity: 0.3, depthWrite: false }), g, 0, 0.2, 0);
+  mk(CYL(0.2, 0.2, 0.07, 14), '#6d7480', g, 0, 0.43, 0);
+  for (const [x, y] of [[0.05, 0.22], [-0.06, 0.12]]) mk(SPH(0.03, 6, 4), '#dfffe6', g, x, y, 0.14, { emissive: '#3aff6a' });
+  const l = itemLabel(['ECTO'], 0.2, 0.08, { bg: '#f4f1ea', color: '#2a8a3a', border: false });
+  l.position.set(0, 0.26, 0.195); g.add(l);
+  return g;
+}
+function buildBedsheetItem() { // a ghost's sheet, with nobody in it (it's still warm)
+  const g = new THREE.Group(), sheet = '#eef3ff', lit = { emissive: '#3a4a6a' };
+  tf(mk(SPH(0.3, 12, 8), sheet, g, 0, 0.1, 0, lit), 0, 0, 0, 1.15, 0.5, 1);
+  for (let i = 0; i < 8; i++) { const a = (i / 8) * PI * 2; tf(mk(CONE(0.09, 0.18, 5), sheet, g, Math.sin(a) * 0.33, 0.03, Math.cos(a) * 0.3, lit), PI / 2, a, 0); }
+  for (const x of [-0.08, 0.08]) tf(mk(SPH(0.04, 6, 5), '#1a1a2a', g, x, 0.25, 0.12), 0, 0, 0, 1, 0.5, 1.5);
+  return g;
+}
+function buildChainItem() {
+  const g = new THREE.Group();
+  for (let i = 0; i < 4; i++) tf(mk(TOR(0.1, 0.03, 5, 12), '#5a5f68', g, -0.27 + i * 0.18, 0.1 + (i % 2) * 0.02, 0), i % 2 ? 0 : PI / 2, 0, 0, 1.3, 1, 1);
+  mk(BOX(0.16, 0.2, 0.1), '#3b3f4a', g, 0.42, 0.12, 0);
+  return g;
+}
+function buildGhostPepper() {
+  const g = new THREE.Group(), p = grp(g, 0, 0.15, 0);
+  p.rotation.z = -0.5;
+  tf(mk(SPH(0.13, 10, 8), '#d6281b', p, 0, 0, 0, { emissive: '#4a0000' }), 0, 0, 0, 1, 1.9, 1);
+  mk(CONE(0.08, 0.18, 8), '#b8141e', p, 0, -0.3, 0, { emissive: '#4a0000' }).rotation.x = PI;
+  mk(CYL(0.03, 0.04, 0.12, 6), '#3f6a2a', p, 0, 0.28, 0);
+  const ghost = grp(g, 0.18, 0.48, 0);
+  mk(SPH(0.1, 8, 6), M('#eef3ff', { transparent: true, opacity: 0.8, depthWrite: false }), ghost, 0, 0, 0);
+  for (const x of [-0.035, 0.035]) mk(SPH(0.015, 4, 3), '#1a1a2a', ghost, x, 0.02, 0.09);
+  sparkle(g, -0.2, 0.5, 0.05);
+  return g;
+}
+function buildCottonItem() {
+  const g = new THREE.Group();
+  for (const [x, y, z, r] of [[0, 0.2, 0, 0.2], [0.17, 0.16, 0.03, 0.14], [-0.17, 0.15, 0, 0.15], [0.05, 0.34, -0.03, 0.13], [-0.07, 0.3, 0.08, 0.11]]) mk(ICO(r, 1), '#ffffff', g, x, y, z);
+  return g;
+}
+function buildPearlItem() { // a sky pearl in front of its scallop shell
+  const g = new THREE.Group(), fan = grp(g, 0, 0.02, -0.08);
+  fan.rotation.x = -0.35;
+  for (let i = 0; i < 7; i++) { const a = -1.1 + i * (2.2 / 6); tf(mk(BOX(0.08, 0.42, 0.03), i % 2 ? '#ffc2ea' : '#ffd6f4', fan, Math.sin(a) * 0.19, Math.cos(a) * 0.19, 0), 0, 0, -a); }
+  mk(SPH(0.07, 8, 6), '#ffc2ea', fan, 0, 0.02, 0.02);
+  mk(SPH(0.15, 14, 12), '#ffffff', g, 0, 0.16, 0.1, { emissive: '#5a5a6a' });
+  sparkle(g, 0.14, 0.34, 0.2, 0.04);
+  return g;
+}
+function buildLightningBottle() {
+  const g = new THREE.Group();
+  mk(CYL(0.15, 0.15, 0.36, 12), M('#dff6ff', { transparent: true, opacity: 0.35, depthWrite: false }), g, 0, 0.2, 0);
+  mk(CYL(0.06, 0.12, 0.12, 12), M('#dff6ff', { transparent: true, opacity: 0.35, depthWrite: false }), g, 0, 0.44, 0);
+  mk(CYL(0.065, 0.06, 0.08, 10), '#b87333', g, 0, 0.53, 0);
+  for (const [y, rz] of [[0.3, 0.5], [0.2, -0.5], [0.1, 0.5]]) tf(mk(BOX(0.05, 0.12, 0.04), '#fff36b', g, 0, y, 0, { emissive: '#ffcc00' }), 0, 0, rz);
+  return g;
+}
+function buildRainbowShard() {
+  const g = new THREE.Group(), r = grp(g, 0, 0.05, 0);
+  r.rotation.y = 0.5;
+  ['#ff4b3e', '#ff9a1f', '#ffe066', '#46d98a', '#3aa7ff', '#9b5de5'].forEach((c, i) => {
+    mk(new THREE.TorusGeometry(0.42 - i * 0.05, 0.028, 4, 10, 1.1), c, r, 0, 0, 0, { emissive: c });
+  });
+  r.children.forEach((m) => { m.rotation.z = 1.02; });
+  sparkle(g, 0.1, 0.5, 0.05);
+  return g;
+}
+function buildGiftCard() {
+  const g = new THREE.Group(), c = grp(g, 0, 0.2, 0);
+  c.rotation.set(-0.5, 0.35, 0.1);
+  mk(BOX(0.54, 0.34, 0.02), '#9b5de5', c, 0, 0, 0);
+  mk(BOX(0.54, 0.05, 0.022), '#ffd23f', c, 0, 0.05, 0);
+  mk(BOX(0.05, 0.34, 0.022), '#ffd23f', c, 0.12, 0, 0);
+  for (const s of [-1, 1]) tf(mk(SPH(0.05, 6, 5), '#ffd23f', c, 0.12 + s * 0.05, 0.07, 0.02), 0, 0, 0, 1, 0.6, 0.5);
+  const l = itemLabel(['GIFT CARD'], 0.26, 0.07, { bg: '#9b5de5', color: '#ffffff', border: false });
+  l.position.set(-0.1, -0.1, 0.012); c.add(l);
+  return g;
+}
+function buildReviewFrame() {
+  const g = new THREE.Group(), f = grp(g, 0, 0.26, 0);
+  f.rotation.x = -0.15;
+  mk(BOX(0.56, 0.44, 0.05), '#c9a227', f, 0, 0, 0);
+  mk(BOX(0.46, 0.34, 0.052), '#fff6e0', f, 0, 0, 0.002);
+  for (let i = 0; i < 5; i++) tf(mk(OCT(0.04), '#ffd23f', f, -0.16 + i * 0.08, 0.06, 0.03, { emissive: '#aa8800' }), 0, 0, 0, 1, 1, 0.4);
+  const l = itemLabel(['"Driver was fast."'], 0.4, 0.08, { bg: '#fff6e0', color: '#2b2b33', border: false });
+  l.position.set(0, -0.08, 0.03); f.add(l);
+  mk(BOX(0.06, 0.3, 0.06), '#8a6a1a', g, 0, 0.13, -0.12).rotation.x = 0.4;
+  return g;
+}
+function buildLeftovers() {
+  const g = new THREE.Group();
+  mk(CYL(0.2, 0.14, 0.26, 4), '#ffffff', g, 0, 0.13, 0).rotation.y = PI / 4;
+  mk(BOX(0.24, 0.04, 0.04), '#d6281b', g, 0, 0.14, 0.12);
+  mk(new THREE.TorusGeometry(0.1, 0.008, 3, 10, PI), '#9aa3ad', g, 0, 0.26, 0);
+  return g;
+}
+function buildScooterKey() {
+  const g = new THREE.Group(), k = grp(g, 0, 0.08, 0);
+  k.rotation.set(0, 0.4, 0);
+  tf(mk(TOR(0.1, 0.03, 6, 14), '#ffd23f', k, -0.2, 0, 0, { emissive: '#5a4000' }), PI / 2);
+  mk(BOX(0.3, 0.04, 0.06), '#ffd23f', k, 0.04, 0, 0, { emissive: '#5a4000' });
+  for (const x of [0.1, 0.16]) mk(BOX(0.03, 0.04, 0.08), '#ffd23f', k, x, 0, -0.06, { emissive: '#5a4000' });
+  const tag = grp(g, -0.3, 0.1, 0.1);
+  mk(BOX(0.14, 0.03, 0.2), '#3df0ff', tag, 0, 0, 0, { emissive: '#0a6a8a' });
+  sparkle(g, 0.2, 0.32, 0.05);
+  return g;
+}
+
 /* ---------------- a planet, seen from space (for the world list) ---------------- */
 function buildPlanetGlobe(i) {
   const cfg = PLANETS[i], g = new THREE.Group();
@@ -532,12 +759,17 @@ function buildGraveCrate(name) {
 // every other item picture (key -> model)
 const ITEM_MODELS = {
   boots: buildBootsItem, socks: buildSocksItem, armor: buildArmorItem, life: buildInsuranceItem, charm: buildLuckyFootItem,
+  skates: buildSkatesItem, dash: buildSneakersItem, stomp: buildStompersItem, springs: buildSpringsItem, cape: buildCapeItem, jetpack: buildJetpackItem,
   nade: buildGrenadeItem, nades: buildGrenadesItem,
   'sum:gary': buildStinkyCrown, 'sum:blorb': buildRoyalJelly, 'sum:jerry': buildGoldenToken, 'sum:snowdad': buildSpaceMilk, 'sum:zorblax': buildReheatedPizza,
+  'sum:count': buildDinnerBell, 'sum:stormy': buildWeatherBalloon, 'sum:chad': buildMeetingInvite,
   'res:bolt': buildBoltItem, 'res:can': buildCanItem, 'res:gear': buildGearItem, 'res:chip': buildCircuitItem, 'res:toaster': buildToasterItem,
   'res:berry': () => buildBerryItem('berry'), 'res:chonk': () => buildBerryItem('chonk'), 'res:gold': () => buildBerryItem('gold'),
   'res:ice': buildIceItem, 'res:crystal': buildCrystalItem, 'res:diamond': buildDiamondItem,
   'res:pep': buildPepperoniItem, 'res:cheese': buildMozzarellaItem, 'res:knot': buildGarlicKnotItem,
+  'res:ecto': buildEctoJar, 'res:sheet': buildBedsheetItem, 'res:chain': buildChainItem, 'res:phantom': buildGhostPepper,
+  'res:cotton': buildCottonItem, 'res:pearl': buildPearlItem, 'res:bottle': buildLightningBottle, 'res:rainbow': buildRainbowShard,
+  'res:giftcard': buildGiftCard, 'res:review': buildReviewFrame, 'res:leftover': buildLeftovers, 'res:scooterkey': buildScooterKey,
   'prize:jackpot': buildJackpotPile, 'prize:ticket': buildGoldenTicket, 'prize:bucks': buildCashStack,
   'prize:sock': buildSockItem, 'prize:rock': buildSpaceRock, 'prize:sandwich': buildHalfSandwich, 'prize:empty': buildEmptyBox,
   'prize:coupon': () => buildPaperItem(['10% OFF', 'THIS CRATE', '(EXPIRED)'], ['#d6281b', '#2b1d14', '#9a8a6a']),

@@ -132,6 +132,56 @@ function buildHat(id) {
       mk(CYL(0.24, 0.28, 0.2, 10), '#6b8e4e', g, 0, 0.1, 0);
       mk(CYL(0.42, 0.42, 0.03, 12), '#6b8e4e', g, 0, 0.0, 0);
       break;
+    case 'witch': {
+      mk(CYL(0.46, 0.46, 0.03, 14), '#3a2a5a', g, 0, 0, 0);
+      const c = grp(g, 0, 0.02, 0); c.rotation.z = -0.22;
+      mk(CONE(0.23, 0.64, 10), '#3a2a5a', c, 0.02, 0.33, 0);
+      mk(CYL(0.235, 0.245, 0.08, 10), '#9b5de5', g, 0, 0.06, 0);
+      mk(BOX(0.1, 0.08, 0.04), '#ffd23f', g, 0, 0.06, 0.23);
+      break;
+    }
+    case 'pumpkin':
+      tf(mk(SPH(0.3, 10, 8), '#ff8a1f', g, 0, 0.12, 0), 0, 0, 0, 1, 0.8, 1);
+      for (let i = 0; i < 3; i++) tf(mk(SPH(0.3, 10, 8), '#e8741a', g, 0, 0.12, 0), 0, (i / 3) * PI, 0, 0.4, 0.82, 1.03);
+      mk(CYL(0.04, 0.06, 0.14, 5), '#3f6a2a', g, 0, 0.38, 0);
+      for (const x of [-0.1, 0.1]) tf(mk(CONE(0.05, 0.07, 3), '#ffe066', g, x, 0.18, 0.27, { emissive: '#ffaa00' }), PI / 2, 0, 0);
+      mk(BOX(0.2, 0.04, 0.03), '#ffe066', g, 0, 0.06, 0.28, { emissive: '#ffaa00' });
+      break;
+    case 'aviator':
+      tf(mk(HEMI(0.31, 10, 5), '#8a5a2b', g, 0, -0.1, 0), 0, 0, 0, 1, 0.9, 1);
+      for (const s of [-1, 1]) {
+        mk(BOX(0.06, 0.3, 0.18), '#8a5a2b', g, s * 0.3, -0.18, 0);
+        tf(mk(TOR(0.08, 0.025, 5, 12), '#c9a227', g, s * 0.1, 0.1, 0.25), -0.5, 0, 0);
+        tf(mk(CYL(0.07, 0.07, 0.02, 10), '#7fd8ff', g, s * 0.1, 0.1, 0.25, { emissive: '#1a5a7a' }), PI / 2 - 0.5, 0, 0);
+      }
+      tf(mk(TOR(0.3, 0.02, 4, 16), '#3b2a1a', g, 0, 0.05, 0), PI / 2 + 0.35, 0, 0);
+      break;
+    case 'umbrella': {
+      mk(TOR(0.22, 0.03, 4, 14), '#3b3f4a', g, 0, 0.0, 0).rotation.x = PI / 2;
+      mk(CYL(0.02, 0.02, 0.4, 4), '#3b3f4a', g, 0, 0.2, 0);
+      const top = grp(g, 0, 0.44, 0);
+      mk(CONE(0.5, 0.24, 8), '#ff4b6e', top, 0, 0, 0);
+      for (let i = 0; i < 4; i++) tf(mk(CONE(0.5, 0.24, 8, true), '#ffffff', top, 0, 0.002, 0), 0, (i / 4) * PI * 2, 0, 0.22, 1.01, 1.01);
+      mk(SPH(0.04, 6, 5), '#ffd23f', top, 0, 0.14, 0);
+      g.userData.spin = top;
+      break;
+    }
+    case 'headset': // for hustling hands-free
+      mk(new THREE.TorusGeometry(0.33, 0.035, 4, 18, PI), '#1a1a22', g, 0, -0.12, 0);
+      for (const s of [-1, 1]) {
+        tf(mk(CYL(0.12, 0.12, 0.1, 12), '#1a1a22', g, s * 0.34, -0.14, 0), 0, 0, PI / 2);
+        tf(mk(TOR(0.11, 0.015, 4, 14), '#3df0ff', g, s * 0.39, -0.14, 0, { emissive: '#3df0ff' }), 0, PI / 2, 0);
+      }
+      rod(g, new V3(-0.36, -0.2, 0.05), new V3(-0.18, -0.46, 0.34), 0.018, '#1a1a22');
+      mk(SPH(0.04, 6, 5), '#3df0ff', g, -0.16, -0.47, 0.36, { emissive: '#3df0ff' });
+      break;
+    case 'cap':
+      mk(HEMI(0.27, 10, 5), '#ff9a1f', g, 0, -0.06, 0);
+      tf(mk(CYL(0.22, 0.22, 0.03, 12), '#ff9a1f', g, 0, -0.05, 0.25), 0, 0, 0, 1, 1, 1.15);
+      mk(BOX(0.14, 0.1, 0.02), '#ffffff', g, 0, 0.06, 0.25);
+      mk(BOX(0.08, 0.06, 0.021), '#c9a36b', g, 0, 0.06, 0.255);
+      mk(SPH(0.03, 5, 4), '#ff9a1f', g, 0, 0.22, 0);
+      break;
   }
   return g;
 }
@@ -269,6 +319,9 @@ function buildShopkeeper(shopId) {
     case 'gloop': return buildSnailChef();
     case 'luck': return buildAlien({ vest: '#9b5de5', bowtie: true });
     case 'frost': return buildPenguin();
+    case 'spook': return buildSheetGhost();
+    case 'cloud': return buildAlbatross();
+    case 'city': return buildTrenchRaccoons();
     default: return buildManager();
   }
 }
@@ -817,7 +870,7 @@ function buildCritter(kind, gold) {
   const legs = [];
   const leg = (x, z, h = 0.25, col = '#3b3f4a') => { const l = grp(body, x, h, z); mk(BOX(0.07, h, 0.07), C(col), l, 0, -h / 2, 0, E); legs.push(l); };
   const eyes = (y, z, spread, r = 0.07) => { for (const s of [-1, 1]) { mk(SPH(r, 6, 5), '#ffffff', body, s * spread, y, z); mk(SPH(r * 0.55, 5, 4), '#111111', body, s * spread, y, z + r * 0.6); } };
-  let hit = 0.45;
+  let hit = 0.45, hy = null, hover = 0, wings = null, rotors = null, rolls = null;
   switch (kind) {
     case 'rat':
       tf(mk(SPH(0.28, 8, 6), C('#8a7f74'), body, 0, 0.3, 0, E), 0, 0, 0, 0.9, 0.8, 1.4);
@@ -975,9 +1028,162 @@ function buildCritter(kind, gold) {
       for (const [x, z] of [[-0.12, 0.25], [0.12, 0.25], [-0.12, -0.25], [0.12, -0.25]]) leg(x, z, 0.28, '#4a1a6a');
       hit = 0.55;
       break;
+    /* ----- Spookulon ----- */
+    case 'batlet': // a space bat: flaps about just off the ground
+      hover = 1; hy = 0.85; hit = 0.42; wings = [];
+      tf(mk(SPH(0.22, 8, 6), C('#4a3a6a'), body, 0, 0.8, 0, E), 0, 0, 0, 1, 1.1, 1);
+      mk(SPH(0.16, 8, 6), C('#5a4a7a'), body, 0, 1.02, 0.1, E);
+      for (const s of [-1, 1]) {
+        tf(mk(CONE(0.07, 0.2, 4), C('#5a4a7a'), body, s * 0.1, 1.2, 0.08, E), 0, 0, -s * 0.25);
+        mk(SPH(0.035, 5, 4), '#ff3d3d', body, s * 0.06, 1.05, 0.24, { emissive: '#aa0000' });
+        mk(CONE(0.015, 0.05, 3), '#ffffff', body, s * 0.03, 0.94, 0.24).rotation.x = PI;
+        const w = grp(body, s * 0.18, 0.85, 0);
+        mk(BOX(0.5, 0.03, 0.34), C('#3a2a5a'), w, s * 0.26, 0, 0, E);
+        tf(mk(BOX(0.3, 0.03, 0.22), C('#3a2a5a'), w, s * 0.55, 0, -0.08, E), 0, s * 0.4, 0);
+        wings.push(w);
+      }
+      break;
+    case 'skelly': { // Skele-Tom: a skeleton in a tiny top hat
+      const bone = C('#f2efe6');
+      mk(SPH(0.2, 8, 6), bone, body, 0, 1.0, 0.02, E);
+      mk(BOX(0.22, 0.1, 0.16), bone, body, 0, 0.86, 0.06, E);
+      for (const s of [-1, 1]) mk(SPH(0.055, 5, 4), '#1a1620', body, s * 0.08, 1.02, 0.17);
+      mk(CYL(0.035, 0.035, 0.36, 5), bone, body, 0, 0.62, 0, E);
+      for (let i = 0; i < 3; i++) tf(mk(TOR(0.12 - i * 0.015, 0.02, 4, 10), bone, body, 0, 0.72 - i * 0.08, 0.02, E), PI / 2);
+      mk(BOX(0.24, 0.06, 0.1), bone, body, 0, 0.44, 0, E);
+      for (const s of [-1, 1]) { const a = grp(body, s * 0.16, 0.78, 0); mk(CYL(0.025, 0.025, 0.36, 4), bone, a, 0, -0.18, 0, E); legs.push(a); }
+      leg(-0.08, 0, 0.42, '#f2efe6'); leg(0.08, 0, 0.42, '#f2efe6');
+      const hat = buildHat('tophat'); hat.scale.setScalar(0.42); hat.position.set(0.03, 1.17, 0); hat.rotation.z = -0.2; body.add(hat);
+      hit = 0.5; hy = 0.65;
+      break;
+    }
+    case 'pumpkin': { // a jack-o'-lantern on little vine legs (it's always scared, so it's always lit)
+      tf(mk(SPH(0.32, 10, 8), C('#ff8a1f'), body, 0, 0.5, 0, E), 0, 0, 0, 1.1, 0.85, 1);
+      for (let i = 0; i < 3; i++) tf(mk(SPH(0.32, 10, 8), C('#e8741a'), body, 0, 0.5, 0, E), 0, (i / 3) * PI, 0, 0.4, 0.87, 1.12);
+      mk(CYL(0.04, 0.06, 0.16, 5), '#3f6a2a', body, 0, 0.8, 0);
+      const lit = { emissive: '#ffaa00' };
+      for (const s of [-1, 1]) tf(mk(CONE(0.06, 0.09, 3), '#ffe066', body, s * 0.1, 0.56, 0.3, lit), PI / 2, 0, 0);
+      mk(BOX(0.22, 0.05, 0.04), '#ffe066', body, 0, 0.42, 0.3, lit);
+      for (const [x, z] of [[-0.18, 0.12], [0.18, 0.12], [-0.18, -0.12], [0.18, -0.12]]) leg(x, z, 0.26, '#3f6a2a');
+      hit = 0.42; hy = 0.5;
+      break;
+    }
+    case 'grub': // a pale grave grub with far too many teeth
+      for (let i = 0; i < 5; i++) mk(SPH(0.19 - i * 0.025, 8, 6), C(i % 2 ? '#c9b8c0' : '#dccad2'), body, 0, 0.17 - i * 0.01, 0.26 - i * 0.17, E);
+      mk(CYL(0.1, 0.12, 0.06, 10), '#3a1a24', body, 0, 0.2, 0.44).rotation.x = PI / 2;
+      for (let i = 0; i < 6; i++) { const a = (i / 6) * PI * 2; mk(CONE(0.02, 0.06, 3), '#ffffff', body, Math.cos(a) * 0.08, 0.2 + Math.sin(a) * 0.08, 0.46).rotation.x = PI / 2; }
+      for (const s of [-1, 1]) mk(SPH(0.04, 5, 4), '#111111', body, s * 0.1, 0.3, 0.36);
+      hit = 0.4; hy = 0.22;
+      break;
+    /* ----- Nimbus-9 ----- */
+    case 'puff': // a tiny cloud with a face (it drizzles when it's sad)
+      hover = 1; hy = 0.78; hit = 0.42;
+      for (const [x, y, z, r] of [[0, 0.75, 0, 0.3], [0.24, 0.7, -0.02, 0.2], [-0.24, 0.7, 0, 0.21], [0.1, 0.92, -0.05, 0.2], [-0.1, 0.9, 0.02, 0.18]]) mk(ICO(r, 1), C('#ffffff'), body, x, y, z, E);
+      eyes(0.8, 0.26, 0.09, 0.05);
+      tf(mk(SPH(0.04, 5, 4), '#ff8fa3', body, 0, 0.7, 0.28), 0, 0, 0, 1.6, 0.6, 0.6);
+      for (let i = 0; i < 3; i++) mk(BOX(0.025, 0.12, 0.025), '#9fd0ff', body, -0.12 + i * 0.12, 0.35 + (i % 2) * 0.08, 0);
+      break;
+    case 'gull': // a seagull. It wants your lunch. Then it wants you.
+      tf(mk(SPH(0.26, 8, 6), C('#f4f4f0'), body, 0, 0.42, 0, E), 0, 0, 0, 0.9, 0.85, 1.3);
+      mk(SPH(0.16, 8, 6), C('#ffffff'), body, 0, 0.64, 0.22, E);
+      tf(mk(CONE(0.05, 0.2, 5), '#ffd23f', body, 0, 0.6, 0.44), PI / 2);
+      mk(SPH(0.03, 5, 4), '#d6281b', body, 0, 0.56, 0.5);
+      eyes(0.68, 0.33, 0.08, 0.035);
+      for (const s of [-1, 1]) tf(mk(BOX(0.12, 0.03, 0.03), '#2a2a30', body, s * 0.08, 0.74, 0.35), 0, 0, s * 0.45);
+      wings = [];
+      for (const s of [-1, 1]) { const w = grp(body, s * 0.2, 0.5, 0); mk(BOX(0.46, 0.04, 0.3), C('#9aa0a8'), w, s * 0.22, 0, -0.04, E); mk(BOX(0.16, 0.045, 0.28), '#2a2a30', w, s * 0.46, 0, -0.06); wings.push(w); }
+      tf(mk(BOX(0.2, 0.04, 0.22), C('#9aa0a8'), body, 0, 0.44, -0.36, E), 0.3, 0, 0);
+      leg(-0.08, 0.02, 0.22, '#ff9a3d'); leg(0.08, 0.02, 0.22, '#ff9a3d');
+      break;
+    case 'kite': { // a kite that broke its string and never looked back
+      hover = 1; hy = 1.0;
+      const k = grp(body, 0, 1.0, 0); k.rotation.x = -0.3;
+      tf(mk(OCT(0.45), C('#ff4b6e'), k, 0, 0, 0, E), 0, 0, 0, 0.8, 1.1, 0.1);
+      tf(mk(OCT(0.46), C('#ffd23f'), k, 0, 0, -0.01, E), 0, 0, 0, 0.4, 1.12, 0.09);
+      mk(BOX(0.02, 0.9, 0.02), '#6b4a2b', k, 0, 0, 0.05);
+      mk(BOX(0.66, 0.02, 0.02), '#6b4a2b', k, 0, 0.12, 0.05);
+      for (const s of [-1, 1]) { mk(SPH(0.05, 6, 5), '#ffffff', k, s * 0.1, 0.1, 0.07); mk(SPH(0.025, 5, 4), '#111111', k, s * 0.1, 0.1, 0.1); }
+      for (let i = 0; i < 4; i++) {
+        const t = grp(body, 0, 0.56 - i * 0.12, -0.12 - i * 0.05);
+        mk(BOX(0.012, 0.13, 0.012), '#ffffff', t, 0, 0, 0);
+        tf(mk(CONE(0.05, 0.1, 3), C(['#3aa7ff', '#46d98a'][i % 2]), t, 0, -0.06, 0, E), 0, 0, PI / 2, 1, 1, 0.3);
+        legs.push(t);
+      }
+      break;
+    }
+    case 'spark': { // a little ball of lightning with a big attitude
+      hover = 1; hy = 0.72; hit = 0.42;
+      mk(ICO(0.24, 1), C('#fff36b'), body, 0, 0.72, 0, gold ? E : { emissive: '#ccaa00' });
+      const sp = grp(body, 0, 0.72, 0);
+      for (let i = 0; i < 8; i++) { const a = (i / 8) * PI * 2; tf(mk(OCT(0.07), '#bff6ff', sp, Math.cos(a) * 0.36, i % 2 ? 0.1 : -0.1, Math.sin(a) * 0.36, { emissive: '#3aa7ff' }), 0, 0, 0, 0.6, 2.2, 0.6); }
+      body.userData.spark = sp;
+      eyes(0.78, 0.2, 0.08, 0.05);
+      for (const s of [-1, 1]) tf(mk(BOX(0.1, 0.03, 0.03), '#2a2a30', body, s * 0.08, 0.88, 0.22), 0, 0, s * 0.5);
+      break;
+    }
+    /* ----- Gigopolis ----- */
+    case 'drone': // quit its delivery job, kept the parcel
+      hover = 1; hy = 1.0; rotors = [];
+      mk(BOX(0.36, 0.14, 0.36), C('#3b3f4a'), body, 0, 1.0, 0, E);
+      mk(SPH(0.07, 6, 5), '#ff3d3d', body, 0, 0.98, 0.19, { emissive: '#aa0000' });
+      for (const a of [PI / 4, -PI / 4]) tf(mk(BOX(0.95, 0.04, 0.05), C('#6d7480'), body, 0, 1.04, 0, E), 0, a, 0);
+      for (const [x, z] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+        const r = grp(body, x * 0.33, 1.12, z * 0.33);
+        mk(CYL(0.02, 0.02, 0.08, 4), '#3b3f4a', r, 0, -0.04, 0);
+        mk(BOX(0.36, 0.01, 0.05), '#dfe6ee', r, 0, 0, 0);
+        rotors.push(r);
+      }
+      mk(BOX(0.22, 0.2, 0.22), '#c9a36b', body, 0, 0.72, 0);
+      mk(BOX(0.23, 0.04, 0.05), '#e8d8a0', body, 0, 0.82, 0);
+      mk(CYL(0.006, 0.006, 0.12, 3), '#3b3f4a', body, 0, 0.88, 0);
+      break;
+    case 'panda': { // a trash panda (related to Trevor? Trevor says no)
+      tf(mk(SPH(0.3, 8, 6), C('#8a8f98'), body, 0, 0.36, -0.05, E), 0, 0, 0, 1, 0.85, 1.35);
+      mk(SPH(0.2, 8, 6), C('#9aa0a8'), body, 0, 0.5, 0.34, E);
+      mk(BOX(0.34, 0.08, 0.08), '#2a2a30', body, 0, 0.54, 0.47);
+      eyes(0.55, 0.5, 0.08, 0.035);
+      tf(mk(SPH(0.08, 6, 5), C('#c9ced6'), body, 0, 0.44, 0.5, E), 0, 0, 0, 1, 0.8, 1);
+      mk(SPH(0.03, 5, 4), '#111111', body, 0, 0.46, 0.58);
+      for (const s of [-1, 1]) mk(CONE(0.06, 0.12, 4), C('#8a8f98'), body, s * 0.12, 0.7, 0.32, E);
+      const tl = grp(body, 0, 0.42, -0.4); tl.rotation.x = 0.6;
+      for (let i = 0; i < 4; i++) tf(mk(CYL(0.08, 0.07, 0.13, 8), i % 2 ? '#2a2a30' : C('#9aa0a8'), tl, 0, 0, -0.06 - i * 0.13, i % 2 ? undefined : E), PI / 2);
+      for (const [x, z] of [[-0.14, 0.2], [0.14, 0.2], [-0.14, -0.26], [0.14, -0.26]]) leg(x, z, 0.2, '#2a2a30');
+      hit = 0.5;
+      break;
+    }
+    case 'intern': // Unpaid Intern Bot: works for exposure, runs from responsibility
+      mk(BOX(0.34, 0.36, 0.24), C('#dfe6ee'), body, 0, 0.5, 0, E);
+      mk(BOX(0.36, 0.3, 0.3), C('#dfe6ee'), body, 0, 0.88, 0, E);
+      mk(BOX(0.28, 0.18, 0.02), '#1a2a3a', body, 0, 0.88, 0.16);
+      for (const s of [-1, 1]) {
+        tf(mk(BOX(0.06, 0.03, 0.01), '#7dfff0', body, s * 0.07, 0.92, 0.172, { emissive: '#1a8a8a' }), 0, 0, -s * 0.35);
+        const a = grp(body, s * 0.22, 0.62, 0); mk(BOX(0.06, 0.22, 0.06), C('#9aa3ad'), a, 0, -0.1, 0.04, E); legs.push(a);
+      }
+      mk(BOX(0.08, 0.02, 0.01), '#7dfff0', body, 0, 0.84, 0.172, { emissive: '#1a8a8a' });
+      mk(BOX(0.1, 0.12, 0.02), '#ffffff', body, 0, 0.48, 0.13);
+      tf(mk(BOX(0.02, 0.2, 0.01), '#d6281b', body, -0.05, 0.62, 0.125), 0, 0, 0.3);
+      tf(mk(BOX(0.02, 0.2, 0.01), '#d6281b', body, 0.05, 0.62, 0.125), 0, 0, -0.3);
+      mk(CYL(0.05, 0.04, 0.1, 6), '#ffffff', body, 0.24, 0.46, 0.1);
+      leg(-0.08, 0, 0.32, '#3b3f4a'); leg(0.08, 0, 0.32, '#3b3f4a');
+      hit = 0.5;
+      break;
+    case 'scooter': // an abandoned e-scooter that went feral
+      rolls = [];
+      mk(BOX(0.2, 0.06, 0.8), C('#2a2d38'), body, 0, 0.16, 0, E);
+      tf(mk(CYL(0.025, 0.025, 0.95, 6), C('#9aa3ad'), body, 0, 0.62, 0.36, E), -0.12, 0, 0);
+      mk(BOX(0.5, 0.04, 0.04), C('#2a2d38'), body, 0, 1.08, 0.42, E);
+      for (const s of [-1, 1]) {
+        tf(mk(CYL(0.035, 0.035, 0.1, 6), '#1a1a1a', body, s * 0.26, 1.08, 0.42), 0, 0, PI / 2);
+        tf(mk(BOX(0.1, 0.025, 0.03), '#1a1a1a', body, s * 0.06, 0.98, 0.47), 0, 0, s * 0.4);
+      }
+      mk(BOX(0.18, 0.07, 0.06), '#fff6d0', body, 0, 0.9, 0.45, { emissive: '#ffe08a' });
+      mk(BOX(0.16, 0.03, 0.03), '#46d98a', body, 0, 0.2, -0.3, { emissive: '#1a8a4a' });
+      for (const z of [-0.36, 0.36]) { const w = grp(body, 0, 0.1, z); tf(mk(CYL(0.1, 0.1, 0.06, 10), '#1a1a1a', w, 0, 0, 0), 0, 0, PI / 2); mk(BOX(0.065, 0.04, 0.04), '#9aa3ad', w, 0, 0.06, 0); rolls.push(w); }
+      hit = 0.5; hy = 0.5;
+      break;
   }
   if (gold) { const sp = mk(OCT(0.08), '#fff6b0', root, 0, 1.0, 0, { emissive: '#ffcc00' }); sp.castShadow = false; body.userData.spark = sp; }
-  return { root, body, legs, hit };
+  return { root, body, legs, hit, hy, hover, wings, rotors, rolls };
 }
 
 /* ---------------- tools (first-person) ---------------- */
@@ -1045,6 +1251,35 @@ function buildZapperVM(lvl = 0) {
       wheel = buildCutterWheel(g, 0.11);
       wheel.position.set(0, 0.07, -0.33);
       mz = -0.34; my = 0.07;
+      break;
+    case 'homing': { // Wisp Caller: an old iron lantern on a stock, with a ghost wisp trapped inside
+      mk(BOX(0.06, 0.07, 0.22), '#3a3048', g, 0, 0.0, 0.06);
+      for (const [x, z] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) mk(BOX(0.016, 0.15, 0.016), '#2a2233', g, x * 0.05, 0.06, -0.15 + z * 0.05);
+      for (const y of [-0.015, 0.135]) mk(BOX(0.13, 0.02, 0.13), '#2a2233', g, 0, y, -0.15);
+      tf(mk(TOR(0.03, 0.008, 4, 10), '#2a2233', g, 0, 0.17, -0.15), 0, PI / 2, 0);
+      mk(SPH(0.058, 10, 8), M('#dfffe6', { transparent: true, opacity: 0.3, depthWrite: false }), g, 0, 0.06, -0.15);
+      tip = mk(SPH(0.036, 8, 6), '#9dffb0', g, 0, 0.06, -0.15, { emissive: '#3aff6a' });
+      tf(mk(CONE(0.035, 0.12, 6), '#2a2233', g, 0, 0.05, -0.28), -PI / 2);
+      mz = -0.36; my = 0.05;
+      break;
+    }
+    case 'chain': // Storm Caller: a copper coil gun, a ball of lightning crackling between two prongs
+      mk(BOX(0.08, 0.08, 0.2), '#1d2a4a', g, 0, 0.0, 0.06);
+      tf(mk(CYL(0.03, 0.03, 0.3, 8), '#9aa3ad', g, 0, 0.03, -0.14), PI / 2);
+      for (let i = 0; i < 5; i++) mk(TOR(0.046 - i * 0.003, 0.012, 4, 12), '#c87533', g, 0, 0.03, -0.04 - i * 0.045, { emissive: '#3a1a00' });
+      for (const s of [-1, 1]) tf(mk(BOX(0.014, 0.014, 0.16), '#c9ced6', g, s * 0.05, 0.03, -0.36), 0, -s * 0.3, 0);
+      tip = mk(ICO(0.045, 1), '#dff0ff', g, 0, 0.03, -0.41, { emissive: '#6aa8ff' });
+      mk(BOX(0.05, 0.04, 0.05), '#ffd23f', g, 0, 0.06, 0.1, { emissive: '#5a4000' });
+      mz = -0.44;
+      break;
+    case 'rocket': // Same-Day Launcher: a cardboard tube with a parcel loaded in the front
+      tf(mk(CYL(0.075, 0.075, 0.5, 10), '#c9a36b', g, 0, 0.05, -0.12), PI / 2);
+      for (const zz of [0.1, -0.36]) tf(mk(CYL(0.082, 0.082, 0.04, 10), '#8a6a3a', g, 0, 0.05, zz), PI / 2);
+      mk(BOX(0.1, 0.03, 0.12), '#fff6d0', g, 0, 0.13, -0.08);
+      mk(BOX(0.04, 0.05, 0.06), '#3b3f4a', g, 0, 0.14, 0.06);
+      tip = mk(BOX(0.09, 0.09, 0.09), '#ffb23e', g, 0, 0.05, -0.4, { emissive: '#3a2008' });
+      mk(BOX(0.092, 0.02, 0.092), '#e8d8a0', g, 0, 0.05, -0.4);
+      mz = -0.46; my = 0.05;
       break;
     default: // Pew Pew Zapper: the classic
       tf(mk(SPH(0.09, 10, 8), color, g, 0, 0.02, 0.02), 0, 0, 0, 1, 0.9, 1.4);
@@ -1123,6 +1358,9 @@ function buildBossModel(id) {
     case 'blorb': return buildBlorb();
     case 'jerry': return buildJerry();
     case 'snowdad': return buildSnowdad();
+    case 'count': return buildCount();
+    case 'stormy': return buildStormy();
+    case 'chad': return buildChad();
     case 'zorblax': return buildZorblax();
   }
 }
@@ -1335,6 +1573,29 @@ function buildMinion(kind) {
     mk(HEMI(0.34), '#ffd23f', g, 0, 1.3, 0);
     mk(CYL(0.03, 0.03, 1.6, 4), '#9aa3ad', g, 0.35, 0.9, 0.1);
     mk(CONE(0.08, 0.25, 4), '#dfe6ee', g, 0.35, 1.8, 0.1);
+  } else if (kind === 'bat') { // Count Carbula's bats (they fly a little off the floor)
+    const b = grp(g, 0, 1.1, 0);
+    tf(mk(SPH(0.3, 8, 6), '#3a2a5a', b, 0, 0, 0), 0, 0, 0, 1, 1.1, 1);
+    for (const s of [-1, 1]) {
+      tf(mk(CONE(0.1, 0.28, 4), '#3a2a5a', b, s * 0.14, 0.34, 0.04), 0, 0, -s * 0.25);
+      mk(SPH(0.06, 5, 4), '#ff3d3d', b, s * 0.1, 0.08, 0.27, { emissive: '#aa0000' });
+      mk(CONE(0.025, 0.08, 3), '#ffffff', b, s * 0.05, -0.1, 0.27).rotation.x = PI;
+    }
+    g.userData.wings = [-1, 1].map((s) => { const w = grp(b, s * 0.26, 0, 0); mk(BOX(0.8, 0.04, 0.46), '#2a1a4a', w, s * 0.4, 0, 0); mk(BOX(0.4, 0.04, 0.3), '#2a1a4a', w, s * 0.85, 0, -0.1); return w; });
+  } else if (kind === 'tornado') { // Stormy's little twisters
+    const t = grp(g);
+    for (let i = 0; i < 6; i++) mk(TOR(0.18 + i * 0.12, 0.08 + i * 0.015, 4, 12), i % 2 ? '#9aa3b8' : '#c9d2e0', t, Math.sin(i) * 0.08, 0.2 + i * 0.3, 0).rotation.x = PI / 2;
+    addEyes(t, 1.4, 0.72, 0.16, 0.1);
+    g.userData.spin = t;
+  } else if (kind === 'intern') { // Chad's interns: lanyards, coffee, no salary
+    for (const s of [-1, 1]) mk(BOX(0.18, 0.6, 0.2), '#c9b48a', g, s * 0.13, 0.3, 0);
+    mk(BOX(0.52, 0.6, 0.32), '#3a8fd8', g, 0, 0.9, 0);
+    mk(BOX(0.1, 0.12, 0.02), '#ffffff', g, 0, 0.82, 0.17);
+    mk(BOX(0.34, 0.03, 0.02), '#d6281b', g, 0, 1.1, 0.165).rotation.z = 0.4;
+    mk(SPH(0.26, 8, 6), '#f2c9a0', g, 0, 1.45, 0);
+    addEyes(g, 1.5, 0.22, 0.09, 0.06);
+    mk(BOX(0.46, 0.04, 0.34), '#9aa3ad', g, 0, 1.0, 0.36);
+    for (const x of [-0.13, 0.13]) mk(CYL(0.06, 0.05, 0.14, 6), '#ffffff', g, x, 1.1, 0.38);
   }
   return g;
 }
@@ -1354,8 +1615,610 @@ function projMesh(kind, r) {
     case 'laser': tf(mk(CYL(r * 0.5, r * 0.5, r * 3, 6), '#ff3df0', g, 0, 0, 0, { emissive: '#ff00ff' }), PI / 2); break;
     case 'pizza': tf(mk(CYL(r, r, 0.12, 3), '#ffc94a', g, 0, 0, 0, { emissive: '#443300' }), 0, 0, 0); mk(SPH(r * 0.2, 5, 4), '#d63a2a', g, 0, 0.07, 0); break;
     case 'meteor': mk(DOD(r), '#ff6a1f', g, 0, 0, 0, { emissive: '#aa2a00' }); break;
+    case 'bat':
+      mk(SPH(r * 0.6, 6, 5), '#3a2a5a', g, 0, 0, 0);
+      for (const s of [-1, 1]) { mk(BOX(r * 1.1, 0.04, r * 0.6), '#2a1a4a', g, s * r * 0.8, 0, 0); mk(SPH(r * 0.14, 4, 3), '#ff3d3d', g, s * r * 0.2, r * 0.15, r * 0.5, { emissive: '#ff0000' }); }
+      break;
+    case 'breadstick': tf(mk(CYL(r * 0.35, r * 0.4, r * 3, 7), '#e0a85a', g, 0, 0, 0, { emissive: '#3a2008' }), 0, 0, 0.3); break;
+    case 'hail': mk(ICO(r, 0), '#eaf6ff', g, 0, 0, 0, { emissive: '#3a5a7a' }); break;
+    case 'bolt':
+      for (const [y, rz] of [[r * 0.5, 0.5], [0, -0.5], [-r * 0.5, 0.5]]) tf(mk(BOX(r * 0.35, r * 0.8, r * 0.3), '#fff36b', g, 0, y, 0, { emissive: '#ffcc00' }), 0, 0, rz);
+      break;
+    case 'email':
+      mk(BOX(r * 1.6, r * 1.1, 0.08), '#ffffff', g, 0, 0, 0, { emissive: '#4a4a4a' });
+      for (const s of [-1, 1]) tf(mk(BOX(r * 0.95, 0.06, 0.1), '#3a8fd8', g, s * r * 0.38, r * 0.2, 0.01), 0, 0, s * 0.6);
+      mk(SPH(r * 0.22, 5, 4), '#ff3d3d', g, r * 0.7, r * 0.45, 0.06, { emissive: '#aa0000' });
+      break;
+    case 'coffee':
+      mk(CYL(r * 0.6, r * 0.45, r * 1.4, 8), '#ffffff', g, 0, 0, 0);
+      mk(CYL(r * 0.62, r * 0.62, r * 0.25, 8), '#2a2a30', g, 0, r * 0.75, 0);
+      mk(CYL(r * 0.58, r * 0.5, r * 0.5, 8), '#8a5a2b', g, 0, -r * 0.05, 0);
+      break;
+    case 'slip': mk(BOX(r * 1.5, 0.05, r * 1.1), '#ff9ad5', g, 0, 0, 0, { emissive: '#6a2a4a' }); break;
     default: mk(SPH(r, 6, 5), '#ffffff', g, 0, 0, 0, { emissive: '#666666' });
   }
   g.traverse((c) => { if (c.isMesh) c.castShadow = false; });
+  return g;
+}
+
+/* =========================================================
+   The three newer planets: Spookulon, Nimbus-9 and Gigopolis
+   ========================================================= */
+// a triangular roof (a prism), ridge along x (alongZ: along z)
+// (its flat underside sits r / 2 below y, the ridge r above it)
+function prism(parent, len, r, color, x, y, z, alongZ, opts) {
+  const g = grp(parent, x, y, z);
+  if (alongZ) g.rotation.y = PI / 2;
+  tf(mk(CYL(r, r, len, 3), color, g, 0, 0, 0, opts), -PI / 2, 0, PI / 2);
+  return g;
+}
+
+/* ---------------- Spookulon ---------------- */
+let _ripMat = null;
+function ripPlate(w, h) {
+  if (!_ripMat) {
+    _ripMat = new THREE.MeshBasicMaterial({ map: canvasTex(128, 52, (c) => {
+      c.fillStyle = '#8a8f9a'; c.fillRect(0, 0, 128, 52);
+      c.font = `700 34px ${FONT}`; c.fillStyle = '#3b3f4a'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('R.I.P.', 64, 28);
+    }) });
+    _ripMat.userData.shared = true;
+  }
+  return new THREE.Mesh(new THREE.PlaneGeometry(w, h), _ripMat);
+}
+function buildTombstone(rng, big) {
+  const g = new THREE.Group(), s = big ? 1.6 : 1;
+  const col = ['#8a8f9a', '#9aa0a6', '#7a7f8a', '#a8a29a'][Math.floor(rng() * 4)];
+  const kind = big ? 0 : Math.floor(rng() * 4);
+  const lean = grp(g); lean.rotation.set((rng() - 0.5) * 0.16, 0, (rng() - 0.5) * 0.12);
+  if (kind === 0) {
+    mk(BOX(0.7 * s, 0.8 * s, 0.18 * s), col, lean, 0, 0.4 * s, 0);
+    tf(mk(CYL(0.35 * s, 0.35 * s, 0.18 * s, 12), col, lean, 0, 0.8 * s, 0), PI / 2);
+    const p = ripPlate(0.5 * s, 0.2 * s); p.position.set(0, 0.7 * s, 0.092 * s); lean.add(p);
+  } else if (kind === 1) {
+    mk(BOX(0.16, 1.2, 0.16), col, lean, 0, 0.6, 0);
+    mk(BOX(0.7, 0.16, 0.16), col, lean, 0, 0.88, 0);
+  } else if (kind === 2) {
+    mk(BOX(0.4, 1.3, 0.4), col, lean, 0, 0.65, 0);
+    tf(mk(CONE(0.32, 0.4, 4), col, lean, 0, 1.5, 0), 0, PI / 4, 0);
+  } else {
+    mk(BOX(0.8, 0.6, 0.2), col, lean, 0, 0.3, 0);
+    const p = ripPlate(0.5, 0.2); p.position.set(0, 0.36, 0.102); lean.add(p);
+  }
+  mk(BOX(0.9 * s, 0.08, 0.5 * s), '#5a5f68', g, 0, 0.04, 0.12 * s);
+  tf(mk(SPH(0.45 * s, 8, 4), '#3a2f26', g, 0, 0, 0.8 * s), 0, 0, 0, 1, 0.22, 1.6); // (a fresh-ish mound)
+  return g;
+}
+// a straight run of iron fence (along x), len metres long
+function buildIronFence(len) {
+  const g = new THREE.Group(), iron = '#2a2530';
+  const n = Math.max(2, Math.round(len / 0.4));
+  for (const y of [0.3, 1.0]) mk(BOX(len, 0.06, 0.06), iron, g, 0, y, 0);
+  for (let i = 0; i <= n; i++) {
+    const x = -len / 2 + (i / n) * len;
+    mk(BOX(0.05, 1.2, 0.05), iron, g, x, 0.6, 0);
+    mk(CONE(0.05, 0.16, 4), iron, g, x, 1.28, 0);
+  }
+  for (const s of [-1, 1]) { mk(BOX(0.18, 1.5, 0.18), '#4a4550', g, s * len / 2, 0.75, 0); mk(SPH(0.13, 6, 5), '#4a4550', g, s * len / 2, 1.58, 0); }
+  return g;
+}
+function buildDeadTree(rng) {
+  const g = new THREE.Group(), bark = '#3a3038';
+  const h = 3 + rng() * 2.5;
+  const trunk = grp(g); trunk.rotation.set((rng() - 0.5) * 0.15, 0, (rng() - 0.5) * 0.15);
+  mk(CYL(0.12, 0.3, h, 6), bark, trunk, 0, h / 2, 0);
+  const n = 3 + Math.floor(rng() * 3);
+  for (let i = 0; i < n; i++) {
+    const y = h * (0.45 + rng() * 0.5), l = 0.8 + rng() * 1.3;
+    const b = grp(trunk, 0, y, 0); b.rotation.set(0, rng() * PI * 2, 0.6 + rng() * 0.6);
+    mk(CYL(0.04, 0.09, l, 5), bark, b, 0, l / 2, 0);
+    const t = grp(b, 0, l * 0.7, 0); t.rotation.z = -0.9;
+    mk(CYL(0.02, 0.04, l * 0.5, 4), bark, t, 0, l * 0.25, 0);
+  }
+  return g;
+}
+function buildJackOLantern(s = 1) {
+  const g = new THREE.Group();
+  tf(mk(SPH(0.4 * s, 10, 8), '#ff8a1f', g, 0, 0.32 * s, 0), 0, 0, 0, 1, 0.8, 1);
+  for (let i = 0; i < 4; i++) tf(mk(SPH(0.4 * s, 10, 8), '#e8741a', g, 0, 0.32 * s, 0), 0, (i / 4) * PI, 0, 0.35, 0.82, 1.02);
+  mk(CYL(0.05 * s, 0.08 * s, 0.2 * s, 5), '#3f6a2a', g, 0, 0.7 * s, 0);
+  const lit = { emissive: '#ffaa00' };
+  for (const x of [-0.13, 0.13]) tf(mk(CONE(0.07 * s, 0.1 * s, 3), '#ffe066', g, x * s, 0.42 * s, 0.36 * s, lit), PI / 2, 0, 0);
+  mk(BOX(0.3 * s, 0.07 * s, 0.05 * s), '#ffe066', g, 0, 0.22 * s, 0.37 * s, lit);
+  return g;
+}
+function buildGasLamp() {
+  const g = new THREE.Group(), iron = '#2a2530';
+  mk(CYL(0.22, 0.28, 0.24, 6), iron, g, 0, 0.12, 0);
+  mk(CYL(0.07, 0.1, 3.1, 6), iron, g, 0, 1.6, 0);
+  mk(BOX(0.4, 0.06, 0.4), iron, g, 0, 3.18, 0);
+  mk(BOX(0.3, 0.42, 0.3), '#fff1b8', g, 0, 3.42, 0, { emissive: '#ffb84a' });
+  tf(mk(CONE(0.32, 0.3, 4), iron, g, 0, 3.78, 0), 0, PI / 4, 0);
+  return g;
+}
+function buildCrypt() {
+  const g = new THREE.Group(), stone = '#8a8f9a', dark = '#6a6f7a';
+  mk(BOX(4.4, 0.4, 5.2), dark, g, 0, 0.2, 0);
+  mk(BOX(3.6, 2.8, 4.2), stone, g, 0, 1.8, -0.3);
+  prism(g, 4.6, 2.3, dark, 0, 3.2 + 1.15, -0.3, true);
+  for (const s of [-1, 1]) { mk(CYL(0.22, 0.26, 2.6, 8), '#b0b4bc', g, s * 1.45, 1.7, 2.0); mk(BOX(0.6, 0.2, 0.6), dark, g, s * 1.45, 3.05, 2.0); }
+  mk(BOX(3.6, 0.3, 0.8), dark, g, 0, 3.25, 2.0);
+  mk(BOX(1.4, 2.0, 0.1), '#1a1620', g, 0, 1.4, 1.82);
+  const sign = signMesh(['FAMILY PLOT', 'est. 1347'], 2.2, 0.6, { bg: '#6a6f7a', colors: ['#2a2530', '#2a2530'], border: false });
+  sign.position.set(0, 2.85, 2.41); g.add(sign);
+  mk(OCT(0.22), '#7dff8a', g, 0, 3.65, 2.35, { emissive: '#2aaa3a' });
+  return g;
+}
+function buildMansion() {
+  const g = new THREE.Group(), wall = '#4a4458', trim = '#2a2533', roof = '#2a2240', win = { emissive: '#8aff5a' };
+  mk(BOX(14, 7, 9), wall, g, 0, 3.5, 0);
+  mk(BOX(14.4, 0.3, 9.4), trim, g, 0, 7.1, 0);
+  prism(g, 14.6, 5.3, roof, 0, 7.2 + 2.65, 0, false);
+  for (const s of [-1, 1]) {
+    mk(CYL(1.7, 1.7, 11, 8), wall, g, s * 7.2, 5.5, 3.2);
+    mk(CONE(2.3, 5, 8), roof, g, s * 7.2, 13.5, 3.2);
+    mk(CYL(0.05, 0.05, 1.6, 4), trim, g, s * 7.2, 16.6, 3.2);
+    for (const y of [3.2, 6.4, 9.3]) mk(BOX(0.7, 1.1, 0.12), '#c8ff9a', g, s * 7.2, y, 4.85, win);
+  }
+  for (let i = 0; i < 5; i++) for (const y of [2.2, 5.2]) {
+    const x = -4.8 + i * 2.4;
+    if (i === 2 && y < 3) continue;
+    mk(BOX(1.0, 1.4, 0.12), (i + (y > 3 ? 1 : 0)) % 3 ? '#1a1620' : '#c8ff9a', g, x, y, 4.52, (i + (y > 3 ? 1 : 0)) % 3 ? undefined : win);
+    mk(BOX(1.2, 0.14, 0.2), trim, g, x, y - 0.78, 4.55);
+  }
+  mk(BOX(1.8, 2.8, 0.14), '#2a1a14', g, 0, 1.4, 4.53);
+  mk(BOX(3, 0.3, 1.4), trim, g, 0, 0.15, 5.2);
+  mk(BOX(3.4, 0.2, 1.8), trim, g, 0, 3.1, 5.3);
+  tf(mk(BOX(0.7, 3, 0.7), trim, g, 4.2, 9.6, -2), 0, 0, 0.12); // a crooked chimney
+  return g;
+}
+
+/* ---------------- Nimbus-9 ---------------- */
+// a floating island: its top is at y = 0, with a rocky crystal underside hanging below (depth)
+function buildFloatIsland(rng, r, depth) {
+  const g = new THREE.Group();
+  mk(CYL(r, r * 0.94, 0.6, 16), '#e8eeff', g, 0, -0.3, 0);
+  mk(CYL(r * 0.94, r * 0.8, 0.5, 16), '#d3dcf0', g, 0, -0.85, 0);
+  tf(mk(CONE(r * 0.82, depth, 7), '#b9a4d8', g, 0, -1.1 - depth / 2, 0), PI, rng() * 3, 0);
+  tf(mk(CONE(r * 0.4, depth * 0.55, 6), '#9d86c4', g, r * 0.3, -1.1 - depth * 0.6, -r * 0.15), PI, 0, 0.2);
+  for (let i = 0; i < 3; i++) {
+    const a = rng() * PI * 2;
+    tf(mk(OCT(0.35 + rng() * 0.25), '#ffd6f4', g, Math.cos(a) * r * 0.45, -1.4 - rng() * depth * 0.5, Math.sin(a) * r * 0.45, { emissive: '#7a3a6a' }), 0, 0, 0, 0.7, 1.8, 0.7);
+  }
+  for (let i = 0; i < 8; i++) { const a = (i / 8) * PI * 2 + rng() * 0.4; mk(ICO(0.45 + rng() * 0.45, 1), '#ffffff', g, Math.cos(a) * r * 0.97, -0.55 + rng() * 0.25, Math.sin(a) * r * 0.97); }
+  return g;
+}
+// the base of an updraft (the rising column itself is animated by the world)
+function buildVentBase() {
+  const g = new THREE.Group();
+  mk(CYL(1.35, 1.55, 0.3, 14), '#dfe8f5', g, 0, 0.15, 0);
+  mk(CYL(1.05, 1.05, 0.32, 14), '#8fd0ff', g, 0, 0.16, 0, { emissive: '#3a90d0' });
+  for (let i = -2; i <= 2; i++) mk(BOX(0.08, 0.34, 1.95 - Math.abs(i) * 0.3), '#b9c9e6', g, i * 0.38, 0.18, 0);
+  return g;
+}
+function buildPearlNode(big) {
+  const g = new THREE.Group(), s = big ? 1.5 : 1;
+  const b = grp(g, 0, 0.55, 0);
+  tf(mk(HEMI(0.32 * s, 10, 4), '#ffd6f4', b, 0, 0, 0), PI, 0, 0, 1, 0.45, 1);
+  const lid = grp(b, 0, 0, -0.28 * s); lid.rotation.x = -0.95;
+  tf(mk(HEMI(0.32 * s, 10, 4), '#ffc2ea', lid, 0, 0, 0.28 * s), 0, 0, 0, 1, 0.45, 1);
+  mk(SPH(0.15 * s, 10, 8), big ? '#fff3c4' : '#ffffff', b, 0, 0.1 * s, 0.03, { emissive: big ? '#aa8a3a' : '#5a5a7a' });
+  g.userData.bob = b;
+  glowRing(g, 0.65 * s, big ? '#ffd23f' : '#bfe8ff');
+  return g;
+}
+function buildCloudTree(rng) {
+  const g = new THREE.Group();
+  const h = 2 + rng() * 2;
+  tf(mk(CYL(0.12, 0.2, h, 6), '#c9b3e0', g, 0, h / 2, 0), (rng() - 0.5) * 0.2, 0, (rng() - 0.5) * 0.2);
+  const col = ['#ffffff', '#ffd6f4', '#d6ecff'][Math.floor(rng() * 3)];
+  for (let i = 0; i < 4; i++) mk(ICO(0.6 + rng() * 0.5, 1), col, g, (rng() - 0.5) * 1.2, h + (rng() - 0.3) * 0.8, (rng() - 0.5) * 1.2);
+  return g;
+}
+function buildBalloon(color) {
+  const g = new THREE.Group();
+  tf(mk(SPH(3, 12, 10), color, g, 0, 6, 0), 0, 0, 0, 1, 1.15, 1);
+  for (const y of [5.2, 6.8]) tf(mk(TOR(2.95, 0.12, 4, 24), '#ffffff', g, 0, y, 0), PI / 2);
+  mk(CONE(1.2, 1.6, 10), color, g, 0, 2.6, 0).rotation.x = PI;
+  mk(BOX(1.3, 0.9, 1.3), '#8a5a2b', g, 0, 0.45, 0);
+  mk(BOX(1.4, 0.12, 1.4), '#6b4a2b', g, 0, 0.92, 0);
+  for (const [x, z] of [[-0.6, -0.6], [0.6, -0.6], [-0.6, 0.6], [0.6, 0.6]]) rod(g, new V3(x, 0.9, z), new V3(x * 1.4, 2.4, z * 1.4), 0.02, '#3b2a1a');
+  return g;
+}
+// half a rainbow: bands of color bent into an arch (in the xy plane)
+function buildRainbow(r) {
+  const g = new THREE.Group();
+  ['#ff4b3e', '#ff9a1f', '#ffe066', '#46d98a', '#3aa7ff', '#9b5de5'].forEach((c, i) => {
+    const m = new THREE.Mesh(new THREE.TorusGeometry(r - i * 0.45, 0.24, 4, 40, PI), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.75, depthWrite: false }));
+    g.add(m);
+  });
+  return g;
+}
+function buildWeatherBoard() {
+  const g = new THREE.Group();
+  for (const s of [-1, 1]) mk(BOX(0.14, 2.4, 0.14), '#b9c9e6', g, s * 1.1, 1.2, 0);
+  const sm = signMesh(['WEATHER REPORT', 'CLOUDY. FOREVER.'], 2.6, 1.3, { bg: '#3a8fd8', colors: ['#ffffff', '#ffe066'], border: '#ffffff' });
+  sm.position.set(0, 2.1, 0.09); g.add(sm);
+  mk(ICO(0.35, 1), '#ffffff', g, 1.2, 2.85, 0.1);
+  mk(SPH(0.28, 8, 6), '#ffd23f', g, 0.9, 3.0, 0.05, { emissive: '#aa8800' });
+  return g;
+}
+function buildAnemometer() {
+  const g = new THREE.Group();
+  mk(CYL(0.1, 0.14, 4.5, 6), '#dfe8f5', g, 0, 2.25, 0);
+  const cups = grp(g, 0, 4.6, 0);
+  for (let i = 0; i < 3; i++) {
+    const a = (i / 3) * PI * 2;
+    tf(mk(BOX(1.1, 0.05, 0.05), '#9aa3ad', cups, Math.cos(a) * 0.55, 0, Math.sin(a) * 0.55), 0, -a, 0);
+    mk(HEMI(0.16, 8, 4), '#ff4b3e', cups, Math.cos(a) * 1.1, 0, Math.sin(a) * 1.1).rotation.z = PI / 2;
+  }
+  g.userData.cups = cups;
+  return g;
+}
+
+/* ---------------- Gigopolis ---------------- */
+// building walls: one window grid, shared by every building (lit windows glow at night)
+let _cityTex = null;
+function cityTextures() {
+  if (_cityTex) return _cityTex;
+  const rng = U.seeded(515);
+  const lit = [];
+  for (let i = 0; i < 16; i++) lit.push(rng() < 0.45 ? ['#ffe08a', '#8af0ff', '#ff9ad5', '#fff6d0'][Math.floor(rng() * 4)] : null);
+  const draw = (glow) => (c, w, h) => {
+    c.fillStyle = glow ? '#000000' : '#d8dce6'; c.fillRect(0, 0, w, h);
+    for (let i = 0; i < 16; i++) {
+      const x = (i % 4) * 64, y = Math.floor(i / 4) * 64;
+      c.fillStyle = glow ? (lit[i] || '#000000') : lit[i] ? '#fff2c0' : '#2a3448';
+      c.fillRect(x + 12, y + 10, 40, 42);
+      if (!glow) { c.fillStyle = '#9aa3b4'; c.fillRect(x + 8, y + 52, 48, 5); }
+    }
+  };
+  const mkT = (glow) => { const t = canvasTex(256, 256, draw(glow)); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t; };
+  _cityTex = { map: mkT(false), glow: mkT(true) };
+  return _cityTex;
+}
+const _cityMats = new Map();
+function cityWallMat(tint) {
+  let m = _cityMats.get(tint);
+  if (!m) {
+    const t = cityTextures();
+    m = new THREE.MeshToonMaterial({ color: tint, map: t.map, emissive: '#ffffff', emissiveMap: t.glow, emissiveIntensity: 0.85, gradientMap: TOON_GRAD });
+    m.userData.shared = true;
+    _cityMats.set(tint, m);
+  }
+  return m;
+}
+// a box of building with windows on its sides (each window cell is 2 m wide and 2.5 m tall)
+function buildingBox(w, h, d, tint) {
+  const geo = new THREE.BoxGeometry(w, h, d);
+  const uv = geo.attributes.uv;
+  const faces = [[d, h], [d, h], [0, 0], [0, 0], [w, h], [w, h]]; // +x -x +y -y +z -z
+  for (let f = 0; f < 6; f++) for (let k = 0; k < 4; k++) {
+    const i = f * 4 + k, [fw, fh] = faces[f];
+    uv.setXY(i, uv.getX(i) * fw / 8, uv.getY(i) * fh / 10);
+  }
+  const m = new THREE.Mesh(geo, cityWallMat(tint));
+  m.castShadow = true; m.receiveShadow = true;
+  return m;
+}
+function buildStreetLamp() {
+  const g = new THREE.Group(), pole = '#3b3f4a';
+  mk(CYL(0.08, 0.11, 4.4, 6), pole, g, 0, 2.2, 0);
+  mk(BOX(1.3, 0.08, 0.08), pole, g, 0.6, 4.35, 0);
+  mk(BOX(0.44, 0.14, 0.28), pole, g, 1.2, 4.28, 0);
+  mk(BOX(0.36, 0.04, 0.22), '#fff6d0', g, 1.2, 4.2, 0, { emissive: '#ffe08a' });
+  return g;
+}
+function buildHydrant() {
+  const g = new THREE.Group();
+  mk(CYL(0.16, 0.2, 0.6, 8), '#d6281b', g, 0, 0.3, 0);
+  mk(HEMI(0.17, 8, 4), '#d6281b', g, 0, 0.6, 0);
+  for (const s of [-1, 1]) tf(mk(CYL(0.07, 0.07, 0.14, 6), '#ffd23f', g, s * 0.2, 0.4, 0), 0, 0, PI / 2);
+  return g;
+}
+function buildTrashCan() {
+  const g = new THREE.Group();
+  mk(CYL(0.3, 0.26, 0.9, 10), '#3a5a3a', g, 0, 0.45, 0);
+  mk(CYL(0.33, 0.33, 0.1, 10), '#2a4a2a', g, 0, 0.93, 0);
+  mk(BOX(0.25, 0.14, 0.2), '#c9a36b', g, 0.05, 1.02, 0.02); // (somebody's leftovers)
+  return g;
+}
+function buildBench() {
+  const g = new THREE.Group();
+  mk(BOX(1.8, 0.08, 0.5), '#8a5a2b', g, 0, 0.45, 0);
+  mk(BOX(1.8, 0.4, 0.08), '#8a5a2b', g, 0, 0.75, -0.24);
+  for (const s of [-1, 1]) mk(BOX(0.08, 0.45, 0.5), '#3b3f4a', g, s * 0.8, 0.22, 0);
+  return g;
+}
+function buildCar(color) {
+  const g = new THREE.Group();
+  mk(BOX(1.9, 0.62, 4.0), color, g, 0, 0.6, 0);
+  mk(BOX(1.72, 0.58, 2.1), color, g, 0, 1.18, -0.2);
+  mk(BOX(1.74, 0.42, 1.9), '#1a2a3a', g, 0, 1.2, -0.2);
+  mk(BOX(1.5, 0.05, 1.7), color, g, 0, 1.49, -0.2);
+  for (const [x, z] of [[-0.95, 1.3], [0.95, 1.3], [-0.95, -1.3], [0.95, -1.3]]) tf(mk(CYL(0.36, 0.36, 0.3, 10), '#1a1a1a', g, x, 0.36, z), 0, 0, PI / 2);
+  for (const s of [-1, 1]) {
+    mk(BOX(0.36, 0.16, 0.05), '#fff6d0', g, s * 0.6, 0.72, 2.01, { emissive: '#ffe08a' });
+    mk(BOX(0.36, 0.14, 0.05), '#ff3d3d', g, s * 0.6, 0.74, -2.01, { emissive: '#aa0000' });
+  }
+  return g;
+}
+function buildJumpPad() {
+  const g = new THREE.Group();
+  mk(CYL(1.25, 1.35, 0.2, 16), '#2f3340', g, 0, 0.1, 0);
+  mk(CYL(1.0, 1.0, 0.22, 16), '#3df0ff', g, 0, 0.11, 0, { emissive: '#0aa0c0' });
+  for (let i = 0; i < 3; i++) tf(mk(CONE(0.34, 0.3, 3), '#ffffff', g, 0, 0.24, -0.35 + i * 0.35, { emissive: '#8adfff' }), PI / 2, 0, 0, 1, 1, 0.25);
+  return g;
+}
+function buildKiosk() {
+  const g = new THREE.Group();
+  mk(BOX(2.8, 1.1, 1.3), '#2f3340', g, 0, 0.55, 0);
+  mk(BOX(3.0, 0.12, 1.5), '#ffd23f', g, 0, 1.16, 0);
+  for (const [x, z] of [[-1.4, -0.6], [1.4, -0.6], [-1.4, 0.6], [1.4, 0.6]]) mk(BOX(0.12, 2.6, 0.12), '#3b3f4a', g, x, 1.3, z);
+  mk(BOX(3.4, 0.25, 1.9), '#ff3df0', g, 0, 2.7, 0, { emissive: '#6a0a5a' });
+  const s = signMesh(['GIGHUB', 'DELIVERY GIGS · PRESS E'], 2.8, 1.0, { bg: '#12072e', colors: ['#ffd23f', '#3df0ff'], border: '#ff3df0', glow: true });
+  s.position.set(0, 3.4, 0.2); g.add(s);
+  for (const [x, y, z, sz] of [[-0.9, 1.4, -0.2, 0.4], [-0.5, 1.37, 0.1, 0.34], [0.8, 1.42, -0.1, 0.46], [-0.75, 1.75, -0.1, 0.3]]) {
+    mk(BOX(sz, sz * 0.8, sz), '#c9a36b', g, x, y, z);
+    mk(BOX(sz * 1.02, 0.05, sz * 0.2), '#e8d8a0', g, x, y + sz * 0.4, z);
+  }
+  return g;
+}
+function buildBillboard(lines, colors, w = 6) {
+  const g = new THREE.Group();
+  for (const s of [-1, 1]) mk(BOX(0.18, 3, 0.18), '#3b3f4a', g, s * w * 0.35, 1.5, 0);
+  mk(BOX(w + 0.3, 2.5, 0.2), '#2a2d38', g, 0, 3.9, 0);
+  const sm = signMesh(lines, w, 2.2, { bg: '#12072e', colors, border: colors[0], glow: true });
+  sm.position.set(0, 3.9, 0.11); g.add(sm);
+  return g;
+}
+function buildParkingMeter() {
+  const g = new THREE.Group();
+  mk(CYL(0.06, 0.07, 1.1, 6), '#6d7480', g, 0, 0.55, 0);
+  mk(BOX(0.36, 0.5, 0.26), '#9aa3ad', g, 0, 1.3, 0);
+  tf(mk(CYL(0.18, 0.18, 0.27, 10), '#9aa3ad', g, 0, 1.56, 0), PI / 2);
+  const s = signMesh(['EXPIRED'], 0.26, 0.14, { bg: '#1a2a2a', color: '#ff4b3e', border: false, glow: true });
+  s.position.set(0, 1.38, 0.132); g.add(s);
+  return g;
+}
+function buildWaterTower() {
+  const g = new THREE.Group();
+  for (const [x, z] of [[-0.8, -0.8], [0.8, -0.8], [-0.8, 0.8], [0.8, 0.8]]) mk(BOX(0.12, 2.2, 0.12), '#5a4a3a', g, x, 1.1, z);
+  mk(CYL(1.2, 1.2, 2.2, 10), '#8a6a4a', g, 0, 3.2, 0);
+  mk(CONE(1.35, 0.9, 10), '#5a4a3a', g, 0, 4.75, 0);
+  return g;
+}
+
+/* ---------------- the new shopkeepers ---------------- */
+// Sheets McGhost: a bedsheet with a bowtie and very good manners
+function buildSheetGhost() {
+  const root = new THREE.Group(), cloth = '#eef3ff', lit = { emissive: '#3a4a6a' };
+  const body = grp(root, 0, 0.35, 0);
+  mk(CYL(0.55, 0.78, 1.35, 12), cloth, body, 0, 0.7, 0, lit);
+  for (let i = 0; i < 8; i++) { const a = (i / 8) * PI * 2; tf(mk(CONE(0.16, 0.3, 5), cloth, body, Math.sin(a) * 0.68, -0.08, Math.cos(a) * 0.68, lit), PI, 0, 0); }
+  for (const s of [-1, 1]) tf(mk(SPH(0.2, 7, 5), cloth, body, s * 0.72, 1.0, 0.1, lit), 0, 0, -s * 0.5, 1.4, 0.7, 0.7);
+  tf(mk(BOX(0.3, 0.14, 0.08), '#b9a4ff', body, 0, 1.3, 0.56), 0, 0, 0);
+  for (const s of [-1, 1]) tf(mk(CONE(0.1, 0.18, 4), '#b9a4ff', body, s * 0.14, 1.3, 0.57), 0, 0, s * PI / 2);
+  const head = grp(root, 0, 1.95, 0);
+  mk(SPH(0.6, 12, 10), cloth, head, 0, 0, 0, lit);
+  for (const s of [-1, 1]) tf(mk(SPH(0.1, 6, 5), '#1a1a2a', head, s * 0.2, 0.08, 0.54), 0, 0, 0, 1, 1.5, 0.6);
+  tf(mk(SPH(0.11, 6, 5), '#1a1a2a', head, 0, -0.18, 0.55), 0, 0, 0, 1.2, 0.8, 0.5);
+  const hat = buildHat('tophat'); hat.scale.setScalar(0.75); hat.position.set(0.05, 0.5, 0); hat.rotation.z = -0.15; head.add(hat);
+  return { root, head };
+}
+// Skipper Gale: an albatross who sails the sky (no boat)
+function buildAlbatross() {
+  const root = new THREE.Group();
+  for (const s of [-1, 1]) {
+    mk(CYL(0.05, 0.05, 0.6, 5), '#ff9a3d', root, s * 0.22, 0.3, 0);
+    mk(BOX(0.26, 0.05, 0.3), '#ff9a3d', root, s * 0.22, 0.03, 0.08);
+  }
+  tf(mk(SPH(0.62, 10, 8), '#f4f4f0', root, 0, 1.15, 0), 0, 0, 0, 1, 1.25, 0.95);
+  tf(mk(SPH(0.46, 10, 8), '#ffffff', root, 0, 1.05, 0.2), 0, 0, 0, 1, 1.2, 0.8);
+  for (const s of [-1, 1]) {
+    const w = grp(root, s * 0.6, 1.5, -0.05);
+    tf(mk(BOX(0.2, 1.1, 0.5), '#e8e8e4', w, s * 0.05, -0.45, 0), 0, 0, s * 0.18);
+    tf(mk(BOX(0.18, 0.4, 0.46), '#4a4f5a', w, s * 0.12, -1.05, 0), 0, 0, s * 0.18);
+  }
+  tf(mk(CONE(0.26, 0.5, 3), '#3a8fd8', root, 0, 1.72, 0.3), PI, 0, 0, 1, 1, 0.5); // neckerchief
+  const head = grp(root, 0, 2.15, 0.08);
+  mk(SPH(0.38, 10, 8), '#ffffff', head, 0, 0, 0);
+  tf(mk(CONE(0.12, 0.6, 6), '#ffd23f', head, 0, -0.08, 0.6), PI / 2, 0, 0);
+  mk(SPH(0.07, 6, 5), '#e0a820', head, 0, -0.16, 0.86);
+  for (const s of [-1, 1]) { mk(SPH(0.07, 6, 5), '#111111', head, s * 0.2, 0.08, 0.3); tf(mk(BOX(0.16, 0.035, 0.03), '#6d7480', head, s * 0.2, 0.18, 0.31), 0, 0, -s * 0.2); }
+  mk(CYL(0.36, 0.34, 0.24, 12), '#1d2a4a', head, 0, 0.36, 0);
+  mk(CYL(0.44, 0.44, 0.04, 12), '#111111', head, 0, 0.25, 0.05);
+  mk(BOX(0.16, 0.12, 0.04), '#ffd23f', head, 0, 0.38, 0.36, { emissive: '#664400' });
+  return { root, head };
+}
+// Trench Coat Trevor: definitely one normal adult man (three raccoons)
+function buildTrenchRaccoons() {
+  const root = new THREE.Group(), coat = '#b08a5a', fur = '#8a8f98', mask = '#2a2a30';
+  for (const s of [-1, 1]) mk(BOX(0.22, 0.14, 0.34), mask, root, s * 0.2, 0.07, 0.06);
+  mk(CYL(0.46, 0.64, 1.9, 10), coat, root, 0, 1.1, 0);
+  mk(CYL(0.43, 0.47, 0.34, 10), coat, root, 0, 2.15, 0);
+  tf(mk(TOR(0.52, 0.06, 4, 16), '#6b4a2b', root, 0, 1.25, 0), PI / 2);
+  for (const s of [-1, 1]) {
+    tf(mk(BOX(0.18, 0.7, 0.06), '#9a7648', root, s * 0.2, 1.8, 0.44), 0, 0, s * 0.35);
+    const arm = grp(root, s * 0.52, 1.95, 0);
+    tf(mk(CYL(0.13, 0.16, 1.1, 8), coat, arm, 0, -0.5, 0.05), 0.2, 0, s * 0.12);
+    mk(SPH(0.1, 6, 5), mask, arm, s * 0.07, -1.06, 0.16);
+  }
+  for (const y of [0.9, 1.45]) mk(SPH(0.04, 5, 4), '#3b2a1a', root, 0.12, y, 0.6);
+  // raccoon #2, peeking out of the coat
+  const r2 = grp(root, -0.05, 1.62, 0.42);
+  mk(SPH(0.17, 8, 6), fur, r2, 0, 0, 0);
+  mk(BOX(0.3, 0.07, 0.06), mask, r2, 0, 0.03, 0.14);
+  for (const s of [-1, 1]) mk(SPH(0.03, 5, 4), '#ffffff', r2, s * 0.07, 0.04, 0.17);
+  // raccoon #3, under the hem, with a tail out the back
+  for (const s of [-1, 1]) mk(SPH(0.035, 5, 4), '#fff36b', root, s * 0.08, 0.3, 0.58, { emissive: '#887700' });
+  const tail = grp(root, 0.1, 0.25, -0.55); tail.rotation.x = -0.7;
+  for (let i = 0; i < 4; i++) mk(CYL(0.1, 0.1, 0.18, 8), i % 2 ? mask : fur, tail, 0, -0.1 - i * 0.18, 0).rotation.x = 0;
+  // raccoon #1 (the head of the operation), wearing a fedora
+  const head = grp(root, 0, 2.55, 0.02);
+  mk(SPH(0.34, 10, 8), fur, head, 0, 0, 0);
+  mk(BOX(0.62, 0.14, 0.12), mask, head, 0, 0.04, 0.26);
+  for (const s of [-1, 1]) { mk(SPH(0.06, 6, 5), '#ffffff', head, s * 0.14, 0.05, 0.32); mk(SPH(0.03, 5, 4), '#111111', head, s * 0.14, 0.05, 0.37); mk(CONE(0.09, 0.18, 4), fur, head, s * 0.22, 0.32, 0); }
+  tf(mk(SPH(0.14, 8, 6), '#c9ced6', head, 0, -0.12, 0.28), 0, 0, 0, 1, 0.8, 1);
+  mk(SPH(0.05, 5, 4), '#111111', head, 0, -0.08, 0.41);
+  mk(CYL(0.5, 0.5, 0.04, 14), '#5a4a3a', head, 0, 0.26, 0);
+  mk(CYL(0.26, 0.3, 0.3, 12), '#5a4a3a', head, 0, 0.42, 0);
+  mk(CYL(0.305, 0.305, 0.07, 12), '#2a2a30', head, 0, 0.32, 0);
+  return { root, head };
+}
+
+/* ---------------- the new bosses ---------------- */
+// Count Carbula: a vampire who gave up blood for carbs. Hovers. Holds a breadstick like a sceptre.
+function buildCount() {
+  const root = new THREE.Group(), body = grp(root), suit = '#1a1a22', skin = '#e8e4f0';
+  const legs = [];
+  for (const s of [-1, 1]) {
+    const leg = grp(body, s * 0.45, 1.6, 0);
+    mk(CYL(0.26, 0.3, 1.6, 8), suit, leg, 0, -0.8, 0);
+    mk(BOX(0.42, 0.24, 0.8), '#0a0a10', leg, 0, -1.55, 0.15);
+    legs.push(leg);
+  }
+  mk(CYL(0.95, 0.75, 2.2, 10), suit, body, 0, 2.7, 0);
+  mk(BOX(0.66, 1.7, 0.2), '#f4f1ea', body, 0, 2.95, 0.74);
+  mk(BOX(0.4, 0.34, 0.16), '#b8142e', body, 0, 3.65, 0.84);
+  tf(mk(CYL(0.22, 0.22, 0.06, 12), '#ffd23f', body, 0, 3.25, 0.86, { emissive: '#664400' }), PI / 2);
+  tf(mk(TOR(0.6, 0.06, 4, 16), '#b8142e', body, 0, 1.75, 0), PI / 2);
+  // the cape: two wings that flutter (see BossFight.animate), red inside, black outside
+  const cape = [];
+  for (const s of [-1, 1]) {
+    const w = grp(body, s * 0.55, 3.95, -0.45);
+    tf(mk(BOX(2.3, 3.9, 0.12), '#0a0a12', w, s * 1.05, -1.75, -0.06), 0, 0, s * 0.1);
+    tf(mk(BOX(2.2, 3.8, 0.06), '#8a0f22', w, s * 1.05, -1.75, 0.04), 0, 0, s * 0.1);
+    cape.push(w);
+  }
+  for (const s of [-1, 1]) tf(mk(CONE(0.62, 1.5, 3), '#8a0f22', body, s * 0.55, 4.6, -0.3), 0, 0, -s * 0.35, 1, 1, 0.3);
+  const head = grp(body, 0, 4.65, 0.1);
+  tf(mk(ICO(0.72, 1), skin, head, 0, 0, 0), 0, 0, 0, 0.9, 1.15, 0.9);
+  tf(mk(HEMI(0.74, 12, 5), '#111118', head, 0, 0.18, -0.04), 0, 0, 0, 0.95, 0.85, 0.95);
+  tf(mk(CONE(0.22, 0.42, 3), '#111118', head, 0, 0.5, 0.52), PI, 0, 0, 1, 1, 0.5); // the widow's peak
+  for (const s of [-1, 1]) {
+    tf(mk(CONE(0.14, 0.52, 4), skin, head, s * 0.66, 0.2, -0.05), 0, 0, -s * 1.1);
+    mk(SPH(0.11, 6, 5), '#ff2040', head, s * 0.24, 0.12, 0.58, { emissive: '#aa0010' });
+    tf(mk(BOX(0.32, 0.07, 0.06), '#111118', head, s * 0.24, 0.3, 0.6), 0, 0, s * 0.35);
+    mk(CONE(0.045, 0.16, 4), '#ffffff', head, s * 0.1, -0.44, 0.58).rotation.x = PI;
+  }
+  mk(BOX(0.4, 0.06, 0.05), '#3a0a14', head, 0, -0.34, 0.6);
+  const arms = [];
+  for (const s of [-1, 1]) {
+    const arm = grp(body, s * 1.0, 3.7, 0.05);
+    tf(mk(BOX(0.36, 1.7, 0.36), suit, arm, 0, -0.8, 0.1), -0.2, 0, s * 0.08);
+    for (let f = 0; f < 3; f++) tf(mk(CONE(0.05, 0.3, 4), skin, arm, s * 0.02 + (f - 1) * 0.08, -1.8, 0.35), PI - 0.3, 0, 0);
+    mk(SPH(0.16, 6, 5), skin, arm, 0, -1.65, 0.28);
+    arms.push(arm);
+  }
+  const stick = grp(arms[1], 0, -1.65, 0.3);
+  tf(mk(CYL(0.1, 0.12, 2.2, 8), '#e0a85a', stick, 0, 0.6, 0.1), 0.3, 0, 0);
+  for (let i = 0; i < 6; i++) mk(SPH(0.03, 4, 3), '#fff6d0', stick, (i % 2 ? 0.08 : -0.08), 0.1 + i * 0.3, 0.12 + i * 0.09);
+  return { root, body, arms, cape, head, hit: [{ o: new V3(0, 2.8, 0), r: 1.6 }, { o: new V3(0, 4.65, 0.1), r: 1.0 }], mouth: new V3(0, 4.3, 0.9) }; // (he floats: no walking)
+}
+// Stormy McStormface: an angry storm cloud with lightning for arms
+function buildStormy() {
+  const root = new THREE.Group(), body = grp(root);
+  for (const [x, y, z, r] of [[0, 1.7, 0, 2.2], [1.8, 1.4, 0.2, 1.6], [-1.8, 1.4, 0.1, 1.7], [0.9, 2.9, -0.2, 1.4], [-1.0, 2.8, 0, 1.5], [0, 1.1, 1.0, 1.5], [2.9, 1.0, -0.3, 1.1], [-3.0, 1.0, -0.2, 1.1], [0, 3.5, -0.5, 1.1]]) mk(ICO(r, 1), '#5a6178', body, x, y, z);
+  tf(mk(ICO(2.2, 1), '#3a4058', body, 0, 0.5, 0), 0, 0, 0, 1.7, 0.35, 1.1);
+  for (const s of [-1, 1]) {
+    mk(SPH(0.42, 8, 6), '#ffffff', body, s * 0.72, 2.0, 1.98);
+    mk(SPH(0.18, 6, 5), '#111111', body, s * 0.66, 1.94, 2.36);
+    tf(mk(BOX(0.8, 0.2, 0.2), '#2a2f40', body, s * 0.75, 2.55, 2.1), 0, 0, s * 0.45);
+    tf(mk(BOX(0.7, 0.16, 0.12), '#1a1a22', body, s * 0.34, 1.12, 2.42), 0, 0, -s * 0.35); // (a big frown)
+  }
+  const arms = [];
+  for (const s of [-1, 1]) {
+    const arm = grp(body, s * 3.1, 1.3, 0.4);
+    const zig = [[0, -0.5, 0.35, 0.5], [s * 0.35, -1.1, 0.25, -0.5], [s * 0.1, -1.7, 0.3, 0.5]];
+    for (const [x, y, w, rz] of zig) tf(mk(BOX(w, 0.8, 0.18), '#fff36b', arm, x, y, 0, { emissive: '#ffcc00' }), 0, 0, rz);
+    arms.push(arm);
+  }
+  const rain = [];
+  const rmat = M('#9fd0ff', { transparent: true, opacity: 0.7 });
+  const rng = U.seeded(7);
+  for (let i = 0; i < 16; i++) { const d = mk(BOX(0.06, 0.6, 0.06), rmat, body, (rng() - 0.5) * 5, -rng() * 3.5, (rng() - 0.5) * 2.4); d.castShadow = false; rain.push(d); }
+  return { root, body, arms, rain, hit: [{ o: new V3(0, 1.9, 0), r: 2.9 }], mouth: new V3(0, 1.2, 2.5) };
+}
+// CEO Chad Grindset: suit, sunglasses, headset, hoverboard. Has never slept.
+function buildChad() {
+  const root = new THREE.Group(), body = grp(root), suit = '#2a3a6a', skin = '#f0c29a';
+  const board = grp(root, 0, 0.35, 0);
+  mk(BOX(1.7, 0.2, 3.3), '#1a1a22', board, 0, 0, 0);
+  mk(BOX(1.72, 0.06, 3.32), '#3df0ff', board, 0, -0.1, 0, { emissive: '#0aa0c0' });
+  for (const z of [-1.1, 1.1]) mk(CYL(0.4, 0.5, 0.18, 12), '#3df0ff', board, 0, -0.2, z, { emissive: '#3df0ff' });
+  const legs = [];
+  for (const s of [-1, 1]) {
+    const leg = grp(body, s * 0.45, 2.15, 0);
+    mk(CYL(0.3, 0.26, 1.6, 8), suit, leg, 0, -0.85, 0);
+    mk(BOX(0.44, 0.22, 0.8), '#111111', leg, 0, -1.65, 0.12);
+    legs.push(leg);
+  }
+  mk(BOX(1.8, 1.9, 1.0), '#1a1a22', body, 0, 3.25, 0);
+  for (const s of [-1, 1]) {
+    mk(BOX(0.5, 1.95, 1.08), suit, body, s * 0.78, 3.25, 0);
+    tf(mk(BOX(0.25, 1.0, 0.08), '#22325a', body, s * 0.45, 3.7, 0.55), 0, 0, s * 0.25);
+    tf(mk(BOX(0.7, 0.4, 0.15), '#22222a', body, s * 0.32, 3.75, 0.5), 0, 0, 0); // (pecs. He wants you to notice)
+    mk(SPH(0.52, 8, 6), suit, body, s * 1.05, 4.05, 0);
+  }
+  const head = grp(body, 0, 4.85, 0.05);
+  mk(BOX(0.95, 1.0, 0.9), skin, head, 0, 0.05, 0);
+  mk(BOX(1.02, 0.4, 0.92), skin, head, 0, -0.42, 0.02);
+  mk(BOX(1.0, 0.32, 0.96), '#6b4a2b', head, 0, 0.62, -0.02);
+  tf(mk(BOX(0.8, 0.22, 0.5), '#6b4a2b', head, 0.1, 0.78, 0.2), -0.35, 0, -0.1);
+  mk(BOX(1.04, 0.22, 0.08), '#111111', head, 0, 0.14, 0.48);
+  mk(BOX(0.9, 0.04, 0.02), '#3df0ff', head, 0, 0.18, 0.53, { emissive: '#3df0ff' });
+  mk(BOX(0.5, 0.1, 0.05), '#ffffff', head, 0, -0.32, 0.47);
+  mk(new THREE.TorusGeometry(0.55, 0.05, 4, 16, PI), '#2a2a30', head, 0, 0.2, 0);
+  for (const s of [-1, 1]) tf(mk(CYL(0.15, 0.15, 0.12, 10), '#2a2a30', head, s * 0.52, 0.12, 0), 0, 0, PI / 2);
+  rod(head, new V3(-0.55, 0.05, 0.05), new V3(-0.25, -0.35, 0.55), 0.025, '#2a2a30');
+  mk(SPH(0.06, 6, 5), '#3df0ff', head, -0.22, -0.37, 0.58, { emissive: '#3df0ff' });
+  const arms = [];
+  for (const s of [-1, 1]) {
+    const arm = grp(body, s * 1.2, 4.0, 0);
+    tf(mk(BOX(0.46, 1.6, 0.46), suit, arm, s * 0.05, -0.75, 0.05), 0, 0, s * 0.1);
+    mk(SPH(0.2, 6, 5), skin, arm, s * 0.08, -1.62, 0.1);
+    arms.push(arm);
+  }
+  const phone = grp(arms[1], 0.08, -1.62, 0.3);
+  mk(BOX(0.34, 0.6, 0.06), '#111111', phone, 0, 0.2, 0);
+  mk(BOX(0.28, 0.5, 0.02), '#3df0ff', phone, 0, 0.2, 0.04, { emissive: '#1a8aa0' });
+  const cup = grp(arms[0], -0.08, -1.62, 0.3);
+  mk(CYL(0.16, 0.13, 0.46, 10), '#ffffff', cup, 0, 0.18, 0);
+  mk(CYL(0.17, 0.17, 0.08, 10), '#2a2a30', cup, 0, 0.44, 0);
+  mk(CYL(0.165, 0.15, 0.16, 10), '#8a5a2b', cup, 0, 0.16, 0);
+  return { root, body, arms, head, board, hit: [{ o: new V3(0, 3.2, 0), r: 1.7 }, { o: new V3(0, 4.85, 0.05), r: 0.95 }], mouth: new V3(0, 4.55, 0.9) }; // (he never walks anywhere)
+}
+// a ghost you can vacuum on Spookulon (it drifts around its graveyard; see PlanetWorld.moveGhost)
+function buildGhostNode() {
+  const g = new THREE.Group();
+  const mat = M('#eef3ff', { transparent: true, opacity: 0.8, emissive: '#6a7aa8', depthWrite: false });
+  const b = grp(g);
+  mk(SPH(0.42, 12, 8), mat, b, 0, 0.35, 0);
+  mk(CYL(0.42, 0.52, 0.55, 12), mat, b, 0, 0.02, 0);
+  for (let i = 0; i < 6; i++) { const a = (i / 6) * PI * 2 + 0.3; tf(mk(CONE(0.13, 0.26, 5), mat, b, Math.sin(a) * 0.42, -0.36, Math.cos(a) * 0.42), PI, 0, 0); }
+  for (const s of [-1, 1]) {
+    tf(mk(SPH(0.075, 6, 5), '#1a1a2a', b, s * 0.15, 0.42, 0.37), 0, 0, 0, 1, 1.5, 0.6);
+    tf(mk(SPH(0.15, 6, 5), mat, b, s * 0.5, 0.1, 0.05), 0, 0, -s * 0.7, 1, 0.55, 0.55);
+  }
+  tf(mk(SPH(0.09, 6, 5), '#1a1a2a', b, 0, 0.2, 0.4), 0, 0, 0, 1.1, 1.4, 0.5);
+  g.traverse((o) => { if (o.isMesh) o.castShadow = false; });
+  g.userData.body = b;
+  return g;
+}
+function buildCityTree(rng) {
+  const g = new THREE.Group();
+  mk(BOX(1.4, 0.6, 1.4), '#6d7480', g, 0, 0.3, 0);
+  mk(BOX(1.2, 0.05, 1.2), '#3a2a1a', g, 0, 0.61, 0);
+  mk(CYL(0.1, 0.14, 2, 6), '#5a3a2a', g, 0, 1.6, 0);
+  for (let i = 0; i < 4; i++) mk(ICO(0.55 + rng() * 0.3, 1), ['#3fcf6a', '#2fae5a'][i % 2], g, (rng() - 0.5) * 0.9, 2.7 + rng() * 0.6, (rng() - 0.5) * 0.9);
+  return g;
+}
+function buildDumpster() {
+  const g = new THREE.Group();
+  mk(BOX(2.4, 1.2, 1.4), '#2f6a4a', g, 0, 0.7, 0);
+  tf(mk(BOX(2.45, 0.08, 0.8), '#1f4a34', g, 0, 1.38, 0.3), -0.3, 0, 0);
+  mk(BOX(2.45, 0.08, 0.7), '#1f4a34', g, 0, 1.32, -0.35);
+  for (const s of [-1, 1]) mk(CYL(0.12, 0.12, 0.1, 8), '#1a1a1a', g, s * 1.0, 0.1, 0.5).rotation.z = PI / 2;
+  mk(BOX(0.4, 0.3, 0.3), '#c9a36b', g, 0.5, 1.5, 0.1);
   return g;
 }

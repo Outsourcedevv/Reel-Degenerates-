@@ -10,7 +10,7 @@ const UI = {
   init() {
     ['hud', 'bucks', 'pizza', 'goal', 'ammo', 'cargo', 'nades', 'roomcode', 'planetname', 'crosshair', 'prompt', 'hint', 'actbar',
       'bossbar', 'phud', 'feed', 'chat', 'chatinput', 'toasts', 'subtitle', 'bigtitle', 'pickups', 'hurt', 'plist',
-      'spectate', 'deathscreen', 'panel', 'panel-inner', 'flyhud'].forEach((id) => (this.el[id] = U.$(id)));
+      'spectate', 'deathscreen', 'panel', 'panel-inner', 'flyhud', 'gig', 'fuel'].forEach((id) => (this.el[id] = U.$(id)));
     this.el['panel-inner'].addEventListener('click', (e) => {
       const b = e.target.closest('[data-act]');
       if (!b || b.disabled) return;
@@ -151,8 +151,25 @@ const UI = {
     // the beam shows how much charge is left; everything else counts shots (or cutters in hand)
     a.querySelector('.n').innerHTML = z.type === 'beam' ? `${rel ? 0 : Math.round((p.ammo / mag) * 100)}<small>%</small>` : `${rel ? 0 : p.ammo}<small>/${mag}</small>`;
     a.querySelector('.fill').style.width = ((rel ? 1 - p.reloadT / p.reloadDur : p.ammo / mag) * 100).toFixed(1) + '%';
-    const what = { spread: 'SHELLS', lob: 'GOO', beam: 'FREEZE CHARGE', cutter: 'CUTTERS · THEY COME BACK' }[z.type] || 'BATTERY';
+    const what = { spread: 'SHELLS', lob: 'GOO', beam: 'FREEZE CHARGE', cutter: 'CUTTERS · THEY COME BACK', homing: 'WISPS', chain: 'CHARGE', rocket: 'PARCELS' }[z.type] || 'BATTERY';
     a.querySelector('.lbl').textContent = rel ? p.reloadMsg + '...' : low ? 'PRESS R TO RELOAD' : z.type === 'cutter' ? what : what + ' · ∞ SPARES';
+  },
+
+  // Gigopolis: the delivery you're on (name null: none)
+  gig(name, dist, t, dur) {
+    const el = this.el.gig;
+    if (!name) { if (!el.classList.contains('hidden')) el.classList.add('hidden'); return; }
+    el.classList.remove('hidden');
+    const secs = Math.max(0, Math.ceil(t));
+    this.setHtml(el.querySelector('.t'), `<small>DELIVER TO</small><b>${U.esc(name)}</b><span>${dist} m · ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}</span>`);
+    el.querySelector('.fill').style.width = (U.clamp(t / dur, 0, 1) * 100).toFixed(1) + '%';
+    el.classList.toggle('late', t < 6);
+  },
+  // the Jet Pack's fuel gauge (only while it isn't full)
+  fuel(frac, show) {
+    const el = this.el.fuel;
+    if (el.classList.contains('hidden') === show) el.classList.toggle('hidden', !show);
+    if (show) { el.querySelector('.fill').style.width = (U.clamp(frac, 0, 1) * 100).toFixed(1) + '%'; el.classList.toggle('empty', frac <= 0.01); }
   },
 
   /* ----- panels ----- */
@@ -264,10 +281,11 @@ const UI = {
       <div><h4>Moving</h4>
         <p><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move · <kbd>Shift</kbd> sprint</p>
         <p><kbd>Space</kbd> jump (double jump with Bounce Boots)</p>
+        <p>Gear from the shops: <kbd>Q</kbd> dash (Getaway Sneakers) · <kbd>C</kbd> in the air: ground pound (Yeti Stompers) · hold <kbd>Space</kbd> in the air: glide (Glider Cape) or fly (Jet Pack)</p>
         <p><kbd>E</kbd> talk / use · <kbd>I</kbd> backpack &amp; crew · <kbd>Esc</kbd> pause</p></div>
       <div><h4>Tools</h4>
         <p><kbd>1</kbd> Gun: click to shoot, <kbd>R</kbd> reload (buy your first one at Robo-Pawn). Every planet sells a different kind: a shotgun, a goo lobber, a lucky blaster, a freeze beam, pizza cutters...</p>
-        <p><kbd>2</kbd> Grabby Vac: hold click on glowing junk</p>
+        <p><kbd>2</kbd> Grabby Vac: hold click on glowing junk (and on ghosts: keep them in your sights)</p>
         <p><kbd>3</kbd> Laser Drill: hold click on crystals (buy on Frostbyte)</p>
         <p><kbd>4</kbd> Pizza Peel: catch pepperoni meteors (buy on Zorblax Prime)</p>
         <p><kbd>Right-click</kbd> throw Goo Grenade (boss fights)</p></div>
@@ -377,6 +395,9 @@ function showEnding() {
       ${cr('Royal Goo Consultant', 'Queen Blorbina')}
       ${cr('Casino Compliance', 'Jackpot Jerry (Under Investigation)')}
       ${cr('Dad Jokes', 'The Abominable Snowdad')}
+      ${cr('Night Shift Catering', 'Count Carbula (Still Hungry)')}
+      ${cr('Weather', 'Stormy McStormface (Blown Over)')}
+      ${cr('Human Resources', 'CEO Chad Grindset (Let Go)')}
       ${cr('Management', 'Dave (Still Your Manager)')}
       ${cr('Pizza', 'Cold')}
       <h2>THE END?</h2>

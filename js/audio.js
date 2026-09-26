@@ -138,6 +138,21 @@ const Sound = {
       case 'grenade': N(0.6, { freq: 900, slide: 100, vol: 0.35 }); T(120, 0.4, { slide: 40, vol: 0.2 }); T(600, 0.2, { slide: 1500, vol: 0.06, type: 'triangle' }); break;
       case 'slide': N(0.2, { ftype: 'highpass', freq: 4000, vol: 0.04 }); break;
       case 'dad': T(220, 0.15, { type: 'triangle', vol: 0.1 }); T(196, 0.25, { type: 'triangle', vol: 0.1, delay: 0.16 }); break;
+      // the newer planets and gear
+      case 'dash': N(0.18, { ftype: 'bandpass', freq: 1800, slide: 500, vol: 0.2, q: 1.2 }); T(500, 0.12, { type: 'triangle', slide: 900, vol: 0.05 }); break;
+      case 'stomp': N(0.5, { freq: 600, slide: 70, vol: 0.4 }); T(80, 0.4, { slide: 35, vol: 0.3 }); T(160, 0.15, { type: 'square', slide: 60, vol: 0.06 }); break;
+      case 'spring': T(260, 0.22, { type: 'triangle', slide: 900, vol: 0.12, vib: 18 }); T(420, 0.12, { type: 'square', slide: 1200, vol: 0.03, delay: 0.03 }); break;
+      case 'jet': N(0.16, { freq: 900 + Math.random() * 300, vol: 0.09 }); break;
+      case 'glide': N(0.6, { ftype: 'bandpass', freq: 700, slide: 400, vol: 0.05, q: 0.7, attack: 0.2 }); break;
+      case 'vent': N(0.9, { ftype: 'bandpass', freq: 500, slide: 1600, vol: 0.14, q: 0.8, attack: 0.15 }); break;
+      case 'wisp': T(900 + Math.random() * 200, 0.12, { type: 'sine', slide: 1500, vol: 0.05, vib: 20 }); break;
+      case 'thunder': N(0.7, { freq: 2400, slide: 120, vol: 0.32 }); T(60, 0.6, { type: 'sawtooth', slide: 30, vol: 0.12, filter: 400 }); break;
+      case 'rocket': N(0.3, { freq: 1200, slide: 300, vol: 0.2 }); T(140, 0.2, { type: 'sawtooth', slide: 70, vol: 0.08, filter: 800 }); break;
+      case 'explode': N(0.8, { freq: 900, slide: 60, vol: 0.42 }); T(65, 0.5, { slide: 28, vol: 0.3 }); break;
+      case 'ghost': T(700, 0.5, { type: 'sine', slide: 250, vol: 0.1, vib: 7 }); T(1050, 0.35, { type: 'sine', slide: 500, vol: 0.05, vib: 9, delay: 0.08 }); N(0.3, { ftype: 'bandpass', freq: 2000, vol: 0.06 }); break;
+      case 'boo': T(220, 0.5, { type: 'sawtooth', slide: 150, vol: 0.14, filter: 1200, vib: 6 }); T(330, 0.45, { type: 'triangle', slide: 200, vol: 0.08, vib: 5 }); break;
+      case 'ding': T(1319, 0.3, { type: 'sine', vol: 0.12 }); T(1760, 0.4, { type: 'sine', vol: 0.1, delay: 0.12 }); break;
+      case 'laugh': [0, 1, 2, 3].forEach((i) => T(260 - i * 18, 0.13, { type: 'sawtooth', vol: 0.1, filter: 1400, vib: 12, delay: i * 0.16 })); break;
       case 'rimshot': T(180, 0.08, { vol: 0.15 }); N(0.08, { ftype: 'highpass', freq: 1800, vol: 0.12, delay: 0.12 }); N(0.5, { ftype: 'highpass', freq: 6000, vol: 0.08, delay: 0.3 }); break;
     }
   },
@@ -244,6 +259,9 @@ const TRACKS = {
   // inside the Luckstar Casino: smooth, slow and suspiciously relaxing
   lounge: { bpm: 92, chords: [[62, 65, 69, 72, 76], [55, 59, 65, 69, 76], [60, 64, 67, 71, 74], [57, 61, 64, 67, 70]], pat: [0, 2, 4, 3, 1, 2], drums: 'swing', walk: true, wave: 'sine', len: 0.34, sparkle: 0.45, vol: 0.9 },
   frost: { bpm: 88,  chords: [[64, 67, 71], [60, 64, 67], [62, 66, 69], [59, 62, 66]], pat: [0, 1, 2, 3, 2, 1], every: 2, drums: 'soft', wave: 'sine', len: 0.5, sparkle: 0.6, oct: 1 },
+  spook: { bpm: 84,  chords: [[57, 60, 64], [53, 56, 60], [55, 58, 62], [52, 56, 59]], pat: [0, 1, 2, 1, 0, 2], drums: 'soft', wave: 'sine', len: 0.4, sparkle: 0.35, walk: true, vol: 0.95 },
+  cloud: { bpm: 100, chords: [[65, 69, 72, 76], [62, 65, 69, 72], [67, 71, 74, 77], [64, 67, 71, 74]], pat: [0, 1, 2, 3, 2, 1], drums: 'soft', wave: 'sine', len: 0.4, sparkle: 0.6, oct: 1 },
+  city:  { bpm: 112, chords: [[57, 60, 64, 67], [62, 65, 69, 72], [55, 59, 62, 65], [60, 64, 67, 71]], pat: [0, 2, 1, 3, 2, 1], drums: 'swing', walk: true, wave: 'square', bright: 1600, sparkle: 0.2 },
   zorb:  { bpm: 96,  chords: [[57, 60, 64], [58, 62, 65], [57, 60, 64], [56, 59, 64]], pat: [0, 1, 2, 1], drums: 'soft', wave: 'sawtooth', bright: 900, bass: 'sawtooth' },
   space: { bpm: 124, chords: [[57, 60, 64, 67], [53, 57, 60, 64], [55, 59, 62, 66], [52, 55, 59, 62]], pat: [0, 1, 2, 3, 2, 1], drums: 'hard', drive: true, wave: 'triangle', bright: 2200, sparkle: 0.4, vol: 0.8 },
   boss:  { bpm: 150, chords: [[57, 60, 64], [53, 57, 60], [55, 59, 62], [52, 56, 59]], pat: [0, 2, 1, 2], drums: 'hard', drive: true, bass: 'sawtooth', wave: 'square', bright: 1800, stabs: [0, 3, 6, 10, 12], vol: 0.9 },

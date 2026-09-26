@@ -35,6 +35,11 @@ const Input = {
 };
 
 const TOOLS = ['zap', 'vac', 'drill', 'peel'];
+// movement gear (see LocalPlayer.update): Getaway Sneakers, Jet Pack, Glider Cape, Yeti Stompers
+const DASH = { speed: 22, time: 0.18, cd: 1.1 };
+const JET = { fuel: 2.2, up: 7, acc: 24, refuel: 0.6, hold: 0.22 }; // (seconds of fuel; hold Space this long before it kicks in)
+const CAPE_FALL = 2.2; // how fast you fall while gliding
+const STOMP = { speed: 32, r: 4.5, dmg: 80 };
 const RESPAWN_HOLD = 1.2; // seconds of holding left click to get back up after dying
 // tools you have to buy first (only the Grabby Vac is free)
 const hasTool = (t) => (t !== 'zap' || SAVE.zap >= 0) && (t !== 'drill' || SAVE.drill) && (t !== 'peel' || SAVE.peel);
@@ -52,6 +57,9 @@ class LocalPlayer {
     this.slideSnd = 0; this.swing = 0;
     this.ammo = 0; this.reloadT = 0; this.reloadDur = 1; this.reloadMsg = '';
     this.yawLog = []; this.airH = 0; this.shakeT = 0; // for style kills and the camera shake
+    this.dashT = 0; this.dashCd = 0; this.dashDir = new V3(); this.airDash = false; this.stomping = false;
+    this.fuel = JET.fuel; this.spaceHold = 0; this.jetting = false; this.gliding = false;
+    this.launchT = 0; this.padCd = 0; this.inVent = false; this.booT = 0; this.aimLost = 0;
     this.vm = new THREE.Group();
     G.camera.add(this.vm);
     this.vmDrill = buildDrillVM();
@@ -113,6 +121,7 @@ class LocalPlayer {
     UI.hud();
   }
   releaseTargets() {
+    if (this.vacTarget) { this.vacTarget.grab = false; this.vacTarget.home = null; this.vacTarget.st = 0; } // (a ghost goes back to drifting)
     if (this.vacTarget && !this.vacTarget.taken) { this.vacTarget.mesh.scale.setScalar(1); this.vacTarget.mesh.position.set(this.vacTarget.x, this.vacTarget.y, this.vacTarget.z); }
     this.vacTarget = null; this.vacT = 0;
     if (this.drillTarget && !this.drillTarget.taken) this.drillTarget.mesh.position.set(this.drillTarget.x, this.drillTarget.y, this.drillTarget.z);
@@ -121,6 +130,7 @@ class LocalPlayer {
   }
   teleport(p, yaw) {
     this.pos.copy(p); this.vel.set(0, 0, 0);
+    this.stomping = false; this.dashT = 0; this.launchT = 0;
     if (yaw != null) this.yaw = yaw;
     this.pitch = -0.05;
     this.onGround = false;
@@ -163,24 +173,59 @@ class LocalPlayer {
       if (Input.keys.KeyD) mx += 1;
     }
     const sprint = Input.keys.ShiftLeft || Input.keys.ShiftRight;
-    const speed = (sprint ? 8.6 : 5.6) * (this.ghost ? 1.3 : 1);
+    const speed = (sprint ? 8.6 * (SAVE.skates ? 1.35 : 1) : 5.6) * (this.ghost ? 1.3 : 1); // (Duct-Tape Skates: faster sprinting)
     const sy = Math.sin(this.yaw), cy = Math.cos(this.yaw);
     let tx = (-sy * mz + cy * mx), tz = (-cy * mz - sy * mx);
     const len = Math.hypot(tx, tz);
     if (len > 0) { tx = (tx / len) * speed; tz = (tz / len) * speed; }
-    const fric = this.onGround ? (cfg.fric < 5 && SAVE.socks ? 10 : cfg.fric) : 2.5;
+    // (in the air you steer less, and hardly at all right after a jump pad or a rocket sends you flying)
+    const fric = this.onGround ? (cfg.fric < 5 && SAVE.socks ? 10 : cfg.fric) : this.launchT > 0 ? 0.5 : 2.5;
     this.vel.x = U.damp(this.vel.x, tx, fric, dt);
     this.vel.z = U.damp(this.vel.z, tz, fric, dt);
     if (this.onGround && cfg.fric < 5 && !SAVE.socks && Math.hypot(this.vel.x, this.vel.z) > 3 && len === 0) {
       this.slideSnd -= dt;
       if (this.slideSnd <= 0) { Sound.play('slide'); this.slideSnd = 0.35; }
     }
-    // --- jumping (double jump with Bounce Boots)
+    // --- Getaway Sneakers: Q dashes the way you're going (once per jump in the air)
+    this.dashCd -= dt; this.launchT -= dt; this.padCd -= dt;
+    if (canAct && !frozen && SAVE.dash && Input.tap('KeyQ') && this.dashCd <= 0 && !this.stomping && (this.onGround || !this.airDash)) this.startDash(tx, tz);
+    if (this.dashT > 0) {
+      this.dashT -= dt;
+      const k = this.dashT > 0 ? 1 : 0.45; // (then ease off, so it's a quick burst and not a long slide)
+      this.vel.x = this.dashDir.x * DASH.speed * k; this.vel.z = this.dashDir.z * DASH.speed * k;
+      if (this.vel.y < 0) this.vel.y = 0;
+    }
+    // --- jumping (way higher with Spring-Heeled Jacks, double jump with Bounce Boots)
+    const sprung = SAVE.springs;
     if (canAct && !frozen && Input.tap('Space')) {
-      if (this.onGround) { this.vel.y = 7.4; this.onGround = false; this.jumps = 1; Sound.play('jump'); }
-      else if (SAVE.boots && this.jumps < 2) { this.vel.y = 7.0; this.jumps = 2; Sound.play('boing'); FX.burst(this.pos, '#ff9ad5', 8, 3); }
+      if (this.onGround) { this.vel.y = sprung ? 10.2 : 7.4; this.onGround = false; this.jumps = 1; Sound.play(sprung ? 'spring' : 'jump'); }
+      else if (SAVE.boots && this.jumps < 2 && !this.stomping) { this.vel.y = sprung ? 9.2 : 7.0; this.jumps = 2; Sound.play('boing'); FX.burst(this.pos, '#ff9ad5', 8, 3); }
+    }
+    // --- Yeti Stompers: C in the air slams you into the ground
+    if (canAct && !frozen && SAVE.stomp && Input.tap('KeyC') && !this.onGround && this.airH > 1.2 && !this.stomping) {
+      this.stomping = true; this.dashT = 0;
+      this.vel.set(this.vel.x * 0.2, -STOMP.speed, this.vel.z * 0.2);
+      Sound.play('dash');
     }
     this.vel.y -= cfg.grav * dt;
+    // --- hold Space in the air: fly with the Jet Pack (while it has fuel), or glide with the Glider Cape
+    const hold = canAct && !frozen && !!Input.keys.Space;
+    this.spaceHold = hold ? this.spaceHold + dt : 0;
+    this.jetting = this.gliding = false;
+    if (!this.onGround && hold && !this.stomping && !this.ghost) {
+      if (SAVE.jetpack && this.spaceHold > JET.hold && this.fuel > 0) {
+        this.jetting = true;
+        this.fuel = Math.max(0, this.fuel - dt);
+        this.vel.y = Math.min(JET.up, this.vel.y + (cfg.grav + JET.acc) * dt);
+      } else if (SAVE.cape && this.vel.y < -CAPE_FALL) {
+        this.gliding = true;
+        this.vel.y = U.damp(this.vel.y, -CAPE_FALL, 12, dt);
+      }
+    }
+    if (this.onGround) this.fuel = Math.min(JET.fuel, this.fuel + dt * JET.refuel);
+    this.gearFx(dt);
+    // --- updrafts (Nimbus-9) and jump pads (Gigopolis)
+    if (w.vents && w.vents.length) this.useVents(w, cfg);
     // --- integrate horizontal with collisions
     const nx = this.pos.x + this.vel.x * dt, nz = this.pos.z + this.vel.z * dt;
     if (!w.blocked(nx, nz, this.pos.y)) { this.pos.x = nx; this.pos.z = nz; }
@@ -195,12 +240,13 @@ class LocalPlayer {
     if (this.pos.y <= gnd) {
       if (!this.onGround && this.vel.y < -12) FX.burst(this.pos, '#ffffff', 5, 2);
       if (!this.onGround && this.vel.y < -5) this.landK = Math.min(1, -this.vel.y / 16);
+      if (this.stomping) this.stompLand();
       this.pos.y = gnd; this.vel.y = Math.max(0, this.vel.y);
-      this.onGround = true; this.jumps = 0;
+      this.onGround = true; this.jumps = 0; this.airDash = false; this.launchT = 0;
     } else if (this.pos.y > gnd + 0.08) this.onGround = false;
     if (this.pos.y < -4 && G.mode === 'planet') {
       this.teleport(G.world.spawn, G.world.spawnYaw);
-      UI.toast(`You fell in the ${cfg.liquid.name}. Gross.`, 'bad');
+      UI.toast(cfg.islands ? U.pick(LINES.fellClouds) : `You fell in the ${cfg.liquid.name}. Gross.`, 'bad', 3);
     }
     // --- timers
     this.cd -= dt; this.nadeCd -= dt; this.inv -= dt;
@@ -241,6 +287,75 @@ class LocalPlayer {
     // --- camera
     this.updateCamera(dt, hs);
     UI.ammo(this);
+  }
+
+  /* ----- movement gear ----- */
+  // Getaway Sneakers: a quick burst the way you're heading (or the way you're looking, standing still)
+  startDash(tx, tz) {
+    const d = new V3(tx, 0, tz);
+    if (d.lengthSq() < 0.01) { this.camDir(d); d.y = 0; }
+    if (d.lengthSq() < 1e-4) return;
+    this.dashDir.copy(d.normalize());
+    this.dashT = DASH.time; this.dashCd = DASH.cd;
+    if (!this.onGround) this.airDash = true;
+    this.inv = Math.max(this.inv, 0.2); // (dash through a shockwave and it misses you)
+    Sound.play('dash');
+    FX.burst(this.pos.clone().setY(this.pos.y + 0.6), '#7dfff0', 8, 3);
+  }
+  // Yeti Stompers: you hit the ground. So does everything around you.
+  stompLand() {
+    this.stomping = false;
+    const p = this.pos.clone().setY(this.pos.y + 0.1);
+    FX.ring(p, '#ffffff', STOMP.r); FX.ring(p, '#9fe3ff', STOMP.r * 0.6); FX.burst(p, '#e8f0f8', 16, 6);
+    G.shake = Math.max(G.shake, 0.7);
+    this.landK = 1;
+    Sound.play('stomp');
+    if (G.mode === 'boss' && G.boss) G.boss.explosion(p, STOMP.r, STOMP.dmg);
+    else if (G.mode === 'planet') Shots.blast(p, STOMP.r, STOMP.dmg, this.shotFlags(false), 'shock');
+    Net.relay({ t: 'shoot', k: 'stomp', o: v3r(p) }); // (friends see the shockwave)
+  }
+  // updrafts carry you up while you're in them; jump pads throw you up onto the roof next to them
+  useVents(w, cfg) {
+    let inVent = false;
+    for (const v of w.vents) {
+      const dx = this.pos.x - v.x, dz = this.pos.z - v.z;
+      if (dx * dx + dz * dz > v.r * v.r) continue;
+      if (v.pad) {
+        if (!this.onGround || this.padCd > 0 || this.pos.y > v.y0 + 0.6) continue;
+        this.vel.y = Math.sqrt(2 * cfg.grav * Math.max(1, v.top - this.pos.y));
+        this.vel.x = v.dx * 4.5; this.vel.z = v.dz * 4.5;
+        this.onGround = false; this.launchT = 1.6; this.padCd = 0.6; this.stomping = false; this.dashT = 0;
+        Sound.play('boing');
+        FX.burst(this.pos.clone().setY(this.pos.y + 0.3), '#3df0ff', 12, 5);
+        FX.ring(this.pos.clone().setY(this.pos.y + 0.15), '#3df0ff', 1.5);
+      } else if (this.pos.y > v.y0 - 0.8 && this.pos.y < v.top) {
+        const k = U.clamp((this.pos.y - v.y0) / (v.top - v.y0), 0, 1);
+        this.vel.y = Math.max(this.vel.y, U.lerp(15, 4, k)); // (strong at the bottom, gentle at the top: you bob there)
+        this.onGround = false; this.stomping = false; inVent = true;
+      }
+    }
+    if (inVent && !this.inVent) Sound.play('vent');
+    this.inVent = inVent;
+  }
+  // a rocket went off near me: get thrown (that's a rocket jump)
+  blastPush(pos, r) {
+    if (this.dead || this.ghost) return;
+    const c = this.pos.clone(); c.y += 0.9;
+    const d = c.distanceTo(pos);
+    if (d > r + 0.8) return;
+    const k = 1 - d / (r + 0.8), dir = c.sub(pos).normalize();
+    this.vel.addScaledVector(dir, 15 * k);
+    this.vel.y += 9 * k;
+    this.onGround = false; this.launchT = 1.0; this.stomping = false;
+  }
+  // jet flames, the whoosh of the cape, and the fuel gauge
+  gearFx(dt) {
+    this.gearSnd = (this.gearSnd || 0) - dt;
+    if (this.jetting) {
+      if (this.gearSnd <= 0) { this.gearSnd = 0.11; Sound.play('jet'); }
+      if (Math.random() < 0.7) FX.burst(this.pos.clone().setY(this.pos.y + 0.3), U.pick(['#ffb23e', '#ff6a1f', '#fff36b']), 1, 2);
+    } else if (this.gliding && this.gearSnd <= 0) { this.gearSnd = 0.5; Sound.play('glide'); }
+    UI.fuel(this.fuel / JET.fuel, SAVE.jetpack && !this.dead && (G.mode === 'planet' || G.mode === 'boss') && (this.jetting || this.fuel < JET.fuel - 0.01));
   }
 
   // critter bites (and friendly fire) on a planet; boss fights have their own damage rules.
@@ -416,21 +531,24 @@ class LocalPlayer {
       const tier = VAC[SAVE.vacLvl];
       if (!this.vacTarget || this.vacTarget.taken) {
         this.vacT = 0;
-        this.vacTarget = this.findNode(w, ['scrap'], tier.range, 0.88);
-        if (!this.vacTarget && Input.clickL) UI.toast(G.mode === 'planet' && PLANETS[G.planet].activity === 'scrap' ? 'Point at a glowing junk pile!' : 'Nothing to vacuum here...', '', 1.4);
+        this.vacTarget = this.findNode(w, ['scrap', 'ghost'], tier.range, 0.88);
+        if (this.vacTarget) { this.vacTarget.grab = true; this.booT = U.rand(0.6, 1.2); this.aimLost = 0; }
+        const act = G.mode === 'planet' ? PLANETS[G.planet].activity : '';
+        if (!this.vacTarget && Input.clickL) UI.toast(act === 'scrap' ? 'Point at a glowing junk pile!' : act === 'ghost' ? 'Point at a ghost! (Get closer.)' : 'Nothing to vacuum here...', '', 1.4);
       }
       const n = this.vacTarget;
       if (!n) return;
       const d = Math.hypot(n.x - this.pos.x, n.z - this.pos.z);
       if (d > tier.range + 1.5) { this.releaseTargets(); return; }
       if (SAVE.cargo.length >= CARGO[SAVE.cargoLvl]) { UI.toast(U.pick(LINES.cargoFull), 'bad', 1.6); this.releaseTargets(); Input.mouseL = false; return; }
-      this.vacT += dt * tier.speed;
+      if (n.kind === 'ghost') { if (this.suckGhost(n, tier, dt)) return; }
+      else this.vacT += dt * tier.speed;
       const k = U.clamp(this.vacT / 0.8, 0, 1);
       const muzzle = this.vmVac.userData.muzzle.getWorldPosition(new V3());
       n.mesh.position.set(U.lerp(n.x, muzzle.x, k * k), U.lerp(n.y, muzzle.y, k * k) + Math.sin(k * 3) * 0.6, U.lerp(n.z, muzzle.z, k * k));
       n.mesh.scale.setScalar(1 - k * 0.8);
       n.mesh.rotation.y += dt * 12;
-      UI.action(k, 'VACUUMING...');
+      UI.action(k, n.kind === 'ghost' ? (this.aimLost > 0 ? 'KEEP IT IN YOUR SIGHTS!' : 'SUCKING UP A GHOST...') : 'VACUUMING...');
       if (k >= 1) { Activities.collect(n); this.vacTarget = null; this.vacT = 0; UI.action(null); }
       return;
     }
@@ -454,6 +572,32 @@ class LocalPlayer {
       UI.action(this.drillT / 1.8, 'DRILLING...');
       if (this.drillT >= 1.8) { Activities.collect(n); this.drillTarget = null; this.drillT = 0; UI.action(null); }
     }
+  }
+  // a ghost doesn't come quietly: it dodges about (keep it in your sights or you lose it) and now
+  // and then it BOOs you. Returns true if it got away.
+  suckGhost(n, tier, dt) {
+    n.st = (n.st || 0) + dt;
+    if (!n.home) n.home = new V3(n.x, n.y, n.z);
+    n.x = n.home.x + Math.sin(n.st * 2.3) * 1.4;
+    n.z = n.home.z + Math.cos(n.st * 1.7) * 1.4;
+    n.y = n.home.y + Math.sin(n.st * 3.1) * 0.5;
+    const cp = G.camera.position, to = new V3(n.x - cp.x, n.y + 0.4 - cp.y, n.z - cp.z);
+    const onIt = to.dot(this.camDir(new V3())) / (to.length() || 1) > 0.93;
+    this.vacT = Math.max(0, this.vacT + dt * tier.speed * (onIt ? 0.45 : -0.6));
+    this.aimLost = onIt ? 0 : this.aimLost + dt;
+    if (this.aimLost > 1.2 && this.vacT <= 0) { UI.toast('It got away! Keep the ghost in your sights.', 'bad', 1.8); this.releaseTargets(); return true; }
+    this.booT -= dt;
+    if (this.booT <= 0) {
+      this.booT = U.rand(1.3, 2.2);
+      if (Math.random() < 0.45) {
+        FX.text(new V3(n.x, n.y + 1.3, n.z), U.pick(LINES.boo), '#ffffff', 60);
+        Sound.play('boo');
+        G.shake = Math.max(G.shake, 0.5);
+        this.vacT = Math.max(0, this.vacT - 0.25);
+        this.hurtPlanet(5, n.x, n.z, 'A ghost');
+      }
+    }
+    return false;
   }
   findNode(w, kinds, range, minDot) {
     const cp = G.camera.position, dir = this.camDir(new V3());
@@ -494,6 +638,15 @@ class LocalPlayer {
     } else if (z.type === 'lob') { // a ball of goo on an arc
       Shots.fire('goo', o, d, true, { dmg: z.dmg, radius: z.radius, flags });
       Sound.play('lob'); this.recoil = 0.12;
+    } else if (z.type === 'homing') { // ghost wisps that chase whatever is nearest your crosshair
+      Shots.fire('wisp', o, d, true, { dmg: z.dmg, speed: z.speed, turn: z.turn, color: z.color, flags, target: Shots.seek(G.camera.position, this.camDir(new V3())) });
+      Sound.play('wisp'); this.recoil = 0.05;
+    } else if (z.type === 'chain') { // lightning that jumps from one target to the next
+      net.pts = this.chainZap(z, o, flags).map(v3r);
+      Sound.play('thunder'); this.recoil = 0.14; G.shake = Math.max(G.shake, 0.12);
+    } else if (z.type === 'rocket') { // an express parcel that explodes on delivery
+      Shots.fire('rocket', o, d, true, { dmg: z.dmg, radius: z.radius, flags });
+      Sound.play('rocket'); this.recoil = 0.22; G.shake = Math.max(G.shake, 0.15);
     } else if (z.type === 'jackpot') { // every shot is a slot pull
       const roll = U.weighted(JACKPOT_ROLLS.map((r) => [r, r.w]));
       net.r = roll.k; color = roll.color;
@@ -528,7 +681,7 @@ class LocalPlayer {
     for (let d = 0.6; d <= z.range; d += 0.6) {
       b.copy(cam).addScaledVector(dir, d);
       hit = Shots.test(a, b, null);
-      if (hit || (w && b.y <= w.surfaceAt(b.x, b.z))) { end.copy(b); break; }
+      if (hit || (w && (b.y <= w.surfaceAt(b.x, b.z) || (w.solidAt && w.solidAt(b))))) { end.copy(b); break; }
       a.copy(b);
     }
     this.beamN = (this.beamN || 0) + 1;
@@ -538,6 +691,37 @@ class LocalPlayer {
     Net.relay({ t: 'shoot', k: 'beam', o: v3r(o), e: v3r(end), c: z.color });
     Sound.play('beam');
     if (Math.random() < 0.6) FX.burst(end, '#bff6ff', 1, 2);
+  }
+  // Storm Caller: a bolt of lightning down the crosshair, then it jumps to whatever's close (weaker each jump)
+  chainZap(z, o, flags) {
+    const cam = G.camera.position, dir = this.camDir(new V3()), w = this.world();
+    const a = cam.clone(), b = new V3(), end = cam.clone().addScaledVector(dir, z.range);
+    let hit = null;
+    for (let d = 0.8; d <= z.range; d += 0.8) {
+      b.copy(cam).addScaledVector(dir, d);
+      hit = Shots.test(a, b, null);
+      if (hit || (w && (b.y <= w.surfaceAt(b.x, b.z) || (w.solidAt && w.solidAt(b))))) { end.copy(b); break; }
+      a.copy(b);
+    }
+    const pts = [o.clone(), end.clone()];
+    if (hit) {
+      Shots.land({ flags, vel: dir, color: z.color }, hit, end.clone(), z.dmg, 'shock');
+      if (hit.k !== 'friend') {
+        const done = new Set([hit.key]);
+        let from = end.clone(), dmg = z.dmg;
+        for (let j = 0; j < z.jumps; j++) {
+          const nx = Shots.nearest(from, z.hop, done);
+          if (!nx) break;
+          dmg = Math.round(dmg * z.falloff);
+          Shots.land({ flags, vel: nx.pos.clone().sub(from), color: z.color }, nx.t, nx.pos.clone(), dmg, 'shock');
+          done.add(nx.t.key);
+          pts.push(nx.pos.clone());
+          from = nx.pos;
+        }
+      }
+    }
+    Shots.lightning(pts, z.color);
+    return pts;
   }
   // Pizza Cutter: throw one. It flies out, slices everything in a line, and comes back to you.
   throwCutter(z) {
@@ -558,7 +742,7 @@ class LocalPlayer {
   // (the beam is drawn from the gun to wherever it hit, while you're holding it)
   updateBeam(dt) {
     this.beamT = (this.beamT || 0) - dt;
-    const on = this.beamT > 0 && this.tool === 'zap' && !this.dead && !this.ghost;
+    const on = this.beamT > 0 && !!this.beamEnd && this.tool === 'zap' && !this.dead && !this.ghost;
     if (!this.beam) {
       if (!on) return;
       this.beam = new THREE.Mesh(_beamGeo, new THREE.MeshBasicMaterial({ color: '#bff6ff', transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
@@ -643,6 +827,7 @@ class LocalPlayer {
       t: TOOLS.indexOf(this.tool), h: SAVE.hat, c: G.color, n: G.name, m: G.mode, p: G.planet,
       hp: Math.round(this.hp), g: this.ghost ? 1 : 0, d: this.dead ? 1 : 0, dn: this.down ? 1 : 0, $: SAVE.bucks, zp: SAVE.zap,
       u: (this.vacTarget || this.drillTarget || (this.tool === 'zap' && Input.mouseL)) ? 1 : 0,
+      mv: (this.jetting ? 1 : 0) | (this.gliding ? 2 : 0), // (so friends see your jet flames and your cape)
     };
   }
 }
@@ -669,6 +854,11 @@ class RemotePlayer {
     this.yaw = s.yw; this.walk = 0;
     this.center = new V3();
     this.visible = true;
+    // a cape that only shows while they're gliding
+    this.cape = grp(this.m.root, 0, 1.55, -0.3);
+    mk(BOX(0.72, 1.2, 0.05), '#b8142e', this.cape, 0, -0.6, 0);
+    mk(BOX(0.74, 0.08, 0.06), '#ffd23f', this.cape, 0, 0, 0);
+    this.cape.visible = false;
   }
   apply(s) {
     const prev = this.s;
@@ -729,6 +919,11 @@ class RemotePlayer {
     // knocked down: lying on the ground (and rising as a friend picks them up)
     if (s.d && !ghost) { r.root.rotation.z = U.damp(r.root.rotation.z, 1.4 * (1 - U.clamp(this.lift, 0, 1)), 6, dt); } else r.root.rotation.z = U.damp(r.root.rotation.z, 0, 8, dt);
     this.center.set(this.pos.x, this.pos.y + 1.0, this.pos.z);
+    // their movement gear: flames under a jet pack, a cape streaming out behind while they glide
+    const mv = s.mv || 0;
+    this.cape.visible = !!(mv & 2) && !ghost;
+    if (this.cape.visible) this.cape.rotation.x = 1.1 + Math.sin(G.time * 18) * 0.08; // (streaming out behind them)
+    if (mv & 1 && !ghost && Math.random() < 0.6) FX.burst(this.pos.clone().setY(this.pos.y + 0.4), U.pick(['#ffb23e', '#ff6a1f', '#fff36b']), 1, 2);
   }
   // put a tool in their right hand
   holdTool(t) {
@@ -751,6 +946,26 @@ const _boltGeo = new THREE.SphereGeometry(0.09, 6, 4);
 const _nadeGeo = new THREE.IcosahedronGeometry(0.22, 0);
 const _gooGeo = new THREE.IcosahedronGeometry(0.2, 1);
 const _beamGeo = (() => { const g = new THREE.CylinderGeometry(0.03, 0.05, 1, 8, 1, true); g.translate(0, 0.5, 0); return g; })();
+const _wispGeo = new THREE.SphereGeometry(0.13, 8, 6);
+const _parcelGeo = new THREE.BoxGeometry(0.3, 0.3, 0.42);
+const _tapeGeo = new THREE.BoxGeometry(0.31, 0.06, 0.43);
+const _flameGeo = (() => { const g = new THREE.ConeGeometry(0.13, 0.45, 6); g.rotateX(-Math.PI / 2); g.translate(0, 0, -0.42); return g; })();
+// a ghost wisp (Wisp Caller): a glowing head with a little tail behind it
+function wispMesh(color) {
+  const g = new THREE.Group();
+  g.add(new THREE.Mesh(_wispGeo, basicMat(color || '#9dffb0')));
+  [[0.6, -0.22, '#dfffe6'], [0.35, -0.4, '#6adf8a']].forEach(([sc, z, c]) => { const t = new THREE.Mesh(_wispGeo, basicMat(c)); t.scale.setScalar(sc); t.position.z = z; g.add(t); });
+  return g;
+}
+// an express parcel with a rocket flame out the back (Same-Day Launcher)
+function parcelMesh() {
+  const g = new THREE.Group();
+  g.add(new THREE.Mesh(_parcelGeo, M('#c9a36b')), new THREE.Mesh(_tapeGeo, M('#e8d8a0')));
+  const f = new THREE.Mesh(_flameGeo, basicMat('#ffb23e'));
+  g.add(f);
+  g.userData.flame = f;
+  return g;
+}
 const _basicMats = new Map();
 function basicMat(color) {
   let m = _basicMats.get(color);
@@ -773,7 +988,7 @@ function aimBeam(m, a, b, thick = 1) {
 }
 const Shots = {
   list: [], bonkCd: new Map(),
-  // kind: 'zap' (bolts, pellets, lucky bolts) · 'goo' · 'cutter' · 'nade' (boss fights)
+  // kind: 'zap' (bolts, pellets, lucky bolts) · 'goo' · 'cutter' · 'wisp' · 'rocket' · 'nade' (boss fights)
   fire(kind, o, d, local, extra = {}) {
     let mesh, speed, life, g = 0;
     if (kind === 'zap') {
@@ -782,6 +997,8 @@ const Shots = {
       if (extra.roll && extra.roll.k === 'jp') mesh.scale.multiplyScalar(1.8);
     } else if (kind === 'goo') { mesh = new THREE.Mesh(_gooGeo, basicMat('#ff5fb8')); speed = 30; life = 3; g = 14; }
     else if (kind === 'cutter') { mesh = new THREE.Group(); mesh.userData.spin = buildCutterWheel(mesh, 0.28); speed = 36; life = 4; }
+    else if (kind === 'wisp') { mesh = wispMesh(extra.color); speed = extra.speed || 30; life = 2.4; }
+    else if (kind === 'rocket') { mesh = parcelMesh(); speed = 34; life = 3; }
     else { mesh = new THREE.Mesh(_nadeGeo, basicMat('#ff5fb8')); speed = 20; life = 4; g = 16; }
     mesh.position.copy(o);
     G.scene.add(mesh);
@@ -791,6 +1008,7 @@ const Shots = {
       life, g, color: extra.color || '#ff5fb8',
       flags: extra.flags || null, roll: extra.roll || null, radius: extra.radius || 0,
       out: extra.out || 0.55, owner: extra.owner || null, hits: kind === 'cutter' ? new Set() : null,
+      target: extra.target || null, turn: extra.turn || 7, speed, scanT: 0.15, trail: 0,
     };
     if (kind === 'nade') s.vel.y += 5;
     if (kind === 'goo') s.vel.y += 2.5; // (lobbed a little upward, so it arcs)
@@ -810,10 +1028,14 @@ const Shots = {
   remote(m, r) {
     const o = new V3(...m.o);
     if (m.k === 'beam') { if (m.e) this.beamFx(o, new V3(...m.e), m.c || '#9fe3ff'); return; }
+    if (m.k === 'chain') { if (m.pts) this.lightning(m.pts.map((p) => new V3(...p)), m.c || '#b8d8ff'); return; }
+    if (m.k === 'stomp') { FX.ring(o, '#ffffff', STOMP.r); FX.burst(o, '#e8f0f8', 12, 5); Sound.play('stomp'); return; }
     const d = new V3(...m.d), def = ZAPPERS.find((z) => z.type === m.k);
     if (m.k === 'spread' && def) this.spread(o, d, m.s || 1, def, false, null);
     else if (m.k === 'lob') this.fire('goo', o, d, false, { radius: def ? def.radius : 2.8 });
     else if (m.k === 'cutter') this.fire('cutter', o, d, false, { owner: r, out: def ? def.out : 0.55 });
+    else if (m.k === 'homing') this.fire('wisp', o, d, false, { color: m.c, speed: def ? def.speed : 30, turn: def ? def.turn : 7, target: this.seek(o, d) });
+    else if (m.k === 'rocket') this.fire('rocket', o, d, false, { radius: def ? def.radius : 3.6 });
     else if (m.k === 'jackpot') { const roll = JACKPOT_ROLLS.find((x) => x.k === m.r) || JACKPOT_ROLLS[0]; this.fire('zap', o, d, false, { color: roll.color, roll }); }
     else this.fire('zap', o, d, false, { color: m.c });
   },
@@ -833,22 +1055,34 @@ const Shots = {
       if (s.kind === 'beam') { if (s.life <= 0) this.remove(i); continue; }
       s.prev.copy(s.pos);
       if (s.kind === 'cutter') this.steerCutter(s);
+      if (s.kind === 'wisp') this.steerWisp(s, dt);
       s.vel.y -= s.g * dt;
       s.pos.addScaledVector(s.vel, dt);
       s.mesh.position.copy(s.pos);
-      if (s.kind === 'zap' || s.kind === 'cutter') s.mesh.lookAt(tmp.copy(s.pos).add(s.vel));
+      if (s.kind === 'zap' || s.kind === 'cutter' || s.kind === 'wisp' || s.kind === 'rocket') s.mesh.lookAt(tmp.copy(s.pos).add(s.vel));
       else s.mesh.rotation.x += dt * 10;
       if (s.kind === 'cutter') s.mesh.userData.spin.rotation.x -= dt * 28;
+      if (s.kind === 'rocket' || s.kind === 'wisp') {
+        s.trail -= dt;
+        if (s.trail <= 0) { s.trail = s.kind === 'rocket' ? 0.03 : 0.06; FX.burst(s.pos, s.kind === 'rocket' ? U.pick(['#ffb23e', '#ff6a1f', '#bbbbbb']) : '#9dffb0', 1, 1); }
+        if (s.kind === 'rocket') s.mesh.userData.flame.scale.set(1, 1, 0.7 + Math.random() * 0.6);
+      }
       let done = false;
       const hit = s.local ? this.test(s.prev, s.pos, s.hits) : null;
       if (hit) {
         if (s.kind === 'cutter') { s.hits.add(hit.key); this.land(s, hit, s.pos.clone(), s.dmg); } // slices right through
-        else { if (s.kind === 'zap') this.landBolt(s, hit); done = true; } // (goo and grenades go off)
+        else { if (s.kind === 'zap' || s.kind === 'wisp') this.landBolt(s, hit); done = true; } // (goo, rockets and grenades go off)
       }
       const w = G.player && G.player.world();
-      if (!done && w && s.pos.y <= w.surfaceAt(s.pos.x, s.pos.z)) {
-        if (s.kind === 'cutter') { s.pos.y = w.surfaceAt(s.pos.x, s.pos.z) + 0.05; this.turnBack(s); } // bounces off the ground and heads home
-        else done = true;
+      const under = !done && w && s.pos.y <= w.surfaceAt(s.pos.x, s.pos.z);
+      if (!done && w && (under || (w.solidAt && w.solidAt(s.pos)))) {
+        if (s.kind === 'cutter') { if (under) s.pos.y = w.surfaceAt(s.pos.x, s.pos.z) + 0.05; this.turnBack(s); } // bounces off and heads home
+        else {
+          // go off right where it hit (not a metre into the ground, where the splash would miss everything)
+          if (under) { const y0 = w.surfaceAt(s.prev.x, s.prev.z), k = s.prev.y - s.pos.y > 1e-4 ? U.clamp((s.prev.y - y0) / (s.prev.y - s.pos.y), 0, 1) : 1; s.pos.lerpVectors(s.prev, s.pos, k); s.pos.y = Math.max(s.pos.y, w.surfaceAt(s.pos.x, s.pos.z) + 0.05); }
+          else s.pos.copy(s.prev);
+          done = true;
+        }
       }
       if (s.kind === 'cutter' && s.back && s.home < 1.3) done = true; // caught it
       if (done || s.life <= 0) this.end(s, i, done);
@@ -867,6 +1101,12 @@ const Shots = {
       if (s.local && G.boss) G.boss.explosion(s.pos, 4.5, s.dmg);
     } else if (s.kind === 'cutter') {
       if (s.local) { G.player.cutterBack(); if (s.back && s.home < 1.3) Sound.play('catch'); }
+    } else if (s.kind === 'rocket') {
+      FX.burst(s.pos, '#ffb23e', 20, 8); FX.burst(s.pos, '#c9a36b', 8, 5);
+      FX.ring(s.pos, '#ffd23f', s.radius || 3.6);
+      Sound.play('explode');
+      if (G.player) G.shake = Math.max(G.shake, 0.6 * U.clamp(1 - s.pos.distanceTo(G.player.pos) / 22, 0, 1));
+      if (s.local) { this.blast(s.pos, s.radius || 3.6, s.dmg, s.flags, null); G.player.blastPush(s.pos, s.radius || 3.6); }
     } else if (impact) FX.burst(s.pos, s.color, 4, 3);
     this.remove(i);
   },
@@ -887,6 +1127,62 @@ const Shots = {
     s.vel.copy(d.multiplyScalar(40 / (s.home || 1)));
   },
   turnBack(s) { if (!s.back) { s.back = true; s.hits.clear(); } },
+  // a wisp turns toward its target (or looks for a new one if it lost it)
+  steerWisp(s, dt) {
+    s.scanT -= dt;
+    let tp = s.target && s.target();
+    if (!tp && s.scanT <= 0) { s.scanT = 0.15; s.target = this.seek(s.pos, s.vel.clone().normalize()); tp = s.target && s.target(); }
+    if (!tp) return;
+    const want = tp.sub(s.pos).normalize(), cur = s.vel.clone().normalize();
+    const ang = cur.angleTo(want);
+    if (ang > 1e-4) cur.lerp(want, Math.min(1, (s.turn * dt) / ang)).normalize();
+    s.vel.copy(cur.multiplyScalar(s.speed));
+  },
+  // what's nearest where you're aiming (within 60 m), as a function that says where it is right now
+  seek(from, dir) {
+    let best = null, bs = 0.8;
+    const consider = (p, get) => { const v = p.clone().sub(from), d = v.length(); if (d < 0.5 || d > 60) return; const dot = v.dot(dir) / d; if (dot > bs) { bs = dot; best = get; } };
+    if (G.mode === 'boss' && G.boss && G.boss.st === 'fight') {
+      const b = G.boss, h = b.m.hit[0];
+      consider(b.world(h.o), () => (G.boss === b && b.st === 'fight' ? b.world(h.o) : null));
+      for (const m of b.minions.values()) if (m.mesh) consider(m.mesh.position.clone().setY(m.mesh.position.y + 0.6), () => (m.mesh && b.minions.has(m.id) ? m.mesh.position.clone().setY(m.mesh.position.y + 0.6) : null));
+    } else if (G.mode === 'planet') {
+      const w = G.worlds[G.planet];
+      for (const c of Critters.list.values()) consider(Critters.center(c, w), () => (Critters.list.has(c.id) ? Critters.center(c, w) : null));
+    }
+    return best;
+  },
+  // the closest thing to pos that lightning could jump to (skip: what it already hit)
+  nearest(pos, range, skip) {
+    let best = null, bd = range;
+    const consider = (t, p) => { if (skip.has(t.key)) return; const d = p.distanceTo(pos); if (d < bd) { bd = d; best = { t, pos: p }; } };
+    if (G.mode === 'boss' && G.boss) {
+      const b = G.boss;
+      if (b.st === 'fight') for (const h of b.m.hit) consider({ k: 'boss', key: 'boss' }, b.world(h.o));
+      for (const m of b.minions.values()) if (m.mesh) consider({ k: 'minion', m, key: 'm' + m.id }, m.mesh.position.clone().setY(m.mesh.position.y + 0.6));
+    } else if (G.mode === 'planet') {
+      const w = G.worlds[G.planet];
+      for (const c of Critters.list.values()) { const ctr = Critters.center(c, w); consider({ k: 'critter', c, ctr, key: 'c' + c.id }, ctr); }
+    }
+    return best;
+  },
+  // a jagged bolt of lightning through a list of points (Storm Caller)
+  lightning(pts, color) {
+    const mat = beamMat(color);
+    for (let i = 0; i < pts.length - 1; i++) {
+      const a = pts[i], b = pts[i + 1], len = a.distanceTo(b), n = 5;
+      let prev = a.clone();
+      for (let k = 1; k <= n; k++) {
+        const p = k === n ? b.clone() : a.clone().lerp(b, k / n).add(new V3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(Math.min(1.2, len * 0.08)));
+        const m = new THREE.Mesh(_beamGeo, mat);
+        aimBeam(m, prev, p, 2.4);
+        G.scene.add(m);
+        this.list.push({ kind: 'beam', mesh: m, t: 0, life: 0.16 });
+        prev = p;
+      }
+      if (i > 0 || pts.length > 2) FX.burst(b, color, 5, 4);
+    }
+  },
 
   // what a shot flying from p0 to p1 runs into first (skip: things this shot already hit, by key)
   test(p0, p1, skip) {
@@ -933,7 +1229,7 @@ const Shots = {
       const w = G.worlds[G.planet];
       for (const c of [...Critters.list.values()]) {
         if (skip === 'c' + c.id) continue;
-        const r = c.m.hit * SIZES[c.sz].s, cp = new V3(c.rx, w.gh(c.rx, c.rz) + r * 0.8, c.rz);
+        const r = c.m.hit * SIZES[c.sz].s, cp = Critters.center(c, w);
         if (cp.distanceTo(pos) > radius + r) continue;
         Critters.hit(c, dmg, cp, flags ? Object.assign({ dist: flags.from.distanceTo(cp) }, flags) : null, fx);
       }

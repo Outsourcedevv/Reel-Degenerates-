@@ -222,6 +222,24 @@ kbd {
 }
 #actbar .fill { height: 100%; width: 0; background: var(--acc); box-shadow: 0 0 10px rgba(255,176,32,.6); }
 #actbar span { position: absolute; left: 0; right: 0; top: 10px; text-align: center; font-size: 12px; letter-spacing: 2px; color: #fff; }
+/* Gigopolis: the delivery you're on */
+#gig {
+  position: absolute; left: 50%; top: 16px; transform: translateX(-50%); min-width: 300px; text-align: center;
+  background: var(--glass); border: 1px solid var(--line); border-top: 2px solid var(--yellow); padding: 6px 14px 8px;
+}
+#gig .t small { display: block; font-size: 10px; letter-spacing: 3px; color: var(--yellow); }
+#gig .t b { display: block; font-size: 18px; letter-spacing: 1px; color: #fff; }
+#gig .t span { font-size: 13px; letter-spacing: 1.5px; color: var(--muted); }
+#gig .bar { height: 4px; margin-top: 6px; background: rgba(255,255,255,.12); overflow: hidden; }
+#gig .bar .fill { height: 100%; width: 100%; background: var(--yellow); transition: width .1s linear; }
+#gig.late { border-top-color: var(--red); animation: pulse .4s infinite alternate; }
+#gig.late .bar .fill { background: var(--red); }
+/* the Jet Pack's fuel gauge, just under the crosshair */
+#fuel { position: absolute; left: 50%; top: calc(50% + 24px); transform: translateX(-50%); width: 110px; text-align: center; }
+#fuel span { font-size: 9px; letter-spacing: 2.5px; color: var(--acc); }
+#fuel .bar { height: 5px; margin-top: 3px; background: rgba(0,0,0,.45); overflow: hidden; }
+#fuel .bar .fill { height: 100%; width: 100%; background: linear-gradient(90deg, #ff6a1f, var(--acc)); }
+#fuel.empty span { color: var(--red); }
 #pickups { position: absolute; right: 26px; bottom: 130px; display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
 .pickup {
   font-size: 15px; font-weight: 600; letter-spacing: .5px; white-space: nowrap;

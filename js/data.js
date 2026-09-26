@@ -61,6 +61,42 @@ const PLANETS = [
     grav: 20, fric: 1.7, pizza: 'Frozen Solid',
   },
   {
+    id: 'spook', name: 'Spookulon', icon: 'ghost', boss: 'count', shop: 'spook', activity: 'ghost', music: 'spook',
+    blurb: 'A haunted moon. The ghosts are mostly harmless. They do NOT pay rent.',
+    how: 'Ghosts drift around the graveyards. Hold your Grabby Vac (2) on one and keep it in your sights until it\'s sucked in. One of them is haunting Count Carbula\'s Dinner Bell.',
+    sky: ['#0a0616', '#3b2a5c'], fog: ['#1f1735', 35, 185], stars: 0.95, mood: 'night',
+    sun: ['#c9b8ff', 0.72], hemi: ['#a898ff', '#1d2a22', 0.66],
+    bodies: [
+      { color: '#f6f1d6', r: 75, dir: [0.35, 0.42, -1] },
+      { color: '#7a5aa0', r: 16, dir: [-0.65, 0.55, -0.45] },
+    ],
+    ground: ['#44523f', '#33402f', '#7a6a9a'], amp: 1.5,
+    liquid: { color: '#7dff8a', op: 0.86, name: 'ectoplasm', glow: true },
+    grav: 17, fric: 12, pizza: 'Cold (and Haunted)',
+  },
+  {
+    id: 'cloud', name: 'Nimbus-9', icon: 'star', boss: 'stormy', shop: 'cloud', activity: 'pearl', music: 'cloud',
+    blurb: 'A planet made of clouds. Solid-ish clouds. Please do not look down.',
+    how: 'Grab Sky Pearls off the floating islands. Stand in a glowing updraft to shoot up to the next island. Fall off and you drop through the clouds (you wash up at the ship).',
+    sky: ['#3f9bff', '#e2f1ff'], fog: ['#d6eaff', 110, 420], stars: 0.1, mood: 'day',
+    sun: ['#fffaf0', 0.95], hemi: ['#ffffff', '#9fb4d8', 0.55],
+    bodies: [{ color: '#ffd9a8', r: 85, dir: [-0.55, 0.3, -1], ring: '#fff3e0' }],
+    ground: ['#eef4ff', '#d9e4f7', '#ffd0ef'], amp: 0.4, islands: true,
+    liquid: { color: '#c6daf2', op: 0.95, name: 'clouds' },
+    grav: 15, fric: 12, pizza: 'Cold & Fluffy',
+  },
+  {
+    id: 'city', name: 'Gigopolis', icon: 'box', boss: 'chad', shop: 'city', activity: 'deliver', music: 'city',
+    blurb: 'A planet-sized city where everyone has four side hustles and rent is due. Always.',
+    how: 'Take delivery gigs at the GigHub kiosk (E) and run the parcel to the glowing door before time runs out. Faster = bigger tip. Jump pads get you onto the roofs.',
+    sky: ['#12072e', '#ff5fa2'], fog: ['#3a1850', 60, 260], stars: 0.55, mood: 'night',
+    sun: ['#ffc6e6', 0.85], hemi: ['#c9a6ff', '#2a1a3a', 0.72],
+    bodies: [{ color: '#3df0ff', r: 60, dir: [0.4, 0.38, -1], ring: '#ff3df0' }],
+    ground: ['#3c404c', '#2f3340', '#ffd23f'], amp: 0, city: true,
+    liquid: { color: '#2ad4ff', op: 0.9, name: 'harbor water' },
+    grav: 20, fric: 12, pizza: 'Cold (Surge Pricing)',
+  },
+  {
     id: 'zorb', name: 'Zorblax Prime', icon: 'crown', boss: 'zorblax', shop: 'zorb', activity: 'meteor', music: 'zorb',
     blurb: 'Home of Emperor Zorblax. He ordered the pizza. He is NOT happy. Also it rains pepperoni.',
     how: 'Pepperoni meteors! Catch them with Dave\'s Pizza Peel (4) to reheat the pizza, then deliver it.',
@@ -90,9 +126,25 @@ const RES = {
   ice:     { name: 'Space Ice', v: 55, icon: 'gem', desc: 'Regular ice, but in SPACE.' },
   crystal: { name: 'Frost Crystal', v: 140, icon: 'gem', desc: 'Hums quietly. Might be sentient.' },
   diamond: { name: 'Space Diamond', v: 1100, icon: 'gem', desc: 'Forever. Like your delivery time.', rare: true },
-  pep:     { name: 'Space Pepperoni', v: 95, icon: 'slice', desc: 'Still sizzling from re-entry.' },
-  cheese:  { name: 'Cosmic Mozzarella', v: 180, icon: 'slice', desc: 'Stretchy. Suspiciously stretchy.' },
-  knot:    { name: 'Golden Garlic Knot', v: 1600, icon: 'star', desc: 'The Emperor has been asking for these.', rare: true },
+  // Spookulon: what ghosts leave behind when you vacuum them
+  ecto:    { name: 'Jar of Ectoplasm', v: 110, icon: 'jar', desc: 'Glows in the dark. Do not drink. (You will drink it.)' },
+  sheet:   { name: 'Haunted Bedsheet', v: 170, icon: 'ghost', desc: 'Still warm. Nobody was in it.' },
+  chain:   { name: 'Rattling Chain', v: 250, icon: 'gear', desc: 'Rattles by itself at 3am. Every night.' },
+  phantom: { name: 'Ghost Pepper (An Actual Ghost)', v: 2400, icon: 'flame', desc: 'Spicy AND haunted. Collectors go wild for these.', rare: true },
+  // Nimbus-9: floating island loot
+  cotton:  { name: 'Cloud Cotton', v: 120, icon: 'star', desc: 'Fluffier than a pillow. Less useful than a pillow.' },
+  pearl:   { name: 'Sky Pearl', v: 260, icon: 'gem', desc: 'Oysters grow these up here. The oysters also fly. Don\'t ask.' },
+  bottle:  { name: 'Lightning in a Bottle', v: 520, icon: 'bolt', desc: 'Some say it can\'t be done. It was done. Twice.' },
+  rainbow: { name: 'Rainbow Shard', v: 3200, icon: 'star', desc: 'A piece of an actual rainbow. Legally a gemstone.', rare: true },
+  // Gigopolis: tips from happy customers
+  giftcard:   { name: 'Gift Card', v: 150, icon: 'cash', desc: 'Balance: unknown. Probably $0. Maybe $1000.' },
+  review:     { name: 'Framed 5-Star Review', v: 420, icon: 'star', desc: '"Driver was fast. Also a goober." A satisfied customer.' },
+  leftover:   { name: 'Mystery Leftovers', v: 90, icon: 'box', desc: 'It\'s either pad thai or a sweater.' },
+  scooterkey: { name: 'Golden Scooter Key', v: 3600, icon: 'token', desc: 'Starts a golden scooter somewhere. Where? Nobody knows.', rare: true },
+  // Zorblax Prime is the last stop now, so its stuff is worth the most
+  pep:     { name: 'Space Pepperoni', v: 240, icon: 'slice', desc: 'Still sizzling from re-entry.' },
+  cheese:  { name: 'Cosmic Mozzarella', v: 440, icon: 'slice', desc: 'Stretchy. Suspiciously stretchy.' },
+  knot:    { name: 'Golden Garlic Knot', v: 4200, icon: 'star', desc: 'The Emperor has been asking for these.', rare: true },
 };
 const LOOT = {
   scrap:    [['bolt', 38], ['can', 30], ['gear', 20], ['chip', 9], ['toaster', 1.6]],
@@ -100,12 +152,18 @@ const LOOT = {
   bigberry: [['chonk', 70], ['berry', 16], ['gold', 11]],
   crystal:  [['ice', 55], ['crystal', 40], ['diamond', 4]],
   meteor:   [['pep', 62], ['cheese', 34], ['knot', 4]],
+  ghost:    [['ecto', 55], ['sheet', 30], ['chain', 13], ['phantom', 2]],
+  pearl:    [['cotton', 55], ['pearl', 35], ['bottle', 8], ['rainbow', 1.5]],
+  bigpearl: [['pearl', 55], ['bottle', 30], ['cotton', 5], ['rainbow', 8]],
+  deliver:  [['leftover', 45], ['giftcard', 35], ['review', 18], ['scooterkey', 2]], // (a tip, now and then)
 };
 
 /* ---------- gear ---------- */
 /* Guns: every planet sells a different kind, and each one shoots differently (see LocalPlayer.fireZap).
    type: bolt (zaps) · spread (shotgun pellets) · lob (goo balls that splash) · jackpot (every shot is a
-   slot pull) · beam (hold for a freeze ray) · cutter (pizza cutters that fly out and come back).
+   slot pull) · beam (hold for a freeze ray) · homing (ghost wisps that chase things) · chain (lightning
+   that jumps from target to target) · rocket (parcels that explode; rocket-jump off them) · cutter
+   (pizza cutters that fly out and come back).
    dmg: per bolt / pellet / splash / beam tick / slice · cd: seconds between shots (beam: between ticks)
    mag: shots per battery (beam: ticks of charge; cutter: how many you can have out) · rl: reload seconds.
    (Ammo is infinite, but batteries need swapping.) */
@@ -115,8 +173,13 @@ const ZAPPERS = [
   { name: 'Goo Lobber',       short: 'Goo Lobber',   type: 'lob',     dmg: 58, cd: 0.6,  mag: 8,  rl: 1.35, color: '#ff5fb8', radius: 2.8 },
   { name: 'Jackpot Blaster',  short: 'Jackpot',      type: 'jackpot', dmg: 28, cd: 0.25, mag: 18, rl: 1.1,  color: '#ffd23f' },
   { name: 'Cryo Beam',        short: 'Cryo Beam',    type: 'beam',    dmg: 30, cd: 0.1,  mag: 50, rl: 1.5,  color: '#9fe3ff', range: 38 },
-  { name: 'Pizza Cutter',     short: 'Pizza Cutter', type: 'cutter',  dmg: 70, cd: 0.3,  mag: 3,  rl: 0,    color: '#ff6a3d', out: 0.55 },
+  { name: 'Wisp Caller',      short: 'Wisp Caller',  type: 'homing',  dmg: 36, cd: 0.09, mag: 40, rl: 1.5,  color: '#9dffb0', speed: 30, turn: 7 },
+  { name: 'Storm Caller',     short: 'Storm Caller', type: 'chain',   dmg: 120, cd: 0.3, mag: 14, rl: 1.4,  color: '#b8d8ff', range: 60, jumps: 3, hop: 9, falloff: 0.6 },
+  { name: 'Same-Day Launcher', short: 'Launcher',    type: 'rocket',  dmg: 280, cd: 0.5, mag: 6,  rl: 1.6,  color: '#ffb23e', radius: 3.6 },
+  { name: 'Pizza Cutter',     short: 'Pizza Cutter', type: 'cutter',  dmg: 135, cd: 0.3, mag: 3,  rl: 0,    color: '#ff6a3d', out: 0.55 },
 ];
+// (the Pizza Cutter used to be gun 5; saves from before the new planets get moved up, see migrateSave)
+const OLD_TO_NEW_ZAP = { 5: 8 };
 // the Jackpot Blaster: every shot is a slot pull (w: how often; blast: [radius, splash damage x the gun's dmg])
 const JACKPOT_ROLLS = [
   { k: 'n',   w: 60, mult: 1,  color: '#ffd23f' },
@@ -125,7 +188,7 @@ const JACKPOT_ROLLS = [
   { k: 'dud', w: 4,  mult: 0,  color: '#8a8f9a', text: 'DUD' },
   { k: 'jp',  w: 1,  mult: 14, color: '#ff3df0', text: 'JACKPOT!! x14', blast: [4, 6] },
 ];
-const CARGO = [10, 20, 35, 60];
+const CARGO = [10, 20, 35, 60, 90];
 const VAC = [{ range: 7, speed: 1 }, { range: 9.5, speed: 1.9 }];
 const NADE_DMG = 90;
 
@@ -133,6 +196,7 @@ const HATS = {
   none: 'No Hat', cone: 'Traffic Cone', antenna: 'Alien Antennae', chef: 'Chef Hat', tophat: 'Fancy Top Hat',
   crown: 'Tiny Crown', viking: 'Viking Helmet', halo: 'Halo (Unearned)', propeller: 'Propeller Beanie',
   cowboy: 'Space Cowboy Hat', pizza: 'Pizza Slice', party: 'Party Hat', duck: 'Rubber Duck', bucket: 'Bucket Hat',
+  witch: 'Witch Hat', pumpkin: 'Pumpkin Head', aviator: 'Aviator Goggles', umbrella: 'Umbrella Hat', headset: 'Hustle Headset', cap: 'Delivery Cap',
 };
 const CRATE_HATS = ['propeller', 'cowboy', 'pizza', 'party', 'duck', 'bucket'];
 
@@ -145,6 +209,7 @@ const SHOPS = {
       { kind: 'zap', lvl: 1, price: 350, desc: 'A shotgun built out of scrap. Six pellets a shot. Get close, then point it at the problem.' },
       { kind: 'vac', lvl: 1, price: 300, name: 'Turbo Vac', desc: 'Sucks twice as fast and reaches further.' },
       { kind: 'cargo', lvl: 1, price: 250, name: 'Bigger Backpack', desc: 'Holds 20 things. Mostly garbage.' },
+      { kind: 'skates', price: 450, name: 'Duct-Tape Skates', desc: 'Roller skates held together with duct tape. Sprinting is 35% faster. Brakes sold separately. (They are not sold.)' },
       { kind: 'hat', id: 'cone', price: 120 },
       { kind: 'hat', id: 'antenna', price: 200 },
     ],
@@ -167,6 +232,7 @@ const SHOPS = {
       { kind: 'zap', lvl: 3, price: 4000, desc: 'Every shot is a slot pull. Usually normal. Sometimes x2. Rarely 777. Once in a blue moon: JACKPOT.' },
       { kind: 'nades', price: 180, name: 'Goo Grenades x5', desc: 'Imported from Gloop. Same price everywhere. (It\'s the law.)' },
       { kind: 'summon', b: 'jerry', price: 7500, desc: 'Summons Jackpot Jerry at the altar. Non-refundable. Like everything here.' },
+      { kind: 'dash', price: 2500, name: 'Getaway Sneakers', desc: 'Press Q to dash. For outrunning debt collectors. Works in the air too.' },
       { kind: 'charm', price: 77, name: 'Lucky Space Foot', desc: 'Does absolutely nothing. You will feel lucky, though.' },
       { kind: 'hat', id: 'tophat', price: 900 },
       { kind: 'hat', id: 'crown', price: 5000 },
@@ -178,9 +244,44 @@ const SHOPS = {
     items: [
       { kind: 'drill', price: 800, name: 'Laser Drill', desc: 'For mining crystals. NOT for dentistry.' },
       { kind: 'socks', price: 500, name: 'Heated Socks', desc: 'No more slipping around. Toasty toes.' },
+      { kind: 'stomp', price: 4000, name: 'Yeti Stompers', desc: 'Press C in the air to slam into the ground. Squashes critters. Wakes the neighbors.' },
       { kind: 'zap', lvl: 4, price: 9000, desc: 'Hold to fire a freezing beam. Freezes critters solid. Just keep it on the boss.' },
       { kind: 'cargo', lvl: 3, price: 3800, name: 'Industrial Fridge', desc: 'Holds 60 things. You are wearing a fridge now.' },
       { kind: 'hat', id: 'viking', price: 600 },
+    ],
+  },
+  spook: {
+    npc: 'Sheets McGhost', color: '#b9a4ff',
+    greet: ['Welcome to the Boo-tique! Everything here is 100% haunted, 0% refundable.', 'I\'d shake your hand, but, you know. Ghost.', 'The graveyard\'s lovely this time of year. Every year. Forever.'],
+    items: [
+      { kind: 'zap', lvl: 5, price: 11000, desc: 'Spits out a stream of angry little ghost wisps that chase whatever is nearest your crosshair. Aim roughly. They do the rest.' },
+      { kind: 'springs', price: 6500, name: 'Spring-Heeled Jacks', desc: 'Boots with actual bedsprings bolted on. You jump WAY higher. (Makes Bounce Boots bouncier too.)' },
+      { kind: 'nades', price: 180, name: 'Goo Grenades x5', desc: 'Still sticky. Now slightly haunted.' },
+      { kind: 'cargo', lvl: 4, price: 9000, name: 'Coffin Backpack', desc: 'Holds 90 things. Roomy. Pre-owned. Do not ask by whom.' },
+      { kind: 'hat', id: 'witch', price: 1500 },
+      { kind: 'hat', id: 'pumpkin', price: 2500 },
+    ],
+  },
+  cloud: {
+    npc: 'Skipper Gale', color: '#8fd0ff',
+    greet: ['Ahoy! Welcome aboard! There is no boat. I just like saying ahoy.', 'Albatross by birth, sky-sailor by trade, shopkeeper by debt.', 'Mind the edge. The first step is a doozy. So are all the others.'],
+    items: [
+      { kind: 'zap', lvl: 6, price: 15000, desc: 'Calls down lightning that jumps from target to target. Three bounces, and every one still hurts. Great for crowds.' },
+      { kind: 'cape', price: 9000, name: 'Glider Cape', desc: 'Hold Space while falling to glide. Makes falling off an island much less of a whole thing.' },
+      { kind: 'nades', price: 180, name: 'Goo Grenades x5', desc: 'Aerodynamic now. (They are not.)' },
+      { kind: 'hat', id: 'aviator', price: 2000 },
+      { kind: 'hat', id: 'umbrella', price: 3000 },
+    ],
+  },
+  city: {
+    npc: 'Trench Coat Trevor', color: '#ffd23f',
+    greet: ['Hello. I am one (1) normal adult man. Buying? Selling? Please do not look at my legs.', 'We... I mean I... have the best prices in Gigopolis. Rent is due. Buy something.', '*rustling* Ignore that. That was my coat. It does that.'],
+    items: [
+      { kind: 'zap', lvl: 7, price: 20000, desc: 'Launches express parcels that explode on delivery. Big splash damage. Shoot the ground under you mid-jump to rocket-jump onto a roof. (Somehow it doesn\'t hurt.)' },
+      { kind: 'jetpack', price: 14000, name: 'Jet Pack', desc: 'Hold Space in the air to fly up. Fuel runs out fast and refills on the ground. Found in a dumpster. Works fine. Probably.' },
+      { kind: 'nades', price: 180, name: 'Goo Grenades x5', desc: 'Now with next-day shipping.' },
+      { kind: 'hat', id: 'headset', price: 2500 },
+      { kind: 'hat', id: 'cap', price: 1200 },
     ],
   },
   zorb: {
@@ -188,7 +289,7 @@ const SHOPS = {
     greet: ['Oh good, you made it. You\'re three years late. We\'ll talk about it in your review.', 'I flew here to "support" you. Also to sell you armor. From the company.', 'Remember: the customer is always right. Even when he is trying to kill you.'],
     items: [
       { kind: 'peel', price: 1200, name: 'Pizza Peel', desc: 'A giant pizza paddle. Catches meteors. Company property.' },
-      { kind: 'zap', lvl: 5, price: 15000, desc: 'Throws spinning pizza cutters that slice through everything in a line, then come back. Also company property.' },
+      { kind: 'zap', lvl: 8, price: 26000, desc: 'Throws spinning pizza cutters that slice through everything in a line, then come back. Also company property.' },
       { kind: 'armor', price: 5000, name: 'Company Armor', desc: 'Take 30% less damage. Deducted from your paycheck.' },
       { kind: 'life', price: 3000, name: 'Extra Life Insurance', desc: 'Die and keep your zapper, tools and grenades. Only your backpack spills. Premiums may apply.' },
       { kind: 'nades', price: 180, name: 'Goo Grenades x5', desc: 'Expense report pending.' },
@@ -230,8 +331,29 @@ const BOSSES = {
     ],
     win: 'Snowdad is going out for milk. He will be back. (He will not be back.)',
   },
+  count: {
+    name: 'Count Carbula', diff: 'EXTREME', stars: 5, hp: 22000, reward: 8000, color: '#b8142e', icon: 'skull',
+    quote: 'A vampire who gave up blood for carbs. Wants your pizza. Will not ask nicely.',
+    taunts: ['I vant to eat your PIZZA!', 'Carbs! I must have CARBS!', 'Gluten-free? BLEH!', 'I only drink... marinara.', 'Do you have garlic knots on you? ...Please say no.', 'Bread is my life. Bread is also my death. It\'s complicated.'],
+    taunts2: ['THE HUNGER! IT BURNS!', 'Four hundred years without a breadstick! FOUR HUNDRED!', 'I can smell the pepperoni on your breath!'],
+    win: 'Count Carbula has been staked. With a breadstick.',
+  },
+  stormy: {
+    name: 'Stormy McStormface', diff: 'BRUTAL', stars: 6, hp: 27000, reward: 11000, color: '#6a7bd8', icon: 'skull',
+    quote: 'The internet named this storm. The storm never forgave the internet.',
+    taunts: ['You call this weather?! I call it PAIN!', 'Forecast: 100% chance of YOU LOSING!', 'I\'m not crying, it\'s RAIN.', 'Hail to the king! Get it? HAIL?', 'Did you check the weather app? You should have.'],
+    taunts2: ['CATEGORY SIX! I\'M MAKING UP CATEGORIES!', 'I\'LL RAIN ON EVERY PARADE!', 'THUNDER! LIGHTNING! MORE THUNDER!'],
+    win: 'Stormy McStormface has blown over. Clear skies ahead.',
+  },
+  chad: {
+    name: 'CEO Chad Grindset', diff: 'INSANE', stars: 7, hp: 33000, reward: 15000, color: '#3df0ff', icon: 'skull',
+    quote: 'Wakes up at 3am. Owns 47 companies. None of them make anything.',
+    taunts: ['Rise and GRIND!', 'Sleep is for the unemployed!', 'Have you considered a SIDE HUSTLE?', 'Let\'s circle back to you LOSING.', 'You\'re not fired. You\'re pre-hired... for FIRING!', 'This fight could\'ve been an email.'],
+    taunts2: ['LAYOFFS! EVERYONE IS LAID OFF!', 'I\'M PIVOTING TO VIOLENCE!', 'MANDATORY OVERTIME! FOREVER!'],
+    win: 'CEO Chad Grindset has been let go. Effective immediately.',
+  },
   zorblax: {
-    name: 'Emperor Zorblax the Unsatisfied', diff: 'UNREASONABLE', stars: 5, hp: 26000, reward: 20000, color: '#9b5de5', icon: 'skull',
+    name: 'Emperor Zorblax the Unsatisfied', diff: 'UNREASONABLE', stars: 8, hp: 40000, reward: 25000, color: '#9b5de5', icon: 'skull',
     quote: 'Ordered one large pepperoni three years ago. Has been waiting ever since.',
     taunts: ['THREE YEARS! I ORDERED THIS THREE YEARS AGO!', 'I will be leaving a VERY detailed review!', 'Is that pineapple?! I can SMELL pineapple!', 'Where are my garlic knots?!', 'I DEMAND A REFUND!'],
     taunts2: ['I WANT TO SPEAK TO YOUR MANAGER!', 'ZERO STARS! NEGATIVE STARS!', 'GUARDS! THIS DELIVERY IS UNACCEPTABLE!', 'I\'M CALLING CORPORATE!'],
@@ -268,11 +390,29 @@ const CRITTERS = {
     { id: 'pengy', name: 'Penguling', icon: 'paw', mood: 'shy', w: 22, hp: 70, speed: 4.4, v: 110, desc: 'Penguin Pete\'s cousin. Owes him money.' },
     { id: 'pup', name: 'Frost Pup', icon: 'paw', mood: 'mean', w: 16, hp: 120, speed: 4.8, dmg: 12, v: 175, desc: 'A baby yeti. Snowdad\'s? Nobody asks.' },
   ],
+  spook: [
+    { id: 'batlet', name: 'Space Bat', icon: 'paw', mood: 'shy', w: 36, hp: 95, speed: 6.2, v: 150, desc: 'Hangs upside down. Even in zero gravity. Show-off.' },
+    { id: 'skelly', name: 'Skele-Tom', icon: 'paw', mood: 'mean', w: 26, hp: 150, speed: 4.6, dmg: 14, v: 260, desc: 'A skeleton named Tom. Bone to be wild.' },
+    { id: 'pumpkin', name: 'Jack-o\'-Lander', icon: 'paw', mood: 'shy', w: 22, hp: 120, speed: 4.2, v: 190, desc: 'A pumpkin with legs. Lights up when it\'s scared. It is always scared.' },
+    { id: 'grub', name: 'Grave Grub', icon: 'paw', mood: 'mean', w: 16, hp: 170, speed: 4.0, dmg: 15, v: 290, desc: 'Lives under tombstones. Comes out for ankles.' },
+  ],
+  cloud: [
+    { id: 'puff', name: 'Cloud Puff', icon: 'paw', mood: 'shy', w: 36, hp: 110, speed: 5.4, v: 190, desc: 'A tiny cloud with a face. Rains when it\'s sad.' },
+    { id: 'gull', name: 'Sky Gull', icon: 'paw', mood: 'mean', w: 26, hp: 170, speed: 5.4, dmg: 15, v: 320, desc: 'Steals your lunch. Then comes back for you.' },
+    { id: 'kite', name: 'Wild Kite', icon: 'paw', mood: 'shy', w: 22, hp: 130, speed: 6.4, v: 240, desc: 'Broke its string years ago. Never looked back.' },
+    { id: 'spark', name: 'Static Sprite', icon: 'paw', mood: 'mean', w: 16, hp: 190, speed: 4.8, dmg: 16, v: 360, desc: 'A little ball of lightning with a big attitude. Zaps on contact.' },
+  ],
+  city: [
+    { id: 'drone', name: 'Rogue Drone', icon: 'paw', mood: 'shy', w: 36, hp: 130, speed: 6.0, v: 240, desc: 'Quit its delivery job. Now it just hovers. Living the dream.' },
+    { id: 'panda', name: 'Trash Panda', icon: 'paw', mood: 'mean', w: 26, hp: 200, speed: 5.0, dmg: 17, v: 380, desc: 'A raccoon. Related to Trevor? Trevor says no. Trevor is lying.' },
+    { id: 'intern', name: 'Unpaid Intern Bot', icon: 'paw', mood: 'shy', w: 22, hp: 150, speed: 4.6, v: 290, desc: 'Works for exposure. Runs away from responsibility.' },
+    { id: 'scooter', name: 'Feral E-Scooter', icon: 'paw', mood: 'mean', w: 16, hp: 230, speed: 6.6, dmg: 18, v: 440, desc: 'Abandoned on a sidewalk. Went wild. Beeps angrily.' },
+  ],
   zorb: [
-    { id: 'lsnail', name: 'Lava Snail', icon: 'paw', mood: 'shy', w: 36, hp: 90, speed: 3.0, v: 130, desc: 'Slow, hot, and crunchy.' },
-    { id: 'imp', name: 'Magma Imp', icon: 'paw', mood: 'mean', w: 26, hp: 150, speed: 4.6, dmg: 14, v: 230, desc: 'Works for the Emperor. Paid in lava.' },
-    { id: 'ember', name: 'Ember Bug', icon: 'paw', mood: 'shy', w: 22, hp: 80, speed: 5.8, v: 150, desc: 'A little bug that is also a little fire.' },
-    { id: 'hound', name: 'Royal Hound', icon: 'paw', mood: 'mean', w: 16, hp: 170, speed: 5.2, dmg: 15, v: 260, desc: 'The Emperor\'s guard dog. Three eyes, zero chill.' },
+    { id: 'lsnail', name: 'Lava Snail', icon: 'paw', mood: 'shy', w: 36, hp: 135, speed: 3.0, v: 290, desc: 'Slow, hot, and crunchy.' },
+    { id: 'imp', name: 'Magma Imp', icon: 'paw', mood: 'mean', w: 26, hp: 225, speed: 4.8, dmg: 19, v: 500, desc: 'Works for the Emperor. Paid in lava.' },
+    { id: 'ember', name: 'Ember Bug', icon: 'paw', mood: 'shy', w: 22, hp: 120, speed: 5.8, v: 330, desc: 'A little bug that is also a little fire.' },
+    { id: 'hound', name: 'Royal Hound', icon: 'paw', mood: 'mean', w: 16, hp: 255, speed: 5.4, dmg: 20, v: 570, desc: 'The Emperor\'s guard dog. Three eyes, zero chill.' },
   ],
 };
 /* how big a critter is. Bigger ones are rarer, tougher, bite harder and are worth a lot more. */
@@ -360,6 +500,27 @@ const SUMMONS = {
     found: 'A dad somewhere just felt a disturbance.',
     line: 'Somewhere, a dad is finally coming back with the milk...',
   },
+  count: {
+    name: 'Count\'s Dinner Bell', icon: 'alert', src: 'ghost', chance: 0.04, pity: 22,
+    hint: 'find his Dinner Bell: one of the ghosts is haunting it',
+    how: 'One of the ghosts drifting around the graveyards is haunting it. Vacuum ghosts (2) until it turns up.',
+    found: 'Ding ding! Somewhere, a vampire just got very hungry.',
+    line: 'You ring the Dinner Bell. The graveyard goes very, very quiet...',
+  },
+  stormy: {
+    name: 'Weather Balloon', icon: 'star', src: 'bigpearl', chance: 0.06, pity: 14,
+    hint: 'find a Weather Balloon in the big pearls on the highest islands',
+    how: 'The big glowing pearls on the highest floating islands sometimes have one tangled inside. Ride the updrafts up!',
+    found: 'A weather balloon! Stormy is going to be SO mad.',
+    line: 'You let the Weather Balloon go. The sky turns black...',
+  },
+  chad: {
+    name: 'Mandatory Meeting Invite', icon: 'box', src: 'deliver', chance: 0.08, pity: 12,
+    hint: 'do delivery gigs until one of the parcels is his Meeting Invite',
+    how: 'Take delivery gigs at the GigHub kiosk. One of your customers will eventually be Chad\'s assistant, with a Mandatory Meeting Invite. (Everybody\'s deliveries count.)',
+    found: 'It\'s a calendar invite: "MANDATORY: Q4 Synergy Beatdown." Accept it at the altar.',
+    line: 'You accept the meeting. A helicopter lands on the altar...',
+  },
   zorblax: {
     name: 'Reheated Pizza', icon: 'flame', heat: 15,
     hint: 'reheat the pizza by catching pepperoni meteors',
@@ -405,6 +566,12 @@ const LINES = {
   bitten: ['You got nibbled to pieces.', 'Knocked out by a critter. Embarrassing.', 'The critters won this round.', 'Your suit has filed a complaint.'],
   flyHit: ['BONK. That was an asteroid.', 'Hull integrity: vibes.', 'Who put a rock there?!', 'Dave is adding that to your bill.'],
   reload: ['SWAPPING BATTERIES', 'BLOWING ON THE BATTERY', 'FINDING AAs', 'RELOADING'],
+  boo: ['BOO!', 'Booooo!', 'OooOOooo!', 'Get off my lawn!', 'You\'re standing on my grave!'],
+  ghostCaught: ['GHOST BAGGED!', 'SLURPED!', 'Into the bag you go!', 'That\'s one less roommate.'],
+  gigTake: ['Parcel acquired. The clock is ticking!', 'The customer is waiting. And judging.', 'Go go go! Tips wait for no one!'],
+  gigDone: ['Delivered! The customer says "finally".', 'Delivered! 5 stars! (Out of 50.)', 'Delivered! They tipped! In cash! Wow!'],
+  gigLate: ['Too slow! The customer ate the box.', 'Late! They left 1 star and a frowny face.', 'Gig expired. Your rating dropped to 0.3 stars.'],
+  fellClouds: ['You fell through the clouds. The ground was further down than expected.', 'Whoops. Clouds are not solid. Mostly.', 'You fell off the island. It happens to the best of us. And to you.'],
 };
 
 const SIGNS = {
@@ -412,5 +579,8 @@ const SIGNS = {
   gloop: { title: 'Sign', lines: ['LUCKSTAR CASINO: NEXT PLANET! You must be this brave to gamble.', 'WARNING: Do not eat the goo. (You will eat the goo.)', 'Queen Blorbina\'s palace: 200m. Please wipe your feet.'] },
   luck: { title: 'Poster', lines: ['LUCKSTAR: 0 days since someone won big.', 'Gambling problem? Call 1-800-JUST-ONE-MORE.', 'Remember: you miss 100% of the spins you don\'t spin!'] },
   frost: { title: 'Igloo', lines: ['Nobody home. A note says "Gone fishing." (Not in this game.)', 'It\'s cold inside too. Pointless.', 'There is a tiny penguin sleeping here. Let it sleep.'] },
+  spook: { title: 'Tombstone', lines: ['HERE LIES DAVE\'S LAST DELIVERY DRIVER. He was also late.', 'R.I.P. Gary\'s Diet (1998-1998)', 'BRB. - The Ghost', 'Died doing what he loved: waiting on hold.'] },
+  cloud: { title: 'Weather Report', lines: ['TODAY: Cloudy. TOMORROW: Cloudy. FOREVER: Cloudy.', 'Chance of Stormy McStormface: yes.', 'Updrafts: strong. Downdrafts: also strong. Do not look down.'] },
+  city: { title: 'Parking Meter', lines: ['$40 for 15 minutes...', 'Accepts: exposure, vibes, equity.', '"EXPIRED." It\'s talking about you.'] },
   zorb: { title: 'Doormat', lines: ['It says "GO AWAY."', 'It says "NO SOLICITORS. NO DELIVERY DRIVERS. ESPECIALLY LATE ONES."', 'It\'s soaking wet. Somehow. On a lava planet.'] },
 };

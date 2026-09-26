@@ -24,11 +24,12 @@ const FLY = {
   autopilot: 150,
 };
 // where the planets sit in the solar system. They're far apart: getting between them is a real trip.
-const SYSTEM = [new V3(0, 0, 0), new V3(3300, 260, 1980), new V3(6600, -180, 660), new V3(9460, 330, 2860), new V3(12320, 0, 1100)];
+const SYSTEM = [new V3(0, 0, 0), new V3(3300, 260, 1980), new V3(6600, -180, 660), new V3(9460, 330, 2860),
+  new V3(12400, -260, 4300), new V3(15500, 420, 2400), new V3(18600, -120, 4000), new V3(21600, 60, 1800)];
 const SEAT = new V3(0, 4.1, 2.45);   // pilot's eyes, inside the glass bubble
 // passengers sit in the back, two by two
 const PASS_SEATS = [new V3(-0.62, 4.02, 0.72), new V3(0.62, 4.02, 0.72), new V3(-0.62, 4.02, -0.5), new V3(0.62, 4.02, -0.5), new V3(0, 4.02, -1.4), new V3(-0.62, 4.02, -1.4), new V3(0.62, 4.02, -1.4)];
-const COIN_VALUE = [5, 5, 15, 15]; // space coins between planets 1-2, 2-3, 3-4, 4-5 (money is scarce early on)
+const COIN_VALUE = [5, 5, 15, 15, 25, 30, 40]; // space coins between planets 1-2, 2-3, 3-4... (money is scarce early on)
 const SPACE_ATMO = {
   sky: ['#02010a', '#171040'], fog: ['#0a0620', 4000, 30000], stars: 1, bodies: [],
   sun: ['#fff4e0', 1.1], hemi: ['#b9c8ff', '#241a40', 0.75], liquid: { color: '#000000', op: 0 },
@@ -399,16 +400,17 @@ const Flight = {
       const m = new THREE.Mesh(flat(new THREE.IcosahedronGeometry(FLY.R, 3)), new THREE.MeshToonMaterial({ color: cfg.ground[0], gradientMap: TOON_GRAD, fog: false }));
       m.position.copy(SYSTEM[i]);
       m.add(new THREE.Mesh(new THREE.SphereGeometry(FLY.R * 1.08, 28, 18), new THREE.MeshBasicMaterial({ color: cfg.sky[1], transparent: true, opacity: 0.3, side: THREE.BackSide, fog: false, depthWrite: false })));
-      if (i === 2) {
-        const ring = new THREE.Mesh(new THREE.RingGeometry(FLY.R * 1.3, FLY.R * 1.8, 64), new THREE.MeshBasicMaterial({ color: '#ffcf3a', transparent: true, opacity: 0.45, side: THREE.DoubleSide, fog: false, depthWrite: false }));
-        ring.rotation.x = 1.3; m.add(ring);
+      const ringCol = { luck: '#ffcf3a', cloud: '#ffffff', city: '#ff3df0' }[cfg.id];
+      if (ringCol) {
+        const ring = new THREE.Mesh(new THREE.RingGeometry(FLY.R * 1.3, FLY.R * 1.8, 64), new THREE.MeshBasicMaterial({ color: ringCol, transparent: true, opacity: 0.45, side: THREE.DoubleSide, fog: false, depthWrite: false }));
+        ring.rotation.x = 1.3 + i * 0.07; m.add(ring);
       }
       const tag = textSprite(cfg.name.toUpperCase(), { size: 60, color: '#ffffff', stroke: '#0a0718', scale: 1.4, depthTest: false, order: 30 });
       tag.position.y = FLY.R + 90; m.add(tag);
       g.add(m);
     });
     const sun = new THREE.Mesh(new THREE.SphereGeometry(800, 24, 16), new THREE.MeshBasicMaterial({ color: '#fff3c4', fog: false }));
-    sun.position.set(6200, 5800, -9500); g.add(sun);
+    sun.position.set(10800, 5800, -9500); g.add(sun);
     // asteroid belts, turbo rings and coins between neighbouring planets
     const geos = [0, 1, 2].map(() => flat(new THREE.DodecahedronGeometry(1, 0)));
     const mats = ['#6d6470', '#8a7b6a', '#524a5e'].map((c) => M(c));

@@ -207,7 +207,7 @@ const Game = {
     U.$('m-wlist').innerHTML = l.length ? l.map((w) => {
       const i = Worlds.info(w.id), pl = PLANETS[i.planet] || PLANETS[0];
       return `<div class="wslot"><div class="wico" style="background:${pl.sky[1]}">${Thumbs.img('planet:' + PLANETS.indexOf(pl), '', 'globe')}</div>
-        <div class="winfo"><b>${U.esc(w.name)}<span class="dtag d-${Worlds.diff(w.id)}">${DIFFS[Worlds.diff(w.id)].name}</span></b><small>${pl.name} · ${i.beaten}/5 bosses · ${U.bucks(i.bucks)} · ${ago(w.played)}</small></div>
+        <div class="winfo"><b>${U.esc(w.name)}<span class="dtag d-${Worlds.diff(w.id)}">${DIFFS[Worlds.diff(w.id)].name}</span></b><small>${pl.name} · ${i.beaten}/${PLANETS.length} bosses · ${U.bucks(i.bucks)} · ${ago(w.played)}</small></div>
         <button class="btn small green" data-play="${w.id}">Play</button><button class="btn small red" data-del="${w.id}" title="Delete world">${icon('trash')}</button></div>`;
     }).join('') : '<p class="wempty">No worlds yet. Make your first one below!</p>';
   },
@@ -275,6 +275,8 @@ const Game = {
     badge.textContent = DIFFS[G.diff].name.toUpperCase();
     badge.className = 'd-' + G.diff;
     if (DIFFS[G.diff].perma) setTimeout(() => UI.toast('HARDCORE: if you die, you die for good.', 'bad', 5), 3800);
+    // a save from before the new planets: tell them what turned up
+    if (SAVE.newPlanets) { SAVE.newPlanets = false; persist(); setTimeout(() => UI.toast('NEW: three planets turned up between Frostbyte and Zorblax Prime: Spookulon, Nimbus-9 and Gigopolis. Check the star map in your ship!', 'gold', 8), 4600); }
     Sound.init();
     Sound.setVolumes();
     Sound.playMusic(PLANETS[G.planet].music);
@@ -536,7 +538,7 @@ const Game = {
     N.on('st', (m, from) => { if (Net.isHost) this.applyState(from, m.s); });
     N.on('take', (m) => { if (Net.isHost) Activities.onTake(m); });
     N.on('snailreq', () => { if (Net.isHost) Casino.onRequest(); });
-    N.on('hitc', (m, from) => { if (Net.isHost) Critters.damage(m.id, Math.min(400, Number(m.dmg) || 0), from, m.fx === 'goo' || m.fx === 'ice' ? m.fx : null); });
+    N.on('hitc', (m, from) => { if (Net.isHost) Critters.damage(m.id, Math.min(400, Number(m.dmg) || 0), from, ['goo', 'ice', 'shock'].includes(m.fx) ? m.fx : null); });
     N.on('summon', (m, from) => { if (Net.isHost) this.onSummon(m, from); });
     N.on('hitb', (m, from) => { if (Net.isHost && G.boss && G.boss.inFight(from)) G.boss.damage(Math.min(400, Number(m.dmg) || 0)); });
     N.on('hitm', (m) => { if (Net.isHost && G.boss) G.boss.damageMinion(m.id, Math.min(400, Number(m.dmg) || 0)); });
@@ -729,7 +731,7 @@ const Game = {
     this.frame(now, false);
   },
   frame(now, hidden) {
-    const dt = Math.min(0.05, (now - (this.last || now)) / 1000);
+    const dt = U.clamp((now - (this.last || now)) / 1000, 0, 0.05); // (never backwards: frame times from two clocks can disagree a hair)
     this.last = now;
     const cam = G.camera;
     const paused = !G.online && G.started && !G.locked && !G.panel && !G.chatting;
@@ -789,6 +791,9 @@ const Game = {
       case 'jackpot': return 'Click: shoot and pray · R: reload';
       case 'beam': return 'Hold click: freeze beam · R: recharge';
       case 'cutter': return 'Click: throw a pizza cutter (it comes back)';
+      case 'homing': return 'Click: ghost wisps (they chase things) · R: reload';
+      case 'chain': return 'Click: chain lightning (it jumps between targets) · R: reload';
+      case 'rocket': return 'Click: launch a parcel (shoot your feet to rocket-jump) · R: reload';
       default: return 'Click: zap · R: reload';
     }
   },
@@ -804,10 +809,13 @@ const Game = {
       const act = PLANETS[G.planet].activity;
       const inCasino = act === 'casino' && G.world.inCasino(p.pos);
       if (p.tool === 'zap') h = act === 'casino' ? (inCasino ? 'Walk up to any game and press E · I: backpack & crew' : 'Luckstar: every game is in the casino next to your ship · I: backpack & crew') : this.gunHint() + ' · I: backpack & crew · 2: Grabby Vac' + (SAVE.drill ? ' · 3: Drill' : '') + (SAVE.peel ? ' · 4: Peel' : '');
-      else if (p.tool === 'vac') h = act === 'scrap' ? 'Hold click on glowing junk piles' : 'Hold click on junk (there isn\'t much here)';
+      else if (p.tool === 'vac') h = act === 'scrap' ? 'Hold click on glowing junk piles' : act === 'ghost' ? 'Hold click on a ghost and keep it in your sights! (It will fight back.)' : 'Hold click on junk (there isn\'t much here)';
       else if (p.tool === 'drill') h = 'Hold click on big crystals to mine them';
       else h = act === 'meteor' ? 'Stand inside the glowing landing circles to catch pepperoni meteors!' : 'The Pizza Peel catches meteors on Zorblax Prime';
       if (act === 'berry' && p.tool !== 'drill') h = 'Walk into berries to grab them · Jump up the mushrooms!' + (SAVE.boots ? ' (double jump!)' : '');
+      if (act === 'ghost' && p.tool === 'zap') h = this.gunHint() + ' · 2: Grabby Vac (for the ghosts) · I: backpack & crew';
+      if (act === 'pearl' && p.tool !== 'drill') h = 'Walk into Sky Pearls to grab them · Stand in a glowing updraft to float up to the islands';
+      if (act === 'deliver' && p.tool !== 'drill') h = Gigs.cur ? 'Get the parcel to the glowing beam before time runs out! Jump pads launch you onto roofs' : 'Take a delivery gig at the GigHub kiosk (E) · Jump pads launch you onto roofs';
       if (act === 'meteor' && p.tool !== 'peel') h = SAVE.peel ? 'Pepperoni meteors! Press 4 for the Pizza Peel, then stand in the landing circles' : 'Pepperoni meteors! Buy a Pizza Peel from Dave to catch them. (Without it they bonk you.)';
     }
     UI.hint(h);

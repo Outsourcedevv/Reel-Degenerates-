@@ -67,6 +67,9 @@ Each friend needs to open the game too. The easiest way is to put it online for 
 | --- | --- |
 | `W` `A` `S` `D` / `Shift` | move / sprint |
 | `Space` | jump (double jump with Bounce Boots) |
+| `Q` | dash (Getaway Sneakers, from Luckstar) |
+| `C` in the air | ground pound (Yeti Stompers, from Frostbyte) |
+| hold `Space` in the air | glide (Glider Cape, from Nimbus-9) or fly (Jet Pack, from Gigopolis) |
 | `E` | talk, shop, use things · hold next to a downed friend to pick them up |
 | `1` `2` `3` `4` | Zapper, Grabby Vac, Laser Drill, Pizza Peel |
 | Left click | use your tool |
@@ -97,7 +100,37 @@ health but hit a bit softer than they look. Your ship won't start until you've b
 | 2 | Planet Gloop | Low gravity berry jumping | Blobbos, Gloop Hoppers, Puffshrooms, Goo Leeches | Queen Blorbina ★★ | Royal Jelly, in the big berries on top |
 | 3 | Luckstar | **Gambling** in the Luckstar Casino, the big building next to the landing pad: slots, roulette, snail races, coin flips, crates | Chip Beetles, Dice Goblins, Card Crawlers, Slot Mimics | Jackpot Jerry ★★★ | Golden Token, from crates or Mr. Chips |
 | 4 | Frostbyte | Mine crystals with the Laser Drill | Snow Mites, Ice Weasels, Pengulings, Frost Pups | The Abominable Snowdad ★★★★ | Space Milk, frozen in the crystals |
-| 5 | Zorblax Prime | Catch pepperoni meteors with the Pizza Peel | Lava Snails, Magma Imps, Ember Bugs, Royal Hounds | Emperor Zorblax ★★★★★ | Reheated Pizza: catch 15 meteors |
+| 5 | Spookulon | Vacuum ghosts in the graveyards (keep them in your sights: they dodge and BOO you) | Space Bats, Skele-Toms, Jack-o'-Landers, Grave Grubs | Count Carbula ★★★★★ | Count's Dinner Bell, haunted by one of the ghosts |
+| 6 | Nimbus-9 | Grab Sky Pearls off floating islands; glowing updrafts carry you up (fall off and you wash up at the ship) | Cloud Puffs, Sky Gulls, Wild Kites, Static Sprites | Stormy McStormface ★★★★★★ | Weather Balloon, in the big pearls on the highest islands |
+| 7 | Gigopolis | Delivery gigs: take a parcel at the GigHub kiosk and race it to a door or rooftop (jump pads get you up there) | Rogue Drones, Trash Pandas, Unpaid Intern Bots, Feral E-Scooters | CEO Chad Grindset ★★★★★★★ | Mandatory Meeting Invite, from a delivery customer |
+| 8 | Zorblax Prime | Catch pepperoni meteors with the Pizza Peel | Lava Snails, Magma Imps, Ember Bugs, Royal Hounds | Emperor Zorblax ★★★★★★★★ | Reheated Pizza: catch 15 meteors |
+
+Every planet sells a different gun, and each one shoots differently:
+
+| Gun | Where | What it does |
+| --- | --- | --- |
+| Pew Pew Zapper | Scrapyard-9 | zaps |
+| Scrap Scattergun | Scrapyard-9 | six pellets a shot |
+| Goo Lobber | Planet Gloop | balls of goo that splash and slow critters |
+| Jackpot Blaster | Luckstar | every shot is a slot pull: x2, 777s, the odd JACKPOT |
+| Cryo Beam | Frostbyte | hold to freeze things |
+| Wisp Caller | Spookulon | ghost wisps that chase whatever is nearest your crosshair |
+| Storm Caller | Nimbus-9 | lightning that jumps from target to target (and stuns critters) |
+| Same-Day Launcher | Gigopolis | exploding parcels; shoot the ground under you mid-jump to rocket-jump |
+| Pizza Cutter | Zorblax Prime | spinning cutters that slice through everything and come back |
+
+Movement gear you can pick up along the way (you keep it when you die):
+
+| Gear | Where | What it does |
+| --- | --- | --- |
+| Duct-Tape Skates | Scrapyard-9 | sprint 35% faster |
+| Bounce Boots | Planet Gloop | double jump |
+| Getaway Sneakers | Luckstar | `Q` to dash, once in the air too |
+| Heated Socks | Frostbyte | no more slipping on the ice |
+| Yeti Stompers | Frostbyte | `C` in the air slams you down with a shockwave that squashes critters |
+| Spring-Heeled Jacks | Spookulon | jump way higher (Bounce Boots get bouncier too) |
+| Glider Cape | Nimbus-9 | hold `Space` while you fall to glide |
+| Jet Pack | Gigopolis | hold `Space` in the air to fly up; the fuel refills on the ground |
 
 ## Critters
 
@@ -140,7 +173,7 @@ in your browser (clearing browser data deletes them).
 
 - `js/data.js`: planets, items, prices, bosses, jokes (the easiest file to mess with)
 - `js/world.js`, `js/models.js`: planets and all the low-poly models (the casino building is `buildCasino` in `world.js`)
-- `js/boss.js`: boss fights · `js/casino.js`: gambling · `js/activities.js`: collecting, meteors, summoning items
+- `js/boss.js`: boss fights · `js/casino.js`: gambling · `js/activities.js`: collecting, meteors, delivery gigs, summoning items
 - `js/critters.js`: space critters · `js/flight.js`: the ship, cockpit, star map and landing · `js/shop.js`: shops, boss altars
 - `js/items.js`: models of the items you buy, carry and win · `js/thumbs.js`: turns models into the pictures the
   menus show (shop items, backpack, hotbar, faces)

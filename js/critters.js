@@ -51,9 +51,9 @@ const Critters = {
     }
     const ps = this.players();
     for (const c of this.list.values()) {
-      // gooed (Goo Lobber): slowed down · frozen (Cryo Beam): stuck, and can't bite
-      c.slowT = (c.slowT || 0) - dt; c.frozeT = (c.frozeT || 0) - dt;
-      c.st = c.frozeT > 0 ? 2 : c.slowT > 0 ? 1 : 0;
+      // gooed (Goo Lobber): slowed down · frozen (Cryo Beam): stuck, and can't bite · shocked (lightning, stomps): stunned
+      c.slowT = (c.slowT || 0) - dt; c.frozeT = (c.frozeT || 0) - dt; c.shockT = (c.shockT || 0) - dt;
+      c.st = c.frozeT > 0 ? 2 : c.shockT > 0 ? 3 : c.slowT > 0 ? 1 : 0;
       this.think(c, w, ps, dt);
     }
     this.sendT -= dt;
@@ -79,7 +79,7 @@ const Critters = {
     }
   },
   think(c, w, ps, dt) {
-    if (c.st === 2) { c.spd = 0; return; } // frozen solid
+    if (c.st === 2 || c.st === 3) { c.spd = 0; return; } // frozen solid / stunned
     const def = this.kinds(G.planet)[c.k], sz = SIZES[c.sz];
     let near = null, nd = Infinity;
     for (const p of ps) { const d = Math.hypot(p.x - c.x, p.z - c.z); if (d < nd) { nd = d; near = p; } }
@@ -149,10 +149,16 @@ const Critters = {
       c.rry += U.angDiff(c.rry, c.ry) * Math.min(1, dt * 10);
       const moving = Math.hypot(c.rx - px, c.rz - pz) / Math.max(dt, 1e-4) > 0.3;
       const s = SIZES[c.sz].s;
-      const hop = c.m.body && moving ? Math.abs(Math.sin(c.t * 12 / Math.sqrt(s))) * 0.12 * s : 0;
+      const hop = c.m.body && moving && !c.m.hover ? Math.abs(Math.sin(c.t * 12 / Math.sqrt(s))) * 0.12 * s : 0;
       c.m.root.position.set(c.rx, w.gh(c.rx, c.rz) + hop, c.rz);
       c.m.root.rotation.y = c.rry;
       c.m.legs.forEach((l, i) => { l.rotation.x = moving ? Math.sin(c.t * 16 / Math.sqrt(s) + i * 2) * 0.6 : 0; });
+      // fliers bob about, wings flap, rotors spin, wheels roll
+      if (c.m.hover) c.m.body.position.y = Math.sin(c.t * 3) * 0.08;
+      if (c.m.wings && c.st !== 2) c.m.wings.forEach((wg, i) => { wg.rotation.z = (i ? -1 : 1) * Math.sin(c.t * 16) * 0.7; });
+      if (c.m.rotors && c.st !== 2) for (const r of c.m.rotors) r.rotation.y += dt * 40;
+      if (c.m.rolls && moving) for (const r of c.m.rolls) r.rotation.x += dt * 14;
+      if (c.zapFx && c.zapFx.visible) c.zapFx.rotation.y += dt * 9;
       c.flash = Math.max(0, c.flash - dt * 5);
       c.m.body.scale.setScalar(1 + c.flash * 0.25);
       if (c.m.body.userData.spark) c.m.body.userData.spark.rotation.y += dt * 4;
@@ -171,8 +177,13 @@ const Critters = {
       c.goo = grp(c.m.root, 0, h * 1.5, 0);
       for (const [x, z, r] of [[0.3, 0.1, 0.35], [-0.25, 0.2, 0.3], [0.05, -0.3, 0.28]]) mk(SPH(h * r, 6, 5), '#ff5fb8', c.goo, x * h, 0, z * h, { emissive: '#6a0a4a' });
     }
+    if (st === 3 && !c.zapFx) {
+      c.zapFx = grp(c.m.root, 0, h, 0);
+      for (let i = 0; i < 5; i++) { const a = (i / 5) * Math.PI * 2; tf(mk(OCT(h * 0.14), '#bff6ff', c.zapFx, Math.cos(a) * h, (i % 2 ? 0.25 : -0.25) * h, Math.sin(a) * h, { emissive: '#3aa7ff' }), 0, 0, 0, 0.5, 2, 0.5); }
+    }
     if (c.ice) c.ice.visible = st === 2;
     if (c.goo) c.goo.visible = st === 1;
+    if (c.zapFx) c.zapFx.visible = st === 3;
   },
   // mean critters bite whoever they reach; each player checks their own ankles
   bites(dt) {
@@ -181,7 +192,7 @@ const Critters = {
     if (G.mode !== 'planet' || p.dead || this.biteCd > 0 || G.panel) return;
     for (const c of this.list.values()) {
       const def = this.kinds(G.planet)[c.k], sz = SIZES[c.sz];
-      if (def.mood !== 'mean' || c.st === 2) continue; // (frozen solid: no biting)
+      if (def.mood !== 'mean' || c.st === 2 || c.st === 3) continue; // (frozen solid or stunned: no biting)
       if (Math.hypot(p.pos.x - c.rx, p.pos.z - c.rz) < 0.8 + 0.4 * sz.s && p.pos.y < G.worlds[G.planet].gh(c.rx, c.rz) + 1.6 * sz.s) {
         this.biteCd = 0.9;
         this.bitBy.set(c.id, G.time);
@@ -192,13 +203,18 @@ const Critters = {
   },
 
   /* ---------- zapping them ---------- */
+  // the middle of a critter (what shots aim at). Fliers sit higher up.
+  center(c, w) {
+    const s = SIZES[c.sz].s;
+    return new V3(c.rx, w.gh(c.rx, c.rz) + (c.m.hy != null ? c.m.hy * s : c.m.hit * s * 0.8), c.rz);
+  },
   // the first critter a shot from p0 to p1 passes through (skip: ones this shot already hit, keyed 'c' + id)
   hitTest(p0, p1, skip) {
     const w = G.worlds[G.planet];
     for (const c of this.list.values()) {
       if (skip && skip.has('c' + c.id)) continue;
       const r = c.m.hit * SIZES[c.sz].s;
-      const ctr = new V3(c.rx, w.gh(c.rx, c.rz) + r * 0.8, c.rz);
+      const ctr = this.center(c, w);
       if (U.segSphere(p0, p1, ctr, r + 0.15)) return { c, ctr };
     }
     return null;
@@ -226,6 +242,7 @@ const Critters = {
       c.wt = 0;
       if (fx === 'goo') c.slowT = 3;
       else if (fx === 'ice') c.frozeT = 1.2;
+      else if (fx === 'shock') c.shockT = 0.8;
       return;
     }
     const m = { t: 'cdie', id, by };
@@ -237,7 +254,7 @@ const Critters = {
     if (!c) return;
     const def = this.kinds(G.planet)[c.k];
     const w = G.worlds[G.planet];
-    const pos = new V3(c.rx, w.gh(c.rx, c.rz) + 0.4 * SIZES[c.sz].s, c.rz);
+    const pos = c.m.hover ? this.center(c, w) : new V3(c.rx, w.gh(c.rx, c.rz) + 0.4 * SIZES[c.sz].s, c.rz);
     FX.burst(pos, c.g ? '#ffd23f' : '#ff9a3d', Math.round(12 * SIZES[c.sz].s), 5);
     FX.ring(pos, '#ffffff', 2 * SIZES[c.sz].s);
     Sound.play('splat');
