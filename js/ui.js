@@ -10,7 +10,7 @@ const UI = {
   init() {
     ['hud', 'bucks', 'pizza', 'goal', 'ammo', 'cargo', 'nades', 'roomcode', 'planetname', 'crosshair', 'prompt', 'hint', 'actbar',
       'bossbar', 'phud', 'feed', 'chat', 'chatinput', 'toasts', 'subtitle', 'bigtitle', 'pickups', 'hurt', 'plist',
-      'spectate', 'panel', 'panel-inner', 'flyhud'].forEach((id) => (this.el[id] = U.$(id)));
+      'spectate', 'deathscreen', 'panel', 'panel-inner', 'flyhud'].forEach((id) => (this.el[id] = U.$(id)));
     this.el['panel-inner'].addEventListener('click', (e) => {
       const b = e.target.closest('[data-act]');
       if (!b || b.disabled) return;
@@ -40,15 +40,17 @@ const UI = {
     setTimeout(() => f.remove(), 1400);
   },
 
+  // only touch the page when something actually changed (the HUD updates a lot)
+  setHtml(el, html) { if (el._html !== html) { el._html = html; el.innerHTML = html; } },
   hud() {
     const cap = CARGO[SAVE.cargoLvl];
-    this.el.cargo.innerHTML = `${icon('bag')}<span>${SAVE.cargo.length}/${cap}</span>`;
+    this.setHtml(this.el.cargo, `${Thumbs.img('cargo:' + SAVE.cargoLvl, 'mini', 'bag')}<span>${SAVE.cargo.length}/${cap}</span>`);
     this.el.cargo.classList.toggle('full', SAVE.cargo.length >= cap);
-    this.el.nades.innerHTML = `${icon('bomb')}<span>Goo Grenades x${SAVE.nades}</span>`;
+    this.setHtml(this.el.nades, `${Thumbs.img('nade', 'mini', 'bomb')}<span>Goo Grenades x${SAVE.nades}</span>`);
     this.show('nades', SAVE.nades > 0);
     const pl = PLANETS[G.planet];
     let pizza = pl.pizza;
-    if (pl.boss === 'zorblax') pizza = Summons.has('zorblax') ? 'WARM! (a miracle)' : SAVE.heat ? `Warming up ${SAVE.heat}/${SUMMONS.zorblax.heat}` : pizza;
+    if (pl.boss === 'zorblax') pizza = Summons.has('zorblax') ? 'WARM! (a miracle)' : G.crew.heat ? `Warming up ${G.crew.heat}/${SUMMONS.zorblax.heat}` : pizza;
     this.el.pizza.textContent = `Pizza: 3 yrs late · ${pizza}`;
     const goal = Summons.goal();
     if (this.el.goal.textContent !== goal.text) this.el.goal.textContent = goal.text;
@@ -56,10 +58,14 @@ const UI = {
     this.el.planetname.textContent = pl.name;
     this.bucks(0);
     const p = G.player;
+    // the hotbar shows the tools you actually have (your zapper level, your vac)
+    const pics = { zap: 'zap:' + Math.max(0, SAVE.zap), vac: 'vac:' + (SAVE.vacLvl > 0 ? 1 : 0), drill: 'drill', peel: 'peel' };
     document.querySelectorAll('#hotbar .slot').forEach((s) => {
       const t = s.dataset.tool;
       s.classList.toggle('on', p && p.tool === t);
       s.classList.toggle('hidden', !hasTool(t));
+      this.setHtml(s.querySelector('.ic'), Thumbs.img(pics[t], '', 'box'));
+      if (t === 'zap') this.setHtml(s.querySelector('small'), SAVE.zap >= 0 ? ZAPPERS[SAVE.zap].short : 'Gun');
     });
   },
 
@@ -81,11 +87,12 @@ const UI = {
     setTimeout(() => { m.classList.add('fade'); setTimeout(() => m.remove(), 1000); }, dur * 1000);
   },
 
-  pickup(text, color = '#fff') {
+  // pic: a picture key for what you picked up (see thumbs.js)
+  pickup(text, color = '#fff', pic) {
     const p = document.createElement('div');
     p.className = 'pickup';
     p.style.color = color;
-    p.textContent = text;
+    p.innerHTML = (pic ? Thumbs.img(pic, 'mini', null) : '') + `<span>${U.esc(text)}</span>`;
     this.el.pickups.appendChild(p);
     while (this.el.pickups.children.length > 5) this.el.pickups.firstChild.remove();
     setTimeout(() => p.remove(), 1800);
@@ -134,15 +141,18 @@ const UI = {
     const show = p.tool === 'zap' && SAVE.zap >= 0 && !p.dead && !p.ghost && (G.mode === 'planet' || G.mode === 'boss');
     a.classList.toggle('hidden', !show);
     if (!show) return;
-    const mag = ZAPPERS[SAVE.zap].mag, rel = p.reloadT > 0;
-    const key = rel ? 'r' + Math.round((1 - p.reloadT / p.reloadDur) * 40) : p.ammo + '/' + mag;
+    const z = ZAPPERS[SAVE.zap], mag = z.mag, rel = p.reloadT > 0;
+    const key = SAVE.zap + (rel ? 'r' + Math.round((1 - p.reloadT / p.reloadDur) * 40) : p.ammo + '/' + mag);
     if (this._ammoKey === key) return;
     this._ammoKey = key;
+    const low = !rel && z.type !== 'cutter' && p.ammo <= mag * 0.25;
     a.classList.toggle('reloading', rel);
-    a.classList.toggle('low', !rel && p.ammo <= mag * 0.25);
-    a.querySelector('.n').innerHTML = `${rel ? 0 : p.ammo}<small>/${mag}</small>`;
+    a.classList.toggle('low', low);
+    // the beam shows how much charge is left; everything else counts shots (or cutters in hand)
+    a.querySelector('.n').innerHTML = z.type === 'beam' ? `${rel ? 0 : Math.round((p.ammo / mag) * 100)}<small>%</small>` : `${rel ? 0 : p.ammo}<small>/${mag}</small>`;
     a.querySelector('.fill').style.width = ((rel ? 1 - p.reloadT / p.reloadDur : p.ammo / mag) * 100).toFixed(1) + '%';
-    a.querySelector('.lbl').textContent = rel ? p.reloadMsg + '...' : p.ammo <= mag * 0.25 ? 'PRESS R TO RELOAD' : 'BATTERY · ∞ SPARES';
+    const what = { spread: 'SHELLS', lob: 'GOO', beam: 'FREEZE CHARGE', cutter: 'CUTTERS · THEY COME BACK' }[z.type] || 'BATTERY';
+    a.querySelector('.lbl').textContent = rel ? p.reloadMsg + '...' : low ? 'PRESS R TO RELOAD' : z.type === 'cutter' ? what : what + ' · ∞ SPARES';
   },
 
   /* ----- panels ----- */
@@ -155,6 +165,7 @@ const UI = {
     this.el.panel.classList.remove('hidden');
     G.panel = true;
     if (document.pointerLockElement) document.exitPointerLock();
+    if (typeof Game !== 'undefined') Game.updatePause(); // the panel goes on top of the pause menu, never behind it
     Sound.play('open');
   },
   setPanel(html) {
@@ -170,7 +181,11 @@ const UI = {
     const cb = this.onClose;
     this.onClose = null;
     if (cb) cb();
-    if (!noLock) Game.lock();
+    // opened from the pause menu: go back to it instead of jumping into the game
+    const back = this.backToPause;
+    this.backToPause = false;
+    if (!noLock && !back) Game.lock();
+    Game.updatePause();
   },
 
   hurt() {
@@ -178,6 +193,22 @@ const UI = {
     const h = this.el.hurt;
     h.classList.add('on');
     setTimeout(() => h.classList.remove('on'), 80);
+  },
+
+  /* ----- you died: lie there until you hold left click (see LocalPlayer.die) ----- */
+  death(on, title, sub, note) {
+    const d = this.el.deathscreen;
+    d.classList.toggle('hidden', !on);
+    this.el.hud.classList.toggle('dead', !!on);
+    if (!on) return;
+    d.querySelector('.t').textContent = title;
+    d.querySelector('.s').textContent = sub || '';
+    d.querySelector('.n').innerHTML = note || '';
+    this.respawnFill(0);
+  },
+  respawnFill(f) {
+    const fill = this.el.deathscreen.querySelector('.fill'), w = (U.clamp(f, 0, 1) * 100).toFixed(1) + '%';
+    if (fill.style.width !== w) fill.style.width = w;
   },
 
   /* ----- boss HUD ----- */
@@ -202,14 +233,13 @@ const UI = {
     if (G.mode !== 'planet') { this._php = null; return; }
     const show = hp < 99.5;
     if (show !== this._php) { this._php = show; this.show('phud', show); this.el.phud.classList.toggle('planet', show); }
-    if (show) this.php(hp, 1);
+    if (show) this.php(hp);
   },
-  php(hp, lives) {
+  php(hp) {
     const f = this.el.phud;
     f.querySelector('.fill').style.width = U.clamp(hp, 0, 100) + '%';
     f.querySelector('.hp span').textContent = Math.ceil(Math.max(0, hp)) + ' HP';
-    const txt = lives > 0 ? icon('heart', 'full').repeat(lives) : icon('skull');
-    if (f.querySelector('.lives').innerHTML !== txt) f.querySelector('.lives').innerHTML = txt;
+    if (!f._heart) { f._heart = true; f.querySelector('.lives').innerHTML = icon('heart', 'full'); }
   },
   team(rows) {
     const html = rows.map((r) => `<div>${icon(r.out ? 'ghost' : r.hp <= 0 ? 'skull' : 'person')} ${U.esc(r.name)} ${r.out ? '(out)' : Math.max(0, Math.round(r.hp)) + 'hp'}</div>`).join('');
@@ -234,29 +264,81 @@ const UI = {
       <div><h4>Moving</h4>
         <p><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move · <kbd>Shift</kbd> sprint</p>
         <p><kbd>Space</kbd> jump (double jump with Bounce Boots)</p>
-        <p><kbd>E</kbd> talk / use · <kbd>Esc</kbd> pause</p>
-        <p>In the ship: mouse steers, <kbd>W</kbd>/<kbd>S</kbd> throttle, <kbd>Shift</kbd> boost, <kbd>M</kbd> star map, <kbd>V</kbd> camera</p></div>
+        <p><kbd>E</kbd> talk / use · <kbd>I</kbd> backpack &amp; crew · <kbd>Esc</kbd> pause</p></div>
       <div><h4>Tools</h4>
-        <p><kbd>1</kbd> Zapper: click to shoot, <kbd>R</kbd> reload (buy your first one at Robo-Pawn)</p>
+        <p><kbd>1</kbd> Gun: click to shoot, <kbd>R</kbd> reload (buy your first one at Robo-Pawn). Every planet sells a different kind: a shotgun, a goo lobber, a lucky blaster, a freeze beam, pizza cutters...</p>
         <p><kbd>2</kbd> Grabby Vac: hold click on glowing junk</p>
         <p><kbd>3</kbd> Laser Drill: hold click on crystals (buy on Frostbyte)</p>
         <p><kbd>4</kbd> Pizza Peel: catch pepperoni meteors (buy on Zorblax Prime)</p>
         <p><kbd>Right-click</kbd> throw Goo Grenade (boss fights)</p></div>
       <div><h4>The loop</h4>
-        <p>1. Collect the planet's stuff (and zap critters!) and sell it at the shop.</p>
+        <p>1. Collect the planet's stuff (and zap critters!) and sell it at the shop. Money is tight on the first two planets.</p>
         <p>2. Buy gear. Guns aren't free: buy your first one!</p>
-        <p>3. Find the boss's summoning item (it's rare, keep at it), then use it at the boss altar.</p>
-        <p>4. Win, then fly your ship to the next planet. (The ship won't start until you beat Trashlord Gary.)</p></div>
-      <div><h4>Friends & stuff</h4>
+        <p>3. Find the boss's summoning item (the whole crew works on it together), then use it at the boss altar.</p>
+        <p>4. Win, then everyone gets in the ship and flies to the next planet. (It won't start until you beat Trashlord Gary.)</p></div>
+      <div><h4>Critters</h4>
+        <p>They come in sizes from Tiny to GIANT. Bigger ones are rarer, tougher and worth a lot more. Golden ones are worth 8x.</p>
+        <p>Style kills pay extra (up to 2x each, they stack up to 5x):in the air, after a 360, with your last shot, long shots, double kills, revenge and more.</p></div>
+      <div><h4>The ship</h4>
+        <p><kbd>E</kbd> at the ship to get in. First one in flies, everyone else rides in the back. It only takes off once the whole crew is in.</p>
+        <p>Pilot: mouse steers, <kbd>Space</kbd> lift off / up, <kbd>C</kbd> down, <kbd>W</kbd>/<kbd>S</kbd> throttle, <kbd>Shift</kbd> turbo, <kbd>M</kbd> star map</p>
+        <p><kbd>F</kbd> swap seats · <kbd>V</kbd> camera · <kbd>E</kbd> get out (on the pad)</p></div>
+      <div><h4>Friends &amp; stuff</h4>
         <p>Host a game and send friends the 5-letter code.</p>
-        <p>The host is the captain and flies the ship. Anyone with a summoning item can start a boss fight.</p>
-        <p>If a friend goes down, walk up to them and hold <kbd>E</kbd> to revive them.</p>
-        <p>Gambling unlocks on planet 3, Luckstar.</p>
-        <p><kbd>T</kbd> chat · <kbd>Tab</kbd> crew list · <kbd>M</kbd> music</p></div>
+        <p>If a friend goes down, walk over and hold <kbd>E</kbd> to pick them up.</p>
+        <p>Die on a planet and everything but your Grabby Vac drops where you fell. Hold left click to respawn, then follow the beam of light to get it back (only you can).</p>
+        <p><kbd>I</kbd>: drop items for friends, or send them money. The host can turn on friendly fire in the pause menu.</p>
+        <p>Gambling unlocks on planet 3, Luckstar. <kbd>T</kbd> chat · <kbd>Tab</kbd> crew list · <kbd>M</kbd> music</p></div>
     </div>`;
   },
-  showHow() {
-    this.openPanel(this.howHtml() + '<div class="row2"><button class="btn" data-act="close">Got it, let\'s go</button></div>');
+  // fromPause: closing it goes back to the pause menu
+  showHow(fromPause) {
+    this.openPanel(this.howHtml() + '<div class="row2"><button class="btn" data-act="close">Got it</button></div>');
+    this.backToPause = !!fromPause;
+  },
+
+  /* ----- backpack & crew (press I) ----- */
+  bagTab: 'bag',
+  openBag(tab) {
+    if (tab) this.bagTab = tab;
+    const render = () => {
+      const cap = CARGO[SAVE.cargoLvl], value = Activities.cargoValue();
+      const tabs = [['bag', 'bag', `Backpack (${SAVE.cargo.length}/${cap})`], ['crew', 'person', 'Crew & Money']]
+        .map(([t, ic, lab]) => `<button class="stab ${this.bagTab === t ? 'on' : ''}" data-act="tab" data-t="${t}">${icon(ic)}${lab}</button>`).join('');
+      let body;
+      if (this.bagTab === 'bag') {
+        const counts = {};
+        for (const id of SAVE.cargo) counts[id] = (counts[id] || 0) + 1;
+        const rows = Object.keys(counts).sort((a, b) => cargoRes(b).v * counts[b] - cargoRes(a).v * counts[a]).map((id) => {
+          const r = cargoRes(id);
+          return `<div class="srow bagrow ${r.rare ? 'rare' : ''}"><div class="ic">${Thumbs.img(Thumbs.cargoKey(id), '', r.icon)}</div>
+            <div class="info"><b>${U.esc(r.name)}</b><small>${U.esc(r.desc)}</small></div>
+            <div class="qty">x${counts[id]}</div><div class="each">${U.bucks(r.v)} each</div>
+            <div class="drops"><button class="btn small" data-act="drop1" data-id="${U.esc(id)}">Drop 1</button>${counts[id] > 1 ? `<button class="btn small" data-act="dropall" data-id="${U.esc(id)}">Drop all</button>` : ''}</div></div>`;
+        }).join('');
+        body = SAVE.cargo.length
+          ? `<p class="psub">Worth <b>${U.bucks(value)}</b> at any shop. Dropped stuff lands in front of you in a crate anyone can pick up (walk over it).</p><div class="srows">${rows}</div>`
+          : `<div class="empty"><div>${Thumbs.img('cargo:' + SAVE.cargoLvl, '', 'bag')}</div>Your backpack is empty.</div>`;
+      } else {
+        const crew = [...G.remotes.values()];
+        body = !crew.length ? `<div class="empty"><div>${Thumbs.img(Thumbs.crewKey(G.color, SAVE.hat), '', 'person')}</div>You're flying solo.<br>Host a game and invite friends to share money and loot.</div>`
+          : `<p class="psub">You have <b>${U.bucks(SAVE.bucks)}</b>. Send some to a crewmate:</p>` + crew.map((r) => `<div class="srow crewrow">
+              <div class="ic">${Thumbs.img(Thumbs.crewKey(r.s.c, r.s.h), '', 'person')}</div>
+              <div class="info"><b>${U.esc(r.name)}</b><small>${U.bucks(r.s.$ || 0)} · ${r.s.m === 'space' ? 'in the ship' : r.s.m === 'boss' ? 'fighting a boss' : PLANETS[r.s.p] ? PLANETS[r.s.p].name : ''}</small></div>
+              <div class="gifts">${[10, 50, 100, 500].map((a) => `<button class="btn small" data-act="give" data-id="${U.esc(r.id)}" data-a="${a}" ${SAVE.bucks < a ? 'disabled' : ''}>${U.bucks(a)}</button>`).join('')}
+              <button class="btn small green" data-act="givehalf" data-id="${U.esc(r.id)}" ${SAVE.bucks < 2 ? 'disabled' : ''}>Half</button></div></div>`).join('');
+      }
+      return `<h2 class="ph">${this.bagTab === 'bag' ? 'Backpack' : 'Crew'}</h2><div class="stabs">${tabs}</div><div class="wbody">${body}</div>`;
+    };
+    const handler = (act, d) => {
+      if (act === 'tab') this.bagTab = d.t;
+      if (act === 'drop1') Drops.drop([d.id]);
+      if (act === 'dropall') Drops.drop(SAVE.cargo.filter((e) => e === d.id));
+      if (act === 'give') Game.giveMoney(d.id, Number(d.a));
+      if (act === 'givehalf') Game.giveMoney(d.id, Math.floor(SAVE.bucks / 2));
+      this.setPanel(render());
+    };
+    this.openPanel(render(), handler);
   },
 };
 

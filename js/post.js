@@ -89,9 +89,10 @@ const Post = {
     this.composer.setSize(innerWidth, innerHeight);
   },
   // space looks better with a stronger glow; bright daytime planets need less
+  // ([strength, radius, threshold]; the threshold is how bright something must be before it glows)
   setMood(kind) {
     if (!this.bloom) return;
-    const m = { space: [0.75, 0.55, 0.62], boss: [0.4, 0.45, 0.9], day: [0.22, 0.35, 0.97], night: [0.5, 0.5, 0.8] }[kind] || [0.22, 0.35, 0.97];
+    const m = { space: [0.75, 0.55, 0.62], boss: [0.4, 0.45, 0.9], bossDay: [0.3, 0.4, 0.97], day: [0.22, 0.35, 0.97], night: [0.5, 0.5, 0.8] }[kind] || [0.22, 0.35, 0.97];
     this.bloom.strength = m[0]; this.bloom.radius = m[1]; this.bloom.threshold = m[2];
   },
   render(cam, dt) {

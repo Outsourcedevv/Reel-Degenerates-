@@ -262,6 +262,17 @@ function buildManager() {
   return b;
 }
 
+// the shopkeeper who runs each planet's shop
+function buildShopkeeper(shopId) {
+  switch (shopId) {
+    case 'scrap': return buildRobotNPC();
+    case 'gloop': return buildSnailChef();
+    case 'luck': return buildAlien({ vest: '#9b5de5', bowtie: true });
+    case 'frost': return buildPenguin();
+    default: return buildManager();
+  }
+}
+
 function buildSnail(color) {
   const root = new THREE.Group();
   tf(mk(SPH(0.3, 8, 5), '#c9e27a', root, 0, 0.12, 0.05), 0, 0, 0, 0.8, 0.45, 1.8);
@@ -272,7 +283,7 @@ function buildSnail(color) {
     tf(mk(CYL(0.015, 0.02, 0.22, 4), '#c9e27a', root, s * 0.06, 0.32, 0.46), 0.3, 0, -s * 0.3);
     mk(SPH(0.045, 5, 4), '#111111', root, s * 0.1, 0.44, 0.5);
   }
-  return root;
+  return mergeLocal(root);
 }
 
 /* ---------------- the ship ---------------- */
@@ -311,18 +322,43 @@ function buildShip() {
 }
 
 /* ---------------- props ---------------- */
+// a heap of garbage that actually sits on the ground: a bottom layer, then things stacked on top
 function buildJunkPile(rng) {
   const g = new THREE.Group();
   const cols = ['#8f6b52', '#6f7b83', '#a0522d', '#5a6b4a', '#7a6a8a', '#b07a3a'];
-  const n = 5 + Math.floor(rng() * 5);
+  const col = () => cols[Math.floor(rng() * cols.length)];
+  const base = [];
+  const n = 4 + Math.floor(rng() * 3);
   for (let i = 0; i < n; i++) {
-    const t = rng(), x = (rng() - 0.5) * 3, z = (rng() - 0.5) * 3, y = rng() * 1.4;
-    const c = cols[Math.floor(rng() * cols.length)];
-    if (t < 0.35) tf(mk(BOX(0.6 + rng() * 0.9, 0.5 + rng() * 0.8, 0.6 + rng() * 0.9), c, g, x, y + 0.3, z), rng(), rng(), rng() * 0.5);
-    else if (t < 0.6) tf(mk(TOR(0.45, 0.2, 6, 10), '#2a2a2a', g, x, y + 0.2, z), PI / 2 + (rng() - 0.5), rng() * 3, 0);
-    else if (t < 0.8) tf(mk(CYL(0.4, 0.4, 1.0, 8), c, g, x, y + 0.5, z), rng() > 0.5 ? PI / 2 : 0, rng() * 3, 0);
-    else tf(mk(CYL(0.12, 0.12, 2.2, 6), '#9aa3ad', g, x, y + 0.4, z), rng(), rng(), 1.2);
+    const a = (i / n) * PI * 2 + rng() * 0.6, d = i === 0 ? 0 : 0.7 + rng() * 0.6;
+    const x = Math.cos(a) * d, z = Math.sin(a) * d, t = rng();
+    let top;
+    if (t < 0.4) { // crate, flat on the ground
+      const w = 0.6 + rng() * 0.7, h = 0.5 + rng() * 0.6, dd = 0.6 + rng() * 0.7;
+      tf(mk(BOX(w, h, dd), col(), g, x, h / 2 - 0.04, z), 0, rng() * 3, 0); top = h;
+    } else if (t < 0.65) { // tire lying flat
+      tf(mk(TOR(0.42, 0.18, 6, 12), '#2a2a2a', g, x, 0.16, z), PI / 2, 0, 0); top = 0.34;
+    } else if (t < 0.85) { // barrel, standing up or on its side
+      if (rng() < 0.5) { mk(CYL(0.38, 0.38, 1.0, 8), col(), g, x, 0.48, z); top = 0.98; }
+      else { tf(mk(CYL(0.38, 0.38, 1.0, 8), col(), g, x, 0.36, z), PI / 2, rng() * 3, 0); top = 0.74; }
+    } else { // a pipe leaning on the pile, one end in the dirt
+      const len = 1.6 + rng() * 0.8, tilt = 0.9 + rng() * 0.3;
+      const p = grp(g, x, 0, z); p.rotation.y = rng() * 6;
+      tf(mk(CYL(0.1, 0.1, len, 6), '#9aa3ad', p, Math.sin(tilt) * len / 2, Math.cos(tilt) * len / 2, 0), 0, 0, -tilt);
+      continue;
+    }
+    base.push({ x, z, top });
   }
+  // a couple of things sitting on top of the bottom layer
+  const extra = 1 + Math.floor(rng() * 2);
+  for (let i = 0; i < extra && base.length; i++) {
+    const b = base[Math.floor(rng() * base.length)];
+    const h = 0.3 + rng() * 0.35;
+    if (rng() < 0.5) tf(mk(BOX(0.45, h, 0.45), col(), g, b.x + (rng() - 0.5) * 0.2, b.top + h / 2 - 0.03, b.z + (rng() - 0.5) * 0.2), 0, rng() * 3, 0);
+    else mk(CYL(0.16, 0.16, 0.42, 8), '#c9ced6', g, b.x, b.top + 0.2, b.z);
+    b.top += h;
+  }
+  g.userData.r = 1.9;
   return g;
 }
 function buildBrokenRobot() {
@@ -456,14 +492,17 @@ function buildSpire(rng) {
 function buildLavaRock(rng) {
   const g = new THREE.Group();
   const r = 0.8 + rng() * 1.6;
-  tf(mk(DOD(r), '#3a2a3a', g, 0, r * 0.5, 0), rng(), rng(), rng(), 1, 0.7, 1);
-  for (let i = 0; i < 3; i++) tf(mk(BOX(0.12, 0.12, r * 1.2), '#ff6a1f', g, (rng() - 0.5) * r, r * 0.5 + (rng() - 0.5) * r * 0.4, 0, { emissive: '#ff3a00' }), rng(), rng(), 0);
+  tf(mk(DOD(r), '#3a2a3a', g, 0, r * 0.35, 0), 0, rng() * 6, 0, 1, 0.7, 1);
+  // glowing cracks, kept inside the rock so nothing hangs in the air
+  for (let i = 0; i < 3; i++) tf(mk(BOX(0.14, 0.14, r * 0.95), '#ff6a1f', g, (rng() - 0.5) * r * 0.5, r * 0.35 + (rng() - 0.5) * r * 0.3, (rng() - 0.5) * r * 0.5, { emissive: '#ff3a00' }), (rng() - 0.5) * 0.6, rng() * 3, 0);
+  g.userData.r = r * 0.85;
   return g;
 }
 function buildRock(rng, color) {
   const r = 0.5 + rng() * 1.4;
   const g = new THREE.Group();
-  tf(mk(DOD(r), color || '#8a8a8a', g, 0, r * 0.4, 0), rng() * 3, rng() * 3, 0, 1, 0.6 + rng() * 0.4, 1);
+  tf(mk(DOD(r), color || '#8a8a8a', g, 0, r * 0.3, 0), rng() * 3, rng() * 3, 0, 1, 0.6 + rng() * 0.4, 1);
+  g.userData.r = r * 0.8;
   return g;
 }
 function buildStatue() {
@@ -516,18 +555,216 @@ function buildCrateMachine() {
   return g;
 }
 
+// roulette table: the betting felt plus a wheel with a ball that really rolls round it (userData.ball)
+function buildRouletteTable() {
+  const g = new THREE.Group();
+  mk(BOX(3.6, 0.9, 1.8), '#3b2414', g, 0, 0.45, 0);
+  mk(BOX(3.8, 0.1, 2.0), '#2b1a10', g, 0, 0.92, 0);
+  mk(BOX(3.6, 0.04, 1.8), '#1e7b3a', g, 0, 0.98, 0);
+  // the number grid on the felt
+  for (let i = 0; i < 12; i++) for (let j = 0; j < 3; j++) mk(BOX(0.15, 0.012, 0.3), (i + j) % 2 ? '#d6281b' : '#161616', g, -0.35 + i * 0.17, 1.005, -0.4 + j * 0.34);
+  mk(BOX(0.15, 0.012, 1.0), '#1f9d4a', g, -0.55, 1.005, -0.06);
+  for (let k = 0; k < 6; k++) mk(CYL(0.08, 0.08, 0.08 + (k % 3) * 0.06, 10), ['#d6281b', '#2a6fd8', '#ffd23f'][k % 3], g, 1.2 + (k % 2) * 0.2, 1.04, -0.6 + Math.floor(k / 2) * 0.25);
+  // the wheel, sunk into the left end of the table
+  const wheel = grp(g, -1.25, 0.98, 0);
+  mk(CYL(0.74, 0.8, 0.12, 28), '#6b4a2b', wheel, 0, 0.04, 0);
+  mk(CYL(0.66, 0.66, 0.02, 28), '#2b1a10', wheel, 0, 0.1, 0);
+  // the pockets. The wheel doesn't turn; it sits with the green zero on the far side, the same way
+  // round as the wheel in the roulette window (zero at the top), so the ball lands in the same pocket in both
+  const pockets = grp(wheel, 0, 0.11, 0);
+  pockets.rotation.y = PI / 2;
+  for (let i = 0; i < 37; i++) {
+    const a = (i / 37) * PI * 2;
+    const p = mk(BOX(0.2, 0.025, 0.08), i === 0 ? '#1f9d4a' : i % 2 ? '#d6281b' : '#161616', pockets, Math.cos(a) * 0.5, 0, Math.sin(a) * 0.5);
+    p.rotation.y = -a;
+  }
+  mk(CYL(0.36, 0.4, 0.06, 18), '#c9a227', pockets, 0, 0.02, 0);
+  mk(CYL(0.04, 0.05, 0.22, 6), '#ffd23f', pockets, 0, 0.14, 0);
+  for (let k = 0; k < 2; k++) tf(mk(BOX(0.46, 0.025, 0.035), '#ffd23f', pockets, 0, 0.22, 0), 0, (k / 2) * PI + PI / 4, 0);
+  const ball = mk(SPH(0.045, 7, 5), '#ffffff', wheel, 0, 0.16, -0.5); // (resting in the zero)
+  ball.castShadow = false;
+  ball.userData.keep = true;
+  mergeLocal(g); // only the ball moves, so everything else is glued into a few meshes
+  g.userData = { ball, wheel };
+  return g;
+}
+// something a player dropped on the ground, waiting to be picked up
+function buildDropCrate(rare) {
+  const g = new THREE.Group();
+  const b = grp(g, 0, 0.32, 0);
+  mk(BOX(0.42, 0.42, 0.42), rare ? '#ffd23f' : '#c9a36b', b, 0, 0, 0, rare ? { emissive: '#664400' } : undefined);
+  mk(BOX(0.44, 0.07, 0.44), '#3b3f4a', b, 0, 0.13, 0);
+  mk(BOX(0.07, 0.44, 0.44), '#3b3f4a', b, 0, 0, 0);
+  glowRing(g, 0.62, rare ? '#ffd23f' : '#3df0ff');
+  g.userData.bob = b;
+  g.traverse((c) => { if (c.isMesh) c.castShadow = false; });
+  return g;
+}
+
+/* ---------------- the Luckstar Casino (the building itself is put together in world.js) ---------------- */
+// a glowing material of its own, so it can blink without touching anything else (it still merges with its twins)
+function litMat(color, emissive) {
+  const m = new THREE.MeshToonMaterial({ color, emissive, gradientMap: TOON_GRAD });
+  m.userData.shared = true;
+  return m;
+}
+// a thin bar from point a to point b
+function rod(parent, a, b, r, color, opts) {
+  const d = b.clone().sub(a);
+  const m = mk(CYL(r, r, d.length(), 4), color, parent, (a.x + b.x) / 2, (a.y + b.y) / 2, (a.z + b.z) / 2, opts);
+  m.quaternion.setFromUnitVectors(new V3(0, 1, 0), d.normalize());
+  return m;
+}
+// loud casino carpet: gold diamonds on purple, with little neon dots where they meet
+function casinoCarpetTex(rx, ry) {
+  const t = canvasTex(256, 256, (c, w, h) => {
+    c.fillStyle = '#2e0f52'; c.fillRect(0, 0, w, h);
+    const diamond = (k) => { c.beginPath(); c.moveTo(w / 2, h / 2 - h * k); c.lineTo(w / 2 + w * k, h / 2); c.lineTo(w / 2, h / 2 + h * k); c.lineTo(w / 2 - w * k, h / 2); c.closePath(); };
+    c.fillStyle = '#5a1a78'; diamond(0.36); c.fill();
+    c.strokeStyle = '#d9a92a'; c.lineWidth = 7; diamond(0.5); c.stroke();
+    c.strokeStyle = '#ff3df0'; c.lineWidth = 3; diamond(0.2); c.stroke();
+    c.fillStyle = '#3df0ff';
+    for (const [x, y] of [[0, 0], [w, 0], [0, h], [w, h]]) { c.beginPath(); c.arc(x, y, 12, 0, PI * 2); c.fill(); }
+    c.fillStyle = '#ffd23f'; c.beginPath(); c.arc(w / 2, h / 2, 9, 0, PI * 2); c.fill();
+  });
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(rx, ry);
+  return t;
+}
+function buildChandelier(chain) {
+  const g = new THREE.Group(), gold = '#ffd23f', warm = { emissive: '#ffcc55' }, ice = { emissive: '#5fb8ff' };
+  mk(CYL(0.035, 0.035, chain, 4), '#c9a227', g, 0, 0.3 + chain / 2, 0);
+  mk(SPH(0.26, 8, 6), gold, g, 0, 0.3, 0);
+  tf(mk(TOR(1.35, 0.07, 5, 28), gold, g, 0, 0, 0), PI / 2);
+  tf(mk(TOR(0.8, 0.06, 5, 20), gold, g, 0, 0.35, 0), PI / 2);
+  const top = new V3(0, 0.3, 0);
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * PI * 2, c = Math.cos(a), s = Math.sin(a);
+    mk(SPH(0.1, 6, 4), '#fff1b8', g, c * 1.35, 0.15, s * 1.35, warm);
+    tf(mk(OCT(0.11), '#bff6ff', g, Math.cos(a + 0.26) * 1.35, -0.3, Math.sin(a + 0.26) * 1.35, ice), 0, 0, 0, 1, 1.8, 1);
+    if (i % 2 === 0) rod(g, top, new V3(c * 1.35, 0, s * 1.35), 0.025, gold);
+  }
+  for (let i = 0; i < 8; i++) { const a = (i / 8) * PI * 2 + 0.2; mk(SPH(0.09, 6, 4), '#fff1b8', g, Math.cos(a) * 0.8, 0.48, Math.sin(a) * 0.8, warm); }
+  tf(mk(OCT(0.22), '#bff6ff', g, 0, -0.35, 0, ice), 0, 0, 0, 1, 2, 1);
+  return g;
+}
+function buildCasinoPillar(h) {
+  const g = new THREE.Group();
+  mk(CYL(0.42, 0.48, h, 10), '#2a1450', g, 0, h / 2, 0);
+  mk(CYL(0.62, 0.66, 0.35, 10), '#ffd23f', g, 0, 0.17, 0);
+  mk(CYL(0.62, 0.5, 0.4, 10), '#ffd23f', g, 0, h - 0.2, 0);
+  tf(mk(TOR(0.47, 0.05, 4, 16), '#ffd23f', g, 0, 1.3, 0), PI / 2);
+  tf(mk(TOR(0.47, 0.06, 4, 16), '#3df0ff', g, 0, 3.4, 0, { emissive: '#3df0ff' }), PI / 2);
+  tf(mk(TOR(0.46, 0.06, 4, 16), '#ff3df0', g, 0, 3.8, 0, { emissive: '#ff3df0' }), PI / 2);
+  return g;
+}
+// a lamp hanging over a gambling table (its chain goes up to the ceiling)
+function buildHangingLamp(chain, color) {
+  const g = new THREE.Group();
+  mk(CYL(0.03, 0.03, chain, 4), '#c9a227', g, 0, 0.6 + chain / 2, 0);
+  mk(CONE(0.85, 0.6, 12), color, g, 0, 0.3, 0);
+  mk(CYL(0.72, 0.72, 0.04, 12), '#fff1b8', g, 0, 0.01, 0, { emissive: '#ffd27a' });
+  return g;
+}
+function buildBarStool() {
+  const g = new THREE.Group();
+  mk(CYL(0.24, 0.3, 0.05, 10), '#c9a227', g, 0, 0.025, 0);
+  mk(CYL(0.05, 0.05, 0.75, 6), '#c9a227', g, 0, 0.4, 0);
+  mk(CYL(0.27, 0.25, 0.12, 12), '#b3122e', g, 0, 0.82, 0);
+  return g;
+}
+// the giant poker chip spinning on the casino roof
+function buildGiantChip() {
+  const g = new THREE.Group(), disc = grp(g);
+  disc.rotation.x = PI / 2; // stood up on its edge
+  mk(CYL(2.4, 2.4, 0.5, 28), '#d6281b', disc, 0, 0, 0);
+  for (let i = 0; i < 8; i++) { const a = (i / 8) * PI * 2; tf(mk(BOX(0.55, 0.54, 0.5), '#ffffff', disc, Math.cos(a) * 2.2, 0, Math.sin(a) * 2.2), 0, -a, 0); }
+  for (const s of [-1, 1]) {
+    mk(CYL(1.5, 1.5, 0.04, 24), '#ffd23f', disc, 0, s * 0.26, 0, { emissive: '#664400' });
+    const t = signMesh(['$'], 2.2, 2.2, { bg: 'rgba(0,0,0,0)', color: '#d6281b', border: false, transparent: true });
+    t.position.set(0, s * 0.29, 0); t.rotation.x = s > 0 ? -PI / 2 : PI / 2; disc.add(t);
+  }
+  return mergeLocal(g);
+}
+
 /* ---------------- collectible nodes ---------------- */
 function glowRing(parent, r, col) {
   const ring = new THREE.Mesh(new THREE.RingGeometry(r * 0.8, r, 20), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.55, depthWrite: false, side: THREE.DoubleSide }));
   ring.rotation.x = -PI / 2; ring.position.y = 0.06; parent.add(ring);
   return ring;
 }
+// junk you can vacuum. Lots of different kinds so the moon doesn't look copy-pasted.
+const SCRAP_KINDS = ['cans', 'tv', 'tires', 'gears', 'toaster', 'barrel', 'boards', 'wheel', 'pipes', 'robohead', 'fridge', 'boot'];
 function buildScrapNode(rng) {
   const g = new THREE.Group();
-  tf(mk(TOR(0.22, 0.08, 5, 8), '#c9a227', g, 0.2, 0.25, 0), 0.5, 0.3, 0);
-  mk(CYL(0.13, 0.13, 0.32, 8), '#b0b8c0', g, -0.25, 0.16, 0.1);
-  tf(mk(BOX(0.38, 0.2, 0.28), '#8f6b52', g, 0, 0.1, -0.25), 0, rng() * 3, 0);
-  tf(mk(CYL(0.05, 0.05, 0.4, 6), '#9aa3ad', g, 0.1, 0.1, 0.25), 0, 0, PI / 2);
+  const kind = SCRAP_KINDS[Math.floor(rng() * SCRAP_KINDS.length)];
+  const pick = (a) => a[Math.floor(rng() * a.length)];
+  const metal = pick(['#9aa3ad', '#b0b8c0', '#7a8591', '#c9ced6']);
+  const paint = pick(['#d6281b', '#3a8fd8', '#3fcf6a', '#ffb23e', '#9b5de5', '#e0672a']);
+  switch (kind) {
+    case 'cans':
+      for (let i = 0; i < 4; i++) { const a = rng() * 6, d = rng() * 0.35; mk(CYL(0.11, 0.11, 0.3, 8), pick([paint, metal, '#d8c46a']), g, Math.cos(a) * d, 0.15, Math.sin(a) * d); }
+      tf(mk(CYL(0.12, 0.12, 0.12, 8), metal, g, 0.3, 0.1, -0.2), PI / 2, 0.4, 0);
+      break;
+    case 'tv':
+      tf(mk(BOX(0.7, 0.55, 0.55), '#5a4a3a', g, 0, 0.27, 0), 0, 0, 0.12);
+      mk(BOX(0.52, 0.4, 0.04), '#1a2a2a', g, 0.03, 0.29, 0.28, { emissive: '#0a2a1a' });
+      for (const s of [-1, 1]) tf(mk(CYL(0.012, 0.012, 0.5, 4), metal, g, s * 0.12, 0.72, 0), 0, 0, s * 0.5);
+      break;
+    case 'tires':
+      tf(mk(TOR(0.34, 0.14, 6, 12), '#222222', g, 0, 0.12, 0), PI / 2, 0, 0);
+      tf(mk(TOR(0.3, 0.13, 6, 12), '#2e2e2e', g, 0.05, 0.36, 0.04), PI / 2, 0, 0);
+      mk(CYL(0.18, 0.18, 0.04, 10), metal, g, 0.05, 0.5, 0.04);
+      break;
+    case 'gears':
+      for (let i = 0; i < 3; i++) {
+        const gr = grp(g, (rng() - 0.5) * 0.4, 0.06 + i * 0.1, (rng() - 0.5) * 0.4); gr.rotation.y = rng() * 3;
+        const r = 0.16 + rng() * 0.1, c = pick(['#c9a227', metal, '#b87333']);
+        mk(CYL(r, r, 0.07, 10), c, gr, 0, 0, 0);
+        for (let k = 0; k < 8; k++) { const a = (k / 8) * PI * 2; mk(BOX(0.06, 0.07, 0.08), c, gr, Math.cos(a) * (r + 0.03), 0, Math.sin(a) * (r + 0.03)).rotation.y = -a; }
+      }
+      break;
+    case 'toaster':
+      mk(BOX(0.5, 0.36, 0.3), pick(['#c9ced6', '#d6281b', '#ffe066']), g, 0, 0.18, 0);
+      for (const s of [-1, 1]) mk(BOX(0.36, 0.02, 0.06), '#222222', g, 0, 0.37, s * 0.07);
+      tf(mk(BOX(0.28, 0.3, 0.05), '#d9a066', g, 0.05, 0.42, 0.07), 0, 0, 0.15);
+      tf(mk(CYL(0.015, 0.015, 0.6, 4), '#222222', g, -0.4, 0.02, 0.1), 0, 0.5, PI / 2);
+      break;
+    case 'barrel':
+      tf(mk(CYL(0.28, 0.28, 0.75, 8), paint, g, 0, 0.28, 0), PI / 2, rng() * 3, 0);
+      mk(CYL(0.45, 0.45, 0.02, 12), '#7dff8a', g, 0.45, 0.02, 0.2, { emissive: '#1a8a2a' });
+      break;
+    case 'boards':
+      for (let i = 0; i < 3; i++) tf(mk(BOX(0.42, 0.03, 0.3), '#1e7b3a', g, (rng() - 0.5) * 0.3, 0.04 + i * 0.04, (rng() - 0.5) * 0.3), 0, rng() * 3, 0);
+      for (let i = 0; i < 5; i++) mk(BOX(0.05, 0.03, 0.05), '#ffd23f', g, (rng() - 0.5) * 0.3, 0.16, (rng() - 0.5) * 0.2);
+      tf(mk(BOX(0.4, 0.03, 0.28), '#2a8f4a', g, 0.15, 0.2, 0), 0, 0.3, 0.7);
+      break;
+    case 'wheel':
+      tf(mk(TOR(0.38, 0.03, 4, 16), '#222222', g, 0, 0.38, 0), 0, 0.3, 0.25);
+      for (let k = 0; k < 4; k++) tf(mk(CYL(0.008, 0.008, 0.72, 3), metal, g, 0, 0.38, 0), 0, 0.3, 0.25 + (k / 4) * PI);
+      tf(mk(CYL(0.02, 0.02, 0.5, 5), paint, g, 0.35, 0.12, 0.2), 0, 0, 1.2);
+      break;
+    case 'pipes':
+      for (let i = 0; i < 4; i++) tf(mk(CYL(0.07, 0.07, 0.8, 6), pick([metal, '#b87333']), g, 0, 0.07 + (i % 2) * 0.12, -0.18 + i * 0.12), 0, 0, PI / 2);
+      break;
+    case 'robohead':
+      tf(mk(BOX(0.45, 0.38, 0.4), metal, g, 0, 0.19, 0), 0, 0, 0.2);
+      for (const s of [-1, 1]) mk(SPH(0.06, 6, 5), '#ff3d3d', g, s * 0.1 + 0.03, 0.24, 0.2, { emissive: '#880000' });
+      mk(CYL(0.012, 0.012, 0.3, 4), metal, g, 0.05, 0.48, 0);
+      tf(mk(BOX(0.1, 0.4, 0.1), metal, g, 0.4, 0.05, 0.1), 0, 0.4, PI / 2);
+      break;
+    case 'fridge':
+      tf(mk(BOX(0.5, 0.95, 0.45), '#e8e4dc', g, 0, 0.36, 0), 0, 0, 0.35);
+      tf(mk(BOX(0.04, 0.3, 0.04), '#9aa3ad', g, -0.02, 0.5, 0.24), 0, 0, 0.35);
+      break;
+    case 'boot':
+      mk(BOX(0.22, 0.34, 0.24), '#6b4a2b', g, 0, 0.17, 0);
+      mk(BOX(0.24, 0.14, 0.5), '#6b4a2b', g, 0, 0.07, 0.12);
+      mk(BOX(0.26, 0.04, 0.54), '#2b1d14', g, 0, 0.02, 0.12);
+      tf(mk(CYL(0.1, 0.1, 0.24, 8), metal, g, -0.32, 0.12, -0.1), PI / 2, 0.8, 0);
+      break;
+  }
+  g.userData.kind = kind;
   glowRing(g, 0.85, '#7dff8a');
   return g;
 }
@@ -656,26 +893,172 @@ function buildCritter(kind, gold) {
       leg(-0.09, 0, 0.22, '#8a1a10'); leg(0.09, 0, 0.22, '#8a1a10');
       hit = 0.55;
       break;
+    case 'pigeon': // a grumpy grey bird with a hubcap for a belly
+      tf(mk(SPH(0.26, 8, 6), C('#8a8f98'), body, 0, 0.36, 0, E), 0, 0, 0, 0.9, 0.9, 1.25);
+      mk(CYL(0.2, 0.2, 0.05, 10), C('#c9ced6'), body, 0, 0.3, 0.12, E).rotation.x = PI / 2 - 0.3;
+      mk(SPH(0.15, 8, 6), C('#6d7480'), body, 0, 0.58, 0.2, E);
+      tf(mk(CONE(0.05, 0.14, 5), '#ffb23e', body, 0, 0.56, 0.38), PI / 2);
+      eyes(0.62, 0.3, 0.08, 0.04);
+      for (const s of [-1, 1]) tf(mk(BOX(0.05, 0.14, 0.34), C('#6d7480'), body, s * 0.22, 0.4, -0.02, E), 0, 0, s * 0.3);
+      tf(mk(BOX(0.18, 0.04, 0.2), C('#6d7480'), body, 0, 0.36, -0.36, E), 0.3, 0, 0);
+      leg(-0.08, 0.02, 0.2, '#ffb23e'); leg(0.08, 0.02, 0.2, '#ffb23e');
+      break;
+    case 'gremlin': // lives in a soup can, peeks out and bites
+      mk(CYL(0.24, 0.24, 0.42, 10), C('#b0b8c0'), body, 0, 0.33, 0, E);
+      mk(CYL(0.245, 0.245, 0.2, 10), C('#d6281b'), body, 0, 0.33, 0, E);
+      mk(SPH(0.2, 8, 6), C('#5bbf3a'), body, 0, 0.6, 0.02, E);
+      for (const s of [-1, 1]) { mk(SPH(0.06, 6, 5), '#fff36b', body, s * 0.08, 0.66, 0.16, { emissive: '#887700' }); tf(mk(CONE(0.04, 0.14, 4), C('#5bbf3a'), body, s * 0.16, 0.76, 0), 0, 0, -s * 0.6, 1, 1, 1); }
+      for (const s of [-1, 1]) mk(CONE(0.025, 0.06, 3), '#ffffff', body, s * 0.05, 0.54, 0.19).rotation.x = PI;
+      leg(-0.1, 0, 0.14, '#5bbf3a'); leg(0.1, 0, 0.14, '#5bbf3a');
+      break;
+    case 'shroomy': // a little mushroom that learned to run
+      mk(CYL(0.12, 0.15, 0.3, 8), C('#f3e9d2'), body, 0, 0.3, 0, E);
+      tf(mk(HEMI(0.32, 10, 4), C('#9b5de5'), body, 0, 0.42, 0, E), 0, 0, 0, 1, 0.6, 1);
+      for (let i = 0; i < 4; i++) { const a = i * 1.7; mk(SPH(0.05, 5, 4), '#ffffff', body, Math.sin(a) * 0.2, 0.55, Math.cos(a) * 0.2); }
+      eyes(0.34, 0.13, 0.06, 0.045);
+      leg(-0.07, 0, 0.16, '#f3e9d2'); leg(0.07, 0, 0.16, '#f3e9d2');
+      break;
+    case 'leech': // a long sticky slug
+      for (let i = 0; i < 4; i++) mk(SPH(0.2 - i * 0.03, 8, 6), C(i % 2 ? '#2ab5a5' : '#43e0c0'), body, 0, 0.18, 0.24 - i * 0.2, gold ? E : { emissive: '#0a3a3a' });
+      mk(CYL(0.1, 0.1, 0.06, 10), '#1a2a2a', body, 0, 0.2, 0.42).rotation.x = PI / 2;
+      for (let i = 0; i < 6; i++) { const a = (i / 6) * PI * 2; mk(CONE(0.018, 0.06, 3), '#ffffff', body, Math.cos(a) * 0.07, 0.2 + Math.sin(a) * 0.07, 0.44).rotation.x = PI / 2; }
+      break;
+    case 'card': // the ace of spades on little legs
+      tf(mk(BOX(0.5, 0.04, 0.7), C('#fbf8f2'), body, 0, 0.3, 0, E), -0.25, 0, 0);
+      mk(SPH(0.09, 6, 5), '#111111', body, 0, 0.35, 0.02);
+      tf(mk(CONE(0.1, 0.16, 4), '#111111', body, 0, 0.39, 0.12), PI / 2 - 0.25, 0, 0);
+      for (const s of [-1, 1]) { mk(BOX(0.08, 0.02, 0.1), '#d6281b', body, s * 0.18, 0.4, -0.25); mk(SPH(0.04, 5, 4), '#111111', body, s * 0.08, 0.42, 0.3); }
+      for (const [x, z] of [[-0.18, 0.2], [0.18, 0.2], [-0.18, -0.2], [0.18, -0.2]]) leg(x, z, 0.22, '#2b1d14');
+      break;
+    case 'mimic': { // a tiny slot machine with a big bite
+      mk(BOX(0.5, 0.55, 0.4), C('#d6281b'), body, 0, 0.42, 0, E);
+      mk(BOX(0.4, 0.14, 0.03), '#1a1a2a', body, 0, 0.5, 0.21);
+      [-0.12, 0, 0.12].forEach((x, i) => mk(BOX(0.08, 0.1, 0.02), ['#ffe066', '#7dff8a', '#ff7ac8'][i], body, x, 0.5, 0.225, { emissive: '#554400' }));
+      mk(BOX(0.44, 0.05, 0.05), '#ffd23f', body, 0, 0.3, 0.2);
+      for (let i = 0; i < 5; i++) mk(CONE(0.025, 0.07, 3), '#ffffff', body, -0.16 + i * 0.08, 0.26, 0.21).rotation.x = PI;
+      for (const s of [-1, 1]) { mk(SPH(0.05, 6, 5), '#ffffff', body, s * 0.12, 0.66, 0.2); mk(SPH(0.025, 5, 4), '#111111', body, s * 0.12, 0.66, 0.24); }
+      const lv = grp(body, 0.3, 0.45, 0); mk(CYL(0.02, 0.02, 0.3, 4), '#cccccc', lv, 0, 0.15, 0); mk(SPH(0.05, 5, 4), '#ff3d3d', lv, 0, 0.3, 0); legs.push(lv);
+      leg(-0.14, 0, 0.18); leg(0.14, 0, 0.18);
+      hit = 0.5;
+      break;
+    }
+    case 'pengy': // Penguin Pete's small, broke cousin
+      tf(mk(SPH(0.26, 8, 6), C('#1d2230'), body, 0, 0.38, 0, E), 0, 0, 0, 1, 1.3, 0.9);
+      tf(mk(SPH(0.2, 8, 6), C('#ffffff'), body, 0, 0.36, 0.08, E), 0, 0, 0, 1, 1.2, 0.8);
+      tf(mk(CONE(0.05, 0.12, 5), '#ff9a1f', body, 0, 0.56, 0.24), PI / 2);
+      eyes(0.62, 0.18, 0.07, 0.04);
+      for (const s of [-1, 1]) tf(mk(BOX(0.05, 0.28, 0.14), C('#1d2230'), body, s * 0.27, 0.38, 0, E), 0, 0, s * 0.3);
+      leg(-0.08, 0.06, 0.08, '#ff9a1f'); leg(0.08, 0.06, 0.08, '#ff9a1f');
+      break;
+    case 'pup': // a fluffy baby yeti
+      mk(ICO(0.32, 1), C('#f4f8ff'), body, 0, 0.42, 0, E);
+      mk(ICO(0.22, 1), C('#f4f8ff'), body, 0, 0.72, 0.12, E);
+      tf(mk(SPH(0.14, 7, 5), '#8fa3b8', body, 0, 0.7, 0.26), 0, 0, 0, 1, 0.8, 0.5);
+      for (const s of [-1, 1]) { mk(SPH(0.035, 5, 4), '#111111', body, s * 0.06, 0.74, 0.32); mk(CONE(0.03, 0.08, 3), '#ffffff', body, s * 0.05, 0.62, 0.3).rotation.x = PI; }
+      for (const s of [-1, 1]) { const a = grp(body, s * 0.3, 0.5, 0.05); mk(ICO(0.1, 0), C('#e8f0f8'), a, 0, -0.12, 0, E); legs.push(a); }
+      leg(-0.12, 0, 0.18, '#dfe8f0'); leg(0.12, 0, 0.18, '#dfe8f0');
+      break;
+    case 'ember': // a little bug that is also a little fire
+      tf(mk(SPH(0.22, 8, 6), C('#2a1f2e'), body, 0, 0.26, 0, E), 0, 0, 0, 1, 0.7, 1.3);
+      for (let i = 0; i < 3; i++) mk(OCT(0.12 - i * 0.02), '#ff6a1f', body, (i - 1) * 0.08, 0.42 + i * 0.05, -0.05, { emissive: '#ff3a00' });
+      eyes(0.32, 0.26, 0.06, 0.035);
+      for (let i = 0; i < 3; i++) for (const s of [-1, 1]) leg(s * 0.2, -0.12 + i * 0.12, 0.16, '#1a1420');
+      break;
+    case 'hound': // the Emperor's three-eyed guard dog
+      tf(mk(BOX(0.34, 0.3, 0.7), C('#6a2a8a'), body, 0, 0.42, 0, E), 0, 0, 0);
+      mk(BOX(0.28, 0.26, 0.3), C('#7ddc5a'), body, 0, 0.62, 0.42, E);
+      mk(BOX(0.16, 0.12, 0.14), C('#7ddc5a'), body, 0, 0.56, 0.62, E);
+      for (let i = 0; i < 3; i++) { mk(SPH(0.04, 5, 4), '#fff36b', body, -0.08 + i * 0.08, 0.7 + (i === 1 ? 0.03 : 0), 0.57, { emissive: '#887700' }); }
+      for (const s of [-1, 1]) tf(mk(CONE(0.05, 0.14, 4), C('#7ddc5a'), body, s * 0.1, 0.8, 0.38, E), 0, 0, -s * 0.3);
+      mk(TOR(0.16, 0.03, 4, 10), '#ffd23f', body, 0, 0.5, 0.3, { emissive: '#665500' }).rotation.x = PI / 2;
+      tf(mk(CYL(0.03, 0.02, 0.36, 4), C('#6a2a8a'), body, 0, 0.55, -0.45), -0.7, 0, 0);
+      for (const [x, z] of [[-0.12, 0.25], [0.12, 0.25], [-0.12, -0.25], [0.12, -0.25]]) leg(x, z, 0.28, '#4a1a6a');
+      hit = 0.55;
+      break;
   }
   if (gold) { const sp = mk(OCT(0.08), '#fff6b0', root, 0, 1.0, 0, { emissive: '#ffcc00' }); sp.castShadow = false; body.userData.spark = sp; }
   return { root, body, legs, hit };
 }
 
 /* ---------------- tools (first-person) ---------------- */
-function buildZapperVM(color) {
-  const g = new THREE.Group();
-  tf(mk(BOX(0.07, 0.18, 0.09), '#3b3f4a', g, 0, -0.1, 0.08), 0.3);
-  tf(mk(SPH(0.09, 10, 8), color, g, 0, 0.02, 0.02), 0, 0, 0, 1, 0.9, 1.4);
-  tf(mk(CONE(0.03, 0.1, 4), '#e6e1dc', g, 0, 0.11, 0.04), -0.5, 0, 0, 1, 1, 0.3);
-  tf(mk(CYL(0.03, 0.045, 0.26, 8), '#e6e1dc', g, 0, 0.03, -0.2), PI / 2);
-  for (let i = 0; i < 3; i++) tf(mk(TOR(0.05, 0.014, 4, 10), color, g, 0, 0.03, -0.14 - i * 0.07), 0, 0, 0);
-  const tip = mk(SPH(0.04, 6, 5), color, g, 0, 0.03, -0.35, { emissive: color });
-  const muzzle = grp(g, 0, 0.03, -0.4);
+// a pizza cutter wheel (in the Pizza Cutter gun, and flying through the air). Its axle points along x.
+function buildCutterWheel(parent, r = 0.11) {
+  const w = grp(parent);
+  tf(mk(CYL(r, r, 0.014, 24), '#a4afbb', w, 0, 0, 0), 0, 0, PI / 2);
+  tf(mk(CYL(r * 0.62, r * 0.62, 0.02, 20), '#7f8a96', w, 0, 0, 0), 0, 0, PI / 2);
+  tf(mk(TOR(r, 0.006, 4, 24), '#f4f8fc', w, 0, 0, 0), 0, PI / 2, 0);
+  tf(mk(CYL(r * 0.3, r * 0.3, 0.04, 10), '#d6281b', w, 0, 0, 0), 0, 0, PI / 2);
+  return w;
+}
+// every gun is its own thing (see ZAPPERS). Points down -z; userData.muzzle is where shots come out.
+function buildZapperVM(lvl = 0) {
+  const z = ZAPPERS[lvl] || ZAPPERS[0], color = z.color, g = new THREE.Group();
+  let tip = null, wheel = null, mz = -0.4, my = 0.03; // (muzzle position)
+  tf(mk(BOX(0.07, 0.18, 0.09), '#3b3f4a', g, 0, -0.1, 0.08), 0.3); // grip
+  switch (z.type) {
+    case 'spread': // Scrap Scattergun: two fat barrels, a pump, and a lot of duct tape
+      mk(BOX(0.13, 0.12, 0.26), '#b8662e', g, 0, 0.03, 0.02);
+      mk(BOX(0.09, 0.08, 0.1), '#6b4a2b', g, 0, 0.0, 0.16);
+      for (const s of [-1, 1]) {
+        tf(mk(CYL(0.034, 0.034, 0.34, 8), '#4a4f5a', g, s * 0.036, 0.05, -0.27), PI / 2);
+        mk(TOR(0.034, 0.009, 4, 12), '#2b2f38', g, s * 0.036, 0.05, -0.44);
+      }
+      mk(BOX(0.09, 0.05, 0.12), '#6b4a2b', g, 0, -0.01, -0.22);
+      mk(BOX(0.145, 0.035, 0.04), '#c9ced6', g, 0, 0.05, -0.15);
+      for (const zz of [-0.06, 0.02, 0.1]) mk(SPH(0.012, 5, 4), '#ffd23f', g, 0.068, 0.06, zz);
+      mk(BOX(0.015, 0.03, 0.015), '#2b2f38', g, 0, 0.1, -0.05);
+      mz = -0.46; my = 0.05;
+      break;
+    case 'lob': // Goo Lobber: a fat tube with a tank of glowing goo on top
+      tf(mk(CYL(0.075, 0.085, 0.44, 12), '#5b3a8a', g, 0, 0.04, -0.14), PI / 2);
+      for (const zz of [-0.02, -0.3]) mk(TOR(0.082, 0.012, 4, 14), '#ffd23f', g, 0, 0.04, zz);
+      tf(mk(CYL(0.1, 0.08, 0.06, 12), '#3b2a6a', g, 0, 0.04, -0.38), PI / 2);
+      tf(mk(CYL(0.032, 0.032, 0.17, 10), '#ff5fb8', g, 0, 0.15, -0.1, { emissive: '#8a1060' }), PI / 2);
+      tf(mk(CYL(0.042, 0.042, 0.19, 10), M('#dff6ff', { transparent: true, opacity: 0.35, depthWrite: false }), g, 0, 0.15, -0.1), PI / 2);
+      for (const zz of [-0.005, -0.195]) tf(mk(CYL(0.045, 0.045, 0.02, 10), '#9aa3ad', g, 0, 0.15, zz), PI / 2);
+      tip = mk(SPH(0.055, 8, 6), '#ff5fb8', g, 0, 0.04, -0.39, { emissive: '#8a1060' }); // a goo ball, loaded
+      mz = -0.44; my = 0.04;
+      break;
+    case 'jackpot': // Jackpot Blaster: solid gold, with a tiny slot machine on the side
+      tf(mk(SPH(0.1, 10, 8), '#ffd23f', g, 0, 0.03, 0.02, { emissive: '#4a3500' }), 0, 0, 0, 1, 0.95, 1.5);
+      tf(mk(CYL(0.035, 0.05, 0.28, 10), '#c9a227', g, 0, 0.03, -0.2), PI / 2);
+      for (let i = 0; i < 3; i++) mk(TOR(0.052, 0.013, 4, 12), '#ff3df0', g, 0, 0.03, -0.14 - i * 0.07, { emissive: '#aa00aa' });
+      mk(BOX(0.03, 0.075, 0.12), '#1a1a2a', g, 0.095, 0.04, 0.01);
+      ['#ff4b3e', '#ffe066', '#3df0ff'].forEach((c, i) => mk(BOX(0.012, 0.05, 0.028), c, g, 0.111, 0.04, 0.05 - i * 0.037, { emissive: c }));
+      mk(CYL(0.006, 0.006, 0.09, 4), '#cccccc', g, 0.105, 0.11, 0.06);
+      mk(SPH(0.018, 6, 5), '#ff3d3d', g, 0.105, 0.16, 0.06);
+      mk(BOX(0.045, 0.006, 0.012), '#111111', g, 0, 0.125, 0.04); // the coin slot
+      tip = mk(SPH(0.042, 6, 5), '#ffd23f', g, 0, 0.03, -0.35, { emissive: '#ffd23f' });
+      break;
+    case 'beam': // Cryo Beam: glowing coils and a crystal that the beam comes out of
+      mk(BOX(0.11, 0.11, 0.3), '#e6f3ff', g, 0, 0.03, -0.02);
+      tf(mk(CYL(0.022, 0.022, 0.32, 8), '#9fe3ff', g, 0, 0.03, -0.2, { emissive: '#1a6a8a' }), PI / 2);
+      for (let i = 0; i < 4; i++) mk(TOR(0.058, 0.012, 4, 12), '#3aa7ff', g, 0, 0.03, -0.14 - i * 0.055, { emissive: '#0a4a8a' });
+      for (const [x, y] of [[0, 0.1], [0.072, 0.03], [-0.072, 0.03]]) mk(BOX(x ? 0.012 : 0.07, x ? 0.07 : 0.012, 0.18), '#c9dcff', g, x, y, 0.02);
+      tip = tf(mk(OCT(0.05), '#bff6ff', g, 0, 0.03, -0.39, { emissive: '#3aa7ff' }), PI / 2, 0, 0, 0.7, 2.2, 0.7);
+      mz = -0.46;
+      break;
+    case 'cutter': // Pizza Cutter: a launcher with a cutter wheel sitting in the front (it's gone while it's out)
+      mk(BOX(0.08, 0.06, 0.3), '#3b3f4a', g, 0, 0.02, -0.08);
+      mk(BOX(0.05, 0.05, 0.14), '#d6281b', g, 0, 0.06, -0.2);
+      for (const s of [-1, 1]) mk(BOX(0.012, 0.08, 0.08), '#9aa3ad', g, s * 0.025, 0.08, -0.3);
+      wheel = buildCutterWheel(g, 0.11);
+      wheel.position.set(0, 0.07, -0.33);
+      mz = -0.34; my = 0.07;
+      break;
+    default: // Pew Pew Zapper: the classic
+      tf(mk(SPH(0.09, 10, 8), color, g, 0, 0.02, 0.02), 0, 0, 0, 1, 0.9, 1.4);
+      tf(mk(CONE(0.03, 0.1, 4), '#e6e1dc', g, 0, 0.11, 0.04), -0.5, 0, 0, 1, 1, 0.3);
+      tf(mk(CYL(0.03, 0.045, 0.26, 8), '#e6e1dc', g, 0, 0.03, -0.2), PI / 2);
+      for (let i = 0; i < 3; i++) mk(TOR(0.05, 0.014, 4, 10), color, g, 0, 0.03, -0.14 - i * 0.07);
+      tip = mk(SPH(0.04, 6, 5), color, g, 0, 0.03, -0.35, { emissive: color });
+  }
+  const muzzle = grp(g, 0, my, mz);
   // muzzle flash: a bright star that shows for a frame or two when firing
   const flash = new THREE.Mesh(new THREE.PlaneGeometry(0.26, 0.26), new THREE.MeshBasicMaterial({ map: flashTex(), color, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
-  flash.position.set(0, 0.03, -0.44); flash.visible = false; flash.renderOrder = 5;
+  flash.position.set(0, my, mz - 0.04); flash.visible = false; flash.renderOrder = 5;
   g.add(flash);
-  g.userData = { tip, muzzle, flash };
+  g.userData = { tip, muzzle, flash, wheel };
   return g;
 }
 let _flashTex = null;
@@ -691,13 +1074,18 @@ function flashTex() {
   });
   return _flashTex;
 }
-function buildVacVM() {
+// turbo: the upgraded Turbo Vac (red, racing stripe, fins, a hotter glow)
+function buildVacVM(turbo) {
   const g = new THREE.Group();
-  tf(mk(CYL(0.1, 0.1, 0.34, 8), '#ffd23f', g, 0.02, -0.02, 0.05), PI / 2);
+  tf(mk(CYL(0.1, 0.1, 0.34, 8), turbo ? '#e0341f' : '#ffd23f', g, 0.02, -0.02, 0.05), PI / 2);
+  if (turbo) {
+    tf(mk(CYL(0.102, 0.102, 0.06, 8), '#ffffff', g, 0.02, -0.02, 0.05), PI / 2);
+    for (const s of [-1, 1]) tf(mk(BOX(0.012, 0.09, 0.14), '#ffd23f', g, 0.02 + s * 0.1, 0.02, 0.1), 0, 0, s * 0.5);
+  }
   tf(mk(BOX(0.08, 0.18, 0.1), '#3b3f4a', g, 0.02, -0.15, 0.1), 0.2);
   tf(mk(CYL(0.05, 0.05, 0.34, 6), '#9aa3ad', g, 0.02, 0.0, -0.26), PI / 2);
-  const noz = tf(mk(CYL(0.13, 0.06, 0.2, 8), '#3b3f4a', g, 0.02, 0.0, -0.5), PI / 2);
-  const glow = mk(CYL(0.11, 0.11, 0.02, 8), '#7dff8a', g, 0.02, 0, -0.61, { emissive: '#1a8a2a' });
+  const noz = tf(mk(CYL(turbo ? 0.15 : 0.13, 0.06, 0.2, 8), '#3b3f4a', g, 0.02, 0.0, -0.5), PI / 2);
+  const glow = mk(CYL(0.11, 0.11, 0.02, 8), turbo ? '#7dfff0' : '#7dff8a', g, 0.02, 0, -0.61, { emissive: turbo ? '#1a8a8a' : '#1a8a2a' });
   glow.rotation.x = PI / 2;
   const muzzle = grp(g, 0.02, 0, -0.65);
   g.userData = { muzzle, noz, glow };

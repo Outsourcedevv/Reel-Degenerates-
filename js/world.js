@@ -6,6 +6,9 @@ const WATER_Y = 0;
 const DECK_Y = 1.5;
 const ARENA_R = 17;
 const smooth = (a, b, x) => { const t = U.clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+const TERRAIN_S = 180, TERRAIN_N = 90; // planet ground: 180 m square, 90 x 90 grid
+// the Luckstar Casino: one big hall west of the landing pad, front door facing the ship
+const CASINO_HALL = { x: -29, z: 0, w: 26, d: 30, h: 8, t: 0.5, door: 2.6 };
 
 /* ---------------- sky: gradient dome + stars + big planets ---------------- */
 const Sky = {
@@ -134,7 +137,10 @@ function setAtmosphere(cfg, bossTint) {
   G.hemi.groundColor.set(cfg.hemi[1]);
   G.hemi.intensity = cfg.hemi[2];
   G.liquid.set(cfg.liquid);
-  Post.setMood(bossTint || G.mode === 'boss' ? 'boss' : cfg.stars >= 1 && !(cfg.bodies || []).length ? 'space' : cfg.stars > 0.5 ? 'night' : 'day');
+  // how much things glow (bloom) depends on how bright the place is: bright planets bloom a lot less,
+  // or their pastel ground and sunlit mushrooms turn into white glare
+  const mood = cfg.mood || (cfg.stars > 0.5 ? 'night' : 'day');
+  Post.setMood(bossTint || G.mode === 'boss' ? (mood === 'day' ? 'bossDay' : 'boss') : cfg.stars >= 1 && !(cfg.bodies || []).length ? 'space' : mood);
 }
 
 /* ---------------- liquid sea (water / goo / gold / lava) ---------------- */
@@ -188,6 +194,7 @@ class PlanetWorld {
     this.dyn.userData.dynamic = true;
     this.circles = []; this.boxes = []; this.caps = []; this.inter = []; this.nodes = []; this.npcs = []; this.anim = [];
     this.occupied = [];
+    this.indoors = []; // inside buildings (critters stay out)
     this.ph = idx * 1.7 + 0.4;
     this.rng = U.seeded(1000 + idx * 777);
     this.pads = [];
@@ -199,7 +206,11 @@ class PlanetWorld {
     this.addPad(16, -6, 6);
     this.addPad(0, -38, 6);
     this.addPad(-12, 10, 3);
-    if (this.cfg.id === 'luck') { this.addPad(-20, -8, 12); this.addPad(-17, 17, 10); }
+    if (this.cfg.id === 'luck') {
+      // the casino floor (and the plaza out front) sits level with the landing pad
+      const C = CASINO_HALL;
+      this.addFlat(C.x - C.w / 2 - 2, C.x + C.w / 2 + 7, C.z - C.d / 2 - 2, C.z + C.d / 2 + 2, this.pads[0].h);
+    }
     if (this.cfg.id === 'zorb') {
       this.addPad(0, -52, 16);
       for (const [x, z] of [[-10, -30], [10, -30], [-22, -20], [22, -20]]) this.addPad(x, z, 2);
@@ -228,16 +239,36 @@ class PlanetWorld {
     return base + n * inland * calm;
   }
   addPad(x, z, r) { this.pads.push({ x, z, r, h: this.rawH(x, z) }); }
+  // a flat rectangle of ground at height h (for big buildings)
+  addFlat(x0, x1, z0, z1, h) { this.pads.push({ x0, x1, z0, z1, h }); }
+  // how far a point is from the edge of a pad (0 or less: on it)
+  padDist(p, x, z) {
+    if (p.r != null) return Math.hypot(x - p.x, z - p.z) - p.r;
+    return Math.hypot(Math.max(p.x0 - x, 0, x - p.x1), Math.max(p.z0 - z, 0, z - p.z1));
+  }
   h(x, z) {
     let h = this.rawH(x, z);
     for (const p of this.pads) {
-      const d = Math.hypot(x - p.x, z - p.z);
-      if (d < p.r + 4) h = U.lerp(p.h, h, smooth(p.r, p.r + 4, d));
+      const d = this.padDist(p, x, z);
+      if (d < 4) h = U.lerp(p.h, h, smooth(0, 4, d));
     }
     return h;
   }
+  // the height of the ground you actually SEE: the terrain is drawn as flat triangles on a 2 m grid,
+  // so things (and feet) go exactly on those triangles instead of hovering over the smooth curve
+  gh(x, z) {
+    const S = TERRAIN_S, c = S / TERRAIN_N, h0 = S / 2;
+    const fx = (x + h0) / c, fz = (z + h0) / c;
+    if (fx < 0 || fz < 0 || fx >= TERRAIN_N || fz >= TERRAIN_N) return this.h(x, z);
+    const ix = Math.floor(fx), iz = Math.floor(fz), u = fx - ix, v = fz - iz;
+    const x0 = ix * c - h0, z0 = iz * c - h0;
+    const ha = this.h(x0, z0), hb = this.h(x0, z0 + c), hd = this.h(x0 + c, z0);
+    if (u + v <= 1) return ha + (hd - ha) * u + (hb - ha) * v;
+    const hc = this.h(x0 + c, z0 + c);
+    return hc + (hb - hc) * (1 - u) + (hd - hc) * (1 - v);
+  }
   buildTerrain() {
-    const S = 180, N = 90;
+    const S = TERRAIN_S, N = TERRAIN_N;
     let geo = new THREE.PlaneGeometry(S, S, N, N);
     geo.rotateX(-Math.PI / 2);
     const p = geo.attributes.position;
@@ -272,14 +303,21 @@ class PlanetWorld {
   }
 
   /* ----- placement helpers ----- */
-  place(obj, x, z, ry = 0, parent) {
-    obj.position.set(x, this.h(x, z), z);
+  // put something on the ground. With a footprint radius it sits on the LOWEST ground under it
+  // (and a little into the dirt), so no edge hangs in the air on a slope.
+  place(obj, x, z, ry = 0, parent, rad = 0) {
+    let y = this.gh(x, z);
+    if (rad > 0) {
+      for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; y = Math.min(y, this.gh(x + Math.cos(a) * rad, z + Math.sin(a) * rad)); }
+      y -= 0.06;
+    }
+    obj.position.set(x, y, z);
     obj.rotation.y = ry;
     (parent || this.stat).add(obj);
     return obj;
   }
   isFree(x, z, rad) {
-    for (const p of this.pads) if (Math.hypot(x - p.x, z - p.z) < p.r + rad) return false;
+    for (const p of this.pads) if (this.padDist(p, x, z) < rad) return false;
     for (const o of this.occupied) if (Math.hypot(x - o.x, z - o.z) < o.r + rad) return false;
     return this.h(x, z) > 0.8;
   }
@@ -301,6 +339,10 @@ class PlanetWorld {
     const tag = textSprite(name, { size: 40, bg: 'rgba(43,29,20,.7)', scale: 0.0065 });
     tag.position.set(0, tagY, 0);
     model.root.add(tag);
+    // glue the body into a few meshes (fewer draw calls). The head turns to look at you, so it gets its own.
+    if (model.bulb) model.bulb.userData.keep = true;
+    mergeLocal(model.root, model.head ? [model.head] : []);
+    if (model.head) mergeLocal(model.head);
     this.npcs.push({ m: model, x, z, ry, t: this.rng() * 5 });
     this.circle(x, z, 0.6);
   }
@@ -321,8 +363,11 @@ class PlanetWorld {
     const ship = (this.parked = buildShip());
     ship.userData.dynamic = true;
     this.place(ship, 0, 0, 0);
-    this.box(0, 0.5, 4.4, 11.5);
-    this.interact(4.2, 0.2, 3.2, () => (G.progress.includes('gary') ? 'Board your ship' : 'Ship locked: beat Trashlord Gary first'), () => Flight.board());
+    // solid all the way round: hull (nose to engines, landing legs included) and the boarding ramp,
+    // so nobody ends up wedged under the ship
+    this.box(0, 0.6, 4.7, 12.4);
+    this.box(3.15, 0.2, 2.4, 1.7);
+    this.interact(5.2, 0.2, 2.8, () => Flight.boardLabel(), () => Flight.board());
     const shopCfg = SHOPS[this.cfg.shop];
     const counter = buildCounter(shopCfg.color);
     this.place(counter, 14.2, -6, Math.PI / 2);
@@ -334,15 +379,7 @@ class PlanetWorld {
     const sign = signMesh([shopCfg.npc.toUpperCase()], 3.6, 0.8, { bg: '#2b1d14', color: '#ffd23f' });
     sign.position.set(-1.9, 2.9, 0); sign.rotation.y = -Math.PI / 2; stall.add(sign);
     this.place(stall, 16, -6, 0);
-    let model;
-    switch (this.cfg.shop) {
-      case 'scrap': model = buildRobotNPC(); break;
-      case 'gloop': model = buildSnailChef(); break;
-      case 'luck': model = buildAlien({ vest: '#9b5de5', bowtie: true }); break;
-      case 'frost': model = buildPenguin(); break;
-      default: model = buildManager();
-    }
-    this.npc(model, 16.2, -6, -Math.PI / 2, shopCfg.npc, 4.1);
+    this.npc(buildShopkeeper(this.cfg.shop), 16.2, -6, -Math.PI / 2, shopCfg.npc, 4.1);
     this.interact(13.2, -6, 3.2, `Shop at ${shopCfg.npc}`, () => Shop.open(this.cfg.shop));
   }
   // the boss altar: use the planet's summoning item here to start the fight
@@ -381,6 +418,12 @@ class PlanetWorld {
     for (const o of [this.rising.m.root, this.rising.beam]) { this.dyn.remove(o); disposeObj(o); }
     this.rising = null;
   }
+  // a rock that sits in the dirt and that you bump into instead of walking through
+  rock(x, z, color) {
+    const r = buildRock(this.rng, color);
+    this.place(r, x, z, this.rng() * 6, null, r.userData.r * 0.6);
+    this.circle(x, z, r.userData.r);
+  }
   jokeSign(x, z, model) {
     const s = SIGNS[this.cfg.id];
     this.place(model, x, z, Math.atan2(-x, -z));
@@ -392,14 +435,14 @@ class PlanetWorld {
   build_scrap() {
     const rng = this.rng;
     this.jokeSign(-12, 10, buildPotty());
-    this.scatter(14, 16, 54, 3.2, (x, z) => { this.place(buildJunkPile(rng), x, z, rng() * 6); this.circle(x, z, 1.8); });
-    this.scatter(5, 18, 50, 2, (x, z) => { this.place(buildBrokenRobot(), x, z, rng() * 6); this.circle(x, z, 1.1); });
-    this.scatter(2, 25, 45, 3, (x, z) => { this.place(buildDish(), x, z, rng() * 6); this.circle(x, z, 0.6); });
-    this.scatter(2, 25, 50, 3, (x, z) => { this.place(buildCrashedRocket(), x, z, rng() * 6); this.circle(x, z, 1.2); });
-    this.scatter(22, 12, 58, 1.4, (x, z) => { this.place(buildRock(rng, U.pick(['#8f6b52', '#7a5c48', '#a0826a'])), x, z, rng() * 6); });
+    this.scatter(14, 16, 54, 3.2, (x, z) => { this.place(buildJunkPile(rng), x, z, rng() * 6, null, 1.6); this.circle(x, z, 1.7); });
+    this.scatter(5, 18, 50, 2, (x, z) => { this.place(buildBrokenRobot(), x, z, rng() * 6, null, 1.2); this.circle(x, z, 1.1); });
+    this.scatter(2, 25, 45, 3, (x, z) => { this.place(buildDish(), x, z, rng() * 6, null, 0.5); this.circle(x, z, 0.6); });
+    this.scatter(2, 25, 50, 3, (x, z) => { this.place(buildCrashedRocket(), x, z, rng() * 6, null, 1); this.circle(x, z, 1.2); });
+    this.scatter(22, 12, 58, 1.8, (x, z) => this.rock(x, z, U.pick(['#8f6b52', '#7a5c48', '#a0826a'])));
     this.scatter(22, 9, 55, 1.2, (x, z) => {
       const m = buildScrapNode(rng);
-      this.addNode('scrap', x, this.h(x, z), z, m);
+      this.addNode('scrap', x, this.gh(x, z) - 0.03, z, m);
     });
   }
   build_gloop() {
@@ -408,7 +451,7 @@ class PlanetWorld {
     const shroom = (x, z, h, r, withBerry) => {
       const c = caps[Math.floor(rng() * caps.length)];
       this.place(buildMushroom(h, r, c), x, z, rng() * 6);
-      const gy = this.h(x, z);
+      const gy = this.gh(x, z);
       const top = gy + h + 0.3 + r * 0.22;
       this.caps.push({ x, z, r: r * 0.92, top });
       this.circle(x, z, r * 0.3);
@@ -426,9 +469,9 @@ class PlanetWorld {
       }
     });
     this.scatter(10, 12, 55, 3.5, (x, z) => shroom(x, z, 1.2 + rng() * 3, 1.8 + rng() * 1.8, rng() > 0.3));
-    this.scatter(34, 8, 58, 1, (x, z) => this.place(buildGlowPlant(rng, U.pick(['#7dffea', '#ff9af0', '#fff36b'])), x, z));
-    this.scatter(16, 12, 58, 1.5, (x, z) => this.place(buildRock(rng, U.pick(['#39a58c', '#ff7ac8', '#6a4cc0'])), x, z, rng() * 6));
-    this.scatter(8, 10, 50, 1, (x, z) => this.addNode('berry', x, this.h(x, z), z, buildBerryNode(false)));
+    this.scatter(34, 8, 58, 1, (x, z) => this.place(buildGlowPlant(rng, U.pick(['#7dffea', '#ff9af0', '#fff36b'])), x, z, 0, null, 0.4));
+    this.scatter(16, 12, 58, 1.8, (x, z) => this.rock(x, z, U.pick(['#39a58c', '#ff7ac8', '#6a4cc0'])));
+    this.scatter(8, 10, 50, 1, (x, z) => this.addNode('berry', x, this.gh(x, z), z, buildBerryNode(false)));
     const sign = new THREE.Group();
     mk(BOX(0.2, 2.4, 0.2), '#6b4a2b', sign, 0, 1.2, 0);
     const sm = signMesh(['LUCKSTAR CASINO →', 'NEXT PLANET!'], 2.6, 1.3, { bg: '#ff3df0', colors: ['#fff', '#ffe066'], border: '#fff' });
@@ -440,52 +483,242 @@ class PlanetWorld {
   }
   build_luck() {
     const rng = this.rng;
-    // casino building
-    const cas = new THREE.Group();
-    mk(BOX(10, 8, 20), '#3b1d6a', cas, 0, 4, 0);
-    mk(BOX(10.4, 0.5, 20.4), '#ffd23f', cas, 0, 8.2, 0);
-    for (let i = 0; i < 5; i++) mk(BOX(0.2, 7.6, 0.2), i % 2 ? '#ff3df0' : '#3df0ff', cas, 5.05, 4, -8 + i * 4, { emissive: i % 2 ? '#aa00aa' : '#00aaaa' });
-    const neon = signMesh(['LUCKSTAR', 'CASINO'], 8, 3.4, { bg: '#1a0a30', colors: ['#ff3df0', '#3df0ff'], border: '#ffd23f', glow: true });
-    neon.position.set(5.12, 5.6, -2); neon.rotation.y = Math.PI / 2; cas.add(neon);
-    mk(BOX(0.2, 3.2, 3), '#1a0a30', cas, 5.05, 1.6, -2);
-    this.place(cas, -20, -8, 0);
-    this.box(-20, -8, 10, 20);
-    // slot machines
-    this.slotMachines = [];
-    [-15, -12.6, -10.2].forEach((z) => {
-      const s = buildSlotMachine();
-      this.place(s, -13.3, z, Math.PI / 2, this.dyn);
-      this.slotMachines.push(s);
-      this.box(-13.3, z, 1.0, 1.4);
-      this.interact(-12.2, z, 2.0, 'Play Cosmic Slots', () => Casino.openSlots());
+    this.buildCasino();
+    // decor around the rest of the island
+    this.jokeSign(-12, 10, (() => { const g = new THREE.Group(); mk(BOX(0.2, 2.2, 0.2), '#555', g, 0, 1.1, 0); const s = signMesh(['POSTER'], 1.6, 1.0, { bg: '#ff3df0', color: '#fff' }); s.position.set(0, 2.2, 0.12); g.add(s); return g; })());
+    this.scatter(14, 14, 55, 1.5, (x, z) => { this.place(buildNeonPalm(rng), x, z, 0, null, 0.3); this.circle(x, z, 0.4); });
+    this.scatter(6, 18, 52, 2.5, (x, z) => { const s = 1.5 + rng() * 2; this.place(buildDice(s), x, z, rng() * 6, null, s * 0.5); this.circle(x, z, s * 0.7); });
+    this.scatter(10, 10, 55, 1.2, (x, z) => { this.place(buildChipStack(rng), x, z, 0, null, 0.7); this.circle(x, z, 0.8); });
+  }
+  // The Luckstar Casino: one big hall with every game inside. The front door faces the landing pad.
+  // Everything is laid out in the hall's own coordinates (lx, lz), with the door on the +x side.
+  buildCasino() {
+    const C = CASINO_HALL, W = C.w, D = C.d, H = C.h, T = C.t, DR = C.door;
+    const inX = W / 2 - T, inZ = D / 2 - T; // the inside faces of the walls
+    const fy = this.h(C.x, C.z);
+    const X = (lx) => C.x + lx, Z = (lz) => C.z + lz;
+    const S = grp(this.stat, C.x, fy, C.z); // walls and furniture (merged, casts shadows)
+    // roof, ceiling and lights: merged on their own and cast no shadows, so the sun still lights the hall
+    const noShadow = grp(this.group), N = grp(noShadow, C.x, fy, C.z);
+    const col = (lx, lz, w, d) => this.box(X(lx), Z(lz), w, d);
+    const post = (lx, lz, r) => this.circle(X(lx), Z(lz), r);
+    const put = (obj, lx, y, lz, parent = S) => { obj.position.set(lx, y, lz); parent.add(obj); return obj; };
+    const GOLD = '#ffd23f', NIGHT = '#1a0a30';
+    const neon = (c) => ({ emissive: c });
+    const sign = (lines, w, h, lx, y, lz, ry, colors, border, parent = S) => {
+      const s = signMesh(lines, w, h, { bg: NIGHT, colors, border: border || GOLD, glow: true });
+      s.position.set(lx, y, lz); s.rotation.y = ry; parent.add(s);
+      return s;
+    };
+    this.indoors.push({ x0: X(-W / 2), x1: X(W / 2), z0: Z(-D / 2), z1: Z(D / 2) });
+    this.casinoIn = { x0: X(-inX), x1: X(inX), z0: Z(-inZ), z1: Z(inZ) };
+
+    /* ---------- walls, floor and roof ---------- */
+    const WALL = '#3b1d6a', PANEL = '#24103f', seg = inZ - DR;
+    mk(BOX(W, H, T), WALL, S, 0, H / 2, -D / 2 + T / 2);
+    mk(BOX(W, H, T), WALL, S, 0, H / 2, D / 2 - T / 2);
+    mk(BOX(T, H, 2 * inZ), WALL, S, -W / 2 + T / 2, H / 2, 0);
+    for (const s of [-1, 1]) mk(BOX(T, H, seg), WALL, S, W / 2 - T / 2, H / 2, s * (DR + seg / 2));
+    mk(BOX(T, H - 4.6, 2 * DR), WALL, S, W / 2 - T / 2, 4.6 + (H - 4.6) / 2, 0); // over the door
+    col(0, -D / 2 + T / 2, W, T); col(0, D / 2 - T / 2, W, T); col(-W / 2 + T / 2, 0, T, D);
+    for (const s of [-1, 1]) col(W / 2 - T / 2, s * (DR + (D / 2 - DR) / 2), T, D / 2 - DR);
+    // dark panelling with a gold rail round the inside
+    for (const s of [-1, 1]) {
+      mk(BOX(2 * inX, 1.2, 0.06), PANEL, S, 0, 0.6, s * (inZ - 0.03));
+      mk(BOX(2 * inX, 0.1, 0.12), GOLD, S, 0, 1.25, s * (inZ - 0.06));
+      mk(BOX(0.06, 1.2, seg), PANEL, S, inX - 0.03, 0.6, s * (DR + seg / 2));
+      mk(BOX(0.12, 0.1, seg), GOLD, S, inX - 0.06, 1.25, s * (DR + seg / 2));
+    }
+    mk(BOX(0.06, 1.2, 2 * inZ), PANEL, S, -inX + 0.03, 0.6, 0);
+    mk(BOX(0.12, 0.1, 2 * inZ), GOLD, S, -inX + 0.06, 1.25, 0);
+    // neon strips running round the top of the walls
+    for (const [y, c] of [[7.0, '#3df0ff'], [7.4, '#ff3df0']]) {
+      for (const s of [-1, 1]) {
+        mk(BOX(2 * inX, 0.08, 0.08), c, N, 0, y, s * (inZ - 0.06), neon(c));
+        mk(BOX(0.08, 0.08, 2 * inZ), c, N, s * (inX - 0.06), y, 0, neon(c));
+      }
+    }
+    // the carpet (as loud as casino carpet should be) and a gold doorstep
+    const carpet = new THREE.Mesh(new THREE.PlaneGeometry(2 * inX, 2 * inZ), new THREE.MeshToonMaterial({ map: casinoCarpetTex(inX / 1.5, inZ / 1.5), gradientMap: TOON_GRAD }));
+    carpet.rotation.x = -Math.PI / 2; carpet.position.y = 0.03; carpet.receiveShadow = true;
+    S.add(carpet);
+    mk(BOX(T + 0.1, 0.05, 2 * DR), GOLD, S, W / 2 - T / 2, 0.025, 0);
+    // roof with a gold edge, and little bulbs all over the ceiling
+    mk(BOX(W + 0.8, 0.5, D + 0.8), PANEL, N, 0, H + 0.25, 0);
+    for (const s of [-1, 1]) {
+      mk(BOX(W + 1.2, 0.6, 0.4), GOLD, N, 0, H + 0.6, s * (D / 2 + 0.4));
+      mk(BOX(0.4, 0.6, D + 1.2), GOLD, N, s * (W / 2 + 0.4), H + 0.6, 0);
+    }
+    // a gold-beamed ceiling (it glows a little by itself, or it would just look like the night sky), bulbs where the beams cross
+    const ceil = new THREE.Mesh(new THREE.PlaneGeometry(2 * inX, 2 * inZ), new THREE.MeshToonMaterial({ color: '#2a1450', emissive: '#1d0b3a', gradientMap: TOON_GRAD }));
+    ceil.rotation.x = Math.PI / 2; ceil.position.y = H - 0.01;
+    N.add(ceil);
+    const beam = { emissive: '#4a3508' };
+    for (let ix = -3; ix <= 3; ix++) mk(BOX(0.22, 0.22, 2 * inZ), '#c9a227', N, ix * 3.4, H - 0.12, 0, beam);
+    for (let iz = -4; iz <= 4; iz++) mk(BOX(2 * inX, 0.22, 0.22), '#c9a227', N, 0, H - 0.12, iz * 3.2, beam);
+    for (let ix = -3; ix <= 3; ix++) for (let iz = -4; iz <= 4; iz++) mk(SPH(0.13, 6, 4), '#fff1b8', N, ix * 3.4, H - 0.3, iz * 3.2, { emissive: '#ffcc55' });
+    // pillars holding the roof up, either side of the main aisle
+    for (const [x, z] of [[-8, -3.2], [-8, 3.2], [1.5, -3.2], [1.5, 3.2]]) { put(buildCasinoPillar(H), x, 0, z); post(x, z, 0.5); }
+    for (const x of [-3.4, 6.8]) put(buildChandelier(H - 6.4), x, 6.1, 0, N); // (hung where two beams cross)
+
+    /* ---------- the front: marquee, big sign, red carpet, bouncer ---------- */
+    const FX = W / 2; // the outside of the front wall
+    for (const s of [-1, 1]) {
+      mk(CYL(0.36, 0.42, 5.2, 10), GOLD, S, FX + 0.3, 2.6, s * (DR + 0.5));
+      post(FX + 0.3, s * (DR + 0.5), 0.45);
+    }
+    mk(BOX(2.6, 0.45, 2 * DR + 2.6), NIGHT, S, FX + 1.3, 5.3, 0);
+    mk(BOX(2.7, 0.08, 2 * DR + 2.7), GOLD, S, FX + 1.3, 5.56, 0);
+    // chasing light bulbs round the marquee (two sets that take turns)
+    this.bulbA = litMat('#fff4c2', '#ffcc33'); this.bulbB = litMat('#fff4c2', '#ffcc33');
+    let k = 0;
+    for (let z = -(DR + 1.1); z <= DR + 1.1 + 1e-6; z += 0.45) mk(SPH(0.1, 6, 4), k++ % 2 ? this.bulbB : this.bulbA, N, FX + 2.62, 5.3, z);
+    for (const s of [-1, 1]) for (let x = 0.35; x < 2.5; x += 0.45) mk(SPH(0.1, 6, 4), k++ % 2 ? this.bulbB : this.bulbA, N, FX + x, 5.3, s * (DR + 1.32));
+    sign(['OPEN 25 HOURS A DAY'], 7, 1.1, FX + 0.03, 6.5, 0, Math.PI / 2, ['#ffd23f']);
+    // neon strips up the front
+    for (const s of [-1, 1]) for (const [z, c] of [[5.2, '#ff3df0'], [8.4, '#3df0ff'], [11.6, '#ff3df0']]) mk(BOX(0.08, 7.2, 0.14), c, N, FX + 0.05, 4.0, s * z, neon(c));
+    // the big sign on the roof (the back of it helps anyone who walked round the wrong side)
+    const bb = grp(N, W / 2 - 1.2, H + 0.5, 0);
+    mk(BOX(0.35, 5.2, 15.4), NIGHT, bb, 0, 2.9, 0);
+    for (const s of [-1, 1]) mk(BOX(0.3, 0.9, 0.3), '#2a1450', bb, 0, 0.45, s * 6);
+    sign(['LUCKSTAR', 'CASINO'], 15, 4.8, 0.19, 2.9, 0, Math.PI / 2, ['#ff3df0', '#3df0ff'], GOLD, bb);
+    sign(['LUCKSTAR CASINO', 'THE DOOR IS ROUND THE OTHER SIDE'], 15, 4.8, -0.19, 2.9, 0, -Math.PI / 2, ['#ff3df0', '#3df0ff'], GOLD, bb);
+    // a giant poker chip spinning on a front corner of the roof (where the big sign doesn't hide it)
+    mk(CYL(0.8, 1.1, 0.8, 8), GOLD, N, 7, H + 0.9, -10.5);
+    const chip = (this.bigChip = buildGiantChip());
+    chip.position.set(X(7), fy + H + 3.7, Z(-10.5));
+    chip.traverse((o) => { if (o.isMesh) o.castShadow = false; });
+    this.dyn.add(chip);
+    // searchlights sweeping the sky from the front corners (you can spot the casino from anywhere)
+    const beamGeo = new THREE.CylinderGeometry(7, 0.35, 110, 20, 1, true);
+    beamGeo.translate(0, 55, 0);
+    const beamMat = new THREE.MeshBasicMaterial({ color: '#b9a4ff', transparent: true, opacity: 0.09, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false });
+    this.searchlights = [-1, 1].map((s) => {
+      mk(CYL(0.55, 0.65, 0.7, 10), '#3b3f4a', N, W / 2 - 1.6, H + 0.85, s * (D / 2 - 1.6));
+      mk(CYL(0.4, 0.4, 0.1, 10), '#fff4c2', N, W / 2 - 1.6, H + 1.25, s * (D / 2 - 1.6), { emissive: '#ffe9a8' });
+      const m = new THREE.Mesh(beamGeo, beamMat);
+      m.position.set(X(W / 2 - 1.6), fy + H + 1.3, Z(s * (D / 2 - 1.6)));
+      this.dyn.add(m);
+      return { m, s, ph: s > 0 ? 0 : 2.1 };
     });
-    // Glorp's table
-    const table = new THREE.Group();
-    mk(CYL(1.2, 0.4, 1.0, 10), '#3b2414', table, 0, 0.5, 0);
-    mk(CYL(1.3, 1.3, 0.1, 12), '#1e7b3a', table, 0, 1.05, 0);
-    for (let i = 0; i < 5; i++) mk(CYL(0.15, 0.15, 0.06, 8), '#ffd23f', table, 0.4, 1.13 + i * 0.07, 0.3);
-    this.place(table, -9.5, -1.5);
-    this.circle(-9.5, -1.5, 1.3);
-    const glorp = buildAlien({ vest: '#1e7b3a', shades: true });
-    this.npc(glorp, -11.3, -1.5, Math.PI / 2, 'Glorp');
-    this.interact(-8.4, -1.5, 2.6, 'Gamble with Glorp (Double or Nothing)', () => Casino.openGlorp());
-    // crate machine
-    const cm = buildCrateMachine();
-    this.place(cm, -13.6, 3.5, Math.PI / 2);
-    this.box(-13.6, 3.5, 1.2, 1.8);
-    this.interact(-12.4, 3.5, 2.2, 'Mystery Crate ($300)', () => Casino.openCrate());
-    // snail race track
-    const tr = new THREE.Group();
-    mk(BOX(20, 0.1, 7.2), '#f3d99b', tr, 0, 0.05, 0);
-    for (let i = 0; i <= 5; i++) mk(BOX(19.6, 0.02, 0.06), '#ffffff', tr, 0, 0.12, -3 + i * 1.2);
-    for (let i = 0; i < 12; i++) mk(BOX(0.3, 0.03, 0.3), i % 2 ? '#111' : '#fff', tr, 8.6 + (i % 2) * 0.3, 0.12, -3 + Math.floor(i / 2) * 1.2 + 0.3);
-    for (let i = 0; i < 3; i++) mk(BOX(20, 0.5, 0.9), '#5b3a8a', tr, 0, 0.25 + i * 0.5, 4.2 + i * 0.9);
-    const ts = signMesh(['SNAIL RACES', 'BET ON A SNAIL'], 5, 1.6, { bg: '#1a0a30', colors: ['#ffd23f', '#3df0ff'], border: '#ff3df0', glow: true });
-    ts.position.set(0, 3.5, 4.9); ts.rotation.y = Math.PI; tr.add(ts);
-    mk(BOX(0.2, 3, 0.2), '#6b4a2b', tr, -2.4, 1.5, 5); mk(BOX(0.2, 3, 0.2), '#6b4a2b', tr, 2.4, 1.5, 5);
-    this.place(tr, -17, 17, 0);
-    this.box(-17, 21.8, 20, 2.8, 99);
-    this.track = { x0: -26, x1: -8.2, lanes: [-3, -1.8, -0.6, 0.6, 1.8].map((o) => 17 + o + 0.6), y: this.h(-17, 17) + 0.12 };
+    // air conditioning (it's very hot in there, from all the money burning)
+    for (const [x, z] of [[-8, -7], [-8, 6], [-3, 9]]) {
+      mk(BOX(1.8, 1.0, 1.3), '#6b7280', N, x, H + 1.0, z);
+      mk(CYL(0.45, 0.45, 0.06, 10), '#2b2f38', N, x, H + 1.53, z);
+    }
+    // red carpet with velvet ropes
+    mk(BOX(6.4, 0.05, 3.2), '#b3122e', S, FX + 3.2, 0.03, 0);
+    for (const s of [-1, 1]) {
+      mk(BOX(6.4, 0.06, 0.12), GOLD, S, FX + 3.2, 0.035, s * 1.6);
+      for (let i = 0; i < 4; i++) {
+        const x = FX + 1.4 + i * 1.6;
+        mk(CYL(0.19, 0.21, 0.06, 8), GOLD, S, x, 0.03, s * 2.0);
+        mk(CYL(0.05, 0.06, 0.95, 6), GOLD, S, x, 0.5, s * 2.0);
+        mk(SPH(0.1, 6, 5), GOLD, S, x, 1.0, s * 2.0);
+        if (i < 3) mk(BOX(1.6, 0.08, 0.08), '#b3122e', S, x + 0.8, 0.82, s * 2.0);
+      }
+      col(FX + 3.8, s * 2.0, 5.0, 0.2);
+      this.place(buildNeonPalm(this.rng), X(FX + 3.5), Z(s * 6.5), 0, null, 0.3);
+      post(FX + 3.5, s * 6.5, 0.4);
+    }
+    const bouncer = buildAlien({ vest: '#111111', shades: true });
+    bouncer.root.scale.setScalar(1.2);
+    this.npc(bouncer, X(FX + 1.5), Z(DR + 1.9), Math.PI / 2, 'Big Zorp', 2.5);
+    this.interact(X(FX + 2.7), Z(DR + 1.9), 3.2, 'Talk to Big Zorp (bouncer)', () => { UI.toast(`Big Zorp: "${U.pick(LINES.bouncer)}"`, '', 4); Sound.play('click'); });
+
+    /* ---------- slots, all along the north wall ---------- */
+    this.slotMachines = [];
+    const slotZ = -inZ + 0.5;
+    for (let i = 0; i < 8; i++) {
+      const lx = -10.5 + i * 2.55;
+      const sm = buildSlotMachine();
+      sm.userData.lever.userData.dynamic = true; // (keep the lever its own mesh so it can still move)
+      sm.position.set(lx, 0, slotZ);
+      S.add(sm);
+      this.slotMachines.push(sm);
+      this.interact(X(lx), Z(slotZ + 1.4), 1.7, 'Play Cosmic Slots', () => Casino.openSlots(i));
+    }
+    col(-10.5 + 3.5 * 2.55, slotZ, 7 * 2.55 + 1.5, 1.0);
+    sign(['COSMIC SLOTS', 'THE PIZZA JACKPOT PAYS x250'], 11, 2.2, -1.6, 4.4, -inZ + 0.02, 0, ['#ffd23f', '#ff3df0'], '#ff3df0');
+    sign(['THE HOUSE', 'ALWAYS WINS', '(it\'s the law)'], 3, 2.2, 10.4, 2.9, -inZ + 0.02, 0, ['#ffffff', '#ffffff', '#ffd23f']);
+
+    /* ---------- roulette, run by a very serious robot ---------- */
+    const rt = (this.roulette = buildRouletteTable());
+    this.place(rt, X(-4), Z(-6.8), 0, this.dyn);
+    col(-4, -6.8, 3.9, 2.0);
+    this.npc(buildRobotNPC(), X(-4), Z(-8.7), 0, 'Lady Luck 9000');
+    this.interact(X(-4), Z(-5.0), 2.5, 'Play Roulette', () => Casino.openRoulette());
+    put(buildHangingLamp(H - 5.0, '#ff3df0'), -4, 4.4, -6.8, N);
+
+    /* ---------- Glorp's coin table ---------- */
+    const gt = grp(S, 5.5, 0, -6.8);
+    mk(CYL(1.2, 0.4, 1.0, 10), '#3b2414', gt, 0, 0.5, 0);
+    mk(CYL(1.3, 1.3, 0.1, 12), '#1e7b3a', gt, 0, 1.05, 0);
+    for (let i = 0; i < 5; i++) mk(CYL(0.15, 0.15, 0.06, 8), GOLD, gt, 0.4, 1.13 + i * 0.07, 0.3);
+    post(5.5, -6.8, 1.3);
+    this.npc(buildAlien({ vest: '#1e7b3a', shades: true }), X(5.5), Z(-8.6), 0, 'Glorp');
+    this.interact(X(5.5), Z(-5.2), 2.4, 'Gamble with Glorp (Double or Nothing)', () => Casino.openGlorp());
+    put(buildHangingLamp(H - 5.0, '#3df0ff'), 5.5, 4.4, -6.8, N);
+    const gs = grp(S, 7.9, 0, -7.7);
+    mk(BOX(0.08, 1.2, 0.08), GOLD, gs, 0, 0.6, 0);
+    sign(['GLORP\'S COIN', '100% FAIR*', '*not a legal guarantee'], 1.5, 1.0, 0, 1.6, 0.05, 0, ['#ffd23f', '#ffffff', '#9aa0a6'], GOLD, gs);
+    post(7.9, -7.7, 0.2);
+
+    /* ---------- mystery crate machines either side of the door ---------- */
+    for (const s of [-1, 1]) {
+      const cm = buildCrateMachine();
+      cm.position.set(inX - 0.65, 0, s * 7); cm.rotation.y = -Math.PI / 2;
+      S.add(cm);
+      col(inX - 0.65, s * 7, 1.3, 1.9);
+      this.interact(X(inX - 2.1), Z(s * 7), 2.2, 'Mystery Crate ($300)', () => Casino.openCrate());
+      sign(['MYSTERY', 'CRATES'], 2.4, 1.1, inX - 0.02, 3.7, s * 7, -Math.PI / 2, ['#3df0ff', '#ffd23f'], '#3df0ff');
+      put(buildNeonPalm(this.rng), 10, 0, s * 3.8); // (the palms by the door are just for show)
+      post(10, s * 3.8, 0.4);
+    }
+    sign(['THANKS FOR', 'YOUR MONEY!'], 5, 1.6, inX - 0.02, 5.9, 0, -Math.PI / 2, ['#ff3df0', '#3df0ff']);
+
+    /* ---------- the snail derby along the south wall ---------- */
+    const TX = -2, TZ = 9.4, RZ = TZ - 3.55; // track centre, and the railing along its front
+    const tr = grp(S, TX, 0, TZ);
+    mk(BOX(19, 0.1, 6.4), '#f3d99b', tr, 0, 0.05, 0);
+    for (let i = 0; i <= 5; i++) mk(BOX(18.6, 0.02, 0.06), '#ffffff', tr, 0, 0.11, -3 + i * 1.2);
+    mk(BOX(0.12, 0.02, 6.0), '#ffffff', tr, -8.2, 0.11, 0);
+    for (let r = 0; r < 20; r++) for (let c = 0; c < 2; c++) mk(BOX(0.3, 0.02, 0.3), (r + c) % 2 ? '#111111' : '#ffffff', tr, 7.1 + c * 0.3, 0.115, -2.85 + r * 0.3);
+    for (const [x, label, c] of [[-8.2, 'START', '#3fcf6a'], [7.25, 'FINISH', '#ff4b3e']]) {
+      for (const s of [-1, 1]) mk(BOX(0.18, 2.3, 0.18), c, tr, x, 1.15, s * 3.3);
+      mk(BOX(0.25, 0.45, 6.8), NIGHT, tr, x, 2.4, 0);
+      sign([label], 1.6, 0.45, x, 2.4, -3.45, Math.PI, [c], c, tr);
+    }
+    // railing in front, stands at the back (full of very invested fans)
+    for (let x = -9.6; x <= 9.6 + 1e-6; x += 1.92) mk(CYL(0.06, 0.06, 1.0, 6), GOLD, tr, x, 0.5, -3.55);
+    mk(BOX(19.3, 0.08, 0.08), GOLD, tr, 0, 1.02, -3.55);
+    mk(BOX(19.3, 0.06, 0.06), '#b3122e', tr, 0, 0.6, -3.55);
+    for (const s of [-1, 1]) {
+      for (let z = -1.85; z <= 3.3; z += 1.7) mk(CYL(0.06, 0.06, 1.0, 6), GOLD, tr, s * 9.65, 0.5, z);
+      mk(BOX(0.08, 0.08, 6.8), GOLD, tr, s * 9.65, 1.02, -0.15);
+    }
+    col((-inX + TX + 9.8) / 2, (RZ - 0.1 + inZ) / 2, TX + 9.8 + inX, inZ - RZ + 0.1);
+    mk(BOX(19, 0.5, 0.9), '#5b3a8a', S, TX, 0.25, inZ - 1.35);
+    mk(BOX(19, 1.0, 0.9), '#4a2a7a', S, TX, 0.5, inZ - 0.45);
+    const vests = ['#ff4b3e', '#3fcf6a', '#3aa7ff', '#ffd23f', '#ff7ac8', '#9b5de5'];
+    [[-8, 0.5, inZ - 1.35], [-3.5, 0.5, inZ - 1.35], [2.5, 0.5, inZ - 1.35], [-6, 1.0, inZ - 0.45], [-1, 1.0, inZ - 0.45], [3, 1.0, inZ - 0.45]].forEach(([x, y, z], i) => {
+      const fan = buildAlien({ vest: vests[i], bowtie: i % 2 === 0 });
+      fan.armL.rotation.x = i % 3 === 0 ? -2.8 : -0.4;
+      fan.armR.rotation.x = i % 2 ? -2.8 : -0.2;
+      fan.root.position.set(x, y, z); fan.root.rotation.y = Math.PI;
+      S.add(fan.root);
+    });
+    sign(['SNAIL DERBY', 'BET ON A SNAIL. WIN BIG!*'], 10, 2.6, TX, 5.0, inZ - 0.02, Math.PI, ['#ffd23f', '#3df0ff'], '#ff3df0');
+    sign(['*you will not win big'], 3.2, 0.5, TX + 7.8, 3.0, inZ - 0.02, Math.PI, ['#9aa0a6'], '#9aa0a6');
+    // two betting podiums at the rail
+    for (const bx of [-6.5, 3]) {
+      mk(BOX(1.4, 1.15, 0.7), NIGHT, S, bx, 0.575, RZ - 0.45);
+      mk(BOX(1.5, 0.08, 0.8), GOLD, S, bx, 1.17, RZ - 0.45);
+      sign(['PLACE', 'BETS'], 1.2, 0.8, bx, 0.62, RZ - 0.81, Math.PI, ['#ffd23f', '#3df0ff']);
+      col(bx, RZ - 0.45, 1.4, 0.7);
+      this.interact(X(bx), Z(RZ - 1.3), 2.4, 'Snail Races (bet!)', () => Casino.openSnails());
+    }
+    this.track = { x0: X(TX - 8.2), x1: X(TX + 7.2), lanes: [-2.4, -1.2, 0, 1.2, 2.4].map((o) => Z(TZ + o)), y: fy + 0.12 };
     this.snails = SNAILS.map((s, i) => {
       const m = buildSnail(s.color);
       m.scale.setScalar(1.3);
@@ -494,27 +727,49 @@ class PlanetWorld {
       this.dyn.add(m);
       return m;
     });
-    this.interact(-6.8, 14, 3.2, 'Snail Races (bet!)', () => Casino.openSnails());
-    this.interact(-17, 13.2, 3.2, 'Snail Races (bet!)', () => Casino.openSnails());
-    // decor
-    this.jokeSign(-12, 10, (() => { const g = new THREE.Group(); mk(BOX(0.2, 2.2, 0.2), '#555', g, 0, 1.1, 0); const s = signMesh(['POSTER'], 1.6, 1.0, { bg: '#ff3df0', color: '#fff' }); s.position.set(0, 2.2, 0.12); g.add(s); return g; })());
-    this.scatter(14, 14, 55, 1.5, (x, z) => { this.place(buildNeonPalm(rng), x, z); this.circle(x, z, 0.4); });
-    this.scatter(6, 18, 52, 2.5, (x, z) => { const s = 1.5 + rng() * 2; this.place(buildDice(s), x, z, rng() * 6); this.circle(x, z, s * 0.7); });
-    this.scatter(10, 10, 55, 1.2, (x, z) => { this.place(buildChipStack(rng), x, z); this.circle(x, z, 0.8); });
+
+    /* ---------- the Lucky Lounge (a bar) at the back ---------- */
+    const BX = -inX + 1.9;
+    mk(BOX(0.9, 1.1, 7), '#6b3a2a', S, BX, 0.55, 0);
+    mk(BOX(1.2, 0.1, 7.4), '#2b1d14', S, BX, 1.15, 0);
+    mk(BOX(0.06, 0.06, 7), GOLD, S, BX + 0.55, 0.3, 0);
+    col(BX, 0, 1.0, 7.2);
+    const bottles = [['#3df0ff', '#0a8aa0'], ['#ff3df0', '#a0108a'], ['#7dff8a', '#1a8a2a'], ['#ffd23f', '#a07a0a']];
+    for (const y of [1.6, 2.3, 3.0]) {
+      mk(BOX(0.45, 0.07, 6.4), '#2b1d14', S, -inX + 0.25, y, 0);
+      let b = Math.round(y * 10);
+      for (let z = -2.9; z <= 2.9 + 1e-6; z += 0.45) { const [c, e] = bottles[b++ % 4]; mk(CYL(0.07, 0.08, 0.34, 6), c, S, -inX + 0.25, y + 0.21, z, { emissive: e }); }
+    }
+    for (const z of [-2.6, -1.3, 1.3, 2.6]) { put(buildBarStool(), BX + 1.05, 0, z); post(BX + 1.05, z, 0.28); }
+    this.npc(buildAlien({ vest: '#ffffff', bowtie: true }), X(-inX + 0.95), Z(0), Math.PI / 2, 'Zeke');
+    this.interact(X(BX + 1.2), Z(0), 2.3, 'Talk to Zeke (bartender)', () => { UI.toast(`Zeke: "${U.pick(LINES.bartender)}"`, '', 4); Sound.play('click'); });
+    sign(['THE LUCKY LOUNGE'], 7, 1.3, -inX + 0.02, 4.5, 0, Math.PI / 2, ['#ff3df0']);
+    sign(['NO REFUNDS'], 3, 0.9, -inX + 0.02, 2.7, -8.5, Math.PI / 2, ['#ff4b3e'], '#ff4b3e');
+    sign(['PLEASE DO NOT', 'FEED THE SNAILS'], 3, 1.3, -inX + 0.02, 2.9, 8, Math.PI / 2, ['#ffffff', '#3fcf6a']);
+
+    mergeStatic(noShadow);
+    noShadow.traverse((o) => { if (o.isMesh) o.castShadow = false; });
+  }
+  // is this spot inside the casino hall?
+  inCasino(p) {
+    const r = this.casinoIn;
+    return !!r && p.x > r.x0 && p.x < r.x1 && p.z > r.z0 && p.z < r.z1;
   }
   build_frost() {
     const rng = this.rng;
     const ig = buildIgloo();
     this.jokeSign(-12, 10, ig);
     this.circles.pop(); this.circle(-12, 10, 2.6);
-    this.place(buildIgloo(), 21.8, -6, -Math.PI / 2);
+    this.place(buildIgloo(), 21.8, -6, -Math.PI / 2, null, 2.4);
     this.circle(21.8, -6, 2.6);
-    this.scatter(3, 20, 45, 4, (x, z) => { this.place(buildIgloo(), x, z, rng() * 6); this.circle(x, z, 2.6); });
-    this.scatter(42, 12, 58, 1.6, (x, z) => { this.place(buildPine(rng, true), x, z, rng() * 6); this.circle(x, z, 0.5); });
-    this.scatter(7, 10, 50, 1.2, (x, z) => { this.place(buildSnowman(rng), x, z, rng() * 6); this.circle(x, z, 0.8); });
-    this.scatter(18, 12, 58, 1.4, (x, z) => this.place(buildRock(rng, U.pick(['#9fb8cc', '#c9e6f5', '#8fa3b8'])), x, z, rng() * 6));
+    this.scatter(3, 20, 45, 4, (x, z) => { this.place(buildIgloo(), x, z, rng() * 6, null, 2.4); this.circle(x, z, 2.6); });
+    this.scatter(42, 12, 58, 1.6, (x, z) => { this.place(buildPine(rng, true), x, z, rng() * 6, null, 0.4); this.circle(x, z, 0.5); });
+    this.scatter(7, 10, 50, 1.2, (x, z) => { this.place(buildSnowman(rng), x, z, rng() * 6, null, 0.6); this.circle(x, z, 0.8); });
+    this.scatter(18, 12, 58, 1.8, (x, z) => this.rock(x, z, U.pick(['#9fb8cc', '#c9e6f5', '#8fa3b8'])));
     this.scatter(16, 10, 55, 2, (x, z) => {
-      this.addNode('crystal', x, this.h(x, z), z, buildCrystalNode(rng), { hp: 1 });
+      let y = this.gh(x, z);
+      for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; y = Math.min(y, this.gh(x + Math.cos(a) * 0.9, z + Math.sin(a) * 0.9)); }
+      this.addNode('crystal', x, y - 0.05, z, buildCrystalNode(rng), { hp: 1 });
       this.circle(x, z, 0.9);
     });
   }
@@ -533,15 +788,15 @@ class PlanetWorld {
       this.place(buildStatue(), x, z, Math.atan2(-x, -z));
       this.box(x, z, 2.2, 2.2);
     }
-    this.scatter(20, 16, 58, 2, (x, z) => { this.place(buildSpire(rng), x, z); this.circle(x, z, 1.3); });
-    this.scatter(26, 10, 58, 1.8, (x, z) => { this.place(buildLavaRock(rng), x, z, rng() * 6); this.circle(x, z, 1.0); });
+    this.scatter(20, 16, 58, 2, (x, z) => { this.place(buildSpire(rng), x, z, 0, null, 1); this.circle(x, z, 1.3); });
+    this.scatter(26, 10, 58, 1.8, (x, z) => { const r = buildLavaRock(rng); this.place(r, x, z, rng() * 6, null, r.userData.r * 0.6); this.circle(x, z, r.userData.r); });
     const hr = signMesh(['LATE DELIVERY CO.', 'HR POP-UP KIOSK'], 3.2, 1.2, { bg: '#dfe6ee', colors: ['#d6281b', '#2b1d14'], border: '#2b1d14' });
     hr.position.set(20.5, this.h(20, -6) + 3.4, -6); hr.rotation.y = -Math.PI / 2; this.stat.add(hr);
   }
 
   /* ----- physics queries ----- */
   ground(x, z, y) {
-    let g = this.h(x, z);
+    let g = this.gh(x, z);
     for (const c of this.caps) {
       const dx = x - c.x, dz = z - c.z;
       if (dx * dx + dz * dz < c.r * c.r && y >= c.top - 0.7) g = Math.max(g, c.top);
@@ -576,17 +831,19 @@ class PlanetWorld {
     }
   }
   surfaceAt(x, z) { return Math.max(this.h(x, z), WATER_Y); }
-  // where a critter can walk: dry land, not into buildings
-  walkable(x, z) {
+  // where a critter can walk: dry land, not into buildings, rocks or trees
+  walkable(x, z, rad = 0.3) {
     if (Math.hypot(x, z) > 62 || this.h(x, z) < 0.6) return false;
-    for (const b of this.boxes) if (x > b.x0 && x < b.x1 && z > b.z0 && z < b.z1) return false;
+    for (const b of this.boxes) if (x > b.x0 - rad && x < b.x1 + rad && z > b.z0 - rad && z < b.z1 + rad) return false;
+    for (const b of this.indoors) if (x > b.x0 - rad && x < b.x1 + rad && z > b.z0 - rad && z < b.z1 + rad) return false;
+    for (const c of this.circles) { const dx = x - c.x, dz = z - c.z, r = c.r + rad; if (dx * dx + dz * dz < r * r) return false; }
     return true;
   }
   // open dry ground for a meteor to hit: not a building or rock, and not the
   // flat pads (your ship and the shop are a safe zone)
   landable(x, z) {
     if (Math.hypot(x, z) > 60 || this.h(x, z) < 0.8) return false;
-    for (const p of this.pads) if (Math.hypot(x - p.x, z - p.z) < p.r + 1) return false;
+    for (const p of this.pads) if (this.padDist(p, x, z) < 1) return false;
     for (const b of this.boxes) if (x > b.x0 - 1 && x < b.x1 + 1 && z > b.z0 - 1 && z < b.z1 + 1) return false;
     for (const c of this.circles) if (Math.hypot(x - c.x, z - c.z) < c.r + 1.2) return false;
     return true;
@@ -596,7 +853,7 @@ class PlanetWorld {
     const pp = G.player ? G.player.pos : null;
     for (const n of this.npcs) {
       n.t += dt;
-      n.m.root.position.y = this.h(n.x, n.z) + Math.abs(Math.sin(n.t * 2)) * 0.04;
+      n.m.root.position.y = this.gh(n.x, n.z) + Math.abs(Math.sin(n.t * 2)) * 0.04;
       if (pp && n.m.head) {
         const dx = pp.x - n.x, dz = pp.z - n.z;
         const want = Math.hypot(dx, dz) < 9 ? U.angDiff(n.ry, Math.atan2(dx, dz)) : 0;
@@ -620,13 +877,29 @@ class PlanetWorld {
       if (Math.random() < 0.6) FX.burst(new V3(U.rand(-2.5, 2.5), r.y + 0.3, r.z + U.rand(-2.5, 2.5)), this.cfg.ground[0], 1, 4);
     }
     if (this.slotMachines) this.slotMachines[0].userData.light.material.emissiveIntensity = 0.6 + Math.sin(t * 6) * 0.5;
+    if (this.bulbA) {
+      const on = Math.floor(t * 3) % 2 === 0; // the marquee bulbs chase each other
+      this.bulbA.emissiveIntensity = on ? 1.5 : 0.15;
+      this.bulbB.emissiveIntensity = on ? 0.15 : 1.5;
+      this.bigChip.rotation.y += dt * 0.7;
+      for (const sl of this.searchlights) sl.m.rotation.set(sl.s * (0.28 + 0.14 * Math.sin(t * 0.37 + sl.ph)), 0, -0.3 + 0.38 * Math.sin(t * 0.5 + sl.ph));
+      this.casinoMusic(dt);
+    }
+  }
+  // inside the casino the music turns into lounge jazz (only if the music is on at all)
+  casinoMusic(dt) {
+    this.musicT = (this.musicT || 0) - dt;
+    if (this.musicT > 0) return;
+    this.musicT = 0.4;
+    const on = Sound.music.on, want = G.mode === 'planet' && this.inCasino(G.player.pos) ? 'lounge' : this.cfg.music;
+    if (on && on !== want && (on === 'lounge' || on === this.cfg.music)) Sound.playMusic(want);
   }
 }
 
 /* ---------------- boss arena (reskinned per planet) ---------------- */
 const ARENA_SKIN = {
   scrap: { deck: '#7a6a5a', ring: '#5a4a3a', post: '#3b3f4a', rail: '#ffb23e', deco: '#8f6b52' },
-  gloop: { deck: '#ff9ad5', ring: '#ff5fb8', post: '#f3e9d2', rail: '#43e0c0', deco: '#9b5de5' },
+  gloop: { deck: '#e27cbf', ring: '#ff5fb8', post: '#f3e9d2', rail: '#43e0c0', deco: '#9b5de5' },
   luck:  { deck: '#2a1c48', ring: '#ffd23f', post: '#ff3df0', rail: '#3df0ff', deco: '#ffd23f', neon: true },
   frost: { deck: '#dff6ff', ring: '#9fe3ff', post: '#8fa3b8', rail: '#ffffff', deco: '#c9e6f5' },
   zorb:  { deck: '#3a2448', ring: '#ffd23f', post: '#2a1f2e', rail: '#ff5a1f', deco: '#ff5a1f', neon: true },

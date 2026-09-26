@@ -83,6 +83,12 @@ const Sound = {
       case 'close': T(660, 0.07, { type: 'triangle', vol: 0.08 }); T(440, 0.09, { type: 'triangle', vol: 0.08, delay: 0.05 }); break;
       case 'error': T(160, 0.18, { type: 'square', vol: 0.1 }); break;
       case 'zap': T(1400, 0.12, { type: 'square', slide: 300, vol: 0.07 }); T(700, 0.1, { type: 'sawtooth', slide: 200, vol: 0.05, filter: 3000 }); break;
+      case 'shotgun': N(0.22, { freq: 1400, slide: 180, vol: 0.32 }); T(95, 0.16, { slide: 40, vol: 0.22 }); T(900, 0.05, { type: 'square', vol: 0.04, delay: 0.3 }); break;
+      case 'lob': T(170, 0.16, { type: 'triangle', slide: 480, vol: 0.14 }); N(0.12, { ftype: 'bandpass', freq: 700, vol: 0.12, q: 2 }); break;
+      case 'gloop': N(0.3, { freq: 900, slide: 160, vol: 0.28 }); T(150, 0.2, { slide: 60, vol: 0.18 }); T(420, 0.16, { type: 'triangle', slide: 1300, vol: 0.06, delay: 0.05 }); break;
+      case 'beam': T(1700 + Math.random() * 200, 0.12, { type: 'sine', vol: 0.03, vib: 24 }); N(0.1, { ftype: 'highpass', freq: 5200, vol: 0.025 }); break;
+      case 'cutter': N(0.32, { ftype: 'bandpass', freq: 2600, slide: 900, vol: 0.14, q: 4 }); T(900, 0.1, { type: 'square', slide: 1500, vol: 0.03 }); break;
+      case 'fizz': T(420, 0.35, { type: 'square', slide: 110, vol: 0.05, filter: 1200 }); break;
       case 'vac': N(0.12, { ftype: 'bandpass', freq: 900 + Math.random() * 400, vol: 0.05, q: 3 }); break;
       case 'slurp': T(300, 0.18, { slide: 1400, vol: 0.14, type: 'triangle' }); N(0.15, { ftype: 'bandpass', freq: 2000, vol: 0.1 }); break;
       case 'drill': T(180 + Math.random() * 40, 0.08, { type: 'sawtooth', vol: 0.05, filter: 1400 }); break;
@@ -235,6 +241,8 @@ const TRACKS = {
   scrap: { bpm: 104, chords: [[57, 60, 64], [62, 65, 69], [57, 60, 64], [64, 67, 71]], pat: [0, 2, 1, 2], drums: 'soft', walk: true, wave: 'square', bright: 1400 },
   gloop: { bpm: 112, chords: [[65, 69, 72], [67, 71, 74], [64, 67, 71], [69, 72, 76]], pat: [0, 1, 2, 3, 2, 1, 0, 2], drums: 'soft', wave: 'sine', len: 0.25, sparkle: 0.2 },
   luck:  { bpm: 118, chords: [[62, 65, 69, 72], [67, 71, 74, 77], [60, 64, 67, 71], [57, 61, 64, 67]], pat: [0, 1, 2, 3], drums: 'swing', walk: true, wave: 'triangle' },
+  // inside the Luckstar Casino: smooth, slow and suspiciously relaxing
+  lounge: { bpm: 92, chords: [[62, 65, 69, 72, 76], [55, 59, 65, 69, 76], [60, 64, 67, 71, 74], [57, 61, 64, 67, 70]], pat: [0, 2, 4, 3, 1, 2], drums: 'swing', walk: true, wave: 'sine', len: 0.34, sparkle: 0.45, vol: 0.9 },
   frost: { bpm: 88,  chords: [[64, 67, 71], [60, 64, 67], [62, 66, 69], [59, 62, 66]], pat: [0, 1, 2, 3, 2, 1], every: 2, drums: 'soft', wave: 'sine', len: 0.5, sparkle: 0.6, oct: 1 },
   zorb:  { bpm: 96,  chords: [[57, 60, 64], [58, 62, 65], [57, 60, 64], [56, 59, 64]], pat: [0, 1, 2, 1], drums: 'soft', wave: 'sawtooth', bright: 900, bass: 'sawtooth' },
   space: { bpm: 124, chords: [[57, 60, 64, 67], [53, 57, 60, 64], [55, 59, 62, 66], [52, 55, 59, 62]], pat: [0, 1, 2, 3, 2, 1], drums: 'hard', drive: true, wave: 'triangle', bright: 2200, sparkle: 0.4, vol: 0.8 },

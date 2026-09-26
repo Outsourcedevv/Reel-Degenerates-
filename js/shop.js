@@ -2,7 +2,19 @@
 /* =========================================================
    Planet shops (buy / sell / hats), galaxy map, boss panel
    ========================================================= */
-const BOSS_REC = { gary: 0, blorb: 1, jerry: 2, snowdad: 3, zorblax: 4 };
+const BOSS_REC = { gary: 0, blorb: 1, jerry: 2, snowdad: 3, zorblax: 5 };
+// what a gun does, in a few words (for its shop card)
+function gunChips(z) {
+  const rate = `${(1 / z.cd).toFixed(1)} / SEC`, mag = `${z.mag} MAG`, rl = `${z.rl}s RELOAD`;
+  switch (z.type) {
+    case 'spread': return ['SHOTGUN', `${z.pellets} x ${z.dmg} DMG`, rate, `${z.mag} SHELLS`];
+    case 'lob': return ['LAUNCHER', `${z.dmg} SPLASH DMG`, 'SLOWS CRITTERS', `${z.mag} GOO`];
+    case 'jackpot': return ['LUCKY SHOTS', `${z.dmg} DMG`, 'x2 · 777 · JACKPOT', mag];
+    case 'beam': return ['FREEZE RAY', `${Math.round(z.dmg / z.cd)} DMG / SEC`, 'FREEZES CRITTERS', `${(z.mag * z.cd).toFixed(0)}s CHARGE`];
+    case 'cutter': return ['BOOMERANG', `${z.dmg} DMG PER SLICE`, 'SLICES THROUGH', `${z.mag} CUTTERS`];
+    default: return ['BLASTER', `${z.dmg} DMG`, rate, mag, rl];
+  }
+}
 // every shop sells the starter gun to anyone without one (e.g. a friend who joins on a later planet)
 const STARTER_GUN = { kind: 'zap', lvl: 0, price: 200, desc: 'Starter gun for new hires. Infinite batteries. Tiny battery pack.' };
 
@@ -13,20 +25,21 @@ const Shop = {
 
   itemInfo(it) {
     // returns {name, desc, icon, chips[], owned, locked, lockMsg}
-    const r = { name: it.name, desc: it.desc || '', icon: 'box', chips: [], owned: false, locked: false, lockMsg: '' };
+    const r = { name: it.name, desc: it.desc || '', icon: 'box', pic: Thumbs.shopKey(it), chips: [], owned: false, locked: false, lockMsg: '' };
     switch (it.kind) {
-      case 'zap': {
+      case 'zap': { // (any gun can be bought straight away; a better one replaces the one you have)
         const z = ZAPPERS[it.lvl];
         r.name = z.name; r.icon = 'gun';
-        r.chips = [`${z.dmg} DMG`, `${(1 / z.cd).toFixed(1)} / SEC`, `${z.mag} MAG`, `${z.rl}s RELOAD`];
+        r.chips = gunChips(z);
         r.owned = SAVE.zap >= it.lvl;
-        if (!r.owned && SAVE.zap < it.lvl - 1) { r.locked = true; r.lockMsg = `Needs ${ZAPPERS[it.lvl - 1].name}`; }
+        if (SAVE.zap > it.lvl) r.ownedMsg = 'YOURS IS BETTER';
         break;
       }
       case 'cargo':
+        // any backpack can be bought straight away (no need to own the smaller one first)
         r.icon = 'bag'; r.chips = [`${CARGO[it.lvl]} SLOTS`];
         r.owned = SAVE.cargoLvl >= it.lvl;
-        if (!r.owned && SAVE.cargoLvl < it.lvl - 1) { r.locked = true; r.lockMsg = 'Needs the smaller one'; }
+        if (SAVE.cargoLvl > it.lvl) r.ownedMsg = 'YOURS IS BIGGER';
         break;
       case 'vac': r.icon = 'vac'; r.chips = [`${VAC[1].range}m REACH`, `${VAC[1].speed}x SPEED`]; r.owned = SAVE.vacLvl >= 1; break;
       case 'boots': r.icon = 'boots'; r.chips = ['DOUBLE JUMP']; r.owned = SAVE.boots; break;
@@ -34,10 +47,10 @@ const Shop = {
       case 'peel': r.icon = 'peel'; r.chips = ['TOOL 4', 'CATCHES METEORS']; r.owned = SAVE.peel; break;
       case 'socks': r.icon = 'sock'; r.chips = ['NO SLIPPING']; r.owned = SAVE.socks; break;
       case 'armor': r.icon = 'shield'; r.chips = ['-30% DAMAGE']; r.owned = SAVE.armor; break;
-      case 'life': r.icon = 'heart'; r.chips = ['4 BOSS LIVES']; r.owned = SAVE.lifeIns; break;
+      case 'life': r.icon = 'heart'; r.chips = ['KEEP YOUR GEAR WHEN YOU DIE']; r.owned = SAVE.lifeIns; break;
       case 'charm': r.icon = 'clover'; r.chips = ['+0% LUCK']; r.owned = SAVE.charm; break;
       case 'nades': r.icon = 'bomb'; r.chips = [`${NADE_DMG} DMG`, `YOU HAVE ${SAVE.nades}`]; break;
-      case 'hat': r.name = HATS[it.id]; r.icon = 'hat'; r.desc = 'Cosmetic. Friends will see it. Friends will judge.'; r.chips = ['COSMETIC']; r.owned = SAVE.hats.includes(it.id); break;
+      case 'hat': r.name = HATS[it.id]; r.icon = 'hat'; r.desc = 'Cosmetic. Yours in every world. Friends will see it. Friends will judge.'; r.chips = ['COSMETIC']; r.owned = SAVE.hats.includes(it.id); break;
       case 'summon': r.name = SUMMONS[it.b].name; r.icon = SUMMONS[it.b].icon; r.chips = [`SUMMONS ${BOSSES[it.b].name.toUpperCase()}`]; r.owned = Summons.has(it.b); break;
     }
     return r;
@@ -55,9 +68,9 @@ const Shop = {
         SAVE.zap = it.lvl; G.player.refreshGear(); G.player.setTool('zap', true);
         if (it.lvl === 0) UI.toast('Your first gun! Press 1 to hold it, R to reload.', 'good', 3.5);
         break;
-      case 'summon': SAVE.summons[it.b] = 1; UI.toast(`Take it to the boss altar to summon ${BOSSES[it.b].name}!`, 'gold', 3.5); break;
-      case 'cargo': SAVE.cargoLvl = it.lvl; break;
-      case 'vac': SAVE.vacLvl = 1; break;
+      case 'summon': Summons.earn(it.b); break;
+      case 'cargo': SAVE.cargoLvl = Math.max(SAVE.cargoLvl, it.lvl); UI.toast(`Backpack upgraded: ${CARGO[SAVE.cargoLvl]} slots!`, 'good', 2.5); break;
+      case 'vac': SAVE.vacLvl = 1; G.player.refreshGear(); break;
       case 'boots': SAVE.boots = true; UI.toast('Double jump unlocked! Press Space twice.', 'good', 3); break;
       case 'drill': SAVE.drill = true; G.player.refreshGear(); G.player.setTool('drill', true); UI.toast('Laser Drill equipped! (Press 3)', 'good', 3); break;
       case 'peel': SAVE.peel = true; G.player.refreshGear(); G.player.setTool('peel', true); UI.toast('Pizza Peel equipped! (Press 4) Stand in the landing circles!', 'good', 3); break;
@@ -73,51 +86,69 @@ const Shop = {
     UI.hud();
   },
 
+  // which shop section an item goes in
+  section(it) {
+    if (it.kind === 'zap' || it.kind === 'nades') return 'weapons';
+    if (it.kind === 'hat') return 'looks';
+    if (it.kind === 'summon' || it.kind === 'charm') return 'special';
+    return 'gear';
+  },
   open(shopId, tab) {
     this.cur = shopId;
     const cfg = SHOPS[shopId];
     const items = SAVE.zap < 0 && !cfg.items.some((it) => it.kind === 'zap' && it.lvl === 0) ? [STARTER_GUN, ...cfg.items] : cfg.items;
-    if (!G.panel) { this.line = U.pick(cfg.greet); this.tab = SAVE.cargo.length ? 'sell' : 'buy'; }
+    const has = (sec) => sec === 'looks' || items.some((it) => this.section(it) === sec);
+    if (!G.panel) {
+      this.line = U.pick(cfg.greet);
+      this.tab = SAVE.cargo.length ? 'sell' : ['weapons', 'gear', 'special', 'looks'].find(has);
+    }
     if (tab) this.tab = tab;
+    if (this.tab !== 'sell' && !has(this.tab)) this.tab = ['weapons', 'gear', 'special', 'looks'].find(has);
     const cap = CARGO[SAVE.cargoLvl], value = Activities.cargoValue();
-    const tabs = [['buy', 'cart', 'Buy'], ['sell', 'cash', `Sell${SAVE.cargo.length ? ` (${SAVE.cargo.length})` : ''}`], ['hats', 'hat', 'Hats']]
+    const tabs = [['weapons', 'gun', 'Weapons'], ['gear', 'boots', 'Gear'], ['special', 'star', 'Special'], ['looks', 'hat', 'Cosmetics'], ['sell', 'cash', `Sell${SAVE.cargo.length ? ` (${SAVE.cargo.length})` : ''}`]]
+      .filter(([t]) => t === 'sell' || has(t))
       .map(([t, ic, lab]) => `<button class="stab ${this.tab === t ? 'on' : ''}" data-act="tab" data-t="${t}">${icon(ic)}${lab}</button>`).join('');
+    const card = (it, i) => {
+      const inf = this.itemInfo(it), poor = SAVE.bucks < it.price;
+      const cls = inf.owned ? 'owned' : inf.locked ? 'locked' : poor ? 'poor' : '';
+      const btn = inf.owned ? `<div class="badge ok">${icon('check')} ${inf.ownedMsg || 'OWNED'}</div>`
+        : inf.locked ? `<div class="badge lock">${icon('lock')} ${U.esc(inf.lockMsg)}</div>`
+        : `<button class="price" data-act="buy" data-i="${i}" ${poor ? 'disabled' : ''}>${U.bucks(it.price)}</button>`;
+      return `<div class="card2 ${this.tier(it.price)} ${cls}">
+        <div class="ic">${Thumbs.img(inf.pic, '', inf.icon)}</div>
+        <div class="info"><h4>${U.esc(inf.name)}</h4><div class="chips">${inf.chips.map((c) => `<span>${U.esc(c)}</span>`).join('')}</div><p>${U.esc(inf.desc)}</p></div>
+        ${btn}</div>`;
+    };
     let body = '';
-    if (this.tab === 'buy') {
-      body = '<div class="cards">' + items.map((it, i) => {
-        const inf = this.itemInfo(it), poor = SAVE.bucks < it.price;
-        const cls = inf.owned ? 'owned' : inf.locked ? 'locked' : poor ? 'poor' : '';
-        const btn = inf.owned ? `<div class="badge ok">${icon('check')} OWNED</div>`
-          : inf.locked ? `<div class="badge lock">${icon('lock')} ${U.esc(inf.lockMsg)}</div>`
-          : `<button class="price" data-act="buy" data-i="${i}" ${poor ? 'disabled' : ''}>${U.bucks(it.price)}</button>`;
-        return `<div class="card2 ${this.tier(it.price)} ${cls}">
-          <div class="ic">${icon(inf.icon)}</div>
-          <div class="info"><h4>${U.esc(inf.name)}</h4><div class="chips">${inf.chips.map((c) => `<span>${U.esc(c)}</span>`).join('')}</div><p>${U.esc(inf.desc)}</p></div>
-          ${btn}</div>`;
-      }).join('') + '</div>';
-    } else if (this.tab === 'sell') {
+    if (this.tab === 'sell') {
       const counts = {};
       for (const id of SAVE.cargo) counts[id] = (counts[id] || 0) + 1;
-      const rows = Object.keys(counts).sort((a, b) => RES[b].v * counts[b] - RES[a].v * counts[a]).map((id) => {
-        const r = RES[id];
-        return `<div class="srow ${r.rare ? 'rare' : ''}"><div class="ic">${icon(r.icon)}</div>
+      const rows = Object.keys(counts).sort((a, b) => cargoRes(b).v * counts[b] - cargoRes(a).v * counts[a]).map((id) => {
+        const r = cargoRes(id);
+        return `<div class="srow ${r.rare ? 'rare' : ''}"><div class="ic">${Thumbs.img(Thumbs.cargoKey(id), '', r.icon)}</div>
           <div class="info"><b>${U.esc(r.name)}</b><small>${U.esc(r.desc)}</small></div>
           <div class="qty">x${counts[id]}</div><div class="each">${U.bucks(r.v)} each</div>
-          <button class="price small" data-act="sell1" data-id="${id}">${U.bucks(r.v * counts[id])}</button></div>`;
+          <button class="price small" data-act="sell1" data-id="${U.esc(id)}">${U.bucks(r.v * counts[id])}</button></div>`;
       }).join('');
       body = SAVE.cargo.length
         ? `<div class="srows">${rows}</div><button class="sellall" data-act="sellall">Sell everything <b>${U.bucks(value)}</b></button>`
-        : `<div class="empty"><div>${icon('bag')}</div>Your backpack is empty.<br>Go vacuum, catch or zap something!</div>`;
-    } else {
+        : `<div class="empty"><div>${Thumbs.img('cargo:' + SAVE.cargoLvl, '', 'bag')}</div>Your backpack is empty.<br>Go vacuum, catch or zap something!</div>`;
+    } else if (this.tab === 'looks') {
+      // hats for sale here, then everything you own to wear
+      const forSale = items.map((it, i) => [it, i]).filter(([it]) => this.section(it) === 'looks');
       const hats = ['none', ...SAVE.hats.filter((h) => h !== 'none')];
-      body = '<div class="cards hats">' + hats.map((h) => `<div class="card2 ${SAVE.hat === h ? 'owned' : ''}"><div class="ic">${icon('hat')}</div>
+      body = (forSale.length ? `<h5 class="shead">For sale</h5><div class="cards">${forSale.map(([it, i]) => card(it, i)).join('')}</div>` : '') +
+        `<h5 class="shead">Your hats</h5><div class="cards hats">` + hats.map((h) => `<div class="card2 ${SAVE.hat === h ? 'owned' : ''}"><div class="ic">${Thumbs.img(h === 'none' ? Thumbs.crewKey(G.color, 'none') : 'hat:' + h, '', 'hat')}</div>
         <div class="info"><h4>${U.esc(HATS[h])}</h4></div>
         ${SAVE.hat === h ? '<div class="badge ok">WEARING</div>' : `<button class="price" data-act="hat" data-h="${h}">Wear</button>`}</div>`).join('') + '</div>' +
-        '<p class="tip">More hats come from shops, and from Mystery Crates on Luckstar.</p>';
+        '<p class="tip">Your hats come with you to every world. More come from other shops, and from Mystery Crates on Luckstar.</p>';
+    } else {
+      body = '<div class="cards">' + items.map((it, i) => [it, i]).filter(([it]) => this.section(it) === this.tab).map(([it, i]) => card(it, i)).join('') + '</div>';
+      if (this.tab === 'special') body += '<p class="tip">Summoning items belong to the whole crew: anyone can use them at the boss altar.</p>';
     }
     const html = `<div class="shop2" style="--acc:${cfg.color}">
       <aside class="keeper">
-        <div class="face">${initials(cfg.npc)}</div>
+        <div class="face">${Thumbs.img('face:' + shopId, '', null) || initials(cfg.npc)}</div>
         <div class="kname">${U.esc(cfg.npc)}</div>
         <div class="bubble">${U.esc(this.line)}</div>
         <div class="wallet"><small>YOUR BUCKS</small><b>${U.bucks(SAVE.bucks)}</b></div>
@@ -146,7 +177,7 @@ const Shop = {
   openBoss() {
     const p = PLANETS[G.planet], bid = p.boss, b = BOSSES[bid], sm = SUMMONS[bid];
     // everyone here with a gun joins the fight (same rule as Game.startBoss)
-    const n = 1 + [...G.remotes.values()].filter((r) => r.s.m === 'planet' && r.s.p === G.planet && !(r.s.z < 0)).length;
+    const n = 1 + [...G.remotes.values()].filter((r) => r.s.m === 'planet' && r.s.p === G.planet && !(r.s.zp < 0)).length;
     const hp = Math.round(b.hp * (1 + 0.65 * (n - 1)));
     const first = !SAVE.beaten.includes(bid);
     const reward = first ? b.reward : Math.round(b.reward * 0.5);
@@ -154,13 +185,14 @@ const Shop = {
     const noGun = SAVE.zap < 0, have = Summons.has(bid);
     const gun = noGun ? '<span class="pill" style="background:#ff8a80">No gun! The shop sells one</span>'
       : U.esc(ZAPPERS[SAVE.zap].name) + (SAVE.zap < rec ? ` <span class="pill" style="background:#ff8a80">Recommended: ${U.esc(ZAPPERS[rec].name)}</span>` : '');
-    const btn = !have ? `<button class="btn big" disabled style="max-width:440px">${icon(sm.icon)} You need ${U.esc(sm.name)}</button>`
-      : noGun ? `<button class="btn big" disabled style="max-width:440px">${icon('gun')} Buy a gun first!</button>`
-      : `<button class="btn big red" data-act="summon" style="max-width:440px">${icon(sm.icon)} Use ${U.esc(sm.name)} to summon!</button>`;
+    const smPic = Thumbs.img('sum:' + bid, 'inline', sm.icon);
+    const btn = !have ? `<button class="btn big" disabled style="max-width:440px">${smPic} You need ${U.esc(sm.name)}</button>`
+      : noGun ? `<button class="btn big" disabled style="max-width:440px">${Thumbs.img('zap:0', 'inline', 'gun')} Buy a gun first!</button>`
+      : `<button class="btn big red" data-act="summon" style="max-width:440px">${smPic} Use ${U.esc(sm.name)} to summon!</button>`;
     UI.openPanel(`
       <h2 class="ph">Boss Altar</h2>
       <div class="boss" style="margin-top:10px">
-        <div class="ico" style="background:${b.color}">${initials(b.name)}</div>
+        <div class="ico" style="background:${b.color}">${Thumbs.img('boss:' + bid, '', null) || initials(b.name)}</div>
         <div><h4>${U.esc(b.name)}</h4><div class="stars">${'★'.repeat(b.stars)}${'☆'.repeat(5 - b.stars)} ${b.diff}</div><div class="q">"${U.esc(b.quote)}"</div></div>
         <div></div>
       </div>
@@ -169,7 +201,8 @@ const Shop = {
         <tr><td>Health</td><td class="r"><b>${hp.toLocaleString()}</b> ${n > 1 ? `(scaled for ${n} goobers)` : ''}</td></tr>
         <tr><td>Reward (each player)</td><td class="r"><b>${U.bucks(reward)}</b> ${first ? '' : '(rematch: half)'}</td></tr>
         <tr><td>Your zapper</td><td class="r">${gun}</td></tr>
-        <tr><td>Lives</td><td class="r">${SAVE.lifeIns ? 4 : 3} ${SAVE.armor ? '· Company Armor' : ''} · Grenades: ${SAVE.nades}</td></tr>
+        <tr><td>Respawns</td><td class="r">${DIFFS[G.diff].perma ? 'None. Hardcore!' : 'As many as it takes (hold left click)'}</td></tr>
+        <tr><td>Gear</td><td class="r">Grenades: ${SAVE.nades}${SAVE.armor ? ' · Company Armor' : ''}</td></tr>
         <tr><td>Status</td><td class="r">${G.progress.includes(bid) ? 'Beaten (next planet unlocked)' : 'Not beaten yet'}</td></tr>
       </table>
       <p class="muted">Summoning uses up the item, win or lose, and pulls in everyone on the planet who has a gun. Dodge with WASD + Space (jump over the shockwave rings!). Red circles on the floor mean MOVE.</p>

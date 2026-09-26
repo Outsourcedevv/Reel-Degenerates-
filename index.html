@@ -54,6 +54,10 @@
   <div id="hurt"></div>
   <div id="plist" class="hidden"></div>
   <div id="spectate" class="hidden">OUT OF LIVES · SPECTATING</div>
+  <div id="deathscreen" class="hidden">
+    <div class="t"></div><div class="s"></div><div class="n"></div>
+    <div class="hold"><div class="fill"></div><span>HOLD <b>LEFT CLICK</b> TO RESPAWN</span></div>
+  </div>
   <div id="flyhud" class="hidden"><div class="dest"></div><div class="dist"></div><div class="turbo"><span>TURBO</span><div class="bar"><div class="fill"></div></div></div></div>
   <canvas id="radar" width="190" height="190"></canvas>
   <div id="flyinst"></div>
@@ -71,6 +75,7 @@
     <div class="setting"><label>Sound volume</label><input type="range" id="s-vol" min="0" max="1" step="0.05"></div>
     <div class="setting"><label>Music volume</label><input type="range" id="s-mus" min="0" max="1" step="0.05"></div>
     <div class="setting"><label for="s-q">Graphics</label><select id="s-q"><option value="high">High (bloom, color grading)</option><option value="low">Low (faster)</option></select></div>
+    <div class="setting ffrow"><label>Friendly fire <b id="v-ff">OFF</b></label><button id="s-ff" class="btn small">Turn on</button><small id="ff-note"></small></div>
     <div class="row2">
       <button id="p-how" class="btn small">Controls</button>
       <button id="p-leave" class="btn small red">Leave Game</button>
@@ -102,7 +107,7 @@
     <div class="row"><input id="m-wname" maxlength="24" placeholder="World name" autocomplete="off" spellcheck="false"><button id="m-wnew" class="btn green" style="flex:none">Create</button></div>
     <button id="m-wback" class="btn small ghost">Back</button>
   </div>
-  <div class="menu-foot"><span>v1.4</span><span>Your pizza is 3 years late. No pressure.</span></div>
+  <div class="menu-foot"><span>v1.5</span><span>Your pizza is 3 years late. No pressure.</span></div>
 </div>
 
 <div id="flash"></div>
@@ -120,9 +125,11 @@
 <script src="js/audio.js"></script>
 <script src="js/data.js"></script>
 <script src="js/models.js"></script>
+<script src="js/items.js"></script>
 <script src="js/world.js"></script>
 <script src="js/post.js"></script>
 <script src="js/icons.js"></script>
+<script src="js/thumbs.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/net.js"></script>
 <script src="js/player.js"></script>

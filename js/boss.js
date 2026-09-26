@@ -6,6 +6,7 @@
 const MINION_KIND = { blorb: 'slime', snowdad: 'snow', zorblax: 'guard' };
 const RING_COL = { gary: '#b8d86b', blorb: '#ff9ad5', jerry: '#ffd23f', snowdad: '#bff6ff', zorblax: '#ff3df0' };
 const JERRY_W = { cherry: 3, bell: 3, 7: 2, cash: 3, lemon: 3, skull: 1 };
+const BOSS_DMG = 0.8; // every boss attack hits this much as hard as it's listed
 
 class BossFight {
   constructor(id, seed, ids) {
@@ -26,7 +27,6 @@ class BossFight {
     this.projs = []; this.rings = []; this.slams = []; this.lanes = [];
     this.minions = new Map();
     this.out = new Set();
-    this.lives = DIFFS[G.diff].perma ? 1 : SAVE.lifeIns ? 4 : 3;
     this.flash = 0;
     this.reel = null;
     this.over = false;
@@ -675,30 +675,37 @@ class BossFight {
     for (const h of this.m.hit) if (U.segSphere(p0, p1, this.world(h.o), h.r)) return true;
     return false;
   }
-  hitMinions(p0, p1, dmg) {
+  // the first minion a shot from p0 to p1 passes through (skip: ones this shot already hit, keyed 'm' + id)
+  minionOn(p0, p1, skip) {
     for (const m of this.minions.values()) {
-      if (!m.mesh) continue;
+      if (!m.mesh || (skip && skip.has('m' + m.id))) continue;
       const c = m.mesh.position.clone(); c.y += 0.6;
-      if (U.segSphere(p0, p1, c, 0.75)) {
-        FX.burst(c, '#ffffff', 5, 3);
-        FX.text(c.clone().setY(c.y + 0.8), String(dmg), '#ffffff', 36);
-        Sound.play('hit');
-        if (Net.isHost) this.damageMinion(m.id, dmg); else Net.toHost({ t: 'hitm', id: m.id, dmg });
-        return true;
-      }
+      if (U.segSphere(p0, p1, c, 0.75)) return m;
     }
-    return false;
+    return null;
   }
-  localHit(dmg, pos) {
+  hitMinion(m, dmg, quiet) {
+    if (!m.mesh) return;
+    const c = m.mesh.position.clone(); c.y += 0.6;
+    FX.burst(c, '#ffffff', quiet ? 2 : 5, 3);
+    if (!quiet) { FX.text(c.clone().setY(c.y + 0.8), String(dmg), '#ffffff', 36); Sound.play('hit'); }
+    if (Net.isHost) this.damageMinion(m.id, dmg); else Net.toHost({ t: 'hitm', id: m.id, dmg });
+  }
+  hitMinions(p0, p1, dmg) { const m = this.minionOn(p0, p1); if (m) this.hitMinion(m, dmg); return !!m; }
+  // quiet: no damage number or sound (the Cryo Beam hits ten times a second)
+  localHit(dmg, pos, quiet) {
     this.flash = 1;
-    FX.text(pos.clone().add(new V3(0, 0.6, 0)), String(dmg), dmg >= 50 ? '#ffd23f' : '#ffffff', dmg >= 50 ? 60 : 44);
-    FX.burst(pos, RING_COL[this.id], 4, 3);
-    Sound.play('hit');
-    const x = UI.el.crosshair; x.classList.remove('hit'); void x.offsetWidth; x.classList.add('hit');
+    if (!quiet) {
+      FX.text(pos.clone().add(new V3(0, 0.6, 0)), String(dmg), dmg >= 50 ? '#ffd23f' : '#ffffff', dmg >= 50 ? 60 : 44);
+      Sound.play('hit');
+      const x = UI.el.crosshair; x.classList.remove('hit'); void x.offsetWidth; x.classList.add('hit');
+    }
+    FX.burst(pos, RING_COL[this.id], quiet ? 2 : 4, 3);
     if (Net.isHost) this.damage(dmg); else Net.toHost({ t: 'hitb', dmg });
   }
-  explosion(pos, radius, dmg) {
-    for (const h of this.m.hit) {
+  // skipBoss: the shot already hit the boss directly (only the splash hits everything else)
+  explosion(pos, radius, dmg, skipBoss) {
+    if (!skipBoss) for (const h of this.m.hit) {
       if (this.world(h.o).distanceTo(pos) < radius + h.r) { this.localHit(dmg, pos); break; }
     }
     for (const m of [...this.minions.values()]) {
@@ -717,10 +724,12 @@ class BossFight {
   }
 
   /* ----- the local player's life ----- */
-  hurt(d, kind) {
+  // bosses hit a bit softer than they used to (BOSS_DMG), but they have far more health.
+  // raw = friendly fire: same damage on every difficulty
+  hurt(d, kind, raw) {
     const p = this.me();
     if (!this.canHurt()) return;
-    d = Math.round(d * Game.dmgMul());
+    d = Math.round(raw ? d : d * Game.dmgMul() * BOSS_DMG);
     if (SAVE.armor) d = Math.round(d * 0.7);
     p.hp -= d; p.inv = 0.75; p.regenT = 4;
     UI.hurt();
@@ -733,45 +742,31 @@ class BossFight {
       else this.die();
     }
   }
+  // no lives: you get back up as many times as it takes (except on Hardcore, where dying is final)
   die() {
     const p = this.me();
     p.dead = true; p.deadT = 0; p.hp = 0;
-    this.lives--;
     SAVE.stats.deaths++;
     persist();
     Sound.play('death');
     if (DIFFS[G.diff].perma) { Game.permaDeath(this.def.name); return; }
-    if (this.lives > 0) {
-      UI.bigTitle('YOU DIED', `${U.pick(LINES.death)} (${this.lives} ${this.lives === 1 ? 'life' : 'lives'} left)`, '#ff6b6b', 2.8);
-      this.respawnT = 3.2;
-    } else {
-      UI.bigTitle('OUT OF LIVES', 'You are a ghost now. Cheer on your friends.', '#c9d6ff', 3);
-      this.ghostT = 2.2;
-    }
+    const n = this.def.name;
+    // (nothing drops in a boss fight: you'd never get your gun back in here)
+    UI.death(true, 'YOU DIED', U.pick(LINES.death), `<b>${U.esc(U.pick([`${n} is doing a little victory dance. Rude.`, `${n} thinks you're done. Prove it wrong.`, 'Get back in there. Respawns are free. Dignity is not.']))}</b><small>You keep your stuff in boss fights.</small>`);
+    p.waitForRespawn(() => this.respawnMe());
+  }
+  // back into the fight (after holding left click on the death screen)
+  respawnMe() {
+    const p = this.me();
+    p.dead = false; p.hp = 100; p.inv = 2;
+    p.refill();
+    const sp = U.pick(G.arena.spawns);
+    p.teleport(sp, Math.atan2(-(this.rpos.x - sp.x), -(this.rpos.z - sp.z)));
+    FX.burst(p.pos.clone().setY(p.pos.y + 1), '#7dff8a', 12, 4);
   }
   updateLocal(dt) {
     const p = this.me();
-    if (this.respawnT != null) {
-      this.respawnT -= dt;
-      if (this.respawnT <= 0) {
-        this.respawnT = null;
-        p.dead = false; p.hp = 100; p.inv = 2;
-        p.refill();
-        const sp = U.pick(G.arena.spawns);
-        p.teleport(sp, Math.atan2(-(this.rpos.x - sp.x), -(this.rpos.z - sp.z)));
-        FX.burst(p.pos.clone().setY(p.pos.y + 1), '#7dff8a', 12, 4);
-      }
-    }
-    if (this.ghostT != null) {
-      this.ghostT -= dt;
-      if (this.ghostT <= 0) {
-        this.ghostT = null;
-        p.dead = false; p.ghost = true;
-        UI.show('spectate', true);
-        Net.toHost({ t: 'pst', out: 1 });
-      }
-    }
-    UI.php(p.hp, this.lives);
+    UI.php(p.hp);
     const rows = [{ name: G.name + ' (you)', hp: p.hp, out: p.ghost }];
     for (const r of G.remotes.values()) if (this.inFight(r.id)) rows.push({ name: r.name, hp: r.s.hp, out: !!r.s.g });
     UI.team(rows);

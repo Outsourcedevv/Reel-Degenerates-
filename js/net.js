@@ -3,7 +3,10 @@
    Online co-op over WebRTC (PeerJS). The host is the authority:
    it runs bosses, planet travel, snail races and shared pickups.
    ========================================================= */
-const RELAY = new Set(['chat', 'ann', 'shoot', 'nade']);
+// everyone else should see these (the host passes them on)
+const RELAY = new Set(['chat', 'ann', 'shoot', 'nade', 'fly', 'fph', 'fev']);
+// these go to one player only (bonk = zapped by a friend, rvp = being picked up, gift = money)
+const TARGETED = new Set(['bonk', 'revive', 'rvp', 'gift']);
 
 const Net = {
   peer: null, conns: new Map(), hostConn: null,
@@ -67,7 +70,7 @@ const Net = {
   hostRecv(id, m) {
     m.from = id;
     if (RELAY.has(m.t)) { this.toAll(m, id); this.emit(m, id); return; }
-    if (m.t === 'bonk' || m.t === 'revive') {
+    if (TARGETED.has(m.t)) {
       if (m.to === this.myId) this.emit(m, id); else this.sendTo(m.to, m);
       return;
     }
@@ -124,7 +127,7 @@ const Net = {
     if (!this.online) return;
     m.from = this.myId;
     if (this.isHost) {
-      if (m.t === 'bonk' || m.t === 'revive') this.sendTo(m.to, m);
+      if (TARGETED.has(m.t)) this.sendTo(m.to, m);
       else this.toAll(m);
     } else if (this.hostConn && this.hostConn.open) this.hostConn.send(m);
   },
