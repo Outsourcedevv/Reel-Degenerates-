@@ -44,6 +44,19 @@ const RESPAWN_HOLD = 1.2; // seconds of holding left click to get back up after 
 // tools you have to buy first (only the Grabby Vac is free)
 const hasTool = (t) => (t !== 'zap' || SAVE.zap >= 0) && (t !== 'drill' || SAVE.drill) && (t !== 'peel' || SAVE.peel);
 
+// how hard each kind of gun kicks. up / side: how far the view jumps (radians; it settles back, except
+// `stay` of it: pull back down). back / rot: how far the gun jumps back and tips up in your hands. sh: screen shake
+const RECOIL = {
+  bolt: { up: 0.014, side: 0.005, stay: 0.2, back: 0.07, rot: 0.14 }, // Pew Pew Zapper
+  spread: { up: 0.055, side: 0.014, stay: 0.25, back: 0.16, rot: 0.4, sh: 0.18 }, // Scrap Scattergun
+  lob: { up: 0.032, side: 0.006, stay: 0.2, back: 0.12, rot: 0.26 }, // Goo Lobber
+  jackpot: { up: 0.02, side: 0.007, stay: 0.2, back: 0.08, rot: 0.16 }, // Jackpot Blaster
+  beam: { up: 0.0025, side: 0.003, stay: 0.1, back: 0.012, rot: 0.02 }, // Cryo Beam (ten times a second)
+  homing: { up: 0.009, side: 0.005, stay: 0.2, back: 0.05, rot: 0.09 }, // Wisp Caller
+  chain: { up: 0.038, side: 0.01, stay: 0.25, back: 0.14, rot: 0.3, sh: 0.12 }, // Storm Caller
+  rocket: { up: 0.065, side: 0.012, stay: 0.25, back: 0.22, rot: 0.42, sh: 0.15 }, // Same-Day Launcher
+  cutter: { up: 0.024, side: 0.008, stay: 0.2, back: 0.1, rot: 0.2 }, // Pizza Cutter
+};
 class LocalPlayer {
   constructor() {
     this.pos = new V3(); this.vel = new V3();
@@ -61,10 +74,17 @@ class LocalPlayer {
     this.fuel = JET.fuel; this.spaceHold = 0; this.jetting = false; this.gliding = false;
     this.launchT = 0; this.padCd = 0; this.inVent = false; this.booT = 0; this.aimLost = 0;
     this.slowK = 1; this.ext = new V3(); // (set by boss fights every frame: goo slows you, wind drags you)
+    this.kickP = 0; this.kickY = 0; this.recoilRot = 0; this.recoilRoll = 0; // (see kick)
     this.vm = new THREE.Group();
     G.camera.add(this.vm);
+    // your gloves (in your suit color) hold whatever you're holding
+    this.gloveMat = new THREE.MeshToonMaterial({ color: G.color || '#ff7a3d', gradientMap: TOON_GRAD });
+    this.gloveMat.userData.shared = true; // (every hand uses it, for as long as you play: never freed)
+    this.gloveCol = G.color;
     this.vmDrill = buildDrillVM();
     this.vmPeel = buildPeelVM();
+    addHands(this.vmDrill, 'drill', this.gloveMat);
+    addHands(this.vmPeel, 'peel', this.gloveMat);
     for (const o of [this.vmDrill, this.vmPeel]) this.vm.add(o);
     this.vmZap = null; this.vmVac = null;
     this.refreshGear();
@@ -76,6 +96,8 @@ class LocalPlayer {
     for (const o of [this.vmZap, this.vmVac]) if (o) { this.vm.remove(o); disposeObj(o); }
     this.vmZap = buildZapperVM(Math.max(0, SAVE.zap));
     this.vmVac = buildVacVM(SAVE.vacLvl > 0);
+    addHands(this.vmZap, (ZAPPERS[Math.max(0, SAVE.zap)] || {}).type, this.gloveMat);
+    addHands(this.vmVac, 'vac', this.gloveMat);
     this.vm.add(this.vmZap, this.vmVac);
     this.vm.traverse((c) => { if (c.isMesh) { c.castShadow = false; c.receiveShadow = false; } });
     this.layoutVM();
@@ -97,8 +119,8 @@ class LocalPlayer {
   // keep held tools in the lower-right corner on any screen shape
   layoutVM() {
     const d = 0.5, hh = d * Math.tan(THREE.MathUtils.degToRad(G.camera.fov / 2)), hw = hh * G.camera.aspect;
-    const x = Math.min(0.24, hw * 0.55), y = -hh * 0.52;
-    for (const o of [this.vmZap, this.vmVac, this.vmDrill, this.vmPeel]) { if (o) { o.position.set(x, y, -d); o.scale.setScalar(0.62); } }
+    const x = Math.min(0.24, hw * 0.55), y = -hh * 0.45;
+    for (const o of [this.vmZap, this.vmVac, this.vmDrill, this.vmPeel]) { if (o) { o.position.set(x, y, -d); o.userData.base = o.position.clone(); o.scale.setScalar(0.62); } }
   }
   setTool(t, quiet) {
     if (!hasTool(t)) {
@@ -258,9 +280,14 @@ class LocalPlayer {
       this.reloadT -= dt;
       if (this.reloadT <= 0) { this.refill(); Sound.play('reloaded'); }
     }
-    // reload animation: tip the zapper down and give the battery a wiggle
+    // reload animation: dip the zapper, tip it down and give the battery a wiggle
     const rk = this.reloadT > 0 ? Math.sin((1 - this.reloadT / this.reloadDur) * Math.PI) : 0;
-    this.vmZap.rotation.set(-rk * 0.9, 0, rk * 0.35);
+    this.vmZap.rotation.set(-rk * 0.55, 0, rk * 0.28);
+    const vb = this.vmZap.userData.base;
+    if (vb) this.vmZap.position.set(vb.x - rk * 0.03, vb.y - rk * 0.05, vb.z);
+    // (on a two-handed gun, the other hand lets go and slides back to swap the battery)
+    const sup = this.vmZap.userData.hands && this.vmZap.userData.hands.support;
+    if (sup) sup.position.set(sup.userData.home.x - rk * 0.05, sup.userData.home.y - rk * 0.06, sup.userData.home.z + rk * 0.16);
     const hs = Math.hypot(this.vel.x, this.vel.z);
     if (this.onGround && hs > 0.5) this.walkT += dt * hs * 1.25;
     this.sprintK = U.damp(this.sprintK, sprint && hs > 6.5 && this.onGround ? 1 : 0, 6, dt);
@@ -635,30 +662,42 @@ class LocalPlayer {
     if (z.type === 'spread') { // six pellets in a cone
       net.s = Math.floor(Math.random() * 1e6);
       Shots.spread(o, d, net.s, z, true, flags);
-      Sound.play('shotgun'); this.recoil = 0.16; G.shake = Math.max(G.shake, 0.18);
+      Sound.play('shotgun'); this.kick('spread');
     } else if (z.type === 'lob') { // a ball of goo on an arc
       Shots.fire('goo', o, d, true, { dmg: z.dmg, radius: z.radius, flags });
-      Sound.play('lob'); this.recoil = 0.12;
+      Sound.play('lob'); this.kick('lob');
     } else if (z.type === 'homing') { // ghost wisps that chase whatever is nearest your crosshair
       Shots.fire('wisp', o, d, true, { dmg: z.dmg, speed: z.speed, turn: z.turn, color: z.color, flags, target: Shots.seek(G.camera.position, this.camDir(new V3())) });
-      Sound.play('wisp'); this.recoil = 0.05;
+      Sound.play('wisp'); this.kick('homing');
     } else if (z.type === 'chain') { // lightning that jumps from one target to the next
       net.pts = this.chainZap(z, o, flags).map(v3r);
-      Sound.play('thunder'); this.recoil = 0.14; G.shake = Math.max(G.shake, 0.12);
+      Sound.play('thunder'); this.kick('chain');
     } else if (z.type === 'rocket') { // an express parcel that explodes on delivery
       Shots.fire('rocket', o, d, true, { dmg: z.dmg, radius: z.radius, flags });
-      Sound.play('rocket'); this.recoil = 0.22; G.shake = Math.max(G.shake, 0.15);
+      Sound.play('rocket'); this.kick('rocket');
     } else if (z.type === 'jackpot') { // every shot is a slot pull
       const roll = U.weighted(JACKPOT_ROLLS.map((r) => [r, r.w]));
       net.r = roll.k; color = roll.color;
       Shots.fire('zap', o, d, true, { dmg: z.dmg, color, flags, roll });
-      Sound.play(roll.k === 'dud' ? 'fizz' : 'coin'); this.recoil = 0.08;
+      Sound.play(roll.k === 'dud' ? 'fizz' : 'coin'); this.kick('jackpot', roll.k === 'jp' ? 2 : roll.k === 'dud' ? 0.5 : 1);
     } else {
       Shots.fire('zap', o, d, true, { dmg: z.dmg, color, flags });
-      Sound.play('zap'); this.recoil = 0.08;
+      Sound.play('zap'); this.kick('bolt');
     }
     Net.relay(net);
     this.muzzleFlash(color);
+  }
+  // recoil: the view jumps up (and a little sideways) and mostly settles back, a bit of it stays (pull back
+  // down); the gun jumps back and tips up in your hands. k: how hard (a jackpot kicks twice as hard)
+  kick(type, k = 1) {
+    const r = RECOIL[type] || RECOIL.bolt;
+    this.kickP += r.up * k * U.rand(0.85, 1.15);
+    this.kickY += (Math.random() - 0.5) * 2 * r.side * k;
+    this.pitch = U.clamp(this.pitch + r.up * k * r.stay, -1.5, 1.5);
+    this.recoil = Math.max(this.recoil, r.back * k);
+    this.recoilRot = Math.max(this.recoilRot, r.rot * k);
+    this.recoilRoll = (Math.random() - 0.5) * r.rot * 0.6 * k;
+    if (r.sh) G.shake = Math.max(G.shake, r.sh * k);
   }
   // from the gun toward whatever the crosshair is on
   aimFrom(o) { return G.camera.position.clone().add(this.camDir(new V3()).multiplyScalar(60)).sub(o).normalize(); }
@@ -691,6 +730,7 @@ class LocalPlayer {
     this.beamFrom = o; this.beamEnd = end; this.beamT = 0.14;
     Net.relay({ t: 'shoot', k: 'beam', o: v3r(o), e: v3r(end), c: z.color });
     Sound.play('beam');
+    this.kick('beam');
     if (Math.random() < 0.6) FX.burst(end, '#bff6ff', 1, 2);
   }
   // Storm Caller: a bolt of lightning down the crosshair, then it jumps to whatever's close (weaker each jump)
@@ -733,7 +773,7 @@ class LocalPlayer {
     Shots.fire('cutter', o, d, true, { dmg: z.dmg, out: z.out, flags: this.shotFlags(false) });
     Net.relay({ t: 'shoot', k: 'cutter', o: v3r(o), d: v3r(d), c: z.color });
     Sound.play('cutter');
-    this.recoil = 0.1;
+    this.kick('cutter');
   }
   // one of my pizza cutters came back (or got lost somewhere): it's ready to throw again
   cutterBack() {
@@ -802,7 +842,8 @@ class LocalPlayer {
     this.shakeT += dt * 22;
     const sh = Math.min(1, G.shake) ** 2 * 0.03, t = this.shakeT;
     const sx = (Math.sin(t * 1.31) + 0.5 * Math.sin(t * 2.97)) * sh, sy = (Math.cos(t * 1.73) + 0.5 * Math.sin(t * 3.71)) * sh;
-    cam.rotation.set(this.pitch + sx, this.yaw + sy, this.dead ? Math.min(this.deadT * 0.6, 0.3) : 0, 'YXZ');
+    this.kickP = U.damp(this.kickP, 0, 9, dt); this.kickY = U.damp(this.kickY, 0, 9, dt);
+    cam.rotation.set(U.clamp(this.pitch + sx + this.kickP, -1.55, 1.55), this.yaw + sy + this.kickY, this.dead ? Math.min(this.deadT * 0.6, 0.3) : 0, 'YXZ');
     // sprinting widens the view a little
     const fov = 72 + this.sprintK * 7;
     if (Math.abs(cam.fov - fov) > 0.05) { cam.fov = fov; cam.updateProjectionMatrix(); }
@@ -817,7 +858,9 @@ class LocalPlayer {
       Math.cos(this.walkT) * (0.012 + run * 0.02) + this.swayX * 0.5,
       Math.abs(Math.sin(this.walkT)) * (0.012 + run * 0.02) + (this.onGround ? 0 : 0.02) - sw * 0.3 - this.landK * 0.05 - this.swayY * 0.4 - run * 0.03,
       this.recoil);
-    this.vm.rotation.set(this.recoil * 1.5 - sw * 0.9 + run * 0.25 - this.swayY, this.swayX * 1.2 + run * 0.3, -this.swayX * 0.8);
+    this.recoilRot = U.damp(this.recoilRot, 0, 11, dt); this.recoilRoll = U.damp(this.recoilRoll, 0, 10, dt);
+    this.vm.rotation.set(this.recoilRot - sw * 0.9 + run * 0.25 - this.swayY, this.swayX * 1.2 + run * 0.3, -this.swayX * 0.8 + this.recoilRoll);
+    if (this.gloveCol !== G.color) { this.gloveCol = G.color; this.gloveMat.color.set(G.color || '#ff7a3d'); }
   }
 
   netState() {

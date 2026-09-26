@@ -1,3 +1,12 @@
+## New in 1.7.1
+
+- **You can see your hands.** Gloves in your suit color hold whatever you've got out: every gun, the Grabby Vac,
+  the Laser Drill and the Pizza Peel. The bigger guns get both hands. During a reload, your other hand lets go to
+  swap the battery. Friends see your colored gloves too.
+- **Guns have recoil.** Your view kicks up and settles back when you fire, and the gun jumps in your hands. A
+  little of the kick stays, so pull down between shots. The bigger the gun, the bigger the kick: the Scattergun and
+  the Same-Day Launcher kick hardest, while the Pew Pew Zapper and the Wisp Caller barely move.
+
 ## New in 1.7: better boss fights
 
 - **Smoother bosses.** Every boss has been rebuilt with round, smoothly shaded shapes (no more blocky corners), a soft

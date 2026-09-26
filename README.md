@@ -147,6 +147,11 @@ Every planet sells a different gun, and each one shoots differently:
 | Same-Day Launcher | Gigopolis | exploding parcels; shoot the ground under you mid-jump to rocket-jump |
 | Pizza Cutter | Zorblax Prime | spinning cutters that slice through everything and come back |
 
+You can see your hands holding whatever you've got out, in gloves the color of your suit (two hands on the
+bigger guns). Guns kick when they fire: your view jumps up and settles back, but a little of the kick stays, so
+pull down a bit between shots. The Scattergun and the Same-Day Launcher kick hardest. The Pew Pew Zapper and the
+Wisp Caller barely move.
+
 Movement gear you can pick up along the way (you keep it when you die):
 
 | Gear | Where | What it does |

@@ -29,7 +29,7 @@ function buildAstronaut(o = {}) {
     const arm = grp(root, s * 0.43, 1.48, 0);
     mk(BOX(0.2, 0.56, 0.22), white, arm, 0, -0.24, 0);
     mk(BOX(0.22, 0.1, 0.24), suit, arm, 0, -0.04, 0);
-    mk(BOX(0.2, 0.18, 0.22), dark, arm, 0, -0.58, 0);
+    mk(BOX(0.2, 0.18, 0.22), suit, arm, 0, -0.58, 0); // (gloves in the suit color, like in first person)
     arm.userData.hand = grp(arm, 0, -0.62, 0.06);
     arms.push(arm);
   }
@@ -1349,6 +1349,103 @@ function buildPeelVM() {
   const muzzle = grp(g, 0, 0, -0.5);
   g.userData = { board, muzzle };
   return g;
+}
+
+/* ---------------- first-person hands (your suit's gloves and sleeves) ---------------- */
+// (the gloves are in your suit color, so they stand out against the guns; glove: that material)
+const SLEEVE = '#f4f1ea', SEAL = '#30343f';
+// a rounded rod from a to b (a finger, a thumb, a wrist)
+function capsule(parent, a, b, r, color) {
+  const d = b.clone().sub(a), len = d.length() || 0.001;
+  const g = grp(parent, a.x, a.y, a.z);
+  g.quaternion.setFromUnitVectors(new V3(0, 1, 0), d.divideScalar(len));
+  mk(CYL(r, r, len, 10), color, g, 0, len / 2, 0);
+  mk(SPH(r), color, g, 0, len, 0);
+  mk(SPH(r), color, g, 0, 0, 0);
+  return g;
+}
+// the glove's wrist, the suit's seal and the sleeve, from `at` heading off along `dir` (out of view)
+function forearm(g, at, dir, glove) {
+  const q = new THREE.Quaternion().setFromUnitVectors(new V3(0, 1, 0), dir);
+  const put = (m, d) => { m.position.copy(at).addScaledVector(dir, d); m.quaternion.copy(q); };
+  put(mk(CYL(0.045, 0.054, 0.075, 16), glove, g), 0.02);
+  put(mk(TOR(0.052, 0.012, 8, 20).rotateX(Math.PI / 2), SEAL, g), 0.06); // (a ring around the wrist)
+  put(mk(CYL(0.062, 0.08, 0.6, 16), SLEEVE, g), 0.365);
+}
+// a right hand around a pistol grip. The group sits in the middle of the grip, tilted like it: the grip
+// runs along y and the fingers wrap around its front (-z). gw, gd: how wide and deep the grip is.
+function buildGripHand(glove, gw = 0.07, gd = 0.09) {
+  return withHi(null, () => {
+    const g = new THREE.Group(), hx = gw / 2, hz = gd / 2;
+    tf(mk(roundBox(0.048, 0.112, 0.122, 0.021), glove, g, hx + 0.02, 0.012, 0.006), 0, -0.12, 0); // the back of the hand, on the right side
+    mk(roundBox(gw + 0.036, 0.104, 0.046, 0.019), glove, g, 0.008, 0.01, hz + 0.019); // the heel of the hand, behind
+    // four fingers curled around the front (a knuckle, then across to the left side)
+    for (let i = 0; i < 4; i++) {
+      const y = 0.047 - i * 0.03, r = i === 3 ? 0.0125 : 0.0145;
+      const k0 = new V3(hx + 0.022, y, -hz + 0.012), k1 = new V3(hx + 0.002, y - 0.002, -hz - 0.014), tip = new V3(-hx + 0.004, y - 0.006, -hz - 0.012);
+      capsule(g, k0, k1, r, glove);
+      capsule(g, k1, tip, r, glove);
+    }
+    // the thumb, along the left side toward the front
+    capsule(g, new V3(-hx + 0.006, 0.062, hz + 0.016), new V3(-hx - 0.014, 0.05, -hz + 0.012), 0.017, glove);
+    forearm(g, new V3(0.022, -0.03, hz + 0.03), new V3(0.42, -0.6, 0.68).normalize(), glove);
+    mergeLocal(g);
+    return g;
+  });
+}
+// a left hand holding something up from underneath (a barrel, a pump, a tube): the group sits on its
+// middle line; R: how far down its underside is, W: half its width
+function buildSupportHand(glove, R, W) {
+  return withHi(null, () => {
+    const g = new THREE.Group();
+    mk(roundBox(W * 2 + 0.03, 0.036, 0.104, 0.016), glove, g, -0.006, -R - 0.02, 0.006); // the palm, underneath
+    // fingers curling up the right side (out a little, then hugging it; never more than a finger's length)
+    const top = Math.max(-R * 0.1, -R - 0.014 + 0.08);
+    for (let i = 0; i < 4; i++) {
+      const z = -0.04 + i * 0.027, r = i === 0 ? 0.0125 : 0.014;
+      const base = new V3(W - 0.004, -R - 0.014, z), mid = new V3(W + 0.014, (base.y + top) / 2, z - 0.004), tip = new V3(W + 0.006, top, z - 0.008);
+      capsule(g, base, mid, r, glove);
+      capsule(g, mid, tip, r, glove);
+    }
+    // the thumb, lying along the left side
+    capsule(g, new V3(-W - 0.006, -R - 0.008, 0.036), new V3(-W - 0.012, Math.max(-R * 0.4, -R - 0.008 + 0.045), -0.022), 0.016, glove);
+    forearm(g, new V3(-0.02, -R - 0.032, 0.05), new V3(-0.5, -0.42, 0.76).normalize(), glove);
+    mergeLocal(g);
+    return g;
+  });
+}
+// where the hands go on each thing you can hold (in its own coordinates).
+// grip: [x, y, z, tilt, width, depth] of the pistol grip (the right hand); support: [x, y, z, R, W] for the
+// left hand, underneath a barrel or tube (none for one-handed guns)
+const HAND_SPEC = {
+  zap: { grip: [0, -0.1, 0.08, 0.3, 0.07, 0.09] },
+  spread: { support: [0, -0.01, -0.22, 0.025, 0.045] },
+  lob: { support: [0, 0.04, -0.2, 0.085, 0.08] },
+  beam: { support: [0, 0.03, -0.1, 0.055, 0.055] },
+  chain: { support: [0, 0.03, -0.13, 0.058, 0.058] },
+  rocket: { support: [0, 0.05, -0.24, 0.078, 0.075] },
+  cutter: { support: [0, 0.02, -0.15, 0.03, 0.04] },
+  vac: { grip: [0.02, -0.15, 0.1, 0.2, 0.08, 0.1], support: [0.02, 0, -0.24, 0.05, 0.05] },
+  drill: { grip: [0, -0.12, 0.08, 0.25, 0.09, 0.11], support: [0, 0.02, -0.08, 0.08, 0.08] },
+  peel: { grip: [0, -0.1, 0.1, 0.3, 0.07, 0.09], support: [0, -0.01, -0.13, 0.03, 0.03] },
+};
+// put your hands on something you're holding (kind: 'vac', 'drill', 'peel', or a gun type; glove: the
+// glove material, in your suit color)
+function addHands(vm, kind, glove) {
+  const spec = HAND_SPEC[kind] || {}, gp = spec.grip || HAND_SPEC.zap.grip, hands = {};
+  hands.grip = buildGripHand(glove, gp[4], gp[5]);
+  hands.grip.position.set(gp[0], gp[1], gp[2]);
+  hands.grip.rotation.x = gp[3];
+  vm.add(hands.grip);
+  if (spec.support) {
+    const s = spec.support;
+    hands.support = buildSupportHand(glove, s[3], s[4]);
+    hands.support.position.set(s[0], s[1], s[2]);
+    hands.support.userData.home = hands.support.position.clone();
+    vm.add(hands.support);
+  }
+  vm.userData.hands = hands;
+  return hands;
 }
 
 /* ---------------- bosses (return {root, body, hit:[{o,r}], ...}) ---------------- */
