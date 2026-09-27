@@ -682,6 +682,12 @@ function buildShip() {
   tf(mk(SPH(1.1, 10, 8), M('#7fd8ff', { transparent: true, opacity: 0.65 }), g, 0, 4.0, 2.4), 0, 0, 0, 1, 0.7, 1.4);
   for (const s of [-1, 1]) tf(mk(BOX(0.22, 2.2, 2.2), red, g, s * 2.1, 2.3, -2.8), 0, 0, -s * 0.55);
   mk(BOX(0.22, 2.0, 2.2), red, g, 0, 4.6, -2.8);
+  // cabin windows down both sides, on the hull's upper side panels (one by every row of seats inside)
+  for (const s of [-1, 1]) for (const z of [0.48, -0.55, -1.5]) {
+    const ap = (1.95 - (z * 0.3) / 7) * Math.cos(PI / 10); // (how far out the panel is here: the hull narrows to the front)
+    tf(mk(BOX(0.05, 0.72, 0.86), '#c9ced6', g, s * (ap + 0.01) * 0.809, 2.7 + (ap + 0.01) * 0.588, z), 0, 0, s * 0.628);
+    tf(mk(BOX(0.05, 0.6, 0.74), '#22384f', g, s * (ap + 0.035) * 0.809, 2.7 + (ap + 0.035) * 0.588, z, { emissive: '#0a1422' }), 0, 0, s * 0.628);
+  }
   for (const s of [-1, 1]) {
     tf(mk(CYL(0.6, 0.8, 1.2, 8), grey, g, s * 1.0, 2.2, -4.0), PI / 2);
     tf(mk(CYL(0.55, 0.55, 0.05, 8), '#ffb03a', g, s * 1.0, 2.2, -4.62, { emissive: '#ff6a00' }), PI / 2);
@@ -1078,93 +1084,6 @@ function glowRing(parent, r, col) {
   ring.rotation.x = -PI / 2; ring.position.y = 0.06; parent.add(ring);
   return ring;
 }
-// junk you can vacuum. Lots of different kinds so the moon doesn't look copy-pasted.
-const SCRAP_KINDS = ['cans', 'tv', 'tires', 'gears', 'toaster', 'barrel', 'boards', 'wheel', 'pipes', 'robohead', 'fridge', 'boot'];
-function buildScrapNode(rng) {
-  const g = new THREE.Group();
-  const kind = SCRAP_KINDS[Math.floor(rng() * SCRAP_KINDS.length)];
-  const pick = (a) => a[Math.floor(rng() * a.length)];
-  const metal = pick(['#9aa3ad', '#b0b8c0', '#7a8591', '#c9ced6']);
-  const paint = pick(['#d6281b', '#3a8fd8', '#3fcf6a', '#ffb23e', '#9b5de5', '#e0672a']);
-  switch (kind) {
-    case 'cans':
-      for (let i = 0; i < 4; i++) { const a = rng() * 6, d = rng() * 0.35; mk(CYL(0.11, 0.11, 0.3, 8), pick([paint, metal, '#d8c46a']), g, Math.cos(a) * d, 0.15, Math.sin(a) * d); }
-      tf(mk(CYL(0.12, 0.12, 0.12, 8), metal, g, 0.3, 0.1, -0.2), PI / 2, 0.4, 0);
-      break;
-    case 'tv':
-      tf(mk(BOX(0.7, 0.55, 0.55), '#5a4a3a', g, 0, 0.27, 0), 0, 0, 0.12);
-      mk(BOX(0.52, 0.4, 0.04), '#1a2a2a', g, 0.03, 0.29, 0.28, { emissive: '#0a2a1a' });
-      for (const s of [-1, 1]) tf(mk(CYL(0.012, 0.012, 0.5, 4), metal, g, s * 0.12, 0.72, 0), 0, 0, s * 0.5);
-      break;
-    case 'tires':
-      tf(mk(TOR(0.34, 0.14, 6, 12), '#222222', g, 0, 0.12, 0), PI / 2, 0, 0);
-      tf(mk(TOR(0.3, 0.13, 6, 12), '#2e2e2e', g, 0.05, 0.36, 0.04), PI / 2, 0, 0);
-      mk(CYL(0.18, 0.18, 0.04, 10), metal, g, 0.05, 0.5, 0.04);
-      break;
-    case 'gears':
-      for (let i = 0; i < 3; i++) {
-        const gr = grp(g, (rng() - 0.5) * 0.4, 0.06 + i * 0.1, (rng() - 0.5) * 0.4); gr.rotation.y = rng() * 3;
-        const r = 0.16 + rng() * 0.1, c = pick(['#c9a227', metal, '#b87333']);
-        mk(CYL(r, r, 0.07, 10), c, gr, 0, 0, 0);
-        for (let k = 0; k < 8; k++) { const a = (k / 8) * PI * 2; mk(BOX(0.06, 0.07, 0.08), c, gr, Math.cos(a) * (r + 0.03), 0, Math.sin(a) * (r + 0.03)).rotation.y = -a; }
-      }
-      break;
-    case 'toaster':
-      mk(BOX(0.5, 0.36, 0.3), pick(['#c9ced6', '#d6281b', '#ffe066']), g, 0, 0.18, 0);
-      for (const s of [-1, 1]) mk(BOX(0.36, 0.02, 0.06), '#222222', g, 0, 0.37, s * 0.07);
-      tf(mk(BOX(0.28, 0.3, 0.05), '#d9a066', g, 0.05, 0.42, 0.07), 0, 0, 0.15);
-      tf(mk(CYL(0.015, 0.015, 0.6, 4), '#222222', g, -0.4, 0.02, 0.1), 0, 0.5, PI / 2);
-      break;
-    case 'barrel':
-      tf(mk(CYL(0.28, 0.28, 0.75, 8), paint, g, 0, 0.28, 0), PI / 2, rng() * 3, 0);
-      mk(CYL(0.45, 0.45, 0.02, 12), '#7dff8a', g, 0.45, 0.02, 0.2, { emissive: '#1a8a2a' });
-      break;
-    case 'boards':
-      for (let i = 0; i < 3; i++) tf(mk(BOX(0.42, 0.03, 0.3), '#1e7b3a', g, (rng() - 0.5) * 0.3, 0.04 + i * 0.04, (rng() - 0.5) * 0.3), 0, rng() * 3, 0);
-      for (let i = 0; i < 5; i++) mk(BOX(0.05, 0.03, 0.05), '#ffd23f', g, (rng() - 0.5) * 0.3, 0.16, (rng() - 0.5) * 0.2);
-      tf(mk(BOX(0.4, 0.03, 0.28), '#2a8f4a', g, 0.15, 0.2, 0), 0, 0.3, 0.7);
-      break;
-    case 'wheel':
-      tf(mk(TOR(0.38, 0.03, 4, 16), '#222222', g, 0, 0.38, 0), 0, 0.3, 0.25);
-      for (let k = 0; k < 4; k++) tf(mk(CYL(0.008, 0.008, 0.72, 3), metal, g, 0, 0.38, 0), 0, 0.3, 0.25 + (k / 4) * PI);
-      tf(mk(CYL(0.02, 0.02, 0.5, 5), paint, g, 0.35, 0.12, 0.2), 0, 0, 1.2);
-      break;
-    case 'pipes':
-      for (let i = 0; i < 4; i++) tf(mk(CYL(0.07, 0.07, 0.8, 6), pick([metal, '#b87333']), g, 0, 0.07 + (i % 2) * 0.12, -0.18 + i * 0.12), 0, 0, PI / 2);
-      break;
-    case 'robohead':
-      tf(mk(BOX(0.45, 0.38, 0.4), metal, g, 0, 0.19, 0), 0, 0, 0.2);
-      for (const s of [-1, 1]) mk(SPH(0.06, 6, 5), '#ff3d3d', g, s * 0.1 + 0.03, 0.24, 0.2, { emissive: '#880000' });
-      mk(CYL(0.012, 0.012, 0.3, 4), metal, g, 0.05, 0.48, 0);
-      tf(mk(BOX(0.1, 0.4, 0.1), metal, g, 0.4, 0.05, 0.1), 0, 0.4, PI / 2);
-      break;
-    case 'fridge':
-      tf(mk(BOX(0.5, 0.95, 0.45), '#e8e4dc', g, 0, 0.36, 0), 0, 0, 0.35);
-      tf(mk(BOX(0.04, 0.3, 0.04), '#9aa3ad', g, -0.02, 0.5, 0.24), 0, 0, 0.35);
-      break;
-    case 'boot':
-      mk(BOX(0.22, 0.34, 0.24), '#6b4a2b', g, 0, 0.17, 0);
-      mk(BOX(0.24, 0.14, 0.5), '#6b4a2b', g, 0, 0.07, 0.12);
-      mk(BOX(0.26, 0.04, 0.54), '#2b1d14', g, 0, 0.02, 0.12);
-      tf(mk(CYL(0.1, 0.1, 0.24, 8), metal, g, -0.32, 0.12, -0.1), PI / 2, 0.8, 0);
-      break;
-  }
-  g.userData.kind = kind;
-  glowRing(g, 0.85, '#7dff8a');
-  return g;
-}
-function buildBerryNode(big) {
-  const g = new THREE.Group();
-  const col = big ? '#ff9a3d' : '#7a4dff', s = big ? 1.35 : 1;
-  const b = grp(g, 0, 0.55, 0);
-  mk(SPH(0.22 * s, 8, 6), col, b, 0, 0, 0, { emissive: big ? '#6a2a00' : '#2a1466' });
-  mk(SPH(0.17 * s, 8, 6), col, b, 0.22 * s, -0.08, 0.05, { emissive: big ? '#6a2a00' : '#2a1466' });
-  mk(SPH(0.16 * s, 8, 6), col, b, -0.12 * s, -0.1, 0.18 * s, { emissive: big ? '#6a2a00' : '#2a1466' });
-  tf(mk(BOX(0.25, 0.03, 0.12), '#3fcf6a', b, 0, 0.22 * s, 0), 0, 0.4, 0.3);
-  g.userData.bob = b;
-  glowRing(g, 0.7 * s, big ? '#ffb86b' : '#c9b3ff');
-  return g;
-}
 function buildCrystalNode(rng) {
   const g = new THREE.Group();
   tf(mk(DOD(0.9), '#8fa3b8', g, 0, 0.3, 0), 0, rng() * 3, 0, 1.2, 0.5, 1.2);
@@ -1195,7 +1114,17 @@ function buildMeteor(big) {
 }
 
 /* ---------------- space critters (face +Z, ~knee high) ---------------- */
+// Critters are built smooth, in the 'crit' material set: they get an edge that stands out from whatever
+// planet they're on (see setAtmosphere), so they never blend in. Their parts are glued into a few meshes;
+// the moving bits (legs, wings, rotors, wheels, sparks) stay separate.
 function buildCritter(kind, gold) {
+  const m = withHi('crit', () => buildCritterParts(kind, gold));
+  const keep = [...m.legs, ...(m.wings || []), ...(m.rotors || []), ...(m.rolls || [])];
+  if (m.body.userData.spark) keep.push(m.body.userData.spark);
+  mergeLocal(m.body, keep);
+  return m;
+}
+function buildCritterParts(kind, gold) {
   const root = new THREE.Group(), body = grp(root);
   const C = (c) => (gold ? '#ffd23f' : c); // golden critters are golden all over
   const E = gold ? { emissive: '#aa7700' } : undefined;
@@ -1205,35 +1134,35 @@ function buildCritter(kind, gold) {
   let hit = 0.45, hy = null, hover = 0, wings = null, rotors = null, rolls = null;
   switch (kind) {
     case 'rat':
-      tf(mk(SPH(0.28, 8, 6), C('#8a7f74'), body, 0, 0.3, 0, E), 0, 0, 0, 0.9, 0.8, 1.4);
-      mk(SPH(0.17, 8, 6), C('#9a8f84'), body, 0, 0.36, 0.38, E);
+      tf(mk(SPH(0.28, 8, 6), C('#7d8aa6'), body, 0, 0.3, 0, E), 0, 0, 0, 0.9, 0.8, 1.4);
+      mk(SPH(0.17, 8, 6), C('#95a2bd'), body, 0, 0.36, 0.38, E);
       mk(SPH(0.04, 5, 4), '#ff8fa3', body, 0, 0.36, 0.55);
       for (const s of [-1, 1]) mk(SPH(0.08, 6, 5), '#ff8fa3', body, s * 0.12, 0.52, 0.34);
       eyes(0.42, 0.48, 0.07, 0.04);
       tf(mk(CYL(0.02, 0.03, 0.5, 5), '#ff8fa3', body, 0, 0.3, -0.55), PI / 2 - 0.3);
-      for (const [x, z] of [[-0.14, 0.2], [0.14, 0.2], [-0.14, -0.2], [0.14, -0.2]]) leg(x, z, 0.16, '#6b625a');
+      for (const [x, z] of [[-0.14, 0.2], [0.14, 0.2], [-0.14, -0.2], [0.14, -0.2]]) leg(x, z, 0.16, '#4a5266');
       break;
     case 'crab':
-      tf(mk(SPH(0.34, 8, 6), C('#c8551f'), body, 0, 0.32, 0, E), 0, 0, 0, 1.3, 0.6, 1);
+      tf(mk(SPH(0.34, 8, 6), C('#e0342a'), body, 0, 0.32, 0, E), 0, 0, 0, 1.3, 0.6, 1);
       for (const s of [-1, 1]) {
-        mk(CYL(0.02, 0.02, 0.2, 4), C('#c8551f'), body, s * 0.1, 0.5, 0.18, E);
+        mk(CYL(0.02, 0.02, 0.2, 4), C('#e0342a'), body, s * 0.1, 0.5, 0.18, E);
         mk(SPH(0.06, 6, 5), '#ffffff', body, s * 0.1, 0.62, 0.18); mk(SPH(0.03, 5, 4), '#111111', body, s * 0.1, 0.63, 0.23);
         const claw = grp(body, s * 0.42, 0.34, 0.25);
-        tf(mk(BOX(0.18, 0.12, 0.24), C('#e0672a'), claw, 0, 0, 0, E), 0, s * 0.4, 0);
+        tf(mk(BOX(0.18, 0.12, 0.24), C('#ff5a36'), claw, 0, 0, 0, E), 0, s * 0.4, 0);
         legs.push(claw);
         for (let i = 0; i < 3; i++) leg(s * 0.34, -0.1 + i * 0.12, 0.2, '#9a3f14');
       }
       break;
     case 'blob':
-      tf(mk(SPH(0.36, 10, 8), C('#43e0c0'), body, 0, 0.3, 0, gold ? E : { emissive: '#0a4a3a' }), 0, 0, 0, 1, 0.8, 1);
+      tf(mk(SPH(0.36, 10, 8), C('#ffd83a'), body, 0, 0.3, 0, gold ? E : { emissive: '#4a3a00' }), 0, 0, 0, 1, 0.8, 1);
       eyes(0.38, 0.3, 0.1, 0.07);
       break;
     case 'hopper':
-      tf(mk(SPH(0.32, 8, 6), C('#7ddc5a'), body, 0, 0.32, 0, E), 0, 0, 0, 1.1, 0.8, 1.2);
+      tf(mk(SPH(0.32, 8, 6), C('#ff7a2a'), body, 0, 0.32, 0, E), 0, 0, 0, 1.1, 0.8, 1.2);
       for (const s of [-1, 1]) { mk(SPH(0.11, 7, 5), '#ffffff', body, s * 0.15, 0.58, 0.14); mk(SPH(0.06, 5, 4), '#111111', body, s * 0.15, 0.6, 0.23); }
       mk(BOX(0.3, 0.03, 0.05), '#2b3a1a', body, 0, 0.3, 0.38);
-      for (const s of [-1, 1]) { const l = grp(body, s * 0.28, 0.25, -0.18); tf(mk(BOX(0.12, 0.3, 0.12), C('#5bbf3a'), l, 0, -0.1, 0, E), 0.7); legs.push(l); }
-      leg(-0.12, 0.2, 0.2, '#5bbf3a'); leg(0.12, 0.2, 0.2, '#5bbf3a');
+      for (const s of [-1, 1]) { const l = grp(body, s * 0.28, 0.25, -0.18); tf(mk(BOX(0.12, 0.3, 0.12), C('#d8541a'), l, 0, -0.1, 0, E), 0.7); legs.push(l); }
+      leg(-0.12, 0.2, 0.2, '#d8541a'); leg(0.12, 0.2, 0.2, '#d8541a');
       break;
     case 'chipbug':
       mk(CYL(0.34, 0.34, 0.14, 12), C('#d6281b'), body, 0, 0.3, 0, E);
@@ -1250,21 +1179,21 @@ function buildCritter(kind, gold) {
       hit = 0.5;
       break;
     case 'mite':
-      for (const [x, y, z, r] of [[0, 0.3, 0, 0.28], [0.18, 0.36, -0.1, 0.18], [-0.18, 0.36, -0.1, 0.18], [0, 0.46, -0.12, 0.2]]) mk(ICO(r, 1), C('#f4f8ff'), body, x, y, z, E);
+      for (const [x, y, z, r] of [[0, 0.3, 0, 0.28], [0.18, 0.36, -0.1, 0.18], [-0.18, 0.36, -0.1, 0.18], [0, 0.46, -0.12, 0.2]]) mk(ICO(r, 1), C('#8a6cff'), body, x, y, z, E);
       eyes(0.36, 0.24, 0.09, 0.06);
-      for (const [x, z] of [[-0.14, 0.1], [0.14, 0.1], [-0.14, -0.14], [0.14, -0.14]]) leg(x, z, 0.14, '#9fb8cc');
+      for (const [x, z] of [[-0.14, 0.1], [0.14, 0.1], [-0.14, -0.14], [0.14, -0.14]]) leg(x, z, 0.14, '#4a3aa8');
       break;
     case 'weasel':
-      tf(mk(CYL(0.16, 0.16, 0.9, 7), C('#e8f0f8'), body, 0, 0.32, 0, E), PI / 2);
-      mk(SPH(0.19, 8, 6), C('#f4f8ff'), body, 0, 0.4, 0.52, E);
+      tf(mk(CYL(0.16, 0.16, 0.9, 7), C('#3d5a86'), body, 0, 0.32, 0, E), PI / 2);
+      mk(SPH(0.19, 8, 6), C('#4f6f9e'), body, 0, 0.4, 0.52, E);
       mk(SPH(0.04, 5, 4), '#111111', body, 0, 0.4, 0.71);
       eyes(0.47, 0.62, 0.08, 0.04);
-      for (const s of [-1, 1]) mk(CONE(0.06, 0.12, 4), C('#e8f0f8'), body, s * 0.1, 0.6, 0.48, E);
-      tf(mk(CYL(0.05, 0.1, 0.5, 6), '#2b3a4a', body, 0, 0.36, -0.65), PI / 2 + 0.3);
-      for (const [x, z] of [[-0.12, 0.3], [0.12, 0.3], [-0.12, -0.3], [0.12, -0.3]]) leg(x, z, 0.2, '#c9d6e3');
+      for (const s of [-1, 1]) mk(CONE(0.06, 0.12, 4), C('#3d5a86'), body, s * 0.1, 0.6, 0.48, E);
+      tf(mk(CYL(0.05, 0.1, 0.5, 6), '#1b2638', body, 0, 0.36, -0.65), PI / 2 + 0.3);
+      for (const [x, z] of [[-0.12, 0.3], [0.12, 0.3], [-0.12, -0.3], [0.12, -0.3]]) leg(x, z, 0.2, '#25344d');
       break;
     case 'lsnail':
-      tf(mk(CYL(0.16, 0.2, 0.8, 7), C('#6a4c8a'), body, 0, 0.14, 0.05, E), PI / 2);
+      tf(mk(CYL(0.16, 0.2, 0.8, 7), C('#a77ae0'), body, 0, 0.14, 0.05, E), PI / 2);
       mk(SPH(0.3, 8, 6), C('#ff5a1f'), body, 0, 0.42, -0.12, gold ? E : { emissive: '#aa2a00' });
       tf(mk(TOR(0.18, 0.05, 4, 10), '#ffb23e', body, 0.2, 0.42, -0.12, { emissive: '#aa5500' }), 0, PI / 2, 0);
       for (const s of [-1, 1]) { mk(CYL(0.015, 0.015, 0.2, 4), '#6a4c8a', body, s * 0.06, 0.3, 0.42); mk(SPH(0.04, 5, 4), '#111111', body, s * 0.06, 0.4, 0.42); }
@@ -1298,13 +1227,13 @@ function buildCritter(kind, gold) {
       break;
     case 'shroomy': // a little mushroom that learned to run
       mk(CYL(0.12, 0.15, 0.3, 8), C('#f3e9d2'), body, 0, 0.3, 0, E);
-      tf(mk(HEMI(0.32, 10, 4), C('#9b5de5'), body, 0, 0.42, 0, E), 0, 0, 0, 1, 0.6, 1);
+      tf(mk(HEMI(0.32, 10, 4), C('#b25cff'), body, 0, 0.42, 0, E), 0, 0, 0, 1, 0.6, 1);
       for (let i = 0; i < 4; i++) { const a = i * 1.7; mk(SPH(0.05, 5, 4), '#ffffff', body, Math.sin(a) * 0.2, 0.55, Math.cos(a) * 0.2); }
       eyes(0.34, 0.13, 0.06, 0.045);
       leg(-0.07, 0, 0.16, '#f3e9d2'); leg(0.07, 0, 0.16, '#f3e9d2');
       break;
     case 'leech': // a long sticky slug
-      for (let i = 0; i < 4; i++) mk(SPH(0.2 - i * 0.03, 8, 6), C(i % 2 ? '#2ab5a5' : '#43e0c0'), body, 0, 0.18, 0.24 - i * 0.2, gold ? E : { emissive: '#0a3a3a' });
+      for (let i = 0; i < 4; i++) mk(SPH(0.2 - i * 0.03, 8, 6), C(i % 2 ? '#5a24d0' : '#7d3cff'), body, 0, 0.18, 0.24 - i * 0.2, gold ? E : { emissive: '#1a0a4a' });
       mk(CYL(0.1, 0.1, 0.06, 10), '#1a2a2a', body, 0, 0.2, 0.42).rotation.x = PI / 2;
       for (let i = 0; i < 6; i++) { const a = (i / 6) * PI * 2; mk(CONE(0.018, 0.06, 3), '#ffffff', body, Math.cos(a) * 0.07, 0.2 + Math.sin(a) * 0.07, 0.44).rotation.x = PI / 2; }
       break;
@@ -1336,21 +1265,21 @@ function buildCritter(kind, gold) {
       leg(-0.08, 0.06, 0.08, '#ff9a1f'); leg(0.08, 0.06, 0.08, '#ff9a1f');
       break;
     case 'pup': // a fluffy baby yeti
-      mk(ICO(0.32, 1), C('#f4f8ff'), body, 0, 0.42, 0, E);
-      mk(ICO(0.22, 1), C('#f4f8ff'), body, 0, 0.72, 0.12, E);
-      tf(mk(SPH(0.14, 7, 5), '#8fa3b8', body, 0, 0.7, 0.26), 0, 0, 0, 1, 0.8, 0.5);
+      mk(ICO(0.32, 1), C('#3f8cff'), body, 0, 0.42, 0, E);
+      mk(ICO(0.22, 1), C('#3f8cff'), body, 0, 0.72, 0.12, E);
+      tf(mk(SPH(0.14, 7, 5), '#bcd6ff', body, 0, 0.7, 0.26), 0, 0, 0, 1, 0.8, 0.5);
       for (const s of [-1, 1]) { mk(SPH(0.035, 5, 4), '#111111', body, s * 0.06, 0.74, 0.32); mk(CONE(0.03, 0.08, 3), '#ffffff', body, s * 0.05, 0.62, 0.3).rotation.x = PI; }
-      for (const s of [-1, 1]) { const a = grp(body, s * 0.3, 0.5, 0.05); mk(ICO(0.1, 0), C('#e8f0f8'), a, 0, -0.12, 0, E); legs.push(a); }
-      leg(-0.12, 0, 0.18, '#dfe8f0'); leg(0.12, 0, 0.18, '#dfe8f0');
+      for (const s of [-1, 1]) { const a = grp(body, s * 0.3, 0.5, 0.05); mk(ICO(0.1, 0), C('#2f74e0'), a, 0, -0.12, 0, E); legs.push(a); }
+      leg(-0.12, 0, 0.18, '#2560c0'); leg(0.12, 0, 0.18, '#2560c0');
       break;
     case 'ember': // a little bug that is also a little fire
-      tf(mk(SPH(0.22, 8, 6), C('#2a1f2e'), body, 0, 0.26, 0, E), 0, 0, 0, 1, 0.7, 1.3);
+      tf(mk(SPH(0.22, 8, 6), C('#a8341a'), body, 0, 0.26, 0, gold ? E : { emissive: '#4a0a00' }), 0, 0, 0, 1, 0.7, 1.3);
       for (let i = 0; i < 3; i++) mk(OCT(0.12 - i * 0.02), '#ff6a1f', body, (i - 1) * 0.08, 0.42 + i * 0.05, -0.05, { emissive: '#ff3a00' });
       eyes(0.32, 0.26, 0.06, 0.035);
       for (let i = 0; i < 3; i++) for (const s of [-1, 1]) leg(s * 0.2, -0.12 + i * 0.12, 0.16, '#1a1420');
       break;
     case 'hound': // the Emperor's three-eyed guard dog
-      tf(mk(BOX(0.34, 0.3, 0.7), C('#6a2a8a'), body, 0, 0.42, 0, E), 0, 0, 0);
+      tf(mk(BOX(0.34, 0.3, 0.7), C('#9a44c8'), body, 0, 0.42, 0, E), 0, 0, 0);
       mk(BOX(0.28, 0.26, 0.3), C('#7ddc5a'), body, 0, 0.62, 0.42, E);
       mk(BOX(0.16, 0.12, 0.14), C('#7ddc5a'), body, 0, 0.56, 0.62, E);
       for (let i = 0; i < 3; i++) { mk(SPH(0.04, 5, 4), '#fff36b', body, -0.08 + i * 0.08, 0.7 + (i === 1 ? 0.03 : 0), 0.57, { emissive: '#887700' }); }
@@ -1363,15 +1292,15 @@ function buildCritter(kind, gold) {
     /* ----- Spookulon ----- */
     case 'batlet': // a space bat: flaps about just off the ground
       hover = 1; hy = 0.85; hit = 0.42; wings = [];
-      tf(mk(SPH(0.22, 8, 6), C('#4a3a6a'), body, 0, 0.8, 0, E), 0, 0, 0, 1, 1.1, 1);
-      mk(SPH(0.16, 8, 6), C('#5a4a7a'), body, 0, 1.02, 0.1, E);
+      tf(mk(SPH(0.22, 8, 6), C('#9b5de5'), body, 0, 0.8, 0, gold ? E : { emissive: '#2a0a4a' }), 0, 0, 0, 1, 1.1, 1);
+      mk(SPH(0.16, 8, 6), C('#b07cf0'), body, 0, 1.02, 0.1, gold ? E : { emissive: '#2a0a4a' });
       for (const s of [-1, 1]) {
-        tf(mk(CONE(0.07, 0.2, 4), C('#5a4a7a'), body, s * 0.1, 1.2, 0.08, E), 0, 0, -s * 0.25);
+        tf(mk(CONE(0.07, 0.2, 4), C('#b07cf0'), body, s * 0.1, 1.2, 0.08, E), 0, 0, -s * 0.25);
         mk(SPH(0.035, 5, 4), '#ff3d3d', body, s * 0.06, 1.05, 0.24, { emissive: '#aa0000' });
         mk(CONE(0.015, 0.05, 3), '#ffffff', body, s * 0.03, 0.94, 0.24).rotation.x = PI;
         const w = grp(body, s * 0.18, 0.85, 0);
-        mk(BOX(0.5, 0.03, 0.34), C('#3a2a5a'), w, s * 0.26, 0, 0, E);
-        tf(mk(BOX(0.3, 0.03, 0.22), C('#3a2a5a'), w, s * 0.55, 0, -0.08, E), 0, s * 0.4, 0);
+        mk(BOX(0.5, 0.03, 0.34), C('#7a3ad0'), w, s * 0.26, 0, 0, E);
+        tf(mk(BOX(0.3, 0.03, 0.22), C('#7a3ad0'), w, s * 0.55, 0, -0.08, E), 0, s * 0.4, 0);
         wings.push(w);
       }
       break;
@@ -1410,21 +1339,21 @@ function buildCritter(kind, gold) {
     /* ----- Nimbus-9 ----- */
     case 'puff': // a tiny cloud with a face (it drizzles when it's sad)
       hover = 1; hy = 0.78; hit = 0.42;
-      for (const [x, y, z, r] of [[0, 0.75, 0, 0.3], [0.24, 0.7, -0.02, 0.2], [-0.24, 0.7, 0, 0.21], [0.1, 0.92, -0.05, 0.2], [-0.1, 0.9, 0.02, 0.18]]) mk(ICO(r, 1), C('#ffffff'), body, x, y, z, E);
+      for (const [x, y, z, r] of [[0, 0.75, 0, 0.3], [0.24, 0.7, -0.02, 0.2], [-0.24, 0.7, 0, 0.21], [0.1, 0.92, -0.05, 0.2], [-0.1, 0.9, 0.02, 0.18]]) mk(ICO(r, 1), C('#7f8cc4'), body, x, y, z, E);
       eyes(0.8, 0.26, 0.09, 0.05);
       tf(mk(SPH(0.04, 5, 4), '#ff8fa3', body, 0, 0.7, 0.28), 0, 0, 0, 1.6, 0.6, 0.6);
       for (let i = 0; i < 3; i++) mk(BOX(0.025, 0.12, 0.025), '#9fd0ff', body, -0.12 + i * 0.12, 0.35 + (i % 2) * 0.08, 0);
       break;
     case 'gull': // a seagull. It wants your lunch. Then it wants you.
-      tf(mk(SPH(0.26, 8, 6), C('#f4f4f0'), body, 0, 0.42, 0, E), 0, 0, 0, 0.9, 0.85, 1.3);
-      mk(SPH(0.16, 8, 6), C('#ffffff'), body, 0, 0.64, 0.22, E);
+      tf(mk(SPH(0.26, 8, 6), C('#8d95a4'), body, 0, 0.42, 0, E), 0, 0, 0, 0.9, 0.85, 1.3);
+      mk(SPH(0.16, 8, 6), C('#dde1e8'), body, 0, 0.64, 0.22, E);
       tf(mk(CONE(0.05, 0.2, 5), '#ffd23f', body, 0, 0.6, 0.44), PI / 2);
       mk(SPH(0.03, 5, 4), '#d6281b', body, 0, 0.56, 0.5);
       eyes(0.68, 0.33, 0.08, 0.035);
       for (const s of [-1, 1]) tf(mk(BOX(0.12, 0.03, 0.03), '#2a2a30', body, s * 0.08, 0.74, 0.35), 0, 0, s * 0.45);
       wings = [];
-      for (const s of [-1, 1]) { const w = grp(body, s * 0.2, 0.5, 0); mk(BOX(0.46, 0.04, 0.3), C('#9aa0a8'), w, s * 0.22, 0, -0.04, E); mk(BOX(0.16, 0.045, 0.28), '#2a2a30', w, s * 0.46, 0, -0.06); wings.push(w); }
-      tf(mk(BOX(0.2, 0.04, 0.22), C('#9aa0a8'), body, 0, 0.44, -0.36, E), 0.3, 0, 0);
+      for (const s of [-1, 1]) { const w = grp(body, s * 0.2, 0.5, 0); mk(BOX(0.46, 0.04, 0.3), C('#4f5664'), w, s * 0.22, 0, -0.04, E); mk(BOX(0.16, 0.045, 0.28), '#1e1e24', w, s * 0.46, 0, -0.06); wings.push(w); }
+      tf(mk(BOX(0.2, 0.04, 0.22), C('#4f5664'), body, 0, 0.44, -0.36, E), 0.3, 0, 0);
       leg(-0.08, 0.02, 0.22, '#ff9a3d'); leg(0.08, 0.02, 0.22, '#ff9a3d');
       break;
     case 'kite': { // a kite that broke its string and never looked back
@@ -1445,7 +1374,7 @@ function buildCritter(kind, gold) {
     }
     case 'spark': { // a little ball of lightning with a big attitude
       hover = 1; hy = 0.72; hit = 0.42;
-      mk(ICO(0.24, 1), C('#fff36b'), body, 0, 0.72, 0, gold ? E : { emissive: '#ccaa00' });
+      mk(ICO(0.24, 1), C('#ffc400'), body, 0, 0.72, 0, gold ? E : { emissive: '#aa6a00' });
       const sp = grp(body, 0, 0.72, 0);
       for (let i = 0; i < 8; i++) { const a = (i / 8) * PI * 2; tf(mk(OCT(0.07), '#bff6ff', sp, Math.cos(a) * 0.36, i % 2 ? 0.1 : -0.1, Math.sin(a) * 0.36, { emissive: '#3aa7ff' }), 0, 0, 0, 0.6, 2.2, 0.6); }
       body.userData.spark = sp;
@@ -1456,7 +1385,7 @@ function buildCritter(kind, gold) {
     /* ----- Gigopolis ----- */
     case 'drone': // quit its delivery job, kept the parcel
       hover = 1; hy = 1.0; rotors = [];
-      mk(BOX(0.36, 0.14, 0.36), C('#3b3f4a'), body, 0, 1.0, 0, E);
+      mk(BOX(0.36, 0.14, 0.36), C('#ffc629'), body, 0, 1.0, 0, E);
       mk(SPH(0.07, 6, 5), '#ff3d3d', body, 0, 0.98, 0.19, { emissive: '#aa0000' });
       for (const a of [PI / 4, -PI / 4]) tf(mk(BOX(0.95, 0.04, 0.05), C('#6d7480'), body, 0, 1.04, 0, E), 0, a, 0);
       for (const [x, z] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
@@ -1470,8 +1399,8 @@ function buildCritter(kind, gold) {
       mk(CYL(0.006, 0.006, 0.12, 3), '#3b3f4a', body, 0, 0.88, 0);
       break;
     case 'panda': { // a trash panda (related to Trevor? Trevor says no)
-      tf(mk(SPH(0.3, 8, 6), C('#8a8f98'), body, 0, 0.36, -0.05, E), 0, 0, 0, 1, 0.85, 1.35);
-      mk(SPH(0.2, 8, 6), C('#9aa0a8'), body, 0, 0.5, 0.34, E);
+      tf(mk(SPH(0.3, 8, 6), C('#b3b8c3'), body, 0, 0.36, -0.05, E), 0, 0, 0, 1, 0.85, 1.35);
+      mk(SPH(0.2, 8, 6), C('#c8ccd5'), body, 0, 0.5, 0.34, E);
       mk(BOX(0.34, 0.08, 0.08), '#2a2a30', body, 0, 0.54, 0.47);
       eyes(0.55, 0.5, 0.08, 0.035);
       tf(mk(SPH(0.08, 6, 5), C('#c9ced6'), body, 0, 0.44, 0.5, E), 0, 0, 0, 1, 0.8, 1);
@@ -1501,9 +1430,9 @@ function buildCritter(kind, gold) {
       break;
     case 'scooter': // an abandoned e-scooter that went feral
       rolls = [];
-      mk(BOX(0.2, 0.06, 0.8), C('#2a2d38'), body, 0, 0.16, 0, E);
+      mk(BOX(0.2, 0.06, 0.8), C('#3ddc84'), body, 0, 0.16, 0, E);
       tf(mk(CYL(0.025, 0.025, 0.95, 6), C('#9aa3ad'), body, 0, 0.62, 0.36, E), -0.12, 0, 0);
-      mk(BOX(0.5, 0.04, 0.04), C('#2a2d38'), body, 0, 1.08, 0.42, E);
+      mk(BOX(0.5, 0.04, 0.04), C('#3ddc84'), body, 0, 1.08, 0.42, E);
       for (const s of [-1, 1]) {
         tf(mk(CYL(0.035, 0.035, 0.1, 6), '#1a1a1a', body, s * 0.26, 1.08, 0.42), 0, 0, PI / 2);
         tf(mk(BOX(0.1, 0.025, 0.03), '#1a1a1a', body, s * 0.06, 0.98, 0.47), 0, 0, s * 0.4);
@@ -1530,10 +1459,20 @@ function buildCutterWheel(parent, r = 0.11) {
 }
 // every gun is its own thing (see ZAPPERS). Points down -z; userData.muzzle is where shots come out.
 function buildZapperVM(lvl = 0) {
-  const z = ZAPPERS[lvl] || ZAPPERS[0], color = z.color, g = new THREE.Group();
+  const z = gunDef(lvl), color = z.color, g = new THREE.Group();
   let tip = null, wheel = null, mz = -0.4, my = 0.03; // (muzzle position)
-  tf(mk(BOX(0.07, 0.18, 0.09), '#3b3f4a', g, 0, -0.1, 0.08), 0.3); // grip
+  tf(mk(BOX(0.07, 0.18, 0.09), z.type === 'squirt' ? '#ff8a1f' : '#3b3f4a', g, 0, -0.1, 0.08), 0.3); // grip
   switch (z.type) {
+    case 'squirt': // Squirt Pistol: a bright plastic water pistol with a see-through tank. Company-issue.
+      mk(BOX(0.085, 0.09, 0.26), '#ff8a1f', g, 0, 0.02, -0.04);
+      mk(BOX(0.07, 0.07, 0.1), M('#7fd4ff', { transparent: true, opacity: 0.55, depthWrite: false }), g, 0, 0.1, 0.0);
+      mk(BOX(0.05, 0.035, 0.08), '#3a9ee0', g, 0, 0.085, 0.0, { emissive: '#0a3a6a' }); // (the water in it)
+      mk(CYL(0.012, 0.012, 0.05, 6), '#ffffff', g, 0, 0.16, 0.0);
+      tf(mk(CYL(0.018, 0.024, 0.14, 8), '#2fb7e0', g, 0, 0.03, -0.23), PI / 2);
+      tf(mk(BOX(0.012, 0.05, 0.03), '#ffffff', g, 0, -0.03, 0.02), 0.4); // the trigger
+      tip = mk(SPH(0.02, 6, 5), '#bff0ff', g, 0, 0.03, -0.3, { emissive: '#3a9ee0' });
+      mz = -0.32;
+      break;
     case 'spread': // Scrap Scattergun: two fat barrels, a pump, and a lot of duct tape
       mk(BOX(0.13, 0.12, 0.26), '#b8662e', g, 0, 0.03, 0.02);
       mk(BOX(0.09, 0.08, 0.1), '#6b4a2b', g, 0, 0.0, 0.16);
@@ -2288,17 +2227,6 @@ function buildVentBase() {
   for (let i = -2; i <= 2; i++) mk(BOX(0.08, 0.34, 1.95 - Math.abs(i) * 0.3), '#b9c9e6', g, i * 0.38, 0.18, 0);
   return g;
 }
-function buildPearlNode(big) {
-  const g = new THREE.Group(), s = big ? 1.5 : 1;
-  const b = grp(g, 0, 0.55, 0);
-  tf(mk(HEMI(0.32 * s, 10, 4), '#ffd6f4', b, 0, 0, 0), PI, 0, 0, 1, 0.45, 1);
-  const lid = grp(b, 0, 0, -0.28 * s); lid.rotation.x = -0.95;
-  tf(mk(HEMI(0.32 * s, 10, 4), '#ffc2ea', lid, 0, 0, 0.28 * s), 0, 0, 0, 1, 0.45, 1);
-  mk(SPH(0.15 * s, 10, 8), big ? '#fff3c4' : '#ffffff', b, 0, 0.1 * s, 0.03, { emissive: big ? '#aa8a3a' : '#5a5a7a' });
-  g.userData.bob = b;
-  glowRing(g, 0.65 * s, big ? '#ffd23f' : '#bfe8ff');
-  return g;
-}
 function buildCloudTree(rng) {
   const g = new THREE.Group();
   const h = 2 + rng() * 2;
@@ -2690,7 +2618,8 @@ function buildChad() {
   mk(CYL(0.165, 0.15, 0.16, 10), '#8a5a2b', cup, 0, 0.16, 0);
   return { root, body, arms, head, board, hit: [{ o: new V3(0, 3.2, 0), r: 1.7 }, { o: new V3(0, 4.85, 0.05), r: 0.95 }], mouth: new V3(0, 4.55, 0.9) }; // (he never walks anywhere)
 }
-// a ghost you can vacuum on Spookulon (it drifts around its graveyard; see PlanetWorld.moveGhost)
+// a ghost you can vacuum on Spookulon (it drifts around its graveyard; see PlanetWorld.moveGhost), carrying
+// whatever it'll drop when you do (see buildLootNode)
 function buildGhostNode() {
   const g = new THREE.Group();
   const mat = M('#eef3ff', { transparent: true, opacity: 0.8, emissive: '#6a7aa8', depthWrite: false });
@@ -2704,7 +2633,7 @@ function buildGhostNode() {
   }
   tf(mk(SPH(0.09, 6, 5), '#1a1a2a', b, 0, 0.2, 0.4), 0, 0, 0, 1.1, 1.4, 0.5);
   g.traverse((o) => { if (o.isMesh) o.castShadow = false; });
-  g.userData.body = b;
+  g.userData = { kind: 'ghost', body: b, holder: grp(b) }; // (holder: what it's carrying, see fillLootNode)
   return g;
 }
 function buildCityTree(rng) {

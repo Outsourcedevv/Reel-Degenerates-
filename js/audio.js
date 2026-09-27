@@ -146,6 +146,8 @@ const Sound = {
       case 'glide': N(0.6, { ftype: 'bandpass', freq: 700, slide: 400, vol: 0.05, q: 0.7, attack: 0.2 }); break;
       case 'vent': N(0.9, { ftype: 'bandpass', freq: 500, slide: 1600, vol: 0.14, q: 0.8, attack: 0.15 }); break;
       case 'wisp': T(900 + Math.random() * 200, 0.12, { type: 'sine', slide: 1500, vol: 0.05, vib: 20 }); break;
+      case 'squirt': N(0.14, { ftype: 'bandpass', freq: 2600, slide: 1200, vol: 0.12, q: 2.5 }); T(520, 0.06, { type: 'sine', slide: 900, vol: 0.04 }); break;
+      case 'drip': T(1200 + Math.random() * 300, 0.07, { type: 'sine', slide: 500, vol: 0.05 }); break;
       case 'thunder': N(0.7, { freq: 2400, slide: 120, vol: 0.32 }); T(60, 0.6, { type: 'sawtooth', slide: 30, vol: 0.12, filter: 400 }); break;
       case 'rocket': N(0.3, { freq: 1200, slide: 300, vol: 0.2 }); T(140, 0.2, { type: 'sawtooth', slide: 70, vol: 0.08, filter: 800 }); break;
       case 'explode': N(0.8, { freq: 900, slide: 60, vol: 0.42 }); T(65, 0.5, { slide: 28, vol: 0.3 }); break;

@@ -8,6 +8,10 @@
    crew is aboard. Lift off the pad, climb out of the
    atmosphere, fly to another planet (radar + M map), drop
    into its sky and set the ship down on its landing pad.
+   The pilot flies from the cockpit, and the ship is big: it
+   swings round to where you aim at its own pace, it doesn't
+   flick around. Passengers ride in the cabin behind, where
+   big windows show the trip (or look from outside with V).
    The pilot's computer flies the ship; the host keeps track
    of who sits where; everyone else rides along in sync.
    ========================================================= */
@@ -15,26 +19,38 @@ const FLY = {
   R: 240,              // planet radius out in space
   atmoTop: 150,        // climb this high to leave a planet
   enterAlt: 120,       // arriving at a planet you start this high up
-  enterDist: 150,      // ...and this far from its landing pad
-  zone: 175,           // how far from the pad you can wander in the sky
+  enterDist: 170,      // ...and this far from its landing pad
+  zone: 220,           // how far from the pad you can wander in the sky
   padR: 11,            // the landing pad
   hardVS: 8,           // coming down faster than this is a crash
   space: { cruise: 70, max: 150, turbo: 240 },
   hover: { fwd: 42, up: 16, sink: 3.5 },
   autopilot: 150,
 };
+// how the ship turns. The mouse moves where you WANT to point (the aim circle) and the ship swings
+// round to it: never faster than `rate` (radians a second), taking a moment to start and stop
+// turning (`acc`), turning harder the further off it is (`k`). The aim can't get more than `lead`
+// ahead of the nose. Over a planet, up/down (`p...`) is just the pilot looking up and down.
+const STEER = {
+  atmo: { rate: 1.05, acc: 2.2, k: 2.0, lead: 1.0, prate: 1.5, pacc: 3.6, pitch: [-0.9, 0.5] },
+  space: { rate: 0.75, acc: 1.5, k: 1.8, lead: 0.8, prate: 0.75, pacc: 1.5, pitch: [-1.2, 1.2] },
+};
 // where the planets sit in the solar system. They're far apart: getting between them is a real trip.
 const SYSTEM = [new V3(0, 0, 0), new V3(3300, 260, 1980), new V3(6600, -180, 660), new V3(9460, 330, 2860),
   new V3(12400, -260, 4300), new V3(15500, 420, 2400), new V3(18600, -120, 4000), new V3(21600, 60, 1800)];
 const SEAT = new V3(0, 4.1, 2.45);   // pilot's eyes, inside the glass bubble
-// passengers sit in the back, two by two
-const PASS_SEATS = [new V3(-0.62, 4.02, 0.72), new V3(0.62, 4.02, 0.72), new V3(-0.62, 4.02, -0.5), new V3(0.62, 4.02, -0.5), new V3(0, 4.02, -1.4), new V3(-0.62, 4.02, -1.4), new V3(0.62, 4.02, -1.4)];
+// the passenger cabin: a round tube (its middle at height y, radius r) from the back wall to where
+// the cockpit starts, with a floor, and windows from win[0] to win[1] high beside every row of seats
+const CABIN = { y: 2.95, r: 1.8, floor: 2.3, back: -2.75, front: 1.65, win: [3.35, 4.3], rows: [0.85, -0.55, -1.98], winLen: 1.1 };
+// passengers sit in the back, two by two (three in the back row); these are their eyes
+const PASS_SEATS = [new V3(-0.72, 4.02, 0.85), new V3(0.72, 4.02, 0.85), new V3(-0.72, 4.02, -0.55), new V3(0.72, 4.02, -0.55), new V3(0, 4.02, -1.98), new V3(-0.9, 4.02, -1.98), new V3(0.9, 4.02, -1.98)];
 const COIN_VALUE = [5, 5, 15, 15, 25, 30, 40]; // space coins between planets 1-2, 2-3, 3-4... (money is scarce early on)
 const SPACE_ATMO = {
   sky: ['#02010a', '#171040'], fog: ['#0a0620', 4000, 30000], stars: 1, bodies: [],
   sun: ['#fff4e0', 1.1], hemi: ['#b9c8ff', '#241a40', 0.75], liquid: { color: '#000000', op: 0 },
 };
 const nameOf = (id) => (id === Net.myId ? 'you' : (G.remotes.get(id) && G.remotes.get(id).name) || 'someone');
+const _camLook = new THREE.Quaternion(), _camEuler = new THREE.Euler();
 
 // an astronaut sitting down (for whoever is in a seat)
 function seatedAstronaut(color, hat, look) {
@@ -46,7 +62,7 @@ function seatedAstronaut(color, hat, look) {
 }
 
 const Flight = {
-  on: false, ph: null, planet: 0, view: 'chase', pview: 'seat', wp: 1, mapOpen: false,
+  on: false, ph: null, planet: 0, pview: 'seat', wp: 1, mapOpen: false,
   seat: null, crew: {}, // crew: { playerId: 'pilot' | 'pass' }, kept by the host
 
   isPilot() { return this.on && this.seat === 'pilot'; },
@@ -110,15 +126,15 @@ const Flight = {
     if (seat === 'pilot' && was !== 'pilot') {
       // take over from wherever the ship is right now
       this.yaw = this.tyaw; this.pitch = this.tpitch;
+      this.holdAim();
       if (this.ph === 'atmo') this.vel.set(Math.sin(this.yaw) * (this.speed || 0), this.vel.y, Math.cos(this.yaw) * (this.speed || 0));
       this.sendT = 0; this.landing = false;
-      this.view = this.view || 'chase';
       UI.toast('You have the controls! ' + (this.grounded ? 'Space: lift off' : 'Mouse: steer'), 'good', 2.5);
     } else if (seat === 'pass') {
       this.tpos.copy(this.pos); this.tyaw = this.yaw; this.tpitch = this.pitch;
       UI.toast('You moved to the back seat. Enjoy the ride!', '', 2);
     }
-    this.setView(seat === 'pilot' ? this.view : this.pview);
+    this.setView(seat === 'pilot' ? 'cockpit' : this.pview);
   },
   // get out of the ship (only while it's parked on the landing pad)
   exit(kicked) {
@@ -140,7 +156,8 @@ const Flight = {
   // everyone aboard: sit down in the ship, parked on the pad
   start(from, seat) {
     this.finish();
-    Object.assign(this, { on: true, seat, t: 0, yaw: 0, pitch: 0, bank: 0, speed: 0, grounded: true, turbo: 1, sendT: 0, hitCd: 0, crashCd: 0, auto: false, spaceT: 0, hint: 0, landing: false, lookYaw: 0, lookPitch: 0 });
+    Object.assign(this, { on: true, seat, t: 0, yaw: 0, pitch: 0, bank: 0, speed: 0, grounded: true, turbo: 1, sendT: 0, hitCd: 0, crashCd: 0, auto: false, spaceT: 0, hint: 0, landing: false, lookYaw: 0, lookPitch: 0, inbound: false, signT: -1 });
+    this.holdAim();
     this.wp = this.defaultWaypoint();
     this.pos = new V3(); this.vel = new V3();
     this.tpos = new V3(); this.tyaw = 0; this.tpitch = 0;
@@ -152,10 +169,10 @@ const Flight = {
     UI.show('flyhud', true);
     G.player.vm.visible = false;
     Sound.engine(true);
-    this.setView(seat === 'pilot' ? this.view : this.pview);
+    this.setView(seat === 'pilot' ? 'cockpit' : this.pview);
     this.dummies();
     UI.bigTitle(seat === 'pilot' ? 'PILOT SEAT' : 'PASSENGER SEAT',
-      seat === 'pilot' ? 'Space: lift off (once everyone is in) · E: get out · F: move to the back · V: camera' : 'The pilot flies · F: take the pilot seat if it\'s free · E: get out · V: camera',
+      seat === 'pilot' ? 'Space: lift off (once everyone is in) · E: get out · F: move to the back' : 'The pilot flies · F: take the pilot seat if it\'s free · E: get out · V: look from outside',
       '#bff6ff', 4);
   },
   defaultWaypoint() {
@@ -172,7 +189,7 @@ const Flight = {
     this.on = false; this.ph = null; this.seat = null;
     UI.el.hud.classList.remove('flying', 'incockpit');
     UI.show('flyhud', false);
-    U.$('flytgt').classList.add('hidden');
+    for (const id of ['flytgt', 'flyaim', 'flynose']) U.$(id).classList.add('hidden');
     if (this.mapOpen) UI.closePanel(true);
     this.mapOpen = false;
     G.liquid.mesh.visible = true;
@@ -195,31 +212,35 @@ const Flight = {
     const shell = '#171c26', panel = '#10141c', trim = '#2c3444', metal = '#5b6477';
     const glow = (col) => ({ emissive: col, emissiveIntensity: 1 });
     const TILT = 0.75; // instrument panel leans back toward the pilot
+    const FY = CABIN.floor;
     const dash = grp(ck, 0, -0.08, 0.4);
     mk(BOX(2.8, 0.55, 0.9), shell, dash, 0, 2.92, 3.45);
+    mk(BOX(2.6, 0.32, 0.9), shell, dash, 0, 2.5, 3.45);
     mk(BOX(2.7, 0.07, 0.42), shell, dash, 0, 3.62, 3.42);
     tf(mk(BOX(2.5, 0.62, 0.05), panel, dash, 0, 3.3, 3.2), TILT, Math.PI, 0);
     mk(BOX(2.5, 0.015, 0.015), '#3df0ff', dash, 0, 3.585, 3.22, glow('#3df0ff'));
     mk(BOX(2.5, 0.015, 0.015), '#ffb020', dash, 0, 3.05, 2.99, glow('#ffb020'));
     for (const s of [-1, 1]) {
       tf(mk(BOX(0.09, 1.9, 0.09), trim, ck, s * 1.2, 4.2, 3.35), 0.35, 0, s * 0.28);
-      mk(BOX(0.42, 0.55, 1.9), shell, ck, s * 1.36, 3.05, 2.35);
-      mk(BOX(0.3, 0.02, 1.7), '#3df0ff', ck, s * 1.36, 3.33, 2.35, glow('#1d8fa0'));
+      mk(BOX(0.42, 1.03, 1.7), shell, ck, s * 1.36, FY + 0.51, 2.5);
+      mk(BOX(0.3, 0.02, 1.5), '#3df0ff', ck, s * 1.36, 3.33, 2.5, glow('#1d8fa0'));
     }
     mk(BOX(2.4, 0.09, 0.09), trim, ck, 0, 5.05, 3.0);
     mk(BOX(0.07, 0.07, 1.4), trim, ck, 0, 5.1, 2.5);
-    // the passenger cabin behind the cockpit: floor, benches, walls with portholes, back wall
-    mk(BOX(2.9, 0.08, 5.6), '#232a36', ck, 0, 2.62, -0.2);
-    for (const z of [0.72, -0.5, -1.4]) {
-      mk(BOX(2.2, 0.16, 0.55), '#3b4454', ck, 0, 3.02, z - 0.05);
-      mk(BOX(2.2, 0.7, 0.12), '#3b4454', ck, 0, 3.4, z - 0.36);
-    }
-    for (const s of [-1, 1]) {
-      mk(BOX(0.1, 1.9, 3.6), shell, ck, s * 1.55, 3.55, -0.55);
-      for (const z of [0.4, -1.3]) mk(BOX(0.04, 0.42, 0.42), '#7fd8ff', ck, s * 1.5, 3.9, z, glow('#2a6a8a'));
-    }
-    mk(BOX(3.1, 2.0, 0.12), shell, ck, 0, 3.6, -2.35);
-    mk(BOX(1.2, 0.1, 0.05), '#ffb020', ck, 0, 4.2, -2.28, glow('#ffb020'));
+    // the cockpit floor: solid under the pilot's chair, glass in front of it (look down through it to line up a landing)
+    mk(BOX(2.3, 0.1, 0.95), '#262b34', ck, 0, FY - 0.05, 2.12);
+    const floorGlass = mk(BOX(2.3, 0.03, 0.85), new THREE.MeshBasicMaterial({ color: '#8fe3ff', transparent: true, opacity: 0.14, depthWrite: false }), ck, 0, FY - 0.02, 3.02);
+    floorGlass.renderOrder = 2;
+    for (const z of [2.6, 3.44]) mk(BOX(2.3, 0.04, 0.05), '#3df0ff', ck, 0, FY, z, glow('#1d8fa0'));
+    // the pilot's chair (the passengers see the back of it from the cabin)
+    const red = '#b8372b', dark = '#252a33', white = '#aca599';
+    mk(BOX(0.34, 0.5, 0.4), dark, ck, 0, FY + 0.25, 2.3);
+    mk(BOX(0.66, 0.14, 0.58), red, ck, 0, 2.87, 2.3);
+    tf(mk(BOX(0.66, 1.05, 0.16), red, ck, 0, 3.45, 1.94), -0.12, 0, 0);
+    tf(mk(BOX(0.7, 1.08, 0.05), white, ck, 0, 3.45, 1.84), -0.12, 0, 0);
+    mk(BOX(0.46, 0.32, 0.16), red, ck, 0, 4.16, 1.86);
+    mk(BOX(0.47, 0.06, 0.17), white, ck, 0, 4.25, 1.86);
+    this.buildCabin(ck);
     // screens on the sloped panel: radar left, flight data right, warning lights in the middle
     const onPanel = (m, x) => { m.position.set(x, 3.3, 3.2); m.rotation.set(TILT, Math.PI, 0); m.translateZ(0.035); dash.add(m); return m; };
     this.radarTex = canvasTex(128, 128, () => {});
@@ -240,14 +261,109 @@ const Flight = {
     this.throttleL = grp(ck, 1.3, 3.33, 2.2);
     mk(BOX(0.04, 0.35, 0.04), metal, this.throttleL, 0, 0.17, 0);
     mk(BOX(0.14, 0.08, 0.1), '#20252f', this.throttleL, 0, 0.36, 0);
+    mergeLocal(ck, [this.stick, this.throttleL]);
     ck.traverse((c) => { if (c.isMesh) c.castShadow = false; });
     this.crewGroup = grp(this.pivot);
-    this.setView(this.seat === 'pilot' ? this.view : this.pview);
+    this.setView(this.seat === 'pilot' ? 'cockpit' : this.pview);
   },
-  // views: the pilot flies from outside ('chase') or the cockpit; passengers look around from their 'seat' or outside
+  // the passenger cabin behind the cockpit (see CABIN): a round tube with big windows, three rows of
+  // red seats, lights in the ceiling, a screen saying where we're going, and pizzas riding along
+  buildCabin(ck) {
+    const { y: CY, r: R, floor: FY, back: ZB, front: ZF } = CABIN, T = Math.PI * 2, zm = (ZB + ZF) / 2, len = ZF - ZB;
+    const glow = (col, k = 1) => ({ emissive: col, emissiveIntensity: k });
+    // the inside of the tube: seen from within, and never quite black (it's lit inside)
+    const inner = (col, em) => M(col, { side: THREE.BackSide, emissive: em });
+    // how far round the tube a height is (0: the bottom, PI: the top; the other side is 2PI minus that)
+    const at = (y) => Math.acos(U.clamp((CY - y) / R, -1, 1));
+    const arc = (t0, t1, z0, z1, mat, r = R) => {
+      const g = new THREE.CylinderGeometry(r, r, z1 - z0, Math.max(2, Math.ceil((t1 - t0) * 10)), 1, true, t0, t1 - t0);
+      g.rotateX(Math.PI / 2);
+      return mk(smoothGeo(g), mat, ck, 0, CY, (z0 + z1) / 2);
+    };
+    const tF = at(FY), tW0 = at(CABIN.win[0]), tW1 = at(CABIN.win[1]);
+    const lower = inner('#5f6879', '#14171d'), upper = inner('#747e90', '#1b1e25'), post = inner('#4d5564', '#111318');
+    // floor, with a red carpet down the aisle between two glowing strips
+    const halfFloor = Math.sqrt(R * R - (CY - FY) ** 2);
+    mk(BOX(halfFloor * 2, 0.1, len), '#262b34', ck, 0, FY - 0.05, zm);
+    mk(BOX(0.64, 0.014, len - 0.1), '#5e1f29', ck, 0, FY + 0.007, zm);
+    for (const s of [-1, 1]) mk(BOX(0.035, 0.012, len - 0.1), '#3df0ff', ck, s * 0.34, FY + 0.012, zm, glow('#1d8fa0', 0.8));
+    // the walls and the ceiling
+    arc(tF, tW0, ZB, ZF, lower); arc(T - tW0, T - tF, ZB, ZF, lower);
+    arc(tW1, T - tW1, ZB, ZF, upper);
+    // a window beside every row of seats, with posts between them
+    const glass = new THREE.MeshBasicMaterial({ color: '#bfe8ff', transparent: true, opacity: 0.1, depthWrite: false, side: THREE.DoubleSide });
+    const wins = CABIN.rows.map((z) => [z - CABIN.winLen / 2, z + CABIN.winLen / 2]).sort((a, b) => a[0] - b[0]);
+    let z = ZB;
+    for (const [w0, w1] of [...wins, [ZF, ZF]]) {
+      arc(tW0, tW1, z, w0, post); arc(T - tW1, T - tW0, z, w0, post);
+      if (w1 > w0) {
+        arc(tW0, tW1, w0, w1, glass, R + 0.03); arc(T - tW1, T - tW0, w0, w1, glass, R + 0.03);
+        // a sill under the window and a lamp strip over it
+        for (const s of [-1, 1]) mk(BOX(0.16, 0.04, w1 - w0 + 0.08), '#2f3541', ck, s * (R * Math.sin(tW0) - 0.07), CABIN.win[0] - 0.01, (w0 + w1) / 2);
+      }
+      z = w1;
+    }
+    const lamp = inner('#ffe7b8', '#a88a55');
+    arc(tW1 + 0.02, tW1 + 0.07, ZB, ZF, lamp, R - 0.02); arc(T - tW1 - 0.07, T - tW1 - 0.02, ZB, ZF, lamp, R - 0.02);
+    arc(tF + 0.03, tF + 0.06, ZB, ZF, inner('#3df0ff', '#157080'), R - 0.02); arc(T - tF - 0.06, T - tF - 0.03, ZB, ZF, inner('#3df0ff', '#157080'), R - 0.02);
+    // ribs round the tube where the window posts are, and lights down the middle of the ceiling
+    const ribAt = [ZB + 0.06, ...wins.slice(1).map((w, i) => (w[0] + wins[i][1]) / 2), ZF - 0.06];
+    for (const rz of ribAt) mk(new THREE.TorusGeometry(R - 0.03, 0.035, 4, 32, T - 2 * tF), '#3b424f', ck, 0, CY, rz).rotation.z = tF - Math.PI / 2;
+    for (const rz of CABIN.rows) mk(BOX(0.46, 0.03, 0.9), '#ffeccb', ck, 0, CY + R - 0.03, rz, glow('#c9ad7a', 0.8));
+    // the seats: padded couches with a leg rest (it's a long trip), and a little screen on the back
+    const red = '#b8372b', dark = '#252a33', white = '#aca599';
+    const seat = (x, sz, w, screen) => {
+      mk(BOX(w * 0.5, 0.42, 0.42), dark, ck, x, FY + 0.21, sz - 0.14);
+      mk(BOX(w, 0.14, 0.6), red, ck, x, 2.76, sz - 0.14);
+      tf(mk(BOX(w - 0.08, 0.1, 0.62), red, ck, x, 2.7, sz + 0.47), 0.14, 0, 0);
+      mk(BOX(0.12, 0.34, 0.12), dark, ck, x, FY + 0.17, sz + 0.62);
+      tf(mk(BOX(w, 1.0, 0.18), red, ck, x, 3.28, sz - 0.52), -0.1, 0, 0);
+      tf(mk(BOX(w + 0.04, 1.04, 0.05), white, ck, x, 3.28, sz - 0.63), -0.1, 0, 0);
+      mk(BOX(w * 0.7, 0.32, 0.15), red, ck, x, 3.98, sz - 0.58);
+      mk(BOX(w * 0.7 + 0.01, 0.06, 0.16), white, ck, x, 4.07, sz - 0.58);
+      for (const s of [-1, 1]) mk(BOX(0.07, 0.07, 0.5), dark, ck, x + s * (w / 2 + 0.02), 2.99, sz - 0.16);
+      if (screen) tf(mk(BOX(w * 0.5, 0.2, 0.02), '#1c3550', ck, x, 3.45, sz - 0.69, glow('#0f3a5e', 0.8)), -0.1, 0, 0);
+    };
+    CABIN.rows.forEach((rz, i) => {
+      for (const p of PASS_SEATS) if (p.z === rz) seat(p.x, rz, 0.62, i < CABIN.rows.length - 1);
+    });
+    // no wall in front: passengers watch the pilot and the view out of the cockpit. A screen hangs
+    // from the ceiling there, saying where we're going (see drawSign)
+    mk(BOX(0.06, 0.26, 0.06), '#252a33', ck, 0, 4.63, 1.5);
+    mk(BOX(1.04, 0.3, 0.06), '#1b1f27', ck, 0, 4.36, 1.5);
+    this.signTex = canvasTex(512, 128, () => {});
+    const sign = new THREE.Mesh(new THREE.PlaneGeometry(0.96, 0.24), new THREE.MeshBasicMaterial({ map: this.signTex }));
+    sign.position.set(0, 4.36, 1.465); sign.rotation.y = Math.PI;
+    ck.add(sign);
+    // the back wall
+    const a0 = Math.asin((FY - CY) / R), back = new THREE.Shape();
+    back.moveTo(Math.cos(a0) * R, FY);
+    back.absarc(0, CY, R, a0, Math.PI - a0, false);
+    back.lineTo(Math.cos(a0) * R, FY);
+    mk(new THREE.ExtrudeGeometry(back, { depth: 0.08, bevelEnabled: false, curveSegments: 24 }), '#687183', ck, 0, 0, ZB - 0.08);
+    // on it: the company sign, a couple of warnings and a fire extinguisher. Stacks of (cold) pizzas ride beside the seats
+    const brand = signMesh(['LATE DELIVERY CO.', '"Always Late. Never Hot."'], 1.5, 0.42, { bg: '#d6281b', border: '#ffffff', colors: ['#ffffff', '#ffe6b3'] });
+    brand.position.set(0, 4.36, ZB + 0.01); ck.add(brand);
+    for (const [x, txt] of [[-0.98, ['NO REFUNDS']], [0.98, ['KEEP HELMET ON']]]) {
+      const sg = signMesh(txt, 0.36, 0.14, { bg: '#1b1f27', border: '#ffb020', color: '#ffd23f' });
+      sg.position.set(x, 4.2, ZB + 0.01); ck.add(sg);
+    }
+    mk(CYL(0.09, 0.09, 0.46, 10), '#d6281b', ck, 1.4, 2.62, ZB + 0.12);
+    mk(CYL(0.05, 0.07, 0.08, 8), '#20242c', ck, 1.4, 2.89, ZB + 0.12);
+    mk(BOX(0.24, 0.05, 0.06), '#8a93a3', ck, 1.4, 2.7, ZB + 0.03);
+    for (const [x, zz, n, spin] of [[-1.38, 1.2, 6, 0.08], [1.38, 1.1, 4, -0.06], [-1.4, -0.35, 3, 0.05]]) {
+      const st = grp(ck, x, FY, zz);
+      st.rotation.y = spin;
+      for (let i = 0; i < n; i++) tf(mk(BOX(0.46, 0.07, 0.46), i % 2 ? '#e3b26a' : '#d9a55c', st, 0, 0.036 + i * 0.072, 0), 0, (i % 3) * 0.06, 0);
+      mk(BOX(0.05, n * 0.072 + 0.02, 0.48), '#2b303a', st, 0, (n * 0.072) / 2, 0);
+      mk(CYL(0.1, 0.1, 0.012, 14), '#d63a2a', st, 0.1, n * 0.072 + 0.006, 0.1);
+    }
+  },
+  // views: the pilot always flies from the cockpit; passengers look around from their 'seat' or outside ('chase')
   cycleView() {
-    if (this.seat === 'pilot') { this.view = this.view === 'chase' ? 'cockpit' : 'chase'; this.setView(this.view); }
-    else { this.pview = this.pview === 'seat' ? 'chase' : 'seat'; this.setView(this.pview); }
+    if (this.seat === 'pilot') return;
+    this.pview = this.pview === 'seat' ? 'chase' : 'seat';
+    this.setView(this.pview);
   },
   setView(v) {
     this.cur = v;
@@ -329,20 +445,40 @@ const Flight = {
       this.grounded = false; this.landing = false;
       UI.bigTitle(PLANETS[pi].name.toUpperCase(), this.isPilot() ? 'Land on the glowing pad. Come down slowly.' : 'Coming in to land...', '#bff6ff', 3.4);
     }
+    this.inbound = !parked;
+    this.holdAim();
     this.tpos.copy(this.pos); this.tyaw = this.yaw; this.tpitch = this.pitch;
   },
   leaveAtmo() {
     if (this.beacon) { this.group.remove(this.beacon); disposeObj(this.beacon); this.beacon = null; }
   },
+  // point the aim where the ship is pointing (and stop turning): after the ship is put somewhere new
+  holdAim() {
+    this.aimYaw = this.yaw || 0; this.aimPitch = this.pitch || 0;
+    this.yawV = 0; this.pitchV = 0;
+  },
+  // the mouse moves the aim; the ship swings round to it at its own pace (see STEER)
+  steer(dt, can, cfg) {
+    if (can) {
+      const k = 0.0022 * G.settings.sens;
+      this.aimYaw -= Input.dx * k;
+      this.aimPitch -= Input.dy * k;
+    }
+    this.aimPitch = U.clamp(this.aimPitch, cfg.pitch[0], cfg.pitch[1]);
+    // (the aim can't run off too far ahead of the nose)
+    const ey = U.clamp(U.angDiff(this.yaw, this.aimYaw), -cfg.lead, cfg.lead);
+    const ep = U.clamp(this.aimPitch - this.pitch, -cfg.lead, cfg.lead);
+    this.aimYaw = this.yaw + ey; this.aimPitch = this.pitch + ep;
+    const toward = (v, want, acc) => v + U.clamp(want - v, -acc * dt, acc * dt);
+    this.yawV = toward(this.yawV, U.clamp(ey * cfg.k, -cfg.rate, cfg.rate), cfg.acc);
+    this.pitchV = toward(this.pitchV, U.clamp(ep * cfg.k, -cfg.prate, cfg.prate), cfg.pacc);
+    this.yaw += this.yawV * dt;
+    this.pitch += this.pitchV * dt;
+    if (this.pitch < cfg.pitch[0] || this.pitch > cfg.pitch[1]) { this.pitch = U.clamp(this.pitch, cfg.pitch[0], cfg.pitch[1]); this.pitchV = 0; }
+  },
   atmo(dt, can) {
     const w = G.worlds[this.planet];
-    const k = 0.0022 * G.settings.sens;
-    let yawIn = 0;
-    if (can) {
-      yawIn = -Input.dx * k;
-      this.yaw += yawIn;
-      this.pitch = U.clamp(this.pitch - Input.dy * k, -0.9, 0.5);
-    }
+    this.steer(dt, can, STEER.atmo);
     const key = (c) => can && Input.keys[c];
     const f = new V3(Math.sin(this.yaw), 0, Math.cos(this.yaw)), side = new V3(f.z, 0, -f.x);
     this.crashCd -= dt; this.hint -= dt;
@@ -371,7 +507,8 @@ const Flight = {
       if (this.pos.y - Math.max(w.h(this.pos.x, this.pos.z), WATER_Y) > FLY.atmoTop && this.vel.y > 0) { this.transition({ k: 'space' }); return; }
     }
     this.speed = Math.hypot(this.vel.x, this.vel.z);
-    this.bank = U.damp(this.bank, U.clamp(-yawIn * 16 - this.vel.dot(side) * 0.02, -0.5, 0.5), 5, dt);
+    // lean into turns (a little: you're sitting in it)
+    this.bank = U.damp(this.bank, U.clamp(-this.yawV * 0.3 - this.vel.dot(side) * 0.02, -0.4, 0.4), 4, dt);
   },
   // the ground is coming up: is this a landing or a crash?
   touchdown(w) {
@@ -447,7 +584,7 @@ const Flight = {
   enterSpace(from) {
     this.leaveAtmo();
     this.ph = 'space';
-    this.spaceT = 0;
+    this.spaceT = 0; this.auto = false;
     if (!this.space) this.buildSpace();
     this.space.visible = true;
     for (const k in G.worlds) G.worlds[k].group.visible = false;
@@ -458,6 +595,7 @@ const Flight = {
     const out = new V3(Math.sin(this.yaw), 0.35, Math.cos(this.yaw)).normalize();
     this.pos.copy(SYSTEM[from]).addScaledVector(out, FLY.R + 70);
     this.pitch = 0.1;
+    this.holdAim();
     this.speed = FLY.space.cruise;
     this.tpos.copy(this.pos); this.tyaw = this.yaw; this.tpitch = this.pitch;
     Sound.playMusic('space');
@@ -465,21 +603,16 @@ const Flight = {
   },
   spaceFly(dt, can) {
     this.spaceT += dt;
-    const k = 0.0024 * G.settings.sens;
-    let yawIn = 0;
-    if (can) {
-      yawIn = -Input.dx * k;
-      this.yaw += yawIn;
-      this.pitch = U.clamp(this.pitch - Input.dy * k, -1.2, 1.2);
-    }
     const tgt = SYSTEM[this.wp];
     if (!this.auto && this.spaceT > FLY.autopilot) { this.auto = true; UI.toast('Autopilot ON. Dave took the wheel. "I\'ll be expensing this."', 'purple', 4); }
     if (this.auto) {
+      // Dave aims for the destination (and turns the ship just as slowly as you would)
       const d = tgt.clone().sub(this.pos);
-      this.yaw += U.angDiff(this.yaw, Math.atan2(d.x, d.z)) * Math.min(1, dt * 1.5);
-      this.pitch = U.damp(this.pitch, Math.atan2(d.y, Math.hypot(d.x, d.z)), 1.5, dt);
+      this.aimYaw = this.yaw + U.angDiff(this.yaw, Math.atan2(d.x, d.z));
+      this.aimPitch = Math.atan2(d.y, Math.hypot(d.x, d.z));
     }
-    this.bank = U.damp(this.bank, U.clamp(-yawIn * 18, -0.7, 0.7), 5, dt);
+    this.steer(dt, can && !this.auto, STEER.space);
+    this.bank = U.damp(this.bank, U.clamp(-this.yawV * 0.45, -0.45, 0.45), 4, dt);
     const key = (c) => can && Input.keys[c];
     let want = key('KeyW') || this.auto ? FLY.space.max : key('KeyS') ? 15 : U.clamp(this.speed, FLY.space.cruise * 0.6, FLY.space.max);
     const turbo = key('ShiftLeft') || key('ShiftRight');
@@ -507,6 +640,7 @@ const Flight = {
       if (!planetUnlocked(i)) {
         this.pos.copy(SYSTEM[i]).add(this.pos.clone().sub(SYSTEM[i]).normalize().multiplyScalar(FLY.R + 60));
         this.yaw += Math.PI; this.speed = 20;
+        this.holdAim();
         this.event({ k: 'restricted', i });
         return;
       }
@@ -557,7 +691,7 @@ const Flight = {
     for (const f of this.flames) f.scale.set(1, 0.4 + thr * 1.8 + Math.random() * 0.3, 1);
     Sound.engineLevel(thr);
     if (pilot) {
-      this.stick.rotation.set(U.clamp(-Input.dy * 0.02, -0.4, 0.4), 0, U.clamp(-Input.dx * 0.02, -0.4, 0.4));
+      this.stick.rotation.set(U.clamp(-this.pitchV * 0.35, -0.4, 0.4), 0, U.clamp(-this.yawV * 0.35, -0.4, 0.4));
       this.throttleL.rotation.x = -0.6 + U.clamp((this.speed || 0) / FLY.space.turbo, 0, 1) * 1.2;
     }
     if (this.ph === 'space') {
@@ -637,29 +771,23 @@ const Flight = {
     this.shakeT = (this.shakeT || 0) + dt * 22;
     const sh = Math.min(1, G.shake) ** 2 * 0.03, st = this.shakeT;
     const jx = Math.sin(st * 1.31) * sh, jy = Math.cos(st * 1.73) * sh;
-    const f = this.ph === 'space' ? this.fwd() : new V3(Math.sin(this.yaw), 0, Math.cos(this.yaw));
     if (this.cur === 'cockpit' || this.cur === 'seat') {
       this.pivot.updateMatrixWorld(true);
       cam.position.copy(this.pivot.localToWorld(this.mySeatEye().clone()));
-      // cameras look down -Z, the ship's nose is +Z: turn around. Passengers can look around freely.
-      const ly = this.cur === 'seat' ? this.lookYaw : 0, lp = this.cur === 'seat' ? this.lookPitch : -0.04;
-      const shipPitch = this.cur === 'cockpit' || this.ph === 'space' ? this.pitch : 0;
-      cam.rotation.set(shipPitch + lp + jx, this.yaw + Math.PI + ly + jy, -this.bank, 'YXZ');
-    } else if (this.seat !== 'pilot') {
+      // you're sitting in the ship, so you tip and lean with it. Cameras look down -Z and the ship's
+      // nose is +Z: turn around. The pilot looks where they steer (over a planet, the ship itself stays
+      // level and only the pilot's head tips up and down); passengers can look around freely.
+      const pilotPitch = this.ph === 'space' ? 0 : this.pitch;
+      const ly = this.cur === 'seat' ? this.lookYaw : 0, lp = this.cur === 'seat' ? this.lookPitch : pilotPitch - 0.04;
+      _camLook.setFromEuler(_camEuler.set(lp + jx, Math.PI + ly + jy, 0, 'YXZ'));
+      cam.quaternion.copy(this.pivot.quaternion).multiply(_camLook);
+    } else {
       // passenger outside view: circle the ship with the mouse
       const a = this.yaw + Math.PI + this.lookYaw, e = U.clamp(0.25 - this.lookPitch * 0.8, -0.4, 1.2);
       const want = this.pos.clone().add(new V3(-Math.sin(a) * Math.cos(e) * -16, 4 + Math.sin(e) * 16, -Math.cos(a) * Math.cos(e) * -16));
       if (this.t < 0.1 || cam.position.distanceTo(want) > 90) cam.position.copy(want);
       cam.position.lerp(want, 1 - Math.exp(-8 * dt));
       cam.lookAt(this.pos.clone().add(new V3(0, 2.5, 0)));
-    } else {
-      // pilot chase view: close behind and a bit above, looking just past the nose,
-      // so the ship sits in the lower part of the screen and you can see where you're going
-      const back = this.grounded ? 15 : 12.5, up = this.grounded ? 5.5 : 4.3;
-      const want = this.pos.clone().addScaledVector(f, -back).add(new V3(0, up, 0));
-      if (this.t < 0.1 || cam.position.distanceTo(want) > 80) cam.position.copy(want);
-      cam.position.lerp(want, 1 - Math.exp(-7 * dt));
-      cam.lookAt(this.pos.clone().addScaledVector(f, 10).add(new V3(jx * 30, 2.2 + this.pitch * 6, jy * 30)));
     }
     const fov = this.ph === 'space' ? 74 + U.clamp((this.speed - FLY.space.cruise) / 10, 0, 14) : this.cur === 'cockpit' ? 80 : 74;
     if (Math.abs(cam.fov - fov) > 0.05) { cam.fov = U.damp(cam.fov, fov, 4, dt); cam.updateProjectionMatrix(); }
@@ -684,13 +812,25 @@ const Flight = {
       (this.ph === 'atmo' ? `<div><small>ALTITUDE</small><b>${Math.round(alt)} m</b></div><div class="${warn}"><small>DESCENT</small><b>${vs < 0 ? (-vs).toFixed(1) : '0.0'} m/s</b></div>` : `<div><small>TURBO</small><b>${Math.round(this.turbo * 100)}%</b></div>`);
     let hint;
     const out = this.ph === 'atmo' && this.grounded && this.planet === G.planet ? ' · E: get out' : '';
-    if (!this.isPilot()) hint = pid ? `${nameOf(pid)} is flying · Mouse: look around · V: camera · M: map${out}` : `Nobody is flying! F: take the pilot seat${out}`;
-    else if (this.ph === 'space') hint = 'Mouse: steer · W/S: speed · Shift: turbo · Space/C: up/down · M: map · V: camera · F: back seat';
+    if (!this.isPilot()) hint = pid ? `${nameOf(pid)} is flying · Mouse: look around · V: ${this.cur === 'seat' ? 'look from outside' : 'back to your seat'} · M: map${out}` : `Nobody is flying! F: take the pilot seat${out}`;
+    else if (this.ph === 'space') hint = this.auto ? 'Autopilot is flying you there · W/S: speed · Shift: turbo · M: map · F: back seat' : 'Mouse: aim (the ship turns to the circle) · W/S: speed · Shift: turbo · Space/C: up/down · M: map · F: back seat';
     else if (this.grounded) {
       const missing = this.missingCrew();
-      hint = (missing.length ? `Waiting for ${missing.join(', ')} to get in · ` : 'Everyone is aboard! Space: lift off · ') + `V: camera · F: back seat${out}`;
-    } else hint = 'Mouse: turn · W/S: forward/back · Space: up · C: down · land slowly on the glowing pad';
+      hint = (missing.length ? `Waiting for ${missing.join(', ')} to get in · ` : 'Everyone is aboard! Space: lift off · ') + `F: back seat${out}`;
+    } else hint = 'Mouse: aim (the ship turns to the circle) · W/S: forward/back · Space: up · C: down · land slowly on the glowing pad';
     UI.hint(hint);
+    // the pilot's aim circle (where the mouse is steering) and a dot where the nose points now
+    const aimOn = this.isPilot() && this.cur === 'cockpit';
+    const show = (id, on, yaw, pitch) => {
+      const e = U.$(id);
+      e.classList.toggle('hidden', !on);
+      if (!on) return;
+      const q = G.camera.position.clone().add(new V3(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch)).multiplyScalar(60)).project(G.camera);
+      e.style.left = (50 + U.clamp(q.x, -0.95, 0.95) * 50).toFixed(2) + '%';
+      e.style.top = (50 - U.clamp(q.y, -0.95, 0.95) * 50).toFixed(2) + '%';
+    };
+    show('flyaim', aimOn, this.aimYaw, this.aimPitch);
+    show('flynose', aimOn, this.yaw, this.pitch);
     // target marker (or an arrow at the screen edge pointing to it)
     const el = U.$('flytgt'), p = tg.p.clone().project(G.camera);
     const onScreen = p.z < 1 && Math.abs(p.x) < 0.92 && Math.abs(p.y) < 0.9;
@@ -704,6 +844,29 @@ const Flight = {
     el.querySelector('.arrow').style.transform = `rotate(${Math.atan2(-y, x) + Math.PI / 2}rad)`;
     el.querySelector('.lbl').textContent = `${tg.name} · ${Math.round(tg.d).toLocaleString()} m`;
     if ((this.t * 10 | 0) % 2 === 0) { this.drawRadar(); this.drawDash(alt, vs); }
+    if (this.cur === 'seat' && (this.t * 4 | 0) !== this.signT) { this.signT = this.t * 4 | 0; this.drawSign(tg); }
+  },
+  // the screen over the cabin door: where we're going, and how far it is
+  drawSign(tg) {
+    if (!this.signTex) return;
+    const c = this.signTex.userData.canvas.getContext('2d'), W = 512, H = 128;
+    c.fillStyle = '#060c14'; c.fillRect(0, 0, W, H);
+    c.strokeStyle = 'rgba(61,240,255,.35)'; c.lineWidth = 4; c.strokeRect(4, 4, W - 8, H - 8);
+    const arriving = this.ph === 'atmo' && this.inbound;
+    const top = arriving ? (this.grounded ? 'WE HAVE LANDED' : 'NOW ARRIVING') : 'NEXT STOP';
+    const name = PLANETS[arriving ? this.planet : this.wp].name.toUpperCase();
+    const eta = Math.max(1, Math.round(tg.d / Math.max(1, this.speed || 1)));
+    const sub = this.ph === 'space' ? `${Math.round(tg.d).toLocaleString()} m · ETA ${eta >= 60 ? `${eta / 60 | 0}:${String(eta % 60).padStart(2, '0')}` : eta + ' s'}`
+      : arriving ? 'PLEASE REMAIN SEATED' : this.grounded ? 'WAITING FOR TAKEOFF' : 'CLIMBING TO SPACE';
+    c.textAlign = 'left'; c.textBaseline = 'middle';
+    c.fillStyle = '#ffb020'; c.font = `700 24px ${FONT}`; c.fillText(top, 22, 30);
+    c.fillStyle = '#7dffea'; c.font = `600 20px ${FONT}`; c.textAlign = 'right'; c.fillText(sub, W - 22, 30);
+    c.textAlign = 'center'; c.fillStyle = '#ffffff'; c.font = `700 52px ${FONT}`;
+    let f = 52;
+    while (c.measureText(name).width > W - 40 && f > 24) { f -= 4; c.font = `700 ${f}px ${FONT}`; }
+    c.fillText(name, W / 2, 84);
+    if ((this.t * 2 | 0) % 2 === 0) { c.fillStyle = '#ffb020'; c.beginPath(); c.arc(W / 2 - c.measureText(name).width / 2 - 20, 84, 7, 0, Math.PI * 2); c.fill(); }
+    this.signTex.needsUpdate = true;
   },
   // top-right radar: everything around you, with your nose pointing up
   drawRadar() {

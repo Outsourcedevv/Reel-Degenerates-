@@ -7,7 +7,7 @@
    The host runs their brains and tells everyone where they
    are; each player checks bites on themselves.
    ========================================================= */
-const CRIT_MAX = 14;       // alive at once on a planet
+const CRIT_MAX = 22;       // alive at once on a planet (they're big planets)
 const CRIT_SEND = 1 / 8;   // host sync rate
 const GOLD_CHANCE = 0.03;
 
@@ -32,11 +32,11 @@ const Critters = {
     for (const r of G.remotes.values()) if (r.s.m === 'planet' && r.s.p === G.planet) return true;
     return false;
   },
-  // everyone on the planet (for fleeing and chasing)
+  // everyone on the planet (for fleeing and chasing). safe: they just got here, so mean critters leave them be
   players() {
     const out = [];
-    if (G.mode === 'planet' && !G.player.dead) out.push(G.player.pos);
-    for (const r of G.remotes.values()) if (r.s.m === 'planet' && r.s.p === G.planet && !r.s.d) out.push(r.tpos);
+    if (G.mode === 'planet' && !G.player.dead) out.push({ p: G.player.pos, safe: G.player.safeT > 0 });
+    for (const r of G.remotes.values()) if (r.s.m === 'planet' && r.s.p === G.planet && !r.s.d) out.push({ p: r.tpos, safe: !!r.s.sf });
     return out;
   },
 
@@ -65,7 +65,7 @@ const Critters = {
   spawn(w) {
     const kinds = this.kinds(G.planet);
     for (let tries = 0; tries < 20; tries++) {
-      const a = Math.random() * Math.PI * 2, r = U.rand(14, 56);
+      const a = Math.random() * Math.PI * 2, r = U.rand(14, PLANET_R - 6);
       const x = Math.cos(a) * r, z = Math.sin(a) * r;
       if (!w.walkable(x, z, 0.8)) continue;
       const k = U.weighted(kinds.map((d, i) => [i, d.w || 20]));
@@ -82,7 +82,11 @@ const Critters = {
     if (c.st === 2 || c.st === 3) { c.spd = 0; return; } // frozen solid / stunned
     const def = this.kinds(G.planet)[c.k], sz = SIZES[c.sz];
     let near = null, nd = Infinity;
-    for (const p of ps) { const d = Math.hypot(p.x - c.x, p.z - c.z); if (d < nd) { nd = d; near = p; } }
+    for (const q of ps) {
+      if (q.safe && def.mood === 'mean') continue;
+      const d = Math.hypot(q.p.x - c.x, q.p.z - c.z);
+      if (d < nd) { nd = d; near = q.p; }
+    }
     const speed = def.speed * sz.spd * (c.st === 1 ? 0.4 : 1);
     let tx = c.tx, tz = c.tz, spd = speed * 0.45;
     if (near && def.mood === 'shy' && nd < 8) { // run away!
@@ -189,7 +193,7 @@ const Critters = {
   bites(dt) {
     this.biteCd -= dt;
     const p = G.player;
-    if (G.mode !== 'planet' || p.dead || this.biteCd > 0 || G.panel) return;
+    if (G.mode !== 'planet' || p.dead || this.biteCd > 0 || G.panel || p.safeT > 0) return;
     for (const c of this.list.values()) {
       const def = this.kinds(G.planet)[c.k], sz = SIZES[c.sz];
       if (def.mood !== 'mean' || c.st === 2 || c.st === 3) continue; // (frozen solid or stunned: no biting)

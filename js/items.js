@@ -703,6 +703,102 @@ function buildScooterKey() {
   return g;
 }
 
+/* ---------------- things the Grabby Vac picks up on the other planets ---------------- */
+// a poker chip, stood up on its edge (col: the chip, edge: the stripes round it)
+function buildChipItem(col, edge, gold) {
+  const g = new THREE.Group(), c = grp(g, 0, 0.27, 0), E = gold ? { emissive: '#5a4000' } : undefined;
+  c.rotation.set(1.2, 0.35, 0.12);
+  mk(CYL(0.26, 0.26, 0.07, 24), col, c, 0, 0, 0, E);
+  for (let i = 0; i < 8; i++) { const a = (i / 8) * PI * 2; tf(mk(BOX(0.075, 0.074, 0.05), edge, c, Math.cos(a) * 0.235, 0, Math.sin(a) * 0.235), 0, -a, 0); }
+  mk(CYL(0.155, 0.155, 0.076, 20), edge, c, 0, 0, 0);
+  mk(CYL(0.125, 0.125, 0.078, 20), col, c, 0, 0, 0, E);
+  if (gold) { sparkle(g, 0.26, 0.56, 0.08); sparkle(g, -0.22, 0.2, 0.1, 0.035); }
+  return g;
+}
+function buildSnowballItem() {
+  const g = new THREE.Group();
+  mk(ICO(0.24, 1), '#f7fbff', g, 0, 0.24, 0);
+  for (const [x, y, z, r] of [[0.17, 0.36, 0.07, 0.08], [-0.15, 0.13, 0.14, 0.07], [0.05, 0.45, -0.1, 0.06]]) mk(ICO(r, 0), '#dfeaf5', g, x, y, z);
+  sparkle(g, 0.22, 0.52, 0.12, 0.035);
+  return g;
+}
+function buildFrozenFishItem() { // a fish in a block of ice, looking at you
+  const g = new THREE.Group(), f = grp(g, 0, 0.2, 0);
+  tf(mk(SPH(0.12, 10, 8), '#ff8a3d', f, 0, 0, 0), 0, 0, 0, 1.6, 0.9, 0.55);
+  tf(mk(CONE(0.11, 0.15, 4), '#ff6a1f', f, -0.25, 0, 0), 0, 0, PI / 2, 1, 1, 0.3);
+  tf(mk(CONE(0.05, 0.1, 3), '#ff6a1f', f, 0.02, 0.1, 0), 0, 0, -0.4, 1, 1, 0.3);
+  mk(SPH(0.032, 6, 5), '#ffffff', f, 0.13, 0.03, 0.06); mk(SPH(0.017, 5, 4), '#111111', f, 0.145, 0.03, 0.08);
+  mk(BOX(0.6, 0.38, 0.32), M('#bfe8ff', { transparent: true, opacity: 0.42, depthWrite: false }), g, 0, 0.2, 0);
+  sparkle(g, 0.32, 0.46, 0.1, 0.045);
+  return g;
+}
+function buildSodaCanItem() { // squashed flat and kicked down the street
+  const g = new THREE.Group(), c = grp(g, 0, 0.1, 0);
+  c.rotation.set(0.15, 0.5, PI / 2 - 0.15);
+  tf(mk(CYL(0.13, 0.13, 0.36, 12), '#d6281b', c, 0, 0, 0), 0, 0, 0, 1, 1, 0.62);
+  tf(mk(CYL(0.132, 0.132, 0.1, 12), '#ffffff', c, 0, 0.03, 0), 0, 0, 0, 1, 1, 0.63);
+  for (const y of [-0.18, 0.18]) tf(mk(CYL(0.12, 0.12, 0.02, 12), '#c9ced6', c, 0, y, 0), 0, 0, 0, 1, 1, 0.62);
+  mk(BOX(0.06, 0.012, 0.03), '#9aa3ad', c, 0.02, 0.19, 0); // the ring pull
+  return g;
+}
+function buildReceiptItem() { // four meters long, for one latte, curling up at the end
+  const g = new THREE.Group();
+  for (let i = 0; i < 7; i++) {
+    const z = -0.36 + i * 0.11;
+    tf(mk(BOX(0.22, 0.012, 0.12), '#f7f4ec', g, 0, 0.03 + Math.sin(i * 0.8) * 0.025, z), 0.3 * Math.cos(i * 0.8), 0, 0);
+    if (i < 6) mk(BOX(i % 2 ? 0.1 : 0.15, 0.014, 0.012), '#8a8a96', g, -0.02, 0.04 + Math.sin(i * 0.8) * 0.025, z);
+  }
+  tf(mk(CYL(0.055, 0.055, 0.22, 10), '#f7f4ec', g, 0, 0.07, 0.44), 0, 0, PI / 2);
+  return g;
+}
+function buildCrustItem() { // a pizza crust that came in through the atmosphere
+  const g = new THREE.Group();
+  tf(mk(new THREE.TorusGeometry(0.26, 0.075, 6, 14, PI * 0.9), '#8a5226', g, 0, 0.08, 0), PI / 2, 0, 0.3);
+  for (const [x, z] of [[0.18, 0.12], [-0.21, 0.07], [0.03, 0.25]]) mk(SPH(0.05, 6, 4), '#2b1d14', g, x, 0.11, z);
+  [['#ffb23e', 0.1, 0.22], ['#ff6a1f', -0.06, 0.3]].forEach(([c, x, y]) => mk(ICO(0.035, 0), c, g, x, y, 0.1, { emissive: c }));
+  return g;
+}
+
+/* ---------------- the stuff lying around a planet: it looks like exactly what you'll get ----------------
+   A junk pile IS the Rusty Bolt you'll vacuum out of it, a ghost carries what it'll drop, a berry is the
+   berry you'll pick. (The loot is decided ahead of time: see PlanetWorld.addNode.) s: how much bigger than
+   in your backpack · bob: floats and bobs (things you can also just walk into) · ring: the glow under it */
+const LOOT_LOOK = {
+  scrap: { ring: '#7dff8a', s: 2.1 }, chips: { ring: '#ffd23f', s: 1.9 }, snow: { ring: '#9fd8ff', s: 2 },
+  litter: { ring: '#3df0ff', s: 2 }, crust: { ring: '#ff9a3d', s: 2 },
+  berry: { ring: '#c9b3ff', s: 1.35, bob: true }, bigberry: { ring: '#ffb86b', s: 1.8, bob: true },
+  pearl: { ring: '#bfe8ff', s: 1.35, bob: true }, bigpearl: { ring: '#ffd23f', s: 1.9, bob: true },
+};
+function buildLootNode(kind, loot) {
+  if (kind === 'ghost') { const gh = buildGhostNode(); fillLootNode(gh, loot); return gh; }
+  const look = LOOT_LOOK[kind] || LOOT_LOOK.scrap, g = new THREE.Group();
+  const holder = grp(g, 0, look.bob ? 0.55 : 0, 0);
+  g.userData = { kind, holder, bob: look.bob ? holder : null };
+  glowRing(g, 0.3 + look.s * 0.4, look.ring);
+  fillLootNode(g, loot);
+  return g;
+}
+// (again, with something new in it: a pickup that came back)
+function fillLootNode(g, loot) {
+  const u = g.userData, look = LOOT_LOOK[u.kind] || LOOT_LOOK.scrap, h = u.holder;
+  while (h.children.length) { const c = h.children[0]; h.remove(c); disposeObj(c); }
+  (loot || []).forEach((id, i, all) => {
+    const f = ITEM_MODELS['res:' + id];
+    if (!f) return;
+    const m = mergeLocal(f());
+    m.rotation.y = 0.4 + i * 2.1;
+    if (u.kind === 'ghost') { // (a ghost holds one thing in each hand)
+      m.scale.setScalar(0.8); m.position.set(i % 2 ? -0.58 : 0.58, -0.22, 0.2);
+      m.traverse((c) => { if (c.isMesh) c.castShadow = false; });
+    } else {
+      m.scale.setScalar(look.s);
+      if (look.bob) m.position.y = -0.22 * look.s;
+      else if (all.length > 1) m.position.x = (i - (all.length - 1) / 2) * 0.5 * look.s;
+    }
+    h.add(m);
+  });
+}
+
 /* ---------------- a planet, seen from space (for the world list) ---------------- */
 function buildPlanetGlobe(i) {
   const cfg = PLANETS[i], g = new THREE.Group();
@@ -770,6 +866,10 @@ const ITEM_MODELS = {
   'res:ecto': buildEctoJar, 'res:sheet': buildBedsheetItem, 'res:chain': buildChainItem, 'res:phantom': buildGhostPepper,
   'res:cotton': buildCottonItem, 'res:pearl': buildPearlItem, 'res:bottle': buildLightningBottle, 'res:rainbow': buildRainbowShard,
   'res:giftcard': buildGiftCard, 'res:review': buildReviewFrame, 'res:leftover': buildLeftovers, 'res:scooterkey': buildScooterKey,
+  'res:redchip': () => buildChipItem('#d6281b', '#ffffff'), 'res:bluechip': () => buildChipItem('#2f6fd8', '#ffffff'),
+  'res:blackchip': () => buildChipItem('#1d1d24', '#ffd23f'), 'res:goldchip': () => buildChipItem('#ffd23f', '#fff6c2', true),
+  'res:snowball': buildSnowballItem, 'res:fish': buildFrozenFishItem, 'res:sodacan': buildSodaCanItem, 'res:receipt': buildReceiptItem,
+  'res:crust': buildCrustItem,
   'prize:jackpot': buildJackpotPile, 'prize:ticket': buildGoldenTicket, 'prize:bucks': buildCashStack,
   'prize:sock': buildSockItem, 'prize:rock': buildSpaceRock, 'prize:sandwich': buildHalfSandwich, 'prize:empty': buildEmptyBox,
   'prize:coupon': () => buildPaperItem(['10% OFF', 'THIS CRATE', '(EXPIRED)'], ['#d6281b', '#2b1d14', '#9a8a6a']),

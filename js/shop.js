@@ -8,6 +8,7 @@ const MAX_STARS = 8; // (boss difficulty stars: Zorblax is the only 8)
 function gunChips(z) {
   const rate = `${(1 / z.cd).toFixed(1)} / SEC`, mag = `${z.mag} MAG`, rl = `${z.rl}s RELOAD`;
   switch (z.type) {
+    case 'squirt': return ['WATER PISTOL', `${z.dmg} DMG`, rate, `${z.mag} SQUIRTS`];
     case 'spread': return ['SHOTGUN', `${z.pellets} x ${z.dmg} DMG`, rate, `${z.mag} SHELLS`];
     case 'lob': return ['LAUNCHER', `${z.dmg} SPLASH DMG`, 'SLOWS CRITTERS', `${z.mag} GOO`];
     case 'jackpot': return ['LUCKY SHOTS', `${z.dmg} DMG`, 'x2 · 777 · JACKPOT', mag];
@@ -19,8 +20,8 @@ function gunChips(z) {
     default: return ['BLASTER', `${z.dmg} DMG`, rate, mag, rl];
   }
 }
-// every shop sells the starter gun to anyone without one (e.g. a friend who joins on a later planet)
-const STARTER_GUN = { kind: 'zap', lvl: 0, price: 200, desc: 'Starter gun for new hires. Infinite batteries. Tiny battery pack.' };
+// every shop sells the first real gun to anyone who only has the Squirt Pistol (e.g. a friend who joins on a later planet)
+const STARTER_GUN = { kind: 'zap', lvl: 0, price: 200, desc: 'Your first REAL gun. Way better than that squirt pistol. Infinite batteries, tiny battery pack.' };
 
 // (saves from before the three newer planets had already reached Zorblax Prime: it stays open for them)
 function planetUnlocked(i) { return i === 0 || G.progress.includes(PLANETS[i - 1].boss) || (PLANETS[i].boss === 'zorblax' && !!SAVE.zorbOpen); }
@@ -32,12 +33,13 @@ const Shop = {
     // returns {name, desc, icon, chips[], owned, locked, lockMsg}
     const r = { name: it.name, desc: it.desc || '', icon: 'box', pic: Thumbs.shopKey(it), chips: [], owned: false, locked: false, lockMsg: '' };
     switch (it.kind) {
-      case 'zap': { // (any gun can be bought straight away; a better one replaces the one you have)
+      case 'zap': { // (any gun can be bought straight away, and every gun you buy is yours to keep: equip any of them)
         const z = ZAPPERS[it.lvl];
         r.name = z.name; r.icon = 'gun';
         r.chips = gunChips(z);
-        r.owned = SAVE.zap >= it.lvl;
-        if (SAVE.zap > it.lvl) r.ownedMsg = 'YOURS IS BETTER';
+        r.owned = SAVE.guns.includes(it.lvl);
+        r.equip = r.owned && SAVE.zap !== it.lvl ? it.lvl : null;
+        if (SAVE.zap === it.lvl) r.ownedMsg = 'EQUIPPED';
         break;
       }
       case 'cargo':
@@ -66,6 +68,15 @@ const Shop = {
     }
     return r;
   },
+  // every gun you own (the Squirt Pistol too), to equip whichever you like
+  gunRack() {
+    return [-1, ...SAVE.guns.slice().sort((a, b) => a - b)].map((l) => {
+      const z = gunDef(l), on = SAVE.zap === l;
+      return `<div class="card2 ${on ? 'owned' : ''}"><div class="ic">${Thumbs.img('zap:' + l, '', 'gun')}</div>
+        <div class="info"><h4>${U.esc(z.name)}</h4><div class="chips">${gunChips(z).slice(0, 2).map((c) => `<span>${U.esc(c)}</span>`).join('')}</div></div>
+        ${on ? '<div class="badge ok">EQUIPPED</div>' : `<button class="price equip" data-act="equip" data-l="${l}">Equip</button>`}</div>`;
+    }).join('');
+  },
   // pricier stuff gets a fancier frame
   tier(price) { return price >= 5000 ? 'legend' : price >= 1500 ? 'epic' : price >= 400 ? 'rare' : 'common'; },
   buy(it) {
@@ -75,10 +86,13 @@ const Shop = {
     addBucks(-it.price);
     Sound.play('buy');
     switch (it.kind) {
-      case 'zap':
-        SAVE.zap = it.lvl; G.player.refreshGear(); G.player.setTool('zap', true);
-        if (it.lvl === 0) UI.toast('Your first gun! Press 1 to hold it, R to reload.', 'good', 3.5);
+      case 'zap': {
+        const first = !SAVE.guns.length;
+        if (!SAVE.guns.includes(it.lvl)) SAVE.guns.push(it.lvl);
+        G.player.equip(it.lvl);
+        if (first) UI.toast('Your first real gun! Press 1 to hold it, R to reload. Press 1 again to switch guns.', 'good', 4);
         break;
+      }
       case 'summon': Summons.earn(it.b); break;
       case 'cargo': SAVE.cargoLvl = Math.max(SAVE.cargoLvl, it.lvl); UI.toast(`Backpack upgraded: ${CARGO[SAVE.cargoLvl]} slots!`, 'good', 2.5); break;
       case 'vac': SAVE.vacLvl = 1; G.player.refreshGear(); break;
@@ -113,7 +127,7 @@ const Shop = {
   open(shopId, tab) {
     this.cur = shopId;
     const cfg = SHOPS[shopId];
-    const items = SAVE.zap < 0 && !cfg.items.some((it) => it.kind === 'zap' && it.lvl === 0) ? [STARTER_GUN, ...cfg.items] : cfg.items;
+    const items = !SAVE.guns.length && !cfg.items.some((it) => it.kind === 'zap' && it.lvl === 0) ? [STARTER_GUN, ...cfg.items] : cfg.items;
     const has = (sec) => sec === 'looks' || items.some((it) => this.section(it) === sec);
     if (!G.panel) {
       this.line = U.pick(cfg.greet);
@@ -128,7 +142,8 @@ const Shop = {
     const card = (it, i) => {
       const inf = this.itemInfo(it), poor = SAVE.bucks < it.price;
       const cls = inf.owned ? 'owned' : inf.locked ? 'locked' : poor ? 'poor' : '';
-      const btn = inf.owned ? `<div class="badge ok">${icon('check')} ${inf.ownedMsg || 'OWNED'}</div>`
+      const btn = inf.equip != null ? `<button class="price equip" data-act="equip" data-l="${inf.equip}">Equip</button>`
+        : inf.owned ? `<div class="badge ok">${icon('check')} ${inf.ownedMsg || 'OWNED'}</div>`
         : inf.locked ? `<div class="badge lock">${icon('lock')} ${U.esc(inf.lockMsg)}</div>`
         : `<button class="price" data-act="buy" data-i="${i}" ${poor ? 'disabled' : ''}>${U.bucks(it.price)}</button>`;
       return `<div class="card2 ${this.tier(it.price)} ${cls}">
@@ -161,6 +176,8 @@ const Shop = {
         '<p class="tip">Your hats come with you to every world. More come from other shops, and from Mystery Crates on Luckstar.</p>';
     } else {
       body = '<div class="cards">' + items.map((it, i) => [it, i]).filter(([it]) => this.section(it) === this.tab).map(([it, i]) => card(it, i)).join('') + '</div>';
+      if (this.tab === 'weapons') body = `<h5 class="shead">For sale</h5>${body}<h5 class="shead">Your guns</h5><div class="cards hats">${this.gunRack()}</div>` +
+        '<p class="tip">Every gun you buy is yours to keep. Equip any of them here, or press 1 again while your gun is out to switch.</p>';
       if (this.tab === 'special') body += '<p class="tip">Summoning items belong to the whole crew: anyone can use them at the boss altar.</p>';
     }
     const html = `<div class="shop2" style="--acc:${cfg.color}">
@@ -184,6 +201,7 @@ const Shop = {
         UI.toast(`Sold for ${U.bucks(v)}!`, 'good');
       }
       if (act === 'hat') { SAVE.hat = d.h; persist(); Sound.play('buy'); }
+      if (act === 'equip') { G.player.equip(Number(d.l)); this.line = U.pick(['Good choice. They all shoot the same direction.', 'Classic. Like you. A classic mistake.', 'Swapped. No refunds on the old one. It\'s still yours though.']); }
       this.open(shopId);
     };
     if (G.panel) { UI.setPanel(html); UI.panelHandler = handler; }
@@ -193,18 +211,16 @@ const Shop = {
   /* ----- boss altar panel ----- */
   openBoss() {
     const p = PLANETS[G.planet], bid = p.boss, b = BOSSES[bid], sm = SUMMONS[bid];
-    // everyone here with a gun joins the fight (same rule as Game.startBoss)
-    const n = 1 + [...G.remotes.values()].filter((r) => r.s.m === 'planet' && r.s.p === G.planet && !(r.s.zp < 0)).length;
+    // everyone here joins the fight (same rule as Game.startBoss)
+    const n = 1 + [...G.remotes.values()].filter((r) => r.s.m === 'planet' && r.s.p === G.planet).length;
     const hp = Math.round(b.hp * (1 + 0.65 * (n - 1)));
     const first = !SAVE.beaten.includes(bid);
     const reward = first ? b.reward : Math.round(b.reward * 0.5);
     const rec = BOSS_REC[bid];
-    const noGun = SAVE.zap < 0, have = Summons.has(bid);
-    const gun = noGun ? '<span class="pill" style="background:#ff8a80">No gun! The shop sells one</span>'
-      : U.esc(ZAPPERS[SAVE.zap].name) + (SAVE.zap < rec ? ` <span class="pill" style="background:#ff8a80">Recommended: ${U.esc(ZAPPERS[rec].name)}</span>` : '');
+    const have = Summons.has(bid);
+    const gun = U.esc(gunDef(SAVE.zap).name) + (SAVE.zap < rec ? ` <span class="pill" style="background:#ff8a80">Recommended: ${U.esc(ZAPPERS[rec].name)}</span>` : '');
     const smPic = Thumbs.img('sum:' + bid, 'inline', sm.icon);
     const btn = !have ? `<button class="btn big" disabled style="max-width:440px">${smPic} You need ${U.esc(sm.name)}</button>`
-      : noGun ? `<button class="btn big" disabled style="max-width:440px">${Thumbs.img('zap:0', 'inline', 'gun')} Buy a gun first!</button>`
       : `<button class="btn big red" data-act="summon" style="max-width:440px">${smPic} Use ${U.esc(sm.name)} to summon!</button>`;
     UI.openPanel(`
       <h2 class="ph">Boss Altar</h2>
@@ -217,12 +233,12 @@ const Shop = {
       <table class="list">
         <tr><td>Health</td><td class="r"><b>${hp.toLocaleString()}</b> ${n > 1 ? `(scaled for ${n} goobers)` : ''}</td></tr>
         <tr><td>Reward (each player)</td><td class="r"><b>${U.bucks(reward)}</b> ${first ? '' : '(rematch: half)'}</td></tr>
-        <tr><td>Your zapper</td><td class="r">${gun}</td></tr>
-        <tr><td>Respawns</td><td class="r">${DIFFS[G.diff].perma ? 'None. Hardcore!' : 'As many as it takes (hold left click)'}</td></tr>
+        <tr><td>Your gun</td><td class="r">${gun}</td></tr>
+        <tr><td>Lives</td><td class="r">One${n > 1 ? `. If you go down, a friend can pick you up, or you get back up after ${DIFFS[G.diff].revive}s while one of them is still standing` : '. Solo, dying loses the fight'}${DIFFS[G.diff].perma ? ' (Hardcore: for good)' : ''}</td></tr>
         <tr><td>Gear</td><td class="r">Grenades: ${SAVE.nades}${SAVE.armor ? ' · Company Armor' : ''}</td></tr>
         <tr><td>Status</td><td class="r">${G.progress.includes(bid) ? 'Beaten (next planet unlocked)' : 'Not beaten yet'}</td></tr>
       </table>
-      <p class="muted">Summoning uses up the item, win or lose, and pulls in everyone on the planet who has a gun. Dodge with WASD + Space (jump over the shockwave rings!). Red circles on the floor mean MOVE.</p>
+      <p class="muted">Summoning uses up the item, win or lose, and pulls in everyone on the planet. Dodge with WASD + Space (jump over the glowing shockwave rings!). Red circles on the floor mean MOVE. If everybody goes down, the boss wins.</p>
       ${bid === 'zorblax' ? `<p class="muted">${SAVE.peel ? 'Tip: hold out your Pizza Peel (4) to catch the Emperor\'s flying pizza slices.' : 'Rumor has it Dave\'s Pizza Peel can catch flying pizza.'}</p>` : ''}
       <div class="center">${btn}</div>`,
     (act) => { if (act === 'summon') Game.requestSummon(bid); });

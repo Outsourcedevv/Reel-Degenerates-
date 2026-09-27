@@ -44,7 +44,7 @@ const Thumbs = {
   model(key) {
     const [k, a, b, c] = key.split(':');
     switch (k) {
-      case 'zap': { const z = buildZapperVM(ZAPPERS[+a] ? +a : 0); z.remove(z.userData.flash); return { o: z, look: 'tool' }; }
+      case 'zap': { const z = buildZapperVM(+a); z.remove(z.userData.flash); return { o: z, look: 'tool' }; }
       case 'vac': return { o: buildVacVM(a === '1'), look: 'tool' };
       case 'drill': return { o: buildDrillVM(), look: 'tool' };
       case 'peel': return { o: buildPeelVM(), look: 'tool' };
@@ -123,7 +123,10 @@ const Thumbs = {
     this.key.target.position.copy(target);
     this.rim.position.copy(target).addScaledVector(up, 1).addScaledVector(right, 1.5).addScaledVector(dir, -2);
     this.rim.target.position.copy(target);
+    const rimK = HI_U.crit.uRimK.value;
+    HI_U.crit.uRimK.value = 0; // (pictures of critters don't need the edge that makes them stand out from a planet)
     this.renderer.render(this.scene, cam);
+    HI_U.crit.uRimK.value = rimK;
     const url = this.renderer.domElement.toDataURL('image/png');
     this.scene.remove(pivot);
     disposeObj(pivot);
@@ -145,7 +148,7 @@ const Thumbs = {
   },
   // everything the interface is likely to need
   warmAll() {
-    const keys = ['zap:0', 'vac:0', 'drill', 'peel', 'cargo:0', 'nade'];
+    const keys = ['zap:-1', 'zap:0', 'vac:0', 'drill', 'peel', 'cargo:0', 'nade'];
     for (const s of Object.values(SHOPS)) for (const it of s.items) keys.push(this.shopKey(it));
     for (const id in SHOPS) keys.push('face:' + id);
     for (const k in ITEM_MODELS) if (k.startsWith('res:')) keys.push(k);

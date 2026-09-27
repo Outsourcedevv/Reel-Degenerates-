@@ -24,9 +24,9 @@ difficulty:
 
 | Difficulty | What changes |
 | --- | --- |
-| Easy | Enemies hit normally. Die and you get back up (see below). |
+| Easy | Enemies hit normally. Die on a planet and you get back up (see below). |
 | Hard | Everything hits twice as hard. Critters have 1.75x the health. |
-| Hardcore | Everything hits 3.5x as hard, critters have 2.5x the health and you get one life in boss fights. Solo, if you die, the world is deleted. With friends, you go down and can be revived, but if the whole crew is down at once, the world is deleted. |
+| Hardcore | Everything hits 3.5x as hard and critters have 2.5x the health. Solo, if you die, the world is deleted. With friends, you go down and can be revived, but if the whole crew is down at once, the world is deleted. |
 
  Each world is its own save, like
 Minecraft worlds. When you join a friend, your stuff in their world is saved too, so it's still there next time.
@@ -45,13 +45,15 @@ Your look is saved on your computer and your crew sees it (even if you change it
 players start with a random face. **Randomize** rolls a whole new astronaut.
 
 When you die on a planet, you stay down until you hold left click to respawn at the ship. Everything except your
-Grabby Vac (your zapper, drill, pizza peel, grenades and whatever was in your backpack) drops in a grave where you
-fell. Follow its beam of light to get it all back. Only you can pick it up, and it waits for you even if you quit
-and come back later. With Extra Life Insurance (sold by Dave on Zorblax Prime) you keep your gear when you die,
-and only your backpack spills.
+Grabby Vac and the free Squirt Pistol (the guns you bought, your drill, pizza peel, grenades and whatever was in
+your backpack) drops in a grave where you fell. Follow its beam of light to get it all back. Only you can pick it
+up, and it waits for you even if you quit and come back later. With Extra Life Insurance (sold by Dave on Zorblax
+Prime) you keep your gear when you die, and only your backpack spills.
 
-Boss fights have no lives: if you die, hold left click and jump straight back in, as many times as it takes. You
-keep your stuff in boss fights. (On Hardcore, dying is still final.)
+Boss fights give you **one life**, whatever the difficulty. Playing solo, if you go down, the boss wins (on
+Hardcore, that's the end of the world). With friends you go down instead: a friend can walk over and hold `E` to
+pick you up, or you get back up by yourself after 10 seconds (15 on Hard, 20 on Hardcore) as long as at least one of
+them is still standing. If the whole crew is down at once, the boss wins. You keep your stuff in boss fights.
 
 ## Play with friends
 
@@ -64,7 +66,8 @@ keep your stuff in boss fights. (On Hardcore, dying is still final.)
    summoning item can start a boss fight. Everyone on the planet who has a gun gets pulled in.
 5. When you'd die with friends around, you go **down** instead. A friend walks up and holds `E` to pick you back
    up. On Easy and Hard you bleed out after 25 seconds and it counts as a normal death. On Hardcore you stay down
-   until someone revives you, but if **everyone** is down at once, the world is deleted.
+   until someone revives you, but if **everyone** is down at once, the world is deleted. (Boss fights work a bit
+   differently, see above.)
 6. Press `I` to send money to a friend (Crew & Money tab) or drop things from your backpack. Dropped stuff lands
    in a crate anyone can pick up by walking over it.
 7. Friendly fire is off by default (zaps just bonk your friends). The host can turn it on in the pause menu.
@@ -83,24 +86,30 @@ Each friend needs to open the game too. The easiest way is to put it online for 
 | `C` in the air | ground pound (Yeti Stompers, from Frostbyte) |
 | hold `Space` in the air | glide (Glider Cape, from Nimbus-9) or fly (Jet Pack, from Gigopolis) |
 | `E` | talk, shop, use things · hold next to a downed friend to pick them up |
-| `1` `2` `3` `4` | Zapper, Grabby Vac, Laser Drill, Pizza Peel |
+| `1` `2` `3` `4` | gun, Grabby Vac, Laser Drill, Pizza Peel · `1` again switches between the guns you own |
 | Left click | use your tool |
 | `R` | reload (infinite batteries, but the battery pack runs out) |
 | Right click | throw a Goo Grenade (boss fights) |
 | `I` | backpack (drop things) and crew (send money) |
+| `H` | what to do on this planet (a short guide) |
 | `T` / `Tab` / `M` / `Esc` | chat / crew list / music / pause |
 | `E` at the ship | get in (and get out again while it's parked on the pad) |
-| Mouse · `W`/`S` · `Shift` | in the ship: steer · throttle · boost (pilot) |
+| Mouse · `W`/`S` · `Shift` | in the ship: aim (the ship swings round to the circle) · throttle · boost (pilot) |
 | `Space` / `C` | in the ship: lift off, go up / go down (pilot) |
 | `F` | in the ship: swap seats |
-| `M` / `V` | in the ship: star map / camera |
+| `M` / `V` | in the ship: star map / look at the ship from outside (passengers) |
 
 ## The galaxy
 
-You start with just a Grabby Vac. Company policy: no free guns. On each planet you collect stuff, sell it at the
-shop and buy gear (your first gun too). Money is tight on the first two planets, so expect to work for it. Shops
-are split into Weapons, Gear, Special, Cosmetics and Sell tabs. Anything sold on more than one planet costs the same
-everywhere, and you can buy any backpack straight away (no need to own the smaller one first).
+You start with a Grabby Vac and the Squirt Pistol, a leaky water pistol that barely tickles a critter (company
+policy: the cheapest gun there is). On each planet you collect stuff, sell it at the shop and buy gear (a real gun
+first). Money is tight on the first two planets, so expect to work for it. Every gun you buy is yours to keep: press
+`1` again to switch between them, or use **Equip** at any shop. Shops are split into Weapons, Gear, Special,
+Cosmetics and Sell tabs, and you can walk up to a shop from any side. Anything sold on more than one planet costs
+the same everywhere, and you can buy any backpack straight away (no need to own the smaller one first).
+
+Every planet has a short guide to what to do there: it shows up when you arrive, and `H` brings it back. The Grabby
+Vac is handy everywhere: everything you can suck up shows the actual thing you'll get, floating over a glowing ring.
 
 Bosses don't just show up: find the planet's summoning item (they're rare, so expect to grind), use it at the boss
 altar and win. Summoning uses the item up, so a rematch needs another one. Boss fights are long: bosses have a lot of
@@ -109,13 +118,13 @@ health but hit a bit softer than they look. Your ship won't start until you've b
 | # | Planet | What you do there | Critters | Boss | Summon it with |
 | --- | --- | --- | --- | --- | --- |
 | 1 | Scrapyard-9 | Vacuum junk piles | Trash Rats, Rust Crabs, Scrap Pigeons, Can Gremlins | Trashlord Gary ★ | Stinky Crown, buried in the junk |
-| 2 | Planet Gloop | Low gravity berry jumping | Blobbos, Gloop Hoppers, Puffshrooms, Goo Leeches | Queen Blorbina ★★ | Royal Jelly, in the big berries on top |
-| 3 | Luckstar | **Gambling** in the Luckstar Casino, the big building next to the landing pad: slots, roulette, snail races, coin flips, crates | Chip Beetles, Dice Goblins, Card Crawlers, Slot Mimics | Jackpot Jerry ★★★ | Golden Token, from crates or Mr. Chips |
-| 4 | Frostbyte | Mine crystals with the Laser Drill | Snow Mites, Ice Weasels, Pengulings, Frost Pups | The Abominable Snowdad ★★★★ | Space Milk, frozen in the crystals |
-| 5 | Spookulon | Vacuum ghosts in the graveyards (keep them in your sights: they dodge and BOO you) | Space Bats, Skele-Toms, Jack-o'-Landers, Grave Grubs | Count Carbula ★★★★★ | Count's Dinner Bell, haunted by one of the ghosts |
+| 2 | Planet Gloop | Low gravity berry jumping up giant mushrooms (stand on the caps, walk under them) | Blobbos, Gloop Hoppers, Puffshrooms, Goo Leeches | Queen Blorbina ★★ | Royal Jelly, in the big berries on top |
+| 3 | Luckstar | **Gambling** in the Luckstar Casino, the big building next to the landing pad: slots, roulette, snail races, coin flips, crates. Vacuum up dropped chips | Chip Beetles, Dice Goblins, Card Crawlers, Slot Mimics | Jackpot Jerry ★★★ | Golden Token, from crates or Mr. Chips |
+| 4 | Frostbyte | Mine crystals with the Laser Drill, vacuum snow piles | Snow Mites, Ice Weasels, Pengulings, Frost Pups | The Abominable Snowdad ★★★★ | Space Milk, frozen in the crystals |
+| 5 | Spookulon | Vacuum ghosts in the graveyards (you can't shoot them; keep them in your sights: they dodge and BOO you) | Space Bats, Skele-Toms, Jack-o'-Landers, Grave Grubs | Count Carbula ★★★★★ | Count's Dinner Bell, haunted by one of the ghosts |
 | 6 | Nimbus-9 | Grab Sky Pearls off floating islands; glowing updrafts carry you up (fall off and you wash up at the ship) | Cloud Puffs, Sky Gulls, Wild Kites, Static Sprites | Stormy McStormface ★★★★★★ | Weather Balloon, in the big pearls on the highest islands |
-| 7 | Gigopolis | Delivery gigs: take a parcel at the GigHub kiosk and race it to a door or rooftop (jump pads get you up there) | Rogue Drones, Trash Pandas, Unpaid Intern Bots, Feral E-Scooters | CEO Chad Grindset ★★★★★★★ | Mandatory Meeting Invite, from a delivery customer |
-| 8 | Zorblax Prime | Catch pepperoni meteors with the Pizza Peel | Lava Snails, Magma Imps, Ember Bugs, Royal Hounds | Emperor Zorblax ★★★★★★★★ | Reheated Pizza: catch 15 meteors |
+| 7 | Gigopolis | Delivery gigs: take a parcel at the GigHub kiosk and race it to a door or rooftop (jump pads get you up there). Vacuum litter | Rogue Drones, Trash Pandas, Unpaid Intern Bots, Feral E-Scooters | CEO Chad Grindset ★★★★★★★ | Mandatory Meeting Invite, from a delivery customer |
+| 8 | Zorblax Prime | Catch pepperoni meteors with the Pizza Peel, vacuum burnt crusts | Lava Snails, Magma Imps, Ember Bugs, Royal Hounds | Emperor Zorblax ★★★★★★★★ | Reheated Pizza: catch 15 meteors |
 
 ### Boss fights
 
@@ -124,8 +133,10 @@ Every attack is telegraphed, so you can read the fight:
 - **Wind-ups.** Before a boss attacks it strikes a pose (arm back to throw, arms up to slam, a crouch before it
   jumps) and glows. The attack's name shows under its health bar, with a bar that fills until it goes off. With
   friends, **AT YOU** means you're the target.
-- **Red on the floor means it's about to hurt.** Circles fill up until they go off. Striped lanes are about to be lasered. Arrows in a lane
-  show which way a boss is about to charge. A curved arrow means a beam is about to sweep around the floor.
+- **Red on the floor means it's about to hurt.** Circles fill up until they go off. Shockwave rings are glowing
+  walls with a bright top edge and a red band on the floor, so you can see them coming from across the arena.
+  Striped lanes are about to be lasered. Arrows in a lane show which way a boss is about to charge. A curved arrow
+  means a beam is about to sweep around the floor.
 - **What to do** flashes under your crosshair: **JUMP!** (a shockwave or a sweeping beam is about to reach you),
   **MOVE!** (you're standing in the red) or **RUN!** (something is chasing you, or the wind is dragging you).
 - **Where it's coming from.** Everything a boss throws glows and leaves a trail. Arrows around your crosshair point at
@@ -149,12 +160,13 @@ Every planet sells a different gun, and each one shoots differently:
 
 | Gun | Where | What it does |
 | --- | --- | --- |
+| Squirt Pistol | you start with it | a leaky water pistol. Buy a real gun |
 | Pew Pew Zapper | Scrapyard-9 | zaps |
 | Scrap Scattergun | Scrapyard-9 | six pellets a shot |
 | Goo Lobber | Planet Gloop | balls of goo that splash and slow critters |
 | Jackpot Blaster | Luckstar | every shot is a slot pull: x2, 777s, the odd JACKPOT |
 | Cryo Beam | Frostbyte | hold to freeze things |
-| Wisp Caller | Spookulon | ghost wisps that chase whatever is nearest your crosshair |
+| Wisp Caller | Spookulon | ghost wisps that drift after whatever is nearest your crosshair (they hit softer than the guns you aim) |
 | Storm Caller | Nimbus-9 | lightning that jumps from target to target (and stuns critters) |
 | Same-Day Launcher | Gigopolis | exploding parcels; shoot the ground under you mid-jump to rocket-jump |
 | Pizza Cutter | Zorblax Prime | spinning cutters that slice through everything and come back |
@@ -179,9 +191,10 @@ Movement gear you can pick up along the way (you keep it when you die):
 
 ## Critters
 
-Shy critters run away, mean ones bite. Zap them and sell them at the shop. They come in six sizes, from Tiny to
-GIANT: the bigger they are, the more they're worth, but the rarer they are (and the harder they hit). Golden ones
-are worth a fortune.
+Shy critters run away, mean ones bite. Zap them and sell them at the shop. When you join a game, land on a planet or
+respawn, they leave you alone for a bit: watch the **SAFE** timer. Their colors and an outline keep them from
+blending into the ground. They come in six sizes, from Tiny to GIANT: the bigger they are, the more they're worth,
+but the rarer they are (and the harder they hit). Golden ones are worth a fortune.
 
 Kill them in style for a bonus. Each bonus is at most 2x, and they stack up to 5x in total:
 
@@ -201,13 +214,17 @@ Kill them in style for a bonus. Each bonus is at most 2x, and they stack up to 5
 
 ## Flying
 
-Walk up to your ship on the landing pad and press `E` to get in. Once everyone is aboard, the pilot presses `Space`
-to lift off and climbs above 150 m to reach space. Press `M` for the star map and click the planet you want to go
-to; a marker on screen and the radar point the way. The planets are far apart, so it's a real trip (the autopilot
-takes over if it drags on). Dodge asteroids, fly through rings to refill your boost, and grab space coins. When you
-arrive, fly down to the glowing landing pad and set the ship down gently. Come down faster than 8 m/s and you crash
-(it costs you a repair fee). Planets you haven't unlocked yet turn you away. Passengers can look around, and `V`
-switches between the seat view and a view of the whole ship.
+Walk up to your ship on the landing pad and press `E` to get in. The pilot flies from the cockpit. The ship is big
+and doesn't flick around: move the mouse to put the aim circle where you want to go, and the ship swings round to it
+at its own pace. Once everyone is aboard, the pilot presses `Space` to lift off and climbs above 150 m to reach
+space. Press `M` for the star map and click the planet you want to go to; a marker on screen and the radar point the
+way. The planets are far apart, so it's a real trip (the autopilot takes over if it drags on). Dodge asteroids, fly
+through rings to refill your boost, and grab space coins. When you arrive, fly down to the glowing landing pad and
+set the ship down gently (look down through the glass floor in front of your seat to line it up). Come down faster
+than 8 m/s and you crash (it costs you a repair fee). Planets you haven't unlocked yet turn you away. Passengers
+ride in the cabin behind the cockpit: big windows by every row, a screen that says where you're going and how long
+it'll take, and a view of the pilot flying. They can look around, and `V` switches between their seat and a view of
+the whole ship from outside.
 
 ## For tinkerers
 
@@ -219,7 +236,7 @@ in your browser (clearing browser data deletes them).
 - `js/data.js`: planets, items, prices, bosses, jokes (the easiest file to mess with)
 - `js/world.js`, `js/models.js`: planets and all the low-poly models (the casino building is `buildCasino` in `world.js`)
 - `js/boss.js`: boss fights · `js/casino.js`: gambling · `js/activities.js`: collecting, meteors, delivery gigs, summoning items
-- `js/critters.js`: space critters · `js/flight.js`: the ship, cockpit, star map and landing · `js/shop.js`: shops, boss altars
+- `js/critters.js`: space critters · `js/flight.js`: the ship, cockpit, passenger cabin, star map and landing · `js/shop.js`: shops, boss altars
 - `js/items.js`: models of the items you buy, carry and win · `js/thumbs.js`: turns models into the pictures the
   menus show (shop items, backpack, hotbar, faces)
 - `js/custom.js`: the Customize screen (the looks themselves are `LOOK_PARTS` and `buildAstronaut` in `models.js`)

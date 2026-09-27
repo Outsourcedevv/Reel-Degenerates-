@@ -108,21 +108,23 @@ const Game = {
   // host: the ship is down on a landing pad; everybody hops out
   arrive(i) {
     if (!G.worlds[i]) { const w = new PlanetWorld(i); G.scene.add(w.group); w.group.visible = false; G.worlds[i] = w; }
-    const m = { t: 'land', p: i, taken: Activities.takenList(i) };
+    const m = { t: 'land', p: i, taken: Activities.takenList(i), loot: Activities.lootList(i) };
     Net.toAll(m);
     this.doLand(i, m.taken);
     SAVE.planet = i;
     persist();
   },
-  doLand(i, taken) {
+  doLand(i, taken, loot) {
     const moved = i !== G.planet;
     Flight.finish();
     Sound.play('land');
     this.loadPlanet(i);
     G.world.parked.visible = true;
     if (taken) Activities.applyTaken(i, taken);
+    if (loot) Activities.applyLoot(i, loot);
     G.player.teleport(this.spawnPoint(), G.world.spawnYaw);
     G.player.updateCamera(0, 0);
+    G.player.protect(GRACE.land);
     G.mode = 'planet';
     Flight.clearCrew(); // everyone's out: the seats are empty again
     Flight.parkedPilot();
@@ -132,7 +134,7 @@ const Game = {
     if (!moved) return;
     const pl = PLANETS[i];
     setTimeout(() => UI.bigTitle(pl.name, pl.blurb, '#fff', 3.4), 600);
-    setTimeout(() => UI.toast(pl.how, '', 5), 2600);
+    setTimeout(() => { if (G.mode === 'planet' && G.planet === i) UI.guide(true, 16); }, 4000); // (as the title fades)
     if (i === 2 && !SAVE.seenCasino) { SAVE.seenCasino = true; persist(); setTimeout(() => UI.toast('GAMBLING UNLOCKED. Please gamble responsibly. (You won\'t.)', 'purple', 5), 5200); }
   },
 
@@ -255,6 +257,7 @@ const Game = {
     this.loadPlanet(startPlanet);
     if (welcome) {
       Activities.applyTaken(startPlanet, welcome.taken);
+      Activities.applyLoot(startPlanet, welcome.loot);
       for (const d of welcome.drops || []) Drops.add(d);
     }
     G.started = true;
@@ -265,6 +268,7 @@ const Game = {
     G.player.resetLife();
     G.player.teleport(this.spawnPoint(), G.world.spawnYaw);
     G.player.updateCamera(0, 0);
+    G.player.protect(GRACE.join);
     Drops.restoreGraves(); // (stuff you dropped when you died here last time is still waiting)
     U.$('menu').classList.add('hidden');
     U.$('hud').classList.remove('hidden');
@@ -291,7 +295,7 @@ const Game = {
           Order placed: <b>3 years ago</b>. Customer mood: <b>furious</b>.<br><br>
           Your ship, the S.S. Late Delivery, is mostly held together by tape. Each planet on the way has a boss guarding the route,
           because of course it does. Bosses don't just show up, though: find the thing that summons them and use it at the boss altar.<br><br>
-          Company policy: no free guns (liability). Buy your own at the pawn shop.
+          Company policy: no free guns (liability). You get a squirt pistol. Buy a real gun at the pawn shop.
           Do NOT gamble the company's money. (There's a casino planet. I know you.)
         </div>${UI.howHtml().replace('<h2 class="ph">How to play</h2>', '')}
         <div class="row2"><button class="btn big green" data-act="close" style="max-width:320px">Let's deliver this pizza</button></div>`);
@@ -299,6 +303,9 @@ const Game = {
       this.updatePause();
       setTimeout(() => UI.bigTitle(PLANETS[G.planet].name, PLANETS[G.planet].blurb, '#fff', 3), 300);
     }
+    // what to do here (once the intro note is out of the way)
+    const guide = () => { if (G.panel) { setTimeout(guide, 500); return; } if (G.mode === 'planet') UI.guide(true, 16); };
+    setTimeout(guide, 3400);
   },
 
   // how hard enemies hit in this world
@@ -415,7 +422,7 @@ const Game = {
   startBoss() {
     if (!Net.isHost || G.mode !== 'planet') return;
     const ids = [Net.myId];
-    for (const r of G.remotes.values()) if (r.s.m === 'planet' && r.s.p === G.planet && !(r.s.zp < 0)) ids.push(r.id);
+    for (const r of G.remotes.values()) if (r.s.m === 'planet' && r.s.p === G.planet) ids.push(r.id);
     const seed = Math.floor(Math.random() * 1e9);
     const b = PLANETS[G.planet].boss;
     Net.toAll({ t: 'bstart', b, seed, ids });
@@ -452,7 +459,7 @@ const Game = {
   /* ---------------- summoning ---------------- */
   // anyone holding the planet's summoning item can use it at the altar; the host runs the fight
   requestSummon(b) {
-    if (!Summons.has(b) || SAVE.zap < 0) return;
+    if (!Summons.has(b)) return;
     UI.closePanel(true);
     Net.toHost({ t: 'summon', b });
   },
@@ -494,6 +501,7 @@ const Game = {
     const p = G.player;
     p.resetLife();
     p.teleport(this.spawnPoint(), G.world.spawnYaw);
+    p.protect(GRACE.respawn);
     UI.bossBar(false); UI.phud(false); UI.show('spectate', false);
     setAtmosphere(PLANETS[G.planet]);
     Sound.playMusic(PLANETS[G.planet].music);
@@ -527,7 +535,7 @@ const Game = {
       if (!Net.isHost) return;
       this.applyState(from, m.s);
       Net.sendTo(from, {
-        t: 'welcome', planet: G.planet, prog: G.progress, taken: Activities.takenList(G.planet), mode: G.mode, world: G.worldId, diff: G.diff,
+        t: 'welcome', planet: G.planet, prog: G.progress, taken: Activities.takenList(G.planet), loot: Activities.lootList(G.planet), mode: G.mode, world: G.worldId, diff: G.diff,
         crew: G.crew, ff: G.ff, drops: Drops.snapshot(),
         snail: Casino.round && Casino.phase() === 'bet' ? { seed: Casino.round.seed, bet: Math.max(1, Casino.round.betEnd - G.time) } : null,
       });
@@ -572,7 +580,7 @@ const Game = {
     N.on('fly', (m) => Flight.onSync(m));
     N.on('fev', (m) => Flight.onEvent(m));
     N.on('fph', (m) => Flight.onPhase(m));
-    N.on('land', (m) => { if (G.started && !Net.isHost) this.doLand(m.p, m.taken); });
+    N.on('land', (m) => { if (G.started && !Net.isHost) this.doLand(m.p, m.taken, m.loot); });
     N.on('crew', (m) => { if (!Net.isHost) Summons.onCrew(m); });
     N.on('found', (m) => { if (!Net.isHost) Summons.onFound(m); });
     N.on('heat', (m) => { if (!Net.isHost) Summons.onHeat(m); });
@@ -597,7 +605,7 @@ const Game = {
       if (m.ids.includes(Net.myId)) this.beginBoss(m.b, m.seed, m.ids);
       else {
         G.world.clearSummon();
-        UI.toast(SAVE.zap < 0 ? 'Your crew is fighting the boss! Buy a gun so you can join the next fight.' : 'Your crew is fighting the boss! Hang tight.', '', 5);
+        UI.toast('Your crew is fighting the boss! Hang tight.', '', 5);
       }
     });
     N.on('bs', (m) => { if (G.boss && !Net.isHost) G.boss.onSync(m); });
@@ -780,16 +788,19 @@ const Game = {
     if (this.fallback && G.locked && Input.tap('Escape')) { G.locked = false; this.updatePause(); return; }
     if (Input.tap('KeyT') || Input.tap('Enter')) { this.openChat(); return; }
     if (Input.tap('KeyI') && G.mode === 'planet' && !G.player.dead) { UI.openBag(); return; }
+    if (Input.tap('KeyH') && G.mode === 'planet') UI.guide(!UI.guideOn);
+    if (G.mode !== 'planet' && UI.guideOn) UI.guide(false);
     if (Input.tap('KeyM') && G.mode !== 'space') { // (M is the map while flying)
       if (Sound.music.on) { Sound.stopMusic(); UI.toast('Music off', '', 1); }
       else { Sound.playMusic(G.mode === 'boss' ? (G.boss && G.boss.id === 'zorblax' ? 'final' : 'boss') : PLANETS[G.planet].music); UI.toast('Music on', '', 1); }
     }
     UI.plist(!!Input.keys.Tab);
   },
-  // what clicking does with the gun you've got (every gun works differently, see ZAPPERS)
+  // what clicking does with the gun you've got (every gun works differently, see ZAPPERS; press 1 again to switch)
   gunHint() {
-    const z = ZAPPERS[SAVE.zap];
-    switch (z && z.type) {
+    const z = gunDef(SAVE.zap);
+    switch (z.type) {
+      case 'squirt': return 'Click: squirt (it\'s terrible: buy a real gun!) · R: refill';
       case 'spread': return 'Click: blast · R: reload';
       case 'lob': return 'Click: lob goo (aim a bit high) · R: reload';
       case 'jackpot': return 'Click: shoot and pray · R: reload';
@@ -806,21 +817,25 @@ const Game = {
     let h = '';
     if (G.mode === 'boss') {
       if (p.ghost) h = '';
-      else if (SAVE.zap < 0) h = `No gun! Right-click: Goo Grenade (${SAVE.nades}) · Space: jump the rings!`;
       else h = `${this.gunHint()} · Right-click: Goo Grenade (${SAVE.nades}) · Space: jump the rings!`;
       if (h && G.boss && G.boss.id === 'zorblax' && SAVE.peel) h += ' · 4: Pizza Peel catches pizza!';
     } else if (G.mode === 'planet') {
       const act = PLANETS[G.planet].activity;
       const inCasino = act === 'casino' && G.world.inCasino(p.pos);
-      if (p.tool === 'zap') h = act === 'casino' ? (inCasino ? 'Walk up to any game and press E · I: backpack & crew' : 'Luckstar: every game is in the casino next to your ship · I: backpack & crew') : this.gunHint() + ' · I: backpack & crew · 2: Grabby Vac' + (SAVE.drill ? ' · 3: Drill' : '') + (SAVE.peel ? ' · 4: Peel' : '');
-      else if (p.tool === 'vac') h = act === 'scrap' ? 'Hold click on glowing junk piles' : act === 'ghost' ? 'Hold click on a ghost and keep it in your sights! (It will fight back.)' : 'Hold click on junk (there isn\'t much here)';
-      else if (p.tool === 'drill') h = 'Hold click on big crystals to mine them';
-      else h = act === 'meteor' ? 'Stand inside the glowing landing circles to catch pepperoni meteors!' : 'The Pizza Peel catches meteors on Zorblax Prime';
-      if (act === 'berry' && p.tool !== 'drill') h = 'Walk into berries to grab them · Jump up the mushrooms!' + (SAVE.boots ? ' (double jump!)' : '');
-      if (act === 'ghost' && p.tool === 'zap') h = this.gunHint() + ' · 2: Grabby Vac (for the ghosts) · I: backpack & crew';
-      if (act === 'pearl' && p.tool !== 'drill') h = 'Walk into Sky Pearls to grab them · Stand in a glowing updraft to float up to the islands';
-      if (act === 'deliver' && p.tool !== 'drill') h = Gigs.cur ? 'Get the parcel to the glowing beam before time runs out! Jump pads launch you onto roofs' : 'Take a delivery gig at the GigHub kiosk (E) · Jump pads launch you onto roofs';
-      if (act === 'meteor' && p.tool !== 'peel') h = SAVE.peel ? 'Pepperoni meteors! Press 4 for the Pizza Peel, then stand in the landing circles' : 'Pepperoni meteors! Buy a Pizza Peel from Dave to catch them. (Without it they bonk you.)';
+      if (p.tool === 'vac') h = VAC_HINT[act] || 'Hold left click on stuff to vacuum it up';
+      else if (p.tool === 'drill') h = 'Hold left click on a big crystal to mine it';
+      else if (p.tool === 'peel') h = act === 'meteor' ? 'Stand inside a glowing circle as the meteor comes down to catch it!' : 'The Pizza Peel catches meteors on Zorblax Prime';
+      else { // your gun: what it does, plus the one thing to know about this planet
+        const tip = {
+          scrap: '2: Grabby Vac for the junk', berry: 'jump up the mushrooms for berries' + (SAVE.boots ? ' (double jump!)' : ''),
+          crystal: SAVE.drill ? '3: Laser Drill for the crystals' : 'Penguin Pete sells a Laser Drill for the crystals',
+          ghost: 'ghosts can\'t be shot: press 2 and VACUUM them', pearl: 'stand in a glowing updraft to float up',
+          deliver: 'take a delivery gig at the GigHub kiosk (E)', meteor: SAVE.peel ? '4: Pizza Peel for the meteors' : 'Dave sells a Pizza Peel for the meteors',
+        }[act];
+        h = act === 'casino' ? (inCasino ? 'Walk up to any game and press E' : 'Every game is in the casino next to your ship') : this.gunHint() + (tip ? ' · ' + tip : '');
+      }
+      if (act === 'deliver' && Gigs.cur) h = 'Get the parcel to the glowing beam before time runs out! Jump pads launch you onto roofs';
+      h += ' · H: what to do here';
     }
     UI.hint(h);
   },

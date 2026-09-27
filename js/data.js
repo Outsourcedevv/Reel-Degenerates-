@@ -7,7 +7,12 @@ const PLANETS = [
   {
     id: 'scrap', name: 'Scrapyard-9', icon: 'gear', boss: 'gary', shop: 'scrap', activity: 'scrap', music: 'scrap',
     blurb: 'A moon made entirely of garbage. Smells like it too.',
-    how: 'Vacuum glowing junk (2) and sell it to Robo-Pawn. Gary\'s Stinky Crown is buried in the junk somewhere.',
+    steps: [
+      'Press 2 for your Grabby Vac, then hold left click on the glowing junk to suck it up.',
+      'Walk up to Robo-Pawn\'s shop, press E and sell it. Then buy a real gun (your Squirt Pistol is awful).',
+      'Zap critters and sell them too. The mean ones bite back!',
+      'Boss: Trashlord Gary. His Stinky Crown is buried in the junk. Take it to the boss altar.',
+    ],
     sky: ['#ff7b54', '#ffd6a5'], fog: ['#f4b58a', 55, 240], stars: 0.25, mood: 'day',
     sun: ['#fff0d8', 1.0], hemi: ['#ffe2c4', '#7a5a44', 0.62],
     bodies: [
@@ -21,7 +26,12 @@ const PLANETS = [
   {
     id: 'gloop', name: 'Planet Gloop', icon: 'berry', boss: 'blorb', shop: 'gloop', activity: 'berry', music: 'gloop',
     blurb: 'Low gravity slime jungle. Everything is sticky. Everything.',
-    how: 'Low gravity! Jump up the giant mushrooms for berries. Royal Jelly hides in the big ones on top.',
+    steps: [
+      'Low gravity! Jump up the giant mushrooms like stairs.',
+      'Walk into berries to grab them, or suck them in from below with the Grabby Vac (2).',
+      'Sell berries and critters to Chef Snorbo.',
+      'Boss: Queen Blorbina. Royal Jelly hides in the big berries on the tallest mushrooms.',
+    ],
     sky: ['#5b34e8', '#ff9ad5'], fog: ['#e49ae0', 55, 230], stars: 0.55, mood: 'day', // (a bright planet, even with a few stars out)
     sun: ['#fff0ff', 0.95], hemi: ['#ffd0f2', '#2f7a6a', 0.62],
     bodies: [
@@ -36,7 +46,12 @@ const PLANETS = [
   {
     id: 'luck', name: 'Luckstar', icon: 'token', boss: 'jerry', shop: 'luck', activity: 'casino', music: 'luck',
     blurb: 'The casino planet. Nobody has ever left with money. Nobody.',
-    how: 'Every game is in the Luckstar Casino, the big building next to your ship: slots, roulette, snail races, Glorp\'s coin flips and mystery crates. Jerry\'s Golden Token is in the crates.',
+    steps: [
+      'Every game is inside the Luckstar Casino, the big building next to your ship.',
+      'Walk up to a game and press E: slots, roulette, snail races, coin flips and mystery crates.',
+      'People drop chips everywhere. Vacuum them up (2) and sell them.',
+      'Boss: Jackpot Jerry. Win his Golden Token from a Mystery Crate, or buy one from Mr. Chips.',
+    ],
     sky: ['#070420', '#3d1570'], fog: ['#231048', 60, 250], stars: 1.0, mood: 'night',
     sun: ['#c9b3ff', 0.7], hemi: ['#8a6cff', '#2a1640', 0.7],
     bodies: [
@@ -50,20 +65,31 @@ const PLANETS = [
   {
     id: 'frost', name: 'Frostbyte', icon: 'gem', boss: 'snowdad', shop: 'frost', activity: 'crystal', music: 'frost',
     blurb: 'Ice planet. The ground is slippery and so are the prices.',
-    how: 'Buy a Laser Drill from Penguin Pete (3) and mine the big crystals. Something is frozen in there...',
-    sky: ['#79c2ff', '#f2fbff'], fog: ['#dff2ff', 50, 220], stars: 0.35, mood: 'day',
-    sun: ['#ffffff', 1.0], hemi: ['#e8f6ff', '#9ab8d0', 0.66],
-    bodies: [
-      { color: '#9fd8ff', r: 130, dir: [-0.4, 0.3, -1], ring: '#ffffff' },
+    steps: [
+      'Buy a Laser Drill from Penguin Pete. Press 3 and hold left click on a big crystal to mine it.',
+      'Vacuum the little snow piles (2) for extra stuff.',
+      'The ground is slippery. Heated Socks from Pete fix that.',
+      'Boss: The Abominable Snowdad. His Space Milk is frozen inside the big crystals.',
     ],
-    ground: ['#dcecf8', '#f6fbff', '#9fd3f0'], amp: 2.6,
+    // (snow is bright: softer light and a slightly blue-grey snow, so it isn't a white glare you can't see anything in)
+    sky: ['#5fa6e6', '#cfe4f5'], fog: ['#bcd3e8', 55, 240], stars: 0.35, mood: 'snow',
+    sun: ['#fff6ea', 0.66], hemi: ['#d6e8f7', '#6d8aa6', 0.46],
+    bodies: [
+      { color: '#8fcaf5', r: 130, dir: [-0.4, 0.3, -1], ring: '#e8f4ff' },
+    ],
+    ground: ['#bcd2e6', '#d6e5f2', '#86b6d8'], amp: 2.6,
     liquid: { color: '#4fb6e8', op: 0.86, name: 'freezing water' },
     grav: 20, fric: 1.7, pizza: 'Frozen Solid',
   },
   {
     id: 'spook', name: 'Spookulon', icon: 'ghost', boss: 'count', shop: 'spook', activity: 'ghost', music: 'spook',
     blurb: 'A haunted moon. The ghosts are mostly harmless. They do NOT pay rent.',
-    how: 'Ghosts drift around the graveyards. Hold your Grabby Vac (2) on one and keep it in your sights until it\'s sucked in. One of them is haunting Count Carbula\'s Dinner Bell.',
+    steps: [
+      '!Ghosts can\'t be shot. You have to VACUUM them.',
+      'Press 2 for your Grabby Vac, then hold left click on a ghost.',
+      'Keep the ghost in the middle of your screen until it\'s sucked in. It dodges and BOOs you, so stay on it.',
+      'Sell what the ghosts drop at the shop. Boss: Count Carbula. One of the ghosts is haunting his Dinner Bell.',
+    ],
     sky: ['#0a0616', '#3b2a5c'], fog: ['#1f1735', 35, 185], stars: 0.95, mood: 'night',
     sun: ['#c9b8ff', 0.72], hemi: ['#a898ff', '#1d2a22', 0.66],
     bodies: [
@@ -77,7 +103,12 @@ const PLANETS = [
   {
     id: 'cloud', name: 'Nimbus-9', icon: 'star', boss: 'stormy', shop: 'cloud', activity: 'pearl', music: 'cloud',
     blurb: 'A planet made of clouds. Solid-ish clouds. Please do not look down.',
-    how: 'Grab Sky Pearls off the floating islands. Stand in a glowing updraft to shoot up to the next island. Fall off and you drop through the clouds (you wash up at the ship).',
+    steps: [
+      'Grab Sky Pearls: walk into them, or suck them in with the Grabby Vac (2).',
+      'Stand in a glowing updraft to float up to the next island.',
+      'Fall off and you drop through the clouds (you wash up back at the ship).',
+      'Boss: Stormy McStormface. A Weather Balloon is tangled in the big pearls on the highest islands.',
+    ],
     sky: ['#3f9bff', '#e2f1ff'], fog: ['#d6eaff', 110, 420], stars: 0.1, mood: 'day',
     sun: ['#fffaf0', 0.95], hemi: ['#ffffff', '#9fb4d8', 0.55],
     bodies: [{ color: '#ffd9a8', r: 85, dir: [-0.55, 0.3, -1], ring: '#fff3e0' }],
@@ -88,7 +119,12 @@ const PLANETS = [
   {
     id: 'city', name: 'Gigopolis', icon: 'box', boss: 'chad', shop: 'city', activity: 'deliver', music: 'city',
     blurb: 'A planet-sized city where everyone has four side hustles and rent is due. Always.',
-    how: 'Take delivery gigs at the GigHub kiosk (E) and run the parcel to the glowing door before time runs out. Faster = bigger tip. Jump pads get you onto the roofs.',
+    steps: [
+      'Walk up to the GigHub kiosk and press E to take a delivery gig.',
+      'Run the parcel to the glowing beam before the timer runs out. Faster = bigger tip. Jump pads get you onto roofs.',
+      'Vacuum litter off the streets (2) for extra cash.',
+      'Boss: CEO Chad Grindset. One of your delivery customers has his Mandatory Meeting Invite.',
+    ],
     sky: ['#12072e', '#ff5fa2'], fog: ['#3a1850', 60, 260], stars: 0.55, mood: 'night',
     sun: ['#ffc6e6', 0.85], hemi: ['#c9a6ff', '#2a1a3a', 0.72],
     bodies: [{ color: '#3df0ff', r: 60, dir: [0.4, 0.38, -1], ring: '#ff3df0' }],
@@ -99,7 +135,12 @@ const PLANETS = [
   {
     id: 'zorb', name: 'Zorblax Prime', icon: 'crown', boss: 'zorblax', shop: 'zorb', activity: 'meteor', music: 'zorb',
     blurb: 'Home of Emperor Zorblax. He ordered the pizza. He is NOT happy. Also it rains pepperoni.',
-    how: 'Pepperoni meteors! Catch them with Dave\'s Pizza Peel (4) to reheat the pizza, then deliver it.',
+    steps: [
+      'Buy the Pizza Peel from Dave. Press 4, then stand inside a glowing circle to catch the pepperoni meteor.',
+      'Every catch warms up the pizza. At 15 it\'s warm enough to deliver.',
+      'Vacuum burnt crusts (2) for spare change.',
+      'Boss: Emperor Zorblax. Use the Reheated Pizza at the boss altar.',
+    ],
     sky: ['#1a0010', '#ff4a2a'], fog: ['#5e1520', 50, 230], stars: 0.7, mood: 'night',
     sun: ['#ffb08a', 0.9], hemi: ['#ff9a7a', '#301020', 0.6],
     bodies: [
@@ -141,6 +182,16 @@ const RES = {
   review:     { name: 'Framed 5-Star Review', v: 420, icon: 'star', desc: '"Driver was fast. Also a goober." A satisfied customer.' },
   leftover:   { name: 'Mystery Leftovers', v: 90, icon: 'box', desc: 'It\'s either pad thai or a sweater.' },
   scooterkey: { name: 'Golden Scooter Key', v: 3600, icon: 'token', desc: 'Starts a golden scooter somewhere. Where? Nobody knows.', rare: true },
+  // things lying around on the other planets that the Grabby Vac picks up
+  redchip:   { name: 'Red Chip', v: 25, icon: 'token', desc: 'Somebody dropped it running away from Mr. Chips.' },
+  bluechip:  { name: 'Blue Chip', v: 60, icon: 'token', desc: 'Found it under a slot machine. Along with some gum.' },
+  blackchip: { name: 'High Roller Chip', v: 180, icon: 'token', desc: 'Heavy. Smells like expensive cologne and bad decisions.' },
+  goldchip:  { name: 'Golden Chip', v: 1400, icon: 'star', desc: 'The house will want this back. The house can\'t have it.', rare: true },
+  snowball:  { name: 'Perfect Snowball', v: 30, icon: 'gem', desc: 'Perfectly round. Perfectly cold. Perfectly pointless.' },
+  fish:      { name: 'Frozen Space Fish', v: 480, icon: 'gem', desc: 'It\'s looking at you. It has been looking at you for 900 years.', rare: true },
+  sodacan:   { name: 'Crushed Soda Can', v: 40, icon: 'jar', desc: 'Grind Cola: now with 900% more grind.' },
+  receipt:   { name: 'Very Long Receipt', v: 25, icon: 'box', desc: 'For one (1) oat milk latte. It is four meters long.' },
+  crust:     { name: 'Burnt Crust', v: 70, icon: 'slice', desc: 'Re-entry is not kind to crusts.' },
   // Zorblax Prime is the last stop now, so its stuff is worth the most
   pep:     { name: 'Space Pepperoni', v: 240, icon: 'slice', desc: 'Still sizzling from re-entry.' },
   cheese:  { name: 'Cosmic Mozzarella', v: 440, icon: 'slice', desc: 'Stretchy. Suspiciously stretchy.' },
@@ -156,7 +207,16 @@ const LOOT = {
   pearl:    [['cotton', 55], ['pearl', 35], ['bottle', 8], ['rainbow', 1.5]],
   bigpearl: [['pearl', 55], ['bottle', 30], ['cotton', 5], ['rainbow', 8]],
   deliver:  [['leftover', 45], ['giftcard', 35], ['review', 18], ['scooterkey', 2]], // (a tip, now and then)
+  // what the Grabby Vac finds lying around on the planets that aren't all about vacuuming
+  chips:    [['redchip', 58], ['bluechip', 30], ['blackchip', 11], ['goldchip', 1]],
+  snow:     [['snowball', 62], ['ice', 34], ['fish', 4]],
+  litter:   [['receipt', 40], ['sodacan', 40], ['leftover', 16], ['giftcard', 4]],
+  crust:    [['crust', 82], ['pep', 18]],
 };
+// how many things each kind of pickup gives you (everything else: one)
+const LOOT_N = { crystal: 2, ghost: 2 };
+// what's in a pickup (rng: whose dice. The planet's own, when it's built, so the whole crew sees the same thing)
+const rollLoot = (kind, rng = Math.random) => Array.from({ length: LOOT_N[kind] || 1 }, () => U.weighted(LOOT[kind], rng));
 
 /* ---------- gear ---------- */
 /* Guns: every planet sells a different kind, and each one shoots differently (see LocalPlayer.fireZap).
@@ -166,18 +226,26 @@ const LOOT = {
    (pizza cutters that fly out and come back).
    dmg: per bolt / pellet / splash / beam tick / slice · cd: seconds between shots (beam: between ticks)
    mag: shots per battery (beam: ticks of charge; cutter: how many you can have out) · rl: reload seconds.
-   (Ammo is infinite, but batteries need swapping.) */
+   (Ammo is infinite, but batteries need swapping.) Every gun you buy is yours to keep: switch between them
+   at any shop, or press 1 again with your gun out. */
 const ZAPPERS = [
   { name: 'Pew Pew Zapper',   short: 'Zapper',       type: 'bolt',    dmg: 14, cd: 0.30, mag: 12, rl: 1.3,  color: '#ff4b3e' },
   { name: 'Scrap Scattergun', short: 'Scattergun',   type: 'spread',  dmg: 8,  cd: 0.62, mag: 6,  rl: 1.4,  color: '#ffb23e', pellets: 6, spread: 0.075 },
   { name: 'Goo Lobber',       short: 'Goo Lobber',   type: 'lob',     dmg: 58, cd: 0.6,  mag: 8,  rl: 1.35, color: '#ff5fb8', radius: 2.8 },
   { name: 'Jackpot Blaster',  short: 'Jackpot',      type: 'jackpot', dmg: 28, cd: 0.25, mag: 18, rl: 1.1,  color: '#ffd23f' },
   { name: 'Cryo Beam',        short: 'Cryo Beam',    type: 'beam',    dmg: 30, cd: 0.1,  mag: 50, rl: 1.5,  color: '#9fe3ff', range: 38 },
-  { name: 'Wisp Caller',      short: 'Wisp Caller',  type: 'homing',  dmg: 36, cd: 0.09, mag: 40, rl: 1.5,  color: '#9dffb0', speed: 30, turn: 7 },
+  // (the wisps home in, so they hit a lot less hard than the guns you have to aim: seek is how close to your
+  //  crosshair a target must be (1 = dead center), reach how far away they'll go after one)
+  { name: 'Wisp Caller',      short: 'Wisp Caller',  type: 'homing',  dmg: 26, cd: 0.12, mag: 28, rl: 1.8,  color: '#9dffb0', speed: 24, turn: 4.2, seek: 0.9, reach: 40 },
   { name: 'Storm Caller',     short: 'Storm Caller', type: 'chain',   dmg: 120, cd: 0.3, mag: 14, rl: 1.4,  color: '#b8d8ff', range: 60, jumps: 3, hop: 9, falloff: 0.6 },
   { name: 'Same-Day Launcher', short: 'Launcher',    type: 'rocket',  dmg: 280, cd: 0.5, mag: 6,  rl: 1.6,  color: '#ffb23e', radius: 3.6 },
   { name: 'Pizza Cutter',     short: 'Pizza Cutter', type: 'cutter',  dmg: 135, cd: 0.3, mag: 3,  rl: 0,    color: '#ff6a3d', out: 0.55 },
 ];
+// Every new hire gets one of these for free. It's gun -1: you always have it, it never drops when you
+// die, and no shop sells it. It squirts water. Slowly. (Company policy: no free REAL guns.)
+const STARTER_ZAP = { name: 'Squirt Pistol', short: 'Squirter', type: 'squirt', dmg: 5, cd: 0.5, mag: 6, rl: 2.2, color: '#5fc8ff' };
+// the gun at level i (-1, or anything that isn't a gun: the Squirt Pistol)
+const gunDef = (i) => ZAPPERS[i] || STARTER_ZAP;
 // (the Pizza Cutter used to be gun 5; saves from before the new planets get moved up, see migrateSave)
 const OLD_TO_NEW_ZAP = { 5: 8 };
 // the Jackpot Blaster: every shot is a slot pull (w: how often; blast: [radius, splash damage x the gun's dmg])
@@ -205,7 +273,7 @@ const SHOPS = {
     npc: 'Robo-Pawn 3000', color: '#ffb23e',
     greet: ['BEEP. I BUY GARBAGE. YOU ARE... ALSO GARBAGE? JOKE. HA. HA.', 'WELCOME, CUSTOMER. PLEASE DO NOT LICK THE MERCHANDISE.', 'I HAVE BEEN ON THIS MOON FOR 400 YEARS. BUY SOMETHING.'],
     items: [
-      { kind: 'zap', lvl: 0, price: 200, desc: 'Your first gun! Infinite batteries. Tiny battery pack.' },
+      { kind: 'zap', lvl: 0, price: 200, desc: 'Your first REAL gun. Way better than that squirt pistol. Infinite batteries, tiny battery pack.' },
       { kind: 'zap', lvl: 1, price: 350, desc: 'A shotgun built out of scrap. Six pellets a shot. Get close, then point it at the problem.' },
       { kind: 'vac', lvl: 1, price: 300, name: 'Turbo Vac', desc: 'Sucks twice as fast and reaches further.' },
       { kind: 'cargo', lvl: 1, price: 250, name: 'Bigger Backpack', desc: 'Holds 20 things. Mostly garbage.' },
@@ -254,7 +322,7 @@ const SHOPS = {
     npc: 'Sheets McGhost', color: '#b9a4ff',
     greet: ['Welcome to the Boo-tique! Everything here is 100% haunted, 0% refundable.', 'I\'d shake your hand, but, you know. Ghost.', 'The graveyard\'s lovely this time of year. Every year. Forever.'],
     items: [
-      { kind: 'zap', lvl: 5, price: 11000, desc: 'Spits out a stream of angry little ghost wisps that chase whatever is nearest your crosshair. Aim roughly. They do the rest.' },
+      { kind: 'zap', lvl: 5, price: 11000, desc: 'Spits out little ghost wisps that drift after whatever is nearest your crosshair. They\'re not very bright, so point them roughly at something.' },
       { kind: 'springs', price: 6500, name: 'Spring-Heeled Jacks', desc: 'Boots with actual bedsprings bolted on. You jump WAY higher. (Makes Bounce Boots bouncier too.)' },
       { kind: 'nades', price: 180, name: 'Goo Grenades x5', desc: 'Still sticky. Now slightly haunted.' },
       { kind: 'cargo', lvl: 4, price: 9000, name: 'Coffin Backpack', desc: 'Holds 90 things. Roomy. Pre-owned. Do not ask by whom.' },
@@ -291,7 +359,7 @@ const SHOPS = {
       { kind: 'peel', price: 1200, name: 'Pizza Peel', desc: 'A giant pizza paddle. Catches meteors. Company property.' },
       { kind: 'zap', lvl: 8, price: 26000, desc: 'Throws spinning pizza cutters that slice through everything in a line, then come back. Also company property.' },
       { kind: 'armor', price: 5000, name: 'Company Armor', desc: 'Take 30% less damage. Deducted from your paycheck.' },
-      { kind: 'life', price: 3000, name: 'Extra Life Insurance', desc: 'Die and keep your zapper, tools and grenades. Only your backpack spills. Premiums may apply.' },
+      { kind: 'life', price: 3000, name: 'Extra Life Insurance', desc: 'Die and keep your guns, tools and grenades. Only your backpack spills. Premiums may apply.' },
       { kind: 'nades', price: 180, name: 'Goo Grenades x5', desc: 'Expense report pending.' },
       { kind: 'hat', id: 'halo', price: 2500 },
     ],
@@ -464,11 +532,12 @@ const STYLE_MAX = 5; // stacked style bonuses never pay more than this in total
    src/chance/pity: it drops from that kind of pickup, guaranteed by the pity-th try.
    heat: the final one is earned by catching that many meteors (reheating the pizza). */
 /* ---------- difficulty: picked when you make a world ---------- */
-// dmg: how hard enemies hit you · crit: how much health critters have
+// dmg: how hard enemies hit you · crit: how much health critters have · revive: in a boss fight with friends,
+// how many seconds until you get back up by yourself (as long as a friend is still standing)
 const DIFFS = {
-  easy: { name: 'Easy', dmg: 1, crit: 1, desc: 'Enemies hit normally. Die and you just get back up.' },
-  hard: { name: 'Hard', dmg: 2, crit: 1.75, desc: 'Everything hits twice as hard and critters are much tougher.' },
-  hardcore: { name: 'Hardcore', dmg: 3.5, crit: 2.5, perma: true, desc: 'Everything hits WAY harder, critters are tanks, one life in boss fights, and if you die, you die for good. The world is deleted.' },
+  easy: { name: 'Easy', dmg: 1, crit: 1, revive: 10, desc: 'Enemies hit normally. Die on a planet and you just get back up. Boss fights: one life, but friends can pick you up (or you get up after 10s).' },
+  hard: { name: 'Hard', dmg: 2, crit: 1.75, revive: 15, desc: 'Everything hits twice as hard and critters are much tougher. Boss fights: one life, friends can pick you up (or you get up after 15s).' },
+  hardcore: { name: 'Hardcore', dmg: 3.5, crit: 2.5, revive: 20, perma: true, desc: 'Everything hits WAY harder, critters are tanks, and if you die, you die for good. The world is deleted. With friends in a boss fight you get back up after 20s, if one of them is still standing.' },
 };
 
 const SUMMONS = {

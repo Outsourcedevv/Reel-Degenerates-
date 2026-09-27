@@ -1,3 +1,42 @@
+## New in 1.9: a fairer start, bigger planets and a proper ship
+
+- **A (terrible) gun to start with.** Everyone starts with the Squirt Pistol, a leaky water pistol that barely
+  tickles a critter. It's enough to get going. Buy a real gun as soon as you can.
+- **Keep every gun you buy.** Switch between them by pressing `1` again, or with **Equip** at any shop. No more
+  "you already have something better".
+- **A moment to get your bearings.** Critters leave you alone for a bit when you join a game (20 seconds), land on
+  a planet (15) or respawn (10). A **SAFE** timer shows how long you've got.
+- **Bigger planets.** Every island is 1.5 times as wide (Gigopolis too), with more of everything on it.
+- **What you vacuum looks like what you get.** Every pickup is the actual thing you'll get, floating over a glowing
+  ring (a bolt looks like a bolt), and ghosts carry what they'll drop in their hands.
+- **The Grabby Vac is useful everywhere.** New things to suck up: dropped chips on Luckstar, snow piles on
+  Frostbyte, litter on Gigopolis and burnt crusts on Zorblax Prime.
+- **Shops work from any side.** Walk up to a shop stall from any direction and press `E`.
+- **Planet Gloop's mushrooms fixed.** You bump into the stems, can walk under the caps and land on top of them,
+  and there's no more invisible wall between you and the berries.
+- **Critters stand out.** New colors, and an outline that keeps them from blending into the ground on Planet
+  Gloop, Frostbyte and every other planet.
+- **Frostbyte is easier on the eyes.** Softer light and blue-grey snow instead of a white glare.
+- **Clearer tips.** Every planet has a short numbered guide to what to do there. It shows up when you arrive, and
+  `H` shows it again. On Spookulon it starts with the one thing you need to know: ghosts can't be shot, you have
+  to vacuum them.
+- **The Wisp Caller is toned down.** Less damage, a slower fire rate, a smaller battery, and lazier wisps that only
+  go after things near your crosshair.
+- **Boss fights: one life.** No more jumping straight back in. Playing solo, if you go down, the boss wins. With
+  friends, a friend can pick you up, or you get back up by yourself after 10 seconds (15 on Hard, 20 on Hardcore)
+  as long as one of them is still standing. If the whole crew is down, the boss wins.
+- **Shockwave rings are easier to see.** They're glowing walls with a bright top edge and a red band on the floor,
+  and **JUMP!** comes up sooner.
+- **Flying the ship:**
+  - The pilot always flies from the cockpit (the outside camera is gone for the pilot).
+  - The ship turns smoothly. The mouse moves an aim circle and the ship swings round to it at its own pace, with
+    no more instant flicks.
+  - A glass floor in front of the pilot's seat, to line up landings.
+  - A new passenger cabin: big windows beside every row, padded seats, ceiling lights, a **Next stop** screen with
+    the distance and time to go, and stacks of pizzas strapped down beside the seats. There's no wall in front, so
+    passengers can watch the pilot fly. The outside of the ship has windows now too.
+- Old saves still work: every gun you already bought is yours to switch between.
+
 ## New in 1.8: dress up your astronaut
 
 - **Customize your astronaut.** A new **Customize** button on the title screen (and in the pause menu) opens a

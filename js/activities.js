@@ -4,10 +4,13 @@
    drilling crystals, catching pepperoni meteors.
    Pickups are shared between players.
    ========================================================= */
-const RESPAWN = { scrap: 30, berry: 35, bigberry: 45, crystal: 45, ghost: 40, pearl: 35, bigpearl: 50 };
+const RESPAWN = { scrap: 30, berry: 35, bigberry: 45, crystal: 45, ghost: 40, pearl: 35, bigpearl: 50, chips: 35, snow: 40, litter: 35, crust: 40 };
 const WALK_IN = new Set(['berry', 'bigberry', 'pearl', 'bigpearl']); // (you grab these just by walking into them)
 // how each kind of pickup looks and sounds when you get it: [burst color, burst size, sound]
-const PICKUP_FX = { crystal: ['#9fe3ff', 16, 'shatter'], scrap: ['#7dff8a', 8, 'slurp'], ghost: ['#b9ffc8', 14, 'ghost'], pearl: ['#ffffff', 8, 'pickup'], bigpearl: ['#ffe9a8', 14, 'pickup'] };
+const PICKUP_FX = {
+  crystal: ['#9fe3ff', 16, 'shatter'], scrap: ['#7dff8a', 8, 'slurp'], ghost: ['#b9ffc8', 14, 'ghost'], pearl: ['#ffffff', 8, 'pickup'], bigpearl: ['#ffe9a8', 14, 'pickup'],
+  chips: ['#ffd23f', 8, 'coin'], snow: ['#ffffff', 12, 'slurp'], litter: ['#3df0ff', 8, 'slurp'], crust: ['#ff9a3d', 8, 'slurp'],
+};
 
 const Activities = {
   respawn: new Map(),   // host only: "planet:id" -> time it comes back
@@ -34,21 +37,23 @@ const Activities = {
         if (G.time < t) continue;
         this.respawn.delete(key);
         const [pi, id] = key.split(':').map(Number);
+        // it comes back with something new in it (and looks like it)
+        const w = G.worlds[pi], n = w && w.nodes[id], l = n && LOOT[n.kind] ? rollLoot(n.kind) : null;
+        if (l) this.setLoot(pi, id, l);
         this.setNode(pi, id, false);
-        Net.toAll({ t: 'node', p: pi, id, on: 1 });
+        Net.toAll({ t: 'node', p: pi, id, on: 1, l });
       }
     }
     Drops.update(dt);
     Gigs.update(dt);
   },
 
+  // you get exactly what it looked like (see PlanetWorld.addNode)
   collect(n) {
     const cap = CARGO[SAVE.cargoLvl];
-    const table = LOOT[n.kind];
-    const count = n.kind === 'crystal' || n.kind === 'ghost' ? 2 : 1;
     const got = [];
-    for (let i = 0; i < count && SAVE.cargo.length < cap; i++) {
-      const id = U.weighted(table);
+    for (const id of n.loot && n.loot.length ? n.loot : rollLoot(n.kind)) {
+      if (SAVE.cargo.length >= cap) break;
       SAVE.cargo.push(id);
       got.push(id);
       SAVE.stats.collected++;
@@ -99,6 +104,22 @@ const Activities = {
     const set = new Set(list || []);
     for (const n of w.nodes) this.setNode(pi, n.id, set.has(n.id));
   },
+  // what's in each pickup (things that came back since the planet was built have new stuff in them)
+  lootList(pi) {
+    const w = G.worlds[pi];
+    return w ? w.nodes.map((n) => n.loot || null) : [];
+  },
+  applyLoot(pi, list) {
+    const w = G.worlds[pi];
+    if (!w || !Array.isArray(list)) return;
+    for (const n of w.nodes) { const l = list[n.id]; if (Array.isArray(l) && String(l) !== String(n.loot)) this.setLoot(pi, n.id, l); }
+  },
+  setLoot(pi, id, loot) {
+    const w = G.worlds[pi], n = w && w.nodes[id];
+    if (!n || !LOOT[n.kind]) return;
+    n.loot = loot.filter((e) => RES[e]).slice(0, 3);
+    if (n.mesh.userData.holder) fillLootNode(n.mesh, n.loot);
+  },
 
   // host handlers
   onTake(m) {
@@ -109,7 +130,7 @@ const Activities = {
     this.respawn.set(`${m.p}:${m.id}`, G.time + RESPAWN[n.kind]);
     Net.toAll({ t: 'node', p: m.p, id: m.id, on: 0 });
   },
-  onNode(m) { this.setNode(m.p, m.id, !m.on); },
+  onNode(m) { if (Array.isArray(m.l)) this.setLoot(m.p, m.id, m.l); this.setNode(m.p, m.id, !m.on); },
 
   cargoValue() { return SAVE.cargo.reduce((s, id) => s + cargoRes(id).v, 0); },
   // sell every one of one kind of thing
@@ -414,7 +435,7 @@ const Summons = {
   goal() {
     if (!G.started || G.mode !== 'planet') return { text: '' };
     const b = PLANETS[G.planet].boss, s = SUMMONS[b], boss = BOSSES[b];
-    if (SAVE.zap < 0) return { text: `Buy your first gun from ${SHOPS[PLANETS[G.planet].shop].npc}` + (G.planet === 0 ? ' (vacuum junk and sell it)' : '') };
+    if (!SAVE.guns.length) return { text: `Buy a real gun from ${SHOPS[PLANETS[G.planet].shop].npc}` + (G.planet === 0 ? ' (vacuum junk with 2 and sell it)' : '') };
     if (this.has(b)) return { text: `The crew has ${s.name}. Use it at the boss altar`, ready: true };
     if (G.progress.includes(b)) {
       const next = PLANETS[G.planet + 1];
@@ -441,14 +462,15 @@ const Drops = {
   graveDrop() {
     const items = [], insured = SAVE.lifeIns;
     if (!insured) {
-      if (SAVE.zap >= 0) items.push('gear:zap:' + SAVE.zap);
+      // every gun you own (the one in your hand first, so it's the one you pick back up); never the Squirt Pistol
+      for (const l of [SAVE.zap, ...SAVE.guns.filter((x) => x !== SAVE.zap)]) if (SAVE.guns.includes(l)) items.push('gear:zap:' + l);
       if (SAVE.drill) items.push('gear:drill');
       if (SAVE.peel) items.push('gear:peel');
       if (SAVE.nades > 0) items.push('gear:nades:' + SAVE.nades);
     }
     items.push(...SAVE.cargo);
     if (!items.length) return null;
-    if (!insured) { SAVE.zap = -1; SAVE.drill = false; SAVE.peel = false; SAVE.nades = 0; }
+    if (!insured) { SAVE.zap = -1; SAVE.guns = []; SAVE.drill = false; SAVE.peel = false; SAVE.nades = 0; }
     SAVE.cargo = [];
     const p = G.player.pos;
     const g = { gid: Date.now().toString(36) + Math.random().toString(36).slice(2, 7), p: G.planet, x: U.r2(p.x), y: U.r2(p.y), z: U.r2(p.z), items };
@@ -465,7 +487,11 @@ const Drops = {
   giveGear(e) {
     const [, k, n] = e.split(':');
     let name, pic;
-    if (k === 'zap' && ZAPPERS[+n]) { SAVE.zap = Math.max(SAVE.zap, +n); name = ZAPPERS[+n].name; pic = 'zap:' + n; }
+    if (k === 'zap' && ZAPPERS[+n]) {
+      if (!SAVE.guns.includes(+n)) SAVE.guns.push(+n);
+      if (SAVE.zap === -1) SAVE.zap = +n; // (back in your hand: the first one listed is the one you had out)
+      name = ZAPPERS[+n].name; pic = 'zap:' + n;
+    }
     else if (k === 'drill') { SAVE.drill = true; name = 'Laser Drill'; pic = 'drill'; }
     else if (k === 'peel') { SAVE.peel = true; name = 'Pizza Peel'; pic = 'peel'; }
     else if (k === 'nades') { SAVE.nades += +n || 0; name = `Goo Grenades x${n}`; pic = 'nade'; }

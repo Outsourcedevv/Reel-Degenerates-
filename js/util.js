@@ -141,15 +141,16 @@ function roundBox(w, h, d, r, seg = 2) {
 
 // the smooth material sets: the usual toon shading plus a rim light, and two effects the boss
 // fight turns up and down for everything in the set at once (uFlash: flash white when hit,
-// uGlow: glow in the attack's color while winding up)
+// uGlow: glow in the attack's color while winding up). 'crit' is the critters: their rim is an edge
+// that stands out from the planet (a dark outline on bright ones, see setAtmosphere; uRimE: how far in it starts)
 const HI_U = {};
-for (const s of ['boss', 'fx']) {
-  HI_U[s] = { uFlash: { value: 0 }, uGlow: { value: 0 }, uGlowCol: { value: new THREE.Color('#ffffff') }, uRim: { value: new THREE.Color('#ffffff') }, uRimK: { value: s === 'boss' ? 0.42 : 0.3 } };
+for (const s of ['boss', 'fx', 'crit']) {
+  HI_U[s] = { uFlash: { value: 0 }, uGlow: { value: 0 }, uGlowCol: { value: new THREE.Color('#ffffff') }, uRim: { value: new THREE.Color('#ffffff') }, uRimK: { value: s === 'boss' ? 0.42 : s === 'fx' ? 0.3 : 0 }, uRimE: { value: s === 'crit' ? 0.56 : 0.52 } };
 }
-const HI_FRAG_PARS = 'uniform float uFlash, uGlow, uRimK;\nuniform vec3 uGlowCol, uRim;\n';
+const HI_FRAG_PARS = 'uniform float uFlash, uGlow, uRimK, uRimE;\nuniform vec3 uGlowCol, uRim;\n';
 const HI_FRAG_MAIN = `
   float rimD = 1.0 - clamp(dot(normal, normalize(vViewPosition)), 0.0, 1.0);
-  outgoingLight += uRim * uRimK * smoothstep(0.52, 0.8, rimD);
+  outgoingLight += uRim * uRimK * smoothstep(uRimE, uRimE + 0.28, rimD);
   outgoingLight += uGlowCol * uGlow * (0.25 + 0.75 * rimD);
   outgoingLight = mix(outgoingLight, vec3(1.0), uFlash);
   gl_FragColor = vec4( outgoingLight, diffuseColor.a );`;
@@ -404,8 +405,9 @@ function mergeLocal(root, keep = []) {
 
 /* ---------- save data (per player name, in this browser) ---------- */
 const SAVE_DEFAULT = {
-  v: 2, // save format: 2 = with the three newer planets (see migrateSave)
-  bucks: 100, zap: -1, cargoLvl: 0, vacLvl: 0, // zap -1 = no gun yet
+  v: 3, // save format: 2 = with the three newer planets, 3 = you keep every gun you buy (see migrateSave)
+  bucks: 100, zap: -1, cargoLvl: 0, vacLvl: 0, // zap: the gun in your hand (-1 = the free Squirt Pistol)
+  guns: [], // every gun you've bought (switch between them at a shop, or press 1 again)
   drill: false, boots: false, socks: false, armor: false, lifeIns: false, charm: false, peel: false,
   skates: false, dash: false, stomp: false, springs: false, cape: false, jetpack: false, // movement gear
   nades: 0, cargo: [], hats: ['none'], hat: 'none',
@@ -431,18 +433,33 @@ function loadSaveKey(key) {
 }
 // Saves from before Spookulon, Nimbus-9 and Gigopolis: Zorblax Prime used to be planet 4 (it's 7 now) and
 // the Pizza Cutter used to be gun 5 (it's 8 now). Anyone who had already made it to Zorblax Prime keeps it open.
+// Saves from before you could keep your guns only knew your best one; the shop showed every gun below it
+// as owned ("yours is better"), so those are all yours now.
 function migrateSave(d) {
-  if (!d || d.v >= 2) return d;
-  const OLD_ZORB = 4, NEW_ZORB = PLANETS.findIndex((p) => p.id === 'zorb');
-  if (d.planet === OLD_ZORB) d.planet = NEW_ZORB;
-  if (OLD_TO_NEW_ZAP[d.zap] != null) d.zap = OLD_TO_NEW_ZAP[d.zap];
-  d.graves = (d.graves || []).map((g) => Object.assign({}, g, {
-    p: g.p === OLD_ZORB ? NEW_ZORB : g.p,
-    items: (g.items || []).map((e) => { const m = /^gear:zap:(\d+)$/.exec(e); return m && OLD_TO_NEW_ZAP[+m[1]] != null ? 'gear:zap:' + OLD_TO_NEW_ZAP[+m[1]] : e; }),
-  }));
-  if ((d.beaten || []).includes('snowdad')) { d.zorbOpen = true; d.newPlanets = true; }
-  d.v = 2;
+  if (!d) return d;
+  if (!(d.v >= 2)) {
+    const OLD_ZORB = 4, NEW_ZORB = PLANETS.findIndex((p) => p.id === 'zorb');
+    if (d.planet === OLD_ZORB) d.planet = NEW_ZORB;
+    if (OLD_TO_NEW_ZAP[d.zap] != null) d.zap = OLD_TO_NEW_ZAP[d.zap];
+    d.graves = (d.graves || []).map((g) => Object.assign({}, g, {
+      p: g.p === OLD_ZORB ? NEW_ZORB : g.p,
+      items: (g.items || []).map((e) => { const m = /^gear:zap:(\d+)$/.exec(e); return m && OLD_TO_NEW_ZAP[+m[1]] != null ? 'gear:zap:' + OLD_TO_NEW_ZAP[+m[1]] : e; }),
+    }));
+    if ((d.beaten || []).includes('snowdad')) { d.zorbOpen = true; d.newPlanets = true; }
+    d.v = 2;
+  }
+  if (d.v < 3) {
+    if (!Array.isArray(d.guns)) d.guns = d.zap >= 0 ? Array.from({ length: d.zap + 1 }, (_, i) => i) : [];
+    d.v = 3;
+  }
   return d;
+}
+// switch to a gun you own (-1: the Squirt Pistol)
+function equipGun(i) {
+  if (i !== -1 && !SAVE.guns.includes(i)) return false;
+  SAVE.zap = i;
+  persist();
+  return true;
 }
 const nameKey = (name) => name.toLowerCase().replace(/\s+/g, '_');
 // the old one-save-per-name format (still used if you join a host running an old version)

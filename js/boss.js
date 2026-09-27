@@ -105,10 +105,17 @@ const TELE = {
   tex(kind) {
     if (this._t[kind]) return this._t[kind];
     let t;
-    if (kind === 'wall') { // shockwaves: a bright rim on top, fading down
+    if (kind === 'wall') { // lasers and sweeping beams: a bright rim on top, fading down
       t = canvasTex(4, 64, (c, w, h) => {
         const g = c.createLinearGradient(0, 0, 0, h);
         g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.1, 'rgba(255,255,255,1)'); g.addColorStop(0.16, 'rgba(255,255,255,0.6)'); g.addColorStop(1, 'rgba(255,255,255,0.14)');
+        c.fillStyle = g; c.fillRect(0, 0, w, h);
+      });
+    } else if (kind === 'hot') { // shockwaves: white-hot on top, through yellow and orange to red at the floor
+      t = canvasTex(4, 64, (c, w, h) => {
+        const g = c.createLinearGradient(0, 0, 0, h);
+        g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.1, 'rgba(255,250,190,1)'); g.addColorStop(0.3, 'rgba(255,190,50,0.97)');
+        g.addColorStop(0.65, 'rgba(255,80,25,0.88)'); g.addColorStop(1, 'rgba(210,10,10,0.7)');
         c.fillStyle = g; c.fillRect(0, 0, w, h);
       });
     } else if (kind === 'chev') { // arrows marching the way something's about to go
@@ -168,6 +175,26 @@ function stripGeo(w, len, reps) {
   g.translate(0, 0, len / 2);
   if (reps) { const uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setY(i, uv.getY(i) * reps); }
   return g;
+}
+// a flat band on the floor around (0, 0) from radius r0 out to r1, moved every frame with setBand
+// (the red strip under a shockwave as it spreads)
+function bandGeo(seg = 96) {
+  const g = new THREE.BufferGeometry(), idx = [];
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array((seg + 1) * 6), 3));
+  for (let i = 0; i < seg; i++) { const a = i * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
+  g.setIndex(idx);
+  g.userData.seg = seg;
+  return g;
+}
+function setBand(g, r0, r1) {
+  const p = g.attributes.position.array, seg = g.userData.seg;
+  for (let i = 0; i <= seg; i++) {
+    const a = (i / seg) * TAU, c = Math.cos(a), s = Math.sin(a);
+    p[i * 6] = c * r0; p[i * 6 + 1] = 0; p[i * 6 + 2] = s * r0;
+    p[i * 6 + 3] = c * r1; p[i * 6 + 4] = 0; p[i * 6 + 5] = s * r1;
+  }
+  g.attributes.position.needsUpdate = true;
+  g.computeBoundingSphere();
 }
 // take something off the scene and free what it doesn't share
 function dropObj(o) {
@@ -381,7 +408,7 @@ class BossFight {
         this.onTaunt(text); Net.toAll({ t: 'btaunt', text });
       }
       this.hostMinions(dt);
-      if (this.checkAllOut()) this.end(false);
+      if (this.checkAllOut(dt)) this.end(false);
     } else if (this.st === 'dying') {
       this.pos.y = U.damp(this.pos.y, DECK_Y - 0.6, 2, dt);
       if (this.t - ai.dieT > 3.4) this.end(true);
@@ -1017,11 +1044,20 @@ class BossFight {
       Net.toAll({ t: 'bs', p: [this.pos.x, this.pos.y, this.pos.z], r: this.rot, hp: 0, ph: this.phase, st: 'dying', c: 0, cd: 0, hd: 0, mm: [] });
     }
   }
-  checkAllOut() {
+  // the boss wins once nobody in the fight is left standing (for a moment: friends' news arrives a bit late).
+  // (Hardcore: everyone down at once wipes the whole world instead, see Game.checkWipe)
+  checkAllOut(dt) {
+    if (Game.permaDead) return false;
     const present = this.ids.filter((id) => id === Net.myId || G.remotes.has(id));
     if (!present.length) return true;
-    return present.every((id) => this.out.has(id));
+    const up = present.some((id) => (id === Net.myId ? !this.me().dead : this.standing(G.remotes.get(id))) && !this.out.has(id));
+    this.downT = up ? 0 : (this.downT || 0) + (dt || 0);
+    return this.downT > 1.5;
   }
+  standing(r) { return !!r && r.s.m === 'boss' && !r.s.d && !r.s.g; }
+  // the friends in this fight with me (still connected), and whether any of them is on their feet
+  crewmates() { return [...G.remotes.values()].filter((r) => this.inFight(r.id)); }
+  friendStanding() { return this.crewmates().some((r) => this.standing(r)); }
   end(won) {
     if (this.over) return;
     Net.toAll({ t: 'bend', won });
@@ -1403,28 +1439,60 @@ class BossFight {
       if (dead) { this.removeHazard(p); this.projs.splice(i, 1); }
     }
   }
+  // shockwaves (jump them!): a white-hot glowing wall spreading out across the floor, a bright line along
+  // its top, a red band on the floor under it and sparks running along it, so you see one coming from
+  // anywhere, on any floor. One about to go off pulses in the middle first.
   updRings(dt, me) {
-    const col = RING_COL[this.id];
     for (let i = this.rings.length - 1; i >= 0; i--) {
       const r = this.rings[i], s = r.s;
       r.t += dt;
-      if (r.t < 0) continue;
-      const rad = r.t * s.s;
-      if (!r.mesh) {
-        r.mesh = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, s.h, 96, 1, true), new THREE.MeshBasicMaterial({ color: col, map: TELE.tex('wall'), transparent: true, opacity: 0.95, side: THREE.DoubleSide, depthWrite: false }));
-        r.mesh.position.set(s.c[0], DECK_Y + s.h / 2, s.c[1]);
-        G.scene.add(r.mesh);
+      if (!r.g) r.g = this.ringFx(s);
+      const u = r.g.userData;
+      if (r.t < 0) {
+        u.wall.visible = u.top.visible = false;
+        setBand(u.band.geometry, 0.3, 1.1 + 0.35 * Math.abs(Math.sin(this.t * 10)));
+        u.band.material.opacity = 0.45 + 0.35 * Math.abs(Math.sin(this.t * 10));
+        continue;
+      }
+      if (!r.boomed) {
+        r.boomed = true;
+        u.wall.visible = u.top.visible = true;
         FX.ring(new V3(s.c[0], DECK_Y + 0.1, s.c[1]), '#ffffff', 3);
         Sound.play('boom');
       }
-      r.mesh.scale.set(Math.max(0.1, rad), 1, Math.max(0.1, rad));
-      r.mesh.material.opacity = 0.95 * (1 - rad / s.m);
+      const rad = r.t * s.s, R = Math.max(0.1, rad);
+      u.wall.scale.set(R, 1, R); u.top.scale.set(R, 1, R);
+      setBand(u.band.geometry, Math.max(0, rad - 0.75), rad + 0.25);
+      const fade = U.clamp((s.m - rad) / 8, 0, 1) * (rad > ARENA_R + 1 ? 0.55 : 1), pulse = 0.88 + 0.12 * Math.sin(this.t * 26);
+      u.wall.material.opacity = 0.95 * fade * pulse;
+      u.top.material.opacity = fade;
+      u.band.material.opacity = 0.62 * fade;
+      if (rad < ARENA_R + 0.5) for (let k = 0; k < 4; k++) {
+        const a = Math.random() * TAU;
+        this.glow.puff(new V3(s.c[0] + Math.cos(a) * rad, DECK_Y + 0.1 + Math.random() * s.h, s.c[1] + Math.sin(a) * rad), shotColor(k % 2 ? 'meteor' : 'lemon'), 1.1, 0.3);
+      }
       if (!r.hit && this.canHurt()) {
         const d = Math.hypot(me.pos.x - s.c[0], me.pos.z - s.c[1]);
         if (Math.abs(d - rad) < 0.55 && me.pos.y < DECK_Y + s.h) { r.hit = true; this.hurt(s.d, 'ring', false, new V3(s.c[0], DECK_Y, s.c[1])); }
       }
       if (rad > s.m) { this.removeHazard(r); this.rings.splice(i, 1); }
     }
+  }
+  ringFx(s) {
+    const g = new THREE.Group();
+    g.position.set(s.c[0], DECK_Y, s.c[1]);
+    const glowMat = (o) => new THREE.MeshBasicMaterial(Object.assign({ color: '#ffffff', transparent: true, side: THREE.DoubleSide, depthWrite: false, fog: false }, o));
+    const wall = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, s.h, 96, 1, true), glowMat({ map: TELE.tex('hot'), opacity: 0.95 }));
+    wall.position.y = s.h / 2;
+    const top = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 0.08, 96, 1, true), glowMat({ opacity: 1 }));
+    top.position.y = s.h - 0.03;
+    const band = new THREE.Mesh(bandGeo(), teleMat(DANGER, 0.6));
+    band.position.y = 0.035;
+    for (const m of [wall, top, band]) m.renderOrder = 4;
+    g.add(wall, top, band);
+    g.userData = { wall, top, band };
+    G.scene.add(g);
+    return g;
   }
   updSlams(dt, me) {
     const col = RING_COL[this.id];
@@ -1755,7 +1823,7 @@ class BossFight {
       for (const r of this.rings) {
         if (r.t < 0 || r.hit) continue;
         const d = Math.hypot(me.pos.x - r.s.c[0], me.pos.z - r.s.c[1]), gap = d - r.t * r.s.s;
-        if (gap > -0.3 && gap / r.s.s < 0.45) cue = 'JUMP!';
+        if (gap > -0.3 && gap / r.s.s < 0.6) cue = 'JUMP!';
       }
       for (const sw of this.sweeps) {
         const s = sw.s;
@@ -1883,11 +1951,13 @@ class BossFight {
     if (kind === 'coin' && U.chance(0.5)) { addBucks(1); UI.toast('+$1 (at least you got paid)', 'gold', 1.2); }
     if (kind === 'pizza' && U.chance(0.3)) UI.toast('It IS pretty cold, honestly.', '', 1.5);
     if (p.hp <= 0) {
-      if (p.canGoDown()) p.goDown(this.def.name, () => this.die());
+      // one life. With friends in the fight you go down: they can pick you up, or you get back up by
+      // yourself after a while (see LocalPlayer.updateDown) as long as one of them is still standing.
+      if (this.crewmates().length) p.goDown(this.def.name, null);
       else this.die();
     }
   }
-  // no lives: you get back up as many times as it takes (except on Hardcore, where dying is final)
+  // alone in the fight and out of health: that's it, the boss wins (Hardcore: for good)
   die() {
     const p = this.me();
     p.dead = true; p.deadT = 0; p.hp = 0;
@@ -1895,25 +1965,13 @@ class BossFight {
     persist();
     Sound.play('death');
     if (DIFFS[G.diff].perma) { Game.permaDeath(this.def.name); return; }
-    const n = this.def.name;
-    // (nothing drops in a boss fight: you'd never get your gun back in here)
-    UI.death(true, 'YOU DIED', U.pick(LINES.death), `<b>${U.esc(U.pick([`${n} is doing a little victory dance. Rude.`, `${n} thinks you're done. Prove it wrong.`, 'Get back in there. Respawns are free. Dignity is not.']))}</b><small>You keep your stuff in boss fights.</small>`);
-    p.waitForRespawn(() => this.respawnMe());
-  }
-  // back into the fight (after holding left click on the death screen)
-  respawnMe() {
-    const p = this.me();
-    p.dead = false; p.hp = 100; p.inv = 2;
-    p.refill();
-    const sp = U.pick(G.arena.spawns);
-    p.teleport(sp, Math.atan2(-(this.rpos.x - sp.x), -(this.rpos.z - sp.z)));
-    FX.burst(p.pos.clone().setY(p.pos.y + 1), '#7dff8a', 12, 4);
+    UI.bigTitle('YOU DIED', `${this.def.name} wins this one. You only get one life in a boss fight.`, '#ff6b6b', 2.6);
   }
   updateLocal(dt) {
     const p = this.me();
     UI.php(p.hp);
-    const rows = [{ name: G.name + ' (you)', hp: p.hp, out: p.ghost }];
-    for (const r of G.remotes.values()) if (this.inFight(r.id)) rows.push({ name: r.name, hp: r.s.hp, out: !!r.s.g });
+    const rows = [{ name: G.name + ' (you)', hp: p.hp, out: p.ghost, down: p.down }];
+    for (const r of G.remotes.values()) if (this.inFight(r.id)) rows.push({ name: r.name, hp: r.s.hp, out: !!r.s.g, down: !!r.s.dn });
     UI.team(rows);
   }
 

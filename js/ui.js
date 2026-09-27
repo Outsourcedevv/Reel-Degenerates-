@@ -10,7 +10,7 @@ const UI = {
   init() {
     ['hud', 'bucks', 'pizza', 'goal', 'ammo', 'cargo', 'nades', 'roomcode', 'planetname', 'crosshair', 'prompt', 'hint', 'actbar',
       'bossbar', 'phud', 'feed', 'chat', 'chatinput', 'toasts', 'subtitle', 'bigtitle', 'pickups', 'hurt', 'plist',
-      'spectate', 'deathscreen', 'panel', 'panel-inner', 'flyhud', 'gig', 'fuel', 'bosscall', 'threats'].forEach((id) => (this.el[id] = U.$(id)));
+      'spectate', 'deathscreen', 'panel', 'panel-inner', 'flyhud', 'gig', 'fuel', 'bosscall', 'threats', 'safe', 'guide'].forEach((id) => (this.el[id] = U.$(id)));
     this.el['panel-inner'].addEventListener('click', (e) => {
       const b = e.target.closest('[data-act]');
       if (!b || b.disabled) return;
@@ -59,13 +59,13 @@ const UI = {
     this.bucks(0);
     const p = G.player;
     // the hotbar shows the tools you actually have (your zapper level, your vac)
-    const pics = { zap: 'zap:' + Math.max(0, SAVE.zap), vac: 'vac:' + (SAVE.vacLvl > 0 ? 1 : 0), drill: 'drill', peel: 'peel' };
+    const pics = { zap: 'zap:' + SAVE.zap, vac: 'vac:' + (SAVE.vacLvl > 0 ? 1 : 0), drill: 'drill', peel: 'peel' };
     document.querySelectorAll('#hotbar .slot').forEach((s) => {
       const t = s.dataset.tool;
       s.classList.toggle('on', p && p.tool === t);
       s.classList.toggle('hidden', !hasTool(t));
       this.setHtml(s.querySelector('.ic'), Thumbs.img(pics[t], '', 'box'));
-      if (t === 'zap') this.setHtml(s.querySelector('small'), SAVE.zap >= 0 ? ZAPPERS[SAVE.zap].short : 'Gun');
+      if (t === 'zap') this.setHtml(s.querySelector('small'), gunDef(SAVE.zap).short);
     });
   },
 
@@ -134,14 +134,37 @@ const UI = {
   },
 
   hint(text) { if (this.el.hint.textContent !== text) this.el.hint.textContent = text; },
+  // what to do on this planet, step by step (shown when you land; H shows or hides it; dur: hide after that long).
+  // A step starting with ! is the one thing you really need to know.
+  guideOn: false,
+  guide(on, dur) {
+    const el = this.el.guide;
+    clearTimeout(this._guideT);
+    this.guideOn = !!on;
+    el.classList.toggle('hidden', !on);
+    if (!on) return;
+    const pl = PLANETS[G.planet];
+    const step = (s) => (s[0] === '!' ? `<li class="warn">${U.esc(s.slice(1))}</li>` : `<li>${U.esc(s)}</li>`);
+    this.setHtml(el, `<h4>What to do on ${U.esc(pl.name)}</h4><ol>${pl.steps.map(step).join('')}</ol><small><kbd>H</kbd> hide or show this</small>`);
+    if (dur) this._guideT = setTimeout(() => this.guide(false), dur * 1000);
+  },
+  // how much longer critters leave you alone (0: they don't, and it's hidden)
+  safe(t) {
+    const el = this.el.safe;
+    const s = t > 0 ? Math.ceil(t) : 0;
+    if (el._s === s) return;
+    el._s = s;
+    el.classList.toggle('hidden', !s);
+    if (s) el.innerHTML = `${icon('shield')}<span><b>SAFE ${s}s</b> critters won't bite yet</span>`;
+  },
 
   // battery counter, bottom right, while the zapper is out
   ammo(p) {
     const a = this.el.ammo;
-    const show = p.tool === 'zap' && SAVE.zap >= 0 && !p.dead && !p.ghost && (G.mode === 'planet' || G.mode === 'boss');
+    const show = p.tool === 'zap' && !p.dead && !p.ghost && (G.mode === 'planet' || G.mode === 'boss');
     a.classList.toggle('hidden', !show);
     if (!show) return;
-    const z = ZAPPERS[SAVE.zap], mag = z.mag, rel = p.reloadT > 0;
+    const z = gunDef(SAVE.zap), mag = z.mag, rel = p.reloadT > 0;
     const key = SAVE.zap + (rel ? 'r' + Math.round((1 - p.reloadT / p.reloadDur) * 40) : p.ammo + '/' + mag);
     if (this._ammoKey === key) return;
     this._ammoKey = key;
@@ -151,7 +174,7 @@ const UI = {
     // the beam shows how much charge is left; everything else counts shots (or cutters in hand)
     a.querySelector('.n').innerHTML = z.type === 'beam' ? `${rel ? 0 : Math.round((p.ammo / mag) * 100)}<small>%</small>` : `${rel ? 0 : p.ammo}<small>/${mag}</small>`;
     a.querySelector('.fill').style.width = ((rel ? 1 - p.reloadT / p.reloadDur : p.ammo / mag) * 100).toFixed(1) + '%';
-    const what = { spread: 'SHELLS', lob: 'GOO', beam: 'FREEZE CHARGE', cutter: 'CUTTERS · THEY COME BACK', homing: 'WISPS', chain: 'CHARGE', rocket: 'PARCELS' }[z.type] || 'BATTERY';
+    const what = { squirt: 'WATER', spread: 'SHELLS', lob: 'GOO', beam: 'FREEZE CHARGE', cutter: 'CUTTERS · THEY COME BACK', homing: 'WISPS', chain: 'CHARGE', rocket: 'PARCELS' }[z.type] || 'BATTERY';
     a.querySelector('.lbl').textContent = rel ? p.reloadMsg + '...' : low ? 'PRESS R TO RELOAD' : z.type === 'cutter' ? what : what + ' · ∞ SPARES';
   },
 
@@ -333,7 +356,7 @@ const UI = {
     if (!f._heart) { f._heart = true; f.querySelector('.lives').innerHTML = icon('heart', 'full'); }
   },
   team(rows) {
-    const html = rows.map((r) => `<div>${icon(r.out ? 'ghost' : r.hp <= 0 ? 'skull' : 'person')} ${U.esc(r.name)} ${r.out ? '(out)' : Math.max(0, Math.round(r.hp)) + 'hp'}</div>`).join('');
+    const html = rows.map((r) => `<div class="${r.down ? 'down' : ''}">${icon(r.out ? 'ghost' : r.hp <= 0 ? 'skull' : 'person')} ${U.esc(r.name)} ${r.out ? '(out)' : r.down ? 'DOWN' : Math.max(0, Math.round(r.hp)) + 'hp'}</div>`).join('');
     const t = this.el.phud.querySelector('.team');
     if (t.innerHTML !== html) t.innerHTML = html;
   },
@@ -356,28 +379,29 @@ const UI = {
         <p><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move · <kbd>Shift</kbd> sprint</p>
         <p><kbd>Space</kbd> jump (double jump with Bounce Boots)</p>
         <p>Gear from the shops: <kbd>Q</kbd> dash (Getaway Sneakers) · <kbd>C</kbd> in the air: ground pound (Yeti Stompers) · hold <kbd>Space</kbd> in the air: glide (Glider Cape) or fly (Jet Pack)</p>
-        <p><kbd>E</kbd> talk / use · <kbd>I</kbd> backpack &amp; crew · <kbd>Esc</kbd> pause</p></div>
+        <p><kbd>E</kbd> talk / use · <kbd>I</kbd> backpack &amp; crew · <kbd>H</kbd> what to do on this planet · <kbd>Esc</kbd> pause</p></div>
       <div><h4>Tools</h4>
-        <p><kbd>1</kbd> Gun: click to shoot, <kbd>R</kbd> reload (buy your first one at Robo-Pawn). Every planet sells a different kind: a shotgun, a goo lobber, a lucky blaster, a freeze beam, pizza cutters...</p>
-        <p><kbd>2</kbd> Grabby Vac: hold click on glowing junk (and on ghosts: keep them in your sights)</p>
+        <p><kbd>1</kbd> Gun: click to shoot, <kbd>R</kbd> reload. You start with a Squirt Pistol (it's terrible). Every planet sells a different real gun, and you keep every one you buy: press <kbd>1</kbd> again to switch.</p>
+        <p><kbd>2</kbd> Grabby Vac: hold click on things to suck them up (junk, berries, chips, snow piles, pearls, litter, crusts). Ghosts too: it's the ONLY way to catch one, and you have to keep it in the middle of your screen.</p>
         <p><kbd>3</kbd> Laser Drill: hold click on crystals (buy on Frostbyte)</p>
         <p><kbd>4</kbd> Pizza Peel: catch pepperoni meteors (buy on Zorblax Prime)</p>
         <p><kbd>Right-click</kbd> throw Goo Grenade (boss fights)</p></div>
       <div><h4>The loop</h4>
-        <p>1. Collect the planet's stuff (and zap critters!) and sell it at the shop. Money is tight on the first two planets.</p>
-        <p>2. Buy gear. Guns aren't free: buy your first one!</p>
+        <p>1. Collect the planet's stuff (and zap critters!) and sell it at the shop. Money is tight on the first two planets. Press <kbd>H</kbd> to see what to do on the planet you're on.</p>
+        <p>2. Buy gear, starting with a real gun.</p>
         <p>3. Find the boss's summoning item (the whole crew works on it together), then use it at the boss altar.</p>
         <p>4. Win, then everyone gets in the ship and flies to the next planet. (It won't start until you beat Trashlord Gary.)</p></div>
       <div><h4>Critters</h4>
-        <p>They come in sizes from Tiny to GIANT. Bigger ones are rarer, tougher and worth a lot more. Golden ones are worth 8x.</p>
+        <p>They come in sizes from Tiny to GIANT. Bigger ones are rarer, tougher and worth a lot more. Golden ones are worth 8x. When you arrive somewhere they leave you alone for a bit (watch the SAFE timer).</p>
         <p>Style kills pay extra (up to 2x each, they stack up to 5x):in the air, after a 360, with your last shot, long shots, double kills, revenge and more.</p></div>
       <div><h4>The ship</h4>
         <p><kbd>E</kbd> at the ship to get in. First one in flies, everyone else rides in the back. It only takes off once the whole crew is in.</p>
-        <p>Pilot: mouse steers, <kbd>Space</kbd> lift off / up, <kbd>C</kbd> down, <kbd>W</kbd>/<kbd>S</kbd> throttle, <kbd>Shift</kbd> turbo, <kbd>M</kbd> star map</p>
-        <p><kbd>F</kbd> swap seats · <kbd>V</kbd> camera · <kbd>E</kbd> get out (on the pad)</p></div>
+        <p>Pilot (flies from the cockpit): move the mouse to aim and the ship swings round to the circle (it's big, it takes a moment), <kbd>Space</kbd> lift off / up, <kbd>C</kbd> down, <kbd>W</kbd>/<kbd>S</kbd> throttle, <kbd>Shift</kbd> turbo, <kbd>M</kbd> star map. Look down through the glass floor to line up a landing.</p>
+        <p><kbd>F</kbd> swap seats · <kbd>E</kbd> get out (on the pad) · riding in the back: <kbd>V</kbd> look at the ship from outside</p></div>
       <div><h4>Friends &amp; stuff</h4>
         <p>Host a game and send friends the 5-letter code.</p>
         <p>If a friend goes down, walk over and hold <kbd>E</kbd> to pick them up.</p>
+        <p>Boss fights: one life. Go down with friends around and they can pick you up, or you get back up by yourself after 10s (Hard: 15s, Hardcore: 20s) as long as one of them is still standing. If everybody's down, the boss wins.</p>
         <p>Die on a planet and everything but your Grabby Vac drops where you fell. Hold left click to respawn, then follow the beam of light to get it back (only you can).</p>
         <p><kbd>I</kbd>: drop items for friends, or send them money. The host can turn on friendly fire in the pause menu.</p>
         <p>Gambling unlocks on planet 3, Luckstar. <kbd>T</kbd> chat · <kbd>Tab</kbd> crew list · <kbd>M</kbd> music</p></div>
