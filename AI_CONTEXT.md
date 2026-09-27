@@ -83,9 +83,19 @@ Known documented systems include:
 - Browser and Electron desktop versions.
 - Desktop update system and packaged Windows/macOS/Linux builds.
 
-`package.json` currently reports version **1.11.0**. Note that visible version text elsewhere in the project may need checking for synchronization before a release.
+`package.json` currently reports version **1.12.0**. Note that visible version text elsewhere in the project may need checking for synchronization before a release.
 
 ## Current Task
+
+### v1.12: hotbar, keybinds, ragdolls, boss deaths, water, Esc (2026-09-27)
+
+- **Hotbar** (`js/loadout.js`): 5 slots (`SAVE.slots`, save format v4; old saves get one built by `Loadout.fromOld`). Items are `'gun:<lvl>'`, `'vac'`, `'drill'`, `'peel'`. A slot key takes out that slot only (`LocalPlayer.selectSlot`); each gun's held model is built once and cached (`gunVM`), each keeps its own ammo (`setGun`). Shops have a Loadout tab (`Shop.loadoutHtml`). Lost gear keeps its slot; graves store `slots` and `Loadout.restore` puts it back.
+- **Keybinds** (`js/controls.js`): every action is in `KEY_ACTIONS`; game code asks `Input.down('jump')` / `Input.hit('reload')`, never raw key codes (except Esc and Enter). UI text can say `{jump}` or `({tool:vac})` and `keyText`/`keyKbd` fill in the real keys.
+- **Critter ragdolls** (`Critters.makeBody` etc. in `js/critters.js`): kills tumble and lie there until the killer presses use or vacuums them; saved in `SAVE.bodies`. The host sends the fling with `cdie`; `cpick` removes a friend's. Mini bosses reuse it and pop.
+- **Boss deaths** (`BossFight.deathAnim`/`pop`, `BOSS_DIE`), fewer boss lines (`BOSS_TALK`, `BossFight.say`).
+- **Water** (`Liquid` in `js/world.js`): shader ripples + shore foam from a per-planet depth texture; ponds are at most `LAKE_D` deep and `blocked()` no longer walls off water; the player wades (`LocalPlayer.wade`) and gets washed back past `WADE.deep`.
+- Critter numbers/spawn rate per difficulty (`DIFFS.crits`/`spawn`), planets further apart (`SYSTEM_SPREAD`), Nimbus-9 outer islands spread (`NIMBUS_SPREAD`).
+- **Third person was removed** (V and the Camera setting); only the emote camera swing remains. Esc closes menus and resumes from pause; if the browser refuses the pointer lock, `Game.lockFailed` resumes without it until the next click.
 
 ### Gun model redesign integration (2026-09-27)
 
@@ -93,7 +103,7 @@ Known documented systems include:
 - Models are procedural and synchronous for offline/file:// and Electron compatibility. The exported concept GLBs are not runtime dependencies. No damage, prices, progression, saves, networking protocol, or casino mechanics changed.
 - Design space (+X forward) is converted to the game's -Z axis and existing grip anchor. Support-hand offsets come from each model's `userData.handSpec`. Static geometry is merged by shared material; the cutter wheel stays independently animated.
 - Open `tests/gun-models.html` for attachment, scale, geometry, batching, per-instance wheel, and shared flash texture disposal checks.
-- Headless Edge checks passed: game boot, all ten weapons firing/ammo/reload, thumbnail rendering, local third-person and remote model construction; desktop bundle includes the new builder. A live multiplayer session and packaged Electron launch have not been tested.
+- Headless Edge checks passed: game boot, all ten weapons firing/ammo/reload, thumbnail rendering, local third-person (since removed in v1.12) and remote model construction; desktop bundle includes the new builder. A live multiplayer session and packaged Electron launch have not been tested.
 - No release/version bump is included. Existing flying pizza-cutter projectile geometry is unchanged.
 
 Set up a reliable **Claude ↔ GPT/Codex handoff system** so development can continue with either AI without losing important project context.
