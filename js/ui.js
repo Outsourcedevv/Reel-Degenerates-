@@ -214,6 +214,7 @@ const UI = {
     this.el.panel.classList.remove('hidden');
     G.panel = true;
     if (document.pointerLockElement) document.exitPointerLock();
+    if (typeof Game !== 'undefined' && Game.soft) { Game.setSoft(false); G.locked = false; } // (closing it grabs the mouse again)
     if (typeof Game !== 'undefined') Game.updatePause(); // the panel goes on top of the pause menu, never behind it
     Sound.play('open');
   },
@@ -398,7 +399,7 @@ const UI = {
         <p>{forward}{left}{back}{right} move · {sprint} sprint</p>
         <p>{jump} jump (double jump with Bounce Boots)</p>
         <p>Gear from the shops: {dash} dash (Getaway Sneakers) · {stomp} in the air: ground pound (Yeti Stompers) · hold {jump} in the air: glide (Glider Cape) or fly (Jet Pack)</p>
-        <p>{use} talk / use / pick things up · {bag} backpack &amp; crew · {guide} what to do on this planet · <kbd>Esc</kbd> pause</p>
+        <p>{use} talk / use / pick things up · {bag} backpack &amp; crew · {guide} what to do on this planet · <kbd>Esc</kbd> pause (again to carry on) and closes menus</p>
         <p>{emote} emote (a different one each press) · change any key on the Keybinds screen (pause menu)</p></div>
       <div><h4>Your hotbar</h4>
         <p>{slot1} to {slot5} take out what's in each slot (or flip through them with the mouse wheel). Put anything you own in any slot, or take it off, on any shop's <b>Loadout</b> tab: carry three guns and the Grabby Vac if you like.</p>

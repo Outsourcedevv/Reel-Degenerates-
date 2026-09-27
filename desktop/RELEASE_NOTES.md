@@ -5,6 +5,9 @@
   in your locker: swap things in, take anything off, or swap two slots on any shop's new **Loadout** tab. New guns
   go straight onto your hotbar if there's room. Die and your gear's slots wait for it; pick your stuff up and it all
   goes back where it was.
+- **Esc does what you'd expect.** It closes shops and menus and drops you straight back into the game, and on the
+  pause menu it's the same as Resume. (If the browser won't grab the mouse right away, you're back in anyway: your
+  next click grabs it.)
 - **Keybinds.** Change any key (or mouse button) on the new Keybinds screen, in the pause menu or on the title
   screen. Every hint in the game shows your keys.
 - **Zapped critters go flying.** They tumble, bounce and land in a heap with their legs in the air (seeing stars).

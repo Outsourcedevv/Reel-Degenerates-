@@ -111,7 +111,7 @@ defaults:
 | `I` | backpack (drop things) and crew (send money) |
 | `G` | emote (a different one each press) |
 | `H` | what to do on this planet (a short guide) |
-| `T` / `Tab` / `M` / `Esc` | chat / crew list / music / pause |
+| `T` / `Tab` / `M` / `Esc` | chat / crew list / music / pause (`Esc` again to carry on) · `Esc` also closes shops and menus |
 | `E` at the ship | get in (and get out again while it's parked on the pad) |
 | Mouse · `W`/`S` · `Shift` | in the ship: aim (the ship swings round to the circle) · throttle · boost (pilot) |
 | `Space` / `C` | in the ship: lift off, go up / go down (pilot) |

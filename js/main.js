@@ -60,13 +60,15 @@ const Game = {
       G.player.layoutVM();
     });
     document.addEventListener('pointerlockchange', () => {
-      G.locked = document.pointerLockElement === G.renderer.domElement;
-      if (G.locked) this.everLocked = true;
+      if (document.pointerLockElement === G.renderer.domElement) { this.everLocked = true; this.wantLock = false; this.setSoft(false); G.locked = true; }
+      else { this.unlockedAt = performance.now(); if (!this.soft) G.locked = false; }
       this.updatePause();
     });
-    // some browsers/embeds don't allow mouse lock: fall back to free-mouse look
-    document.addEventListener('pointerlockerror', () => this.enableFallback());
-    G.renderer.domElement.addEventListener('click', () => { if (G.started && !G.locked && !G.panel) this.lock(); });
+    // the browser wouldn't grab the mouse (some never do: fall back to free-mouse look)
+    document.addEventListener('pointerlockerror', () => this.lockFailed());
+    G.renderer.domElement.addEventListener('click', () => { if (G.started && !G.panel && (!G.locked || this.soft)) this.lock(); });
+    // playing without the mouse grabbed (see lockFailed): the next click grabs it
+    addEventListener('mousedown', () => { if (this.soft && G.started && !G.panel) this.lock(); });
     addEventListener('beforeunload', () => { Casino.cashOut(); persist(); Net.leave(); });
     U.$('loading').classList.add('hidden');
     U.$('menu').classList.remove('hidden');
@@ -348,10 +350,35 @@ const Game = {
   lock() {
     if (!G.started || G.panel) return;
     if (this.fallback) { G.locked = true; this.updatePause(); return; }
+    this.wantLock = true;
     try {
       const p = G.renderer.domElement.requestPointerLock();
-      if (p && p.catch) p.catch(() => this.enableFallback());
-    } catch (e) { this.enableFallback(); }
+      if (p && p.catch) p.catch(() => this.lockFailed());
+    } catch (e) { this.lockFailed(); }
+  },
+  // the browser wouldn't grab the mouse. Right after you press Esc it won't without a click (Esc doesn't
+  // count), so pressing Esc again to get back in would leave you stuck on the pause menu: instead you're
+  // straight back in the game, looking around with the mouse as it is, and your next click grabs it.
+  // (A browser that never grabs the mouse at all: free-mouse look for good, see enableFallback.)
+  lockFailed() {
+    if (!this.wantLock || document.pointerLockElement) return;
+    this.wantLock = false;
+    if (!this.everLocked) { this.enableFallback(); return; }
+    if (!G.started || G.panel) return;
+    this.setSoft(true);
+    G.locked = true;
+    this.updatePause();
+  },
+  setSoft(on) {
+    this.soft = !!on;
+    document.body.classList.toggle('softlock', this.soft);
+  },
+  // Esc while playing without the mouse grabbed (free-mouse look, or waiting for a click): pause
+  pause() {
+    this.setSoft(false);
+    G.locked = false;
+    this.unlockedAt = performance.now();
+    this.updatePause();
   },
   enableFallback() {
     if (!G.started || G.panel || this.everLocked) return; // lock works here, it was just a cooldown
@@ -380,6 +407,14 @@ const Game = {
     U.$('p-cust').onclick = () => Custom.open(true);
     U.$('p-leave').onclick = () => { persist(); Net.leave(); location.reload(); };
     U.$('s-ff').onclick = () => { Sound.play('click'); this.setFF(!G.ff); };
+    // Esc on the pause menu: back to the game (the Esc that just paused it doesn't count)
+    addEventListener('keydown', (e) => {
+      if (e.code !== 'Escape' || Keys.capturing || G.chatting || U.$('pause').classList.contains('hidden')) return;
+      if (performance.now() - (this.unlockedAt || 0) < 350) return;
+      e.preventDefault();
+      Input.pressed.Escape = false; // (so this press doesn't pause it again, see keys)
+      this.lock();
+    });
   },
   updatePause() {
     const show = G.started && !G.locked && !G.panel && !G.chatting && !document.getElementById('ending');
@@ -803,7 +838,7 @@ const Game = {
     if (!G.started) return;
     if (G.panel && (Input.tap('Escape') || Input.hit('use') || (Flight.mapOpen && Input.hit('map'))) && !document.getElementById('ending')) { Input.pressed = {}; UI.closePanel(); return; }
     if (G.panel || G.chatting) return;
-    if (this.fallback && G.locked && Input.tap('Escape')) { G.locked = false; this.updatePause(); return; }
+    if ((this.fallback || this.soft) && G.locked && Input.tap('Escape')) { this.pause(); return; }
     if (Input.hit('chat') || (Input.tap('Enter') && !Keys.bound('Enter'))) { this.openChat(); return; }
     if (Input.hit('bag') && G.mode === 'planet' && !G.player.dead) { UI.openBag(); return; }
     if (Input.hit('guide') && G.mode === 'planet') UI.guide(!UI.guideOn);

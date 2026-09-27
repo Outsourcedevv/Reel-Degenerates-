@@ -958,3 +958,8 @@ img.thumb.inline { display: inline-block; width: 32px; height: 32px; vertical-al
 .row.mhelp { align-self: flex-start; }
 #pause .row2 .btn { flex: 1; white-space: nowrap; padding-left: 8px; padding-right: 8px; justify-content: center; }
 #pause .row2.tight .btn { flex: none; }
+
+/* ---------- v1.12: Esc to resume ---------- */
+/* back in the game before the mouse is grabbed again (see Game.lockFailed): no cursor in the way */
+body.softlock, body.softlock * { cursor: none !important; }
+#p-resume .kesc { margin-left: 10px; font-size: 11px; letter-spacing: 1px; opacity: .6; border: 1px solid currentColor; border-radius: 4px; padding: 1px 6px; }
