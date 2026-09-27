@@ -152,6 +152,9 @@ const Sound = {
       case 'rocket': N(0.3, { freq: 1200, slide: 300, vol: 0.2 }); T(140, 0.2, { type: 'sawtooth', slide: 70, vol: 0.08, filter: 800 }); break;
       case 'explode': N(0.8, { freq: 900, slide: 60, vol: 0.42 }); T(65, 0.5, { slide: 28, vol: 0.3 }); break;
       case 'ghost': T(700, 0.5, { type: 'sine', slide: 250, vol: 0.1, vib: 7 }); T(1050, 0.35, { type: 'sine', slide: 500, vol: 0.05, vib: 9, delay: 0.08 }); N(0.3, { ftype: 'bandpass', freq: 2000, vol: 0.06 }); break;
+      // critters: one spots you (growl), throws or spits something at you
+      case 'growl': T(95, 0.42, { type: 'sawtooth', slide: 70, vol: 0.11, filter: 520, vib: 22 }); N(0.3, { ftype: 'lowpass', freq: 420, vol: 0.07 }); break;
+      case 'spit': N(0.12, { ftype: 'bandpass', freq: 1900, slide: 600, vol: 0.1 }); T(520, 0.1, { slide: 220, vol: 0.05 }); break;
       case 'boo': T(220, 0.5, { type: 'sawtooth', slide: 150, vol: 0.14, filter: 1200, vib: 6 }); T(330, 0.45, { type: 'triangle', slide: 200, vol: 0.08, vib: 5 }); break;
       case 'ding': T(1319, 0.3, { type: 'sine', vol: 0.12 }); T(1760, 0.4, { type: 'sine', vol: 0.1, delay: 0.12 }); break;
       case 'laugh': [0, 1, 2, 3].forEach((i) => T(260 - i * 18, 0.13, { type: 'sawtooth', vol: 0.1, filter: 1400, vib: 12, delay: i * 0.16 })); break;

@@ -1,4 +1,11 @@
-## New in 1.10: fun things to do on the quiet planets
+## New in 1.10: fun on the quiet planets, and meaner critters
+
+- **Meaner critters.** Mean critters now hunt you. They spot you from further away (a red **!** and a growl), run
+  you down, and crouch before they pounce, with a red mark on the ground showing where they'll land: step aside!
+  The rarer mean kind on every planet throws or spits things at you from a distance (cans, goo, coins, snowballs,
+  glowing gunk, sparks, fireballs), and the goo and snowballs slow you down. Feral E-Scooters charge from way off.
+  Shoot a mean one and it comes for you, and its friends nearby join in. Each critter bites on its own timer, so a
+  pack is dangerous. They still leave you alone for a bit when you arrive, unless you shoot one first.
 
 - **Planet Gloop: the Ring Run.** Step onto the glowing pad near your ship and press `E`. Go through every glowing
   ring as fast as you can: out across the goo, up a mushroom staircase, a leap off the top, and back to the pad. A

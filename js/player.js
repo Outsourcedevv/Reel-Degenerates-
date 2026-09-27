@@ -88,7 +88,7 @@ class LocalPlayer {
     this.dashT = 0; this.dashCd = 0; this.dashDir = new V3(); this.airDash = false; this.stomping = false;
     this.fuel = JET.fuel; this.spaceHold = 0; this.jetting = false; this.gliding = false;
     this.launchT = 0; this.padCd = 0; this.inVent = false; this.booT = 0; this.aimLost = 0;
-    this.slowK = 1; this.ext = new V3(); // (set by boss fights every frame: goo slows you, wind drags you)
+    this.slowK = 1; this.slowT = 0; this.ext = new V3(); // (set by boss fights every frame: goo slows you, wind drags you)
     this.safeT = 0; // critters leave you alone while this counts down (see GRACE)
     this.kickP = 0; this.kickY = 0; this.recoilRot = 0; this.recoilRoll = 0; // (see kick)
     this.vm = new THREE.Group();
@@ -243,6 +243,9 @@ class LocalPlayer {
       if (Input.keys.KeyD) mx += 1;
     }
     const sprint = Input.keys.ShiftLeft || Input.keys.ShiftRight;
+    // (goo or a snowball a critter threw at you slows you down for a bit; boss fights set slowK themselves)
+    if (this.slowT > 0) this.slowT -= dt;
+    if (G.mode === 'planet') this.slowK = this.slowT > 0 ? 0.55 : 1;
     const speed = (sprint ? 8.6 * (SAVE.skates ? 1.35 : 1) : 5.6) * (this.ghost ? 1.3 : 1) * this.slowK; // (Duct-Tape Skates: faster sprinting)
     const sy = Math.sin(this.yaw), cy = Math.cos(this.yaw);
     let tx = (-sy * mz + cy * mx), tz = (-cy * mz - sy * mx);

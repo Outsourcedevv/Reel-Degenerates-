@@ -404,7 +404,8 @@ const UI = {
         <p>4. Win, then everyone gets in the ship and flies to the next planet. (It won't start until you beat Trashlord Gary.)</p>
         <p>Just for fun: Planet Gloop has a Ring Run, Frostbyte a Snowman Shooting Gallery and Spookulon a hedge maze. Win medals for cash (each pays once). <kbd>H</kbd> on the planet says where.</p></div>
       <div><h4>Critters</h4>
-        <p>They come in sizes from Tiny to GIANT. Bigger ones are rarer, tougher and worth a lot more. Golden ones are worth 8x. When you arrive somewhere they leave you alone for a bit (watch the SAFE timer).</p>
+        <p>They come in sizes from Tiny to GIANT. Bigger ones are rarer, tougher and worth a lot more. Golden ones are worth 8x. When you arrive somewhere they leave you alone for a bit (watch the SAFE timer), unless you shoot one first.</p>
+        <p>Mean ones hunt you: a red ! means one spotted you. When one crouches over a red mark, it's about to pounce: step aside. Some throw things (goo and snowballs slow you down). Shoot one and its friends join in.</p>
         <p>Style kills pay extra (up to 2x each, they stack up to 5x):in the air, after a 360, with your last shot, long shots, double kills, revenge and more.</p></div>
       <div><h4>The ship</h4>
         <p><kbd>E</kbd> at the ship to get in. First one in flies, everyone else rides in the back. It only takes off once the whole crew is in.</p>

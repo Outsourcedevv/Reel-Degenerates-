@@ -601,6 +601,7 @@ const Game = {
     N.on('met', (m) => { if (!Net.isHost) Meteors.spawn(m); });
     N.on('crit', (m) => Critters.onSnap(m));
     N.on('cdie', (m) => { if (!Net.isHost) Critters.onDie(m); });
+    N.on('cspit', (m) => { if (!Net.isHost) Critters.onSpit(m); });
     N.on('bstart', (m) => {
       if (!G.started || G.mode !== 'planet') return;
       if (m.ids.includes(Net.myId)) this.beginBoss(m.b, m.seed, m.ids);

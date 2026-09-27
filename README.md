@@ -209,9 +209,13 @@ Movement gear you can pick up along the way (you keep it when you die):
 
 ## Critters
 
-Shy critters run away, mean ones bite. Zap them and sell them at the shop. When you join a game, land on a planet or
-respawn, they leave you alone for a bit: watch the **SAFE** timer. Their colors and an outline keep them from
-blending into the ground. They come in six sizes, from Tiny to GIANT: the bigger they are, the more they're worth,
+Shy critters run away. Mean ones hunt you: a red **!** and a growl mean one has spotted you. They run you down,
+and when one crouches over a red mark on the ground it's about to pounce (step aside!). The rarer mean kind on every
+planet throws or spits things from a distance (Goo Leech goo and Frost Pup snowballs slow you down), and Feral
+E-Scooters charge from way off. Shoot a mean one and it comes for you, and its friends nearby join in. Each one bites
+on its own timer, so a pack is dangerous. Zap them and sell them at the shop. When you join a game, land on a planet
+or respawn, they leave you alone for a bit (watch the **SAFE** timer), unless you shoot one first. Their colors and
+an outline keep them from blending into the ground. They come in six sizes, from Tiny to GIANT: the bigger they are, the more they're worth,
 but the rarer they are (and the harder they hit). Golden ones are worth a fortune.
 
 Kill them in style for a bonus. Each bonus is at most 2x, and they stack up to 5x in total:
