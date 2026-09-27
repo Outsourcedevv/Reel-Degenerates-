@@ -37,32 +37,9 @@ const lookCode = (l) => LOOK_PARTS.map((p) => ((l && l[p.k]) | 0).toString(36)).
 // one of a look's colors ('body', 'skin', 'visor', 'hairCol')
 const lookColor = (code, k) => { const p = LOOK_PARTS.find((q) => q.k === k); return p.colors[lookFrom(code)[k]]; };
 
-// the torso: a rounded barrel (a lathe of this outline, squashed front to back)
+// the people you meet have a rounded barrel of a body (a lathe of this outline, squashed front to back)
 const TORSO = [[0, 0], [0.17, 0], [0.262, 0.028], [0.316, 0.095], [0.338, 0.21], [0.343, 0.37], [0.336, 0.51], [0.312, 0.615], [0.265, 0.695], [0.195, 0.752], [0.1, 0.782], [0, 0.79]];
-const TORSO_Y = 0.83, TORSO_Z = 0.68;
-function torsoR(y) {
-  for (let i = 1; i < TORSO.length; i++) {
-    const [r0, y0] = TORSO[i - 1], [r1, y1] = TORSO[i];
-    if (y <= y1) return y1 > y0 ? r0 + ((r1 - r0) * (y - y0)) / (y1 - y0) : r1;
-  }
-  return 0;
-}
-// a piece of the torso's skin from height y0 to y1 (above its bottom), standing out by `out`: stripes,
-// panels. phi0 / len: only part of the way around (angle 0 is straight ahead)
-function torsoPart(y0, y1, out = 0.012, phi0 = 0, len = PI * 2) {
-  const pts = [new THREE.Vector2(Math.max(0.001, torsoR(y0) - 0.01), y0)];
-  const rows = Math.max(1, Math.round((y1 - y0) / 0.06));
-  for (let i = 0; i <= rows; i++) { const y = y0 + ((y1 - y0) * i) / rows; pts.push(new THREE.Vector2(Math.max(0.001, torsoR(y) + out), y)); }
-  pts.push(new THREE.Vector2(Math.max(0.001, torsoR(y1) - 0.01), y1));
-  const g = new THREE.LatheGeometry(pts, len > 3 ? 36 : 14, phi0, len);
-  g.scale(1, 1, TORSO_Z);
-  return smoothGeo(g);
-}
-// where the torso's skin is at angle phi and height y (root coordinates), and which way it faces
-function torsoAt(phi, y, out = 0) {
-  const r = torsoR(y) + out;
-  return { p: new V3(Math.sin(phi) * r, TORSO_Y + y, Math.cos(phi) * r * TORSO_Z), n: new V3(Math.sin(phi), 0, Math.cos(phi) / TORSO_Z).normalize() };
-}
+const TORSO_Z = 0.68;
 const _Z1 = new V3(0, 0, 1);
 // a smooth ball with a sensible number of sides for its size
 const smoothBall = (r) => { const n = U.clamp(Math.round(8 + r * 50), 8, 22); return smoothGeo(new THREE.SphereGeometry(r, n, Math.round(n * 0.7))); };
@@ -88,68 +65,156 @@ function starShape(r1, r2) {
   return s;
 }
 
-// a spacesuited goober. o: color (accent), look (a look code, see LOOK_PARTS), hat
+/* ---------------- the goober: you and your crew ---------------- */
+// A tall, lanky, goofy astronaut: a pot belly, long dangly arms and legs, big boots, and a long egg of a
+// head (big ears, googly eyes, a droopy nose, a lopsided mouth) that wobbles about inside a glass bubble
+// on the suit. It's built in the design's meters (feet at 0, facing +Z) inside `body`, which scales it
+// up to the game's size, and every joint is a pivot GooberAnim turns (see goober.js): the waist, the
+// hips, knees and ankles, the shoulders and elbows, the neck, and the bits of the face.
+const GOOB = {
+  s: 1.2, // design meters -> game meters (2.26 m to the top of the helmet, about what it always was)
+  belly: 1.2, // (game meters: where the whole goober turns when it flips, leans or falls over)
+  torso: [[0.001, 0.8], [0.09, 0.805], [0.14, 0.845], [0.172, 0.92], [0.188, 1.0], [0.18, 1.08], [0.155, 1.17], [0.14, 1.26], [0.135, 1.34], [0.12, 1.4], [0.085, 1.44], [0.04, 1.465], [0.001, 1.47]],
+  tz: 0.82, // (the torso is this deep, front to back, for its width)
+  head: [[0.001, -0.19], [0.045, -0.185], [0.036, -0.13], [0.04, -0.1], [0.062, -0.08], [0.08, -0.045], [0.088, 0], [0.09, 0.05], [0.083, 0.1], [0.066, 0.14], [0.038, 0.165], [0.001, 0.175]],
+  hz: 1.05,
+  waist: 0.86, hip: 0.92, neck: 1.47, headY: 1.63, top: 0.175, // (top: of the head, above its middle)
+  glass: [0, 1.66, 0.027], glassR: 0.22,
+  dark: '#353945', ink: '#15151c', white: '#f4f1ea',
+};
+// the radius of a lathe outline ([r, y] pairs going up) at height y
+function profR(prof, y) {
+  if (y <= prof[0][1]) return prof[0][0];
+  for (let i = 1; i < prof.length; i++) {
+    const [r0, y0] = prof[i - 1], [r1, y1] = prof[i];
+    if (y <= y1) return y1 > y0 ? r0 + ((r1 - r0) * (y - y0)) / (y1 - y0) : r1;
+  }
+  return prof[prof.length - 1][0];
+}
+// a point on a lathe outline's surface at angle phi (0: straight ahead) and height y, pushed out by `out`,
+// and which way the surface faces there (zs: how deep the shape is for its width)
+function profAt(prof, zs, phi, y, out = 0) {
+  const r = profR(prof, y) + out, dr = (profR(prof, y + 0.004) - profR(prof, y - 0.004)) / 0.008;
+  return { p: new V3(Math.sin(phi) * r, y, Math.cos(phi) * r * zs), n: new V3(zs * Math.sin(phi), -zs * dr, Math.cos(phi)).normalize() };
+}
+// the outline turned into one smooth shape (squashed front to back by zs); phi0 / len: only part of the way round
+function latheGeo(prof, zs, n = 40, phi0 = 0, len = PI * 2) {
+  const g = new THREE.LatheGeometry(prof.map(([r, y]) => new THREE.Vector2(r, y)), n, phi0, len);
+  g.scale(1, 1, zs);
+  return smoothGeo(g);
+}
+// a patch of that surface from height y0 to y1, standing out by `out` (the chest panel, the belt, stripes)
+function shellGeo(prof, zs, y0, y1, out, phi0 = 0, len = PI * 2) {
+  const pr = [[Math.max(0.001, profR(prof, y0) - 0.004), y0]], rows = Math.max(3, Math.round((y1 - y0) / 0.02));
+  for (let i = 0; i <= rows; i++) { const y = y0 + ((y1 - y0) * i) / rows; pr.push([profR(prof, y) + out, y]); }
+  pr.push([Math.max(0.001, profR(prof, y1) - 0.004), y1]);
+  return latheGeo(pr, zs, Math.max(8, Math.round((40 * len) / (PI * 2))), phi0, len);
+}
+// a patch of the head's skin between two edges that change with the angle round it (hair, a beard): from
+// phi0 round to phi1, between the heights lo(phi) and hi(phi), standing out by `out`. An edge at the top of
+// the head closes it off; any other edge tucks into the head, so there's never a gap to see through.
+function headPatchGeo(phi0, phi1, lo, hi, out, W = 26, H = 7) {
+  const pos = [], idx = [], P = GOOB.head, zs = GOOB.hz, wrap = phi1 - phi0 > PI * 1.99;
+  for (let j = 0; j <= H; j++) {
+    for (let i = 0; i <= W; i++) {
+      const phi = phi0 + ((phi1 - phi0) * i) / W, a = lo(phi), b = hi(phi);
+      const y = a + (b - a) * Math.sin(((j / H) * PI) / 2); // (rows bunch up toward the top, where it curves)
+      let r = profR(P, y) + out, yy = y;
+      if (j === H && b >= GOOB.top - 0.002) { r = 0; yy = y + out; } else if (j === 0 || j === H) r = profR(P, y) - 0.003;
+      pos.push(Math.sin(phi) * r, yy, Math.cos(phi) * r * zs);
+    }
+  }
+  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) { const a = j * (W + 1) + i, b = a + W + 1; idx.push(a, a + 1, b, b, a + 1, b + 1); }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  if (wrap) { // (all the way round: no seam in the shading where the two ends meet)
+    const n = g.attributes.normal, v = new V3();
+    for (let j = 0; j <= H; j++) {
+      const a = j * (W + 1), b = a + W;
+      v.set(n.getX(a) + n.getX(b), n.getY(a) + n.getY(b), n.getZ(a) + n.getZ(b)).normalize();
+      n.setXYZ(a, v.x, v.y, v.z); n.setXYZ(b, v.x, v.y, v.z);
+    }
+  }
+  return smoothGeo(g);
+}
+// a smooth tapered tube along a curve through pts (a thigh, a forearm, a smile): radius r0 -> r1, a little
+// fatter in the middle (bulge)
+function tubeGeo(pts, r0, r1, bulge = 0.1, T = 14, RS = 12) {
+  const curve = new THREE.CatmullRomCurve3(pts), g = new THREE.TubeGeometry(curve, T, 1, RS, false);
+  const p = g.attributes.position, c = new V3();
+  for (let i = 0; i <= T; i++) {
+    curve.getPointAt(i / T, c);
+    const t = i / T, r = r0 + (r1 - r0) * t + Math.sin(t * PI) * (r0 - r1) * bulge;
+    for (let j = 0; j <= RS; j++) { const k = i * (RS + 1) + j; p.setXYZ(k, c.x + (p.getX(k) - c.x) * r, c.y + (p.getY(k) - c.y) * r, c.z + (p.getZ(k) - c.z) * r); }
+  }
+  return smoothGeo(g);
+}
+// a pivot at (x, y, z) in parent's space, with a group inside it laid out in the parent's space again (so
+// every part keeps the design's coordinates): [pivot, inside]
+function joint(parent, x, y, z) { const j = grp(parent, x, y, z); return [j, grp(j, -x, -y, -z)]; }
+
+// o: color (your accent), look (a look code, see LOOK_PARTS), hat. Hands back every part GooberAnim moves.
 function buildAstronaut(o = {}) {
   const L = lookFrom(o.look), C = (k) => lookColor(L, k);
-  const acc = o.color || '#ff7a3d', body = C('body'), boot = '#353945', dark = '#2a2d36';
+  const acc = o.color || '#ff7a3d', suit = C('body'), skin = C('skin'), hc = C('hairCol'), dark = GOOB.dark, ink = GOOB.ink;
+  const sc = new THREE.Color(skin), lips = '#' + new THREE.Color(sc.r * 0.89, sc.g * 0.79, sc.b * 0.8).getHexString();
+  // (a mouth drawn as a line needs to stand out more: darker than the skin, or lighter on very dark skin)
+  const line = sc.r * 0.3 + sc.g * 0.59 + sc.b * 0.11 > 0.3 ? '#' + new THREE.Color(sc.r * 0.52, sc.g * 0.3, sc.b * 0.28).getHexString() : '#e89a86';
   const r = withHi(null, () => {
-    const root = new THREE.Group();
-    // legs: rounded, with chunky boots
-    const legs = [];
-    for (const s of [-1, 1]) {
-      const leg = grp(root, s * 0.16, 0.82, 0);
-      limb(leg, new V3(0, 0.02, 0), new V3(0, -0.54, 0), 0.128, body);
-      mk(smoothGeo(new THREE.CylinderGeometry(0.138, 0.134, 0.07, 22)), acc, leg, 0, -0.56, 0);
-      mk(roundBox(0.27, 0.2, 0.36, 0.085, 2), boot, leg, 0, -0.69, 0.04);
-      mk(roundBox(0.29, 0.05, 0.38, 0.024, 2), dark, leg, 0, -0.795, 0.04);
-      legs.push(leg);
+    const root = new THREE.Group(), pose = grp(root, 0, GOOB.belly, 0), body = grp(pose, 0, -GOOB.belly, 0);
+    body.scale.setScalar(GOOB.s);
+    const ball = (rad, color, parent, x = 0, y = 0, z = 0) => mk(smoothBall(rad), color, parent, x, y, z);
+    // --- legs (hip, knee, ankle), on hips that turn to walk sideways. [left (+x), right (-x)]
+    const [hips, hin] = joint(body, 0, GOOB.hip, 0);
+    const legs = [], shins = [], feet = [];
+    for (const s of [1, -1]) {
+      const c = L.pattern === 4 && s > 0 ? acc : suit; // (half and half: that side's leg too)
+      const H = new V3(s * 0.075, 0.92, 0), K = new V3(s * 0.092, 0.48, 0.022), A = new V3(s * 0.092, 0.12, 0);
+      const [leg, lin] = joint(hin, H.x, H.y, H.z);
+      mk(tubeGeo([H, new V3(s * 0.088, 0.7, 0.01), K], 0.075, 0.063), c, lin);
+      ball(0.063, c, lin, K.x, K.y, K.z);
+      const [shin, sin] = joint(lin, K.x, K.y, K.z);
+      mk(tubeGeo([K, new V3(s * 0.092, 0.28, 0.005), A], 0.063, 0.044), c, sin);
+      ball(0.044, c, sin, A.x, A.y, A.z);
+      ball(0.056, c, sin, s * 0.092, 0.48, 0.03); // (the knee)
+      const [foot, fin] = joint(sin, A.x, A.y, A.z);
+      tf(mk(capsuleGeo(0.07, 0.22, 18), dark, fin, s * 0.1, 0.064, 0.085), PI / 2, 0, -s * 0.12, 1.1, 1, 0.9); // a big boot, toes out
+      tf(mk(TOR(0.047, 0.012, 10, 28), acc, fin, s * 0.092, 0.112, 0), PI / 2);
+      legs.push(leg); shins.push(shin); feet.push(foot);
     }
-    // the torso, and its belt
-    const torso = new THREE.LatheGeometry(TORSO.map(([x, y]) => new THREE.Vector2(x, y)), 36);
-    torso.scale(1, 1, TORSO_Z);
-    mk(smoothGeo(torso), body, root, 0, TORSO_Y, 0);
-    mk(torsoPart(0.035, 0.12, 0.014), acc, root, 0, TORSO_Y, 0);
-    // arms: shoulder, sleeve, cuff, a round glove with a thumb
-    const arms = [];
-    for (const s of [-1, 1]) {
-      const arm = grp(root, s * 0.43, 1.48, 0), sleeve = L.pattern === 4 && s > 0 ? acc : body; // (half and half: one sleeve too)
-      mk(smoothBall(0.13), L.pattern === 3 ? acc : sleeve, arm, 0, -0.02, 0); // (two-tone: the shoulders too)
-      limb(arm, new V3(0, -0.02, 0), new V3(0, -0.44, 0), 0.103, sleeve);
-      mk(smoothGeo(new THREE.CylinderGeometry(0.114, 0.112, 0.07, 20)), acc, arm, 0, -0.46, 0);
-      tf(mk(smoothBall(0.1), acc, arm, 0, -0.565, 0.012), 0, 0, 0, 1, 1.08, 1);
-      limb(arm, new V3(-s * 0.05, -0.52, 0.05), new V3(-s * 0.075, -0.575, 0.085), 0.035, acc);
-      arm.userData.hand = grp(arm, 0, -0.62, 0.06);
-      arms.push(arm);
-    }
-    // the pattern on the suit
-    switch (L.pattern) {
-      case 1: for (const y of [0.3, 0.44]) mk(torsoPart(y, y + 0.065, 0.011), acc, root, 0, TORSO_Y); break;
-      case 2: for (const f of [0, PI]) mk(torsoPart(0.13, 0.78, 0.009, f - 0.19, 0.38), acc, root, 0, TORSO_Y); break;
-      case 3: mk(torsoPart(0.43, 0.782, 0.008), acc, root, 0, TORSO_Y); break;
-      case 4: mk(torsoPart(0.13, 0.782, 0.008, 0, PI), acc, root, 0, TORSO_Y); break;
-      case 5: for (const a of arms) tf(mk(smoothBall(0.155), acc, a, 0, 0.0, 0), 0, 0, 0, 1.05, 0.72, 1.05); break;
-      case 6: {
-        const spots = [[-0.55, 0.62], [0.6, 0.55], [-0.2, 0.28], [0.95, 0.3], [-1.1, 0.42], [0.25, 0.6], [2.6, 0.5], [-2.4, 0.3], [3.2, 0.62], [1.7, 0.2], [-1.7, 0.6], [2.1, 0.66]];
-        for (const [phi, y] of spots) {
-          const at = torsoAt(phi, y, -0.004);
-          const d = tf(mk(smoothBall(0.045), acc, root), 0, 0, 0, 1, 1, 0.28);
-          d.position.copy(at.p); d.quaternion.setFromUnitVectors(_Z1, at.n);
+    // --- the upper body, bending at the waist: a pot belly and narrow, sloping shoulders
+    const [spine, up] = joint(body, 0, GOOB.waist, 0);
+    const T = GOOB.torso, tz = GOOB.tz, on = (phi, y, out) => profAt(T, tz, phi, y, out);
+    mk(latheGeo(T, tz, 40), suit, up);
+    mk(shellGeo(T, tz, 1.12, 1.32, 0.008, -0.85, 1.7), acc, up); // the chest panel
+    mk(shellGeo(T, tz, 0.88, 0.93, 0.009), acc, up); // the belt
+    tf(mk(TOR(0.105, 0.022, 12, 40), acc, up, 0, 1.465, 0.01), PI / 2, 0, 0, 1, 1, 0.85); // the collar the helmet sits on
+    switch (L.pattern) { // (between the suit and the panel)
+      case 1: for (const y of [0.965, 1.035]) mk(shellGeo(T, tz, y, y + 0.035, 0.005), acc, up); break;
+      case 2: for (const f of [0, PI]) mk(shellGeo(T, tz, 0.93, 1.45, 0.005, f - 0.11, 0.22), acc, up); break;
+      case 3: mk(shellGeo(T, tz, 1.3, 1.47, 0.005), acc, up); break;
+      case 4: mk(shellGeo(T, tz, 0.8, 1.47, 0.005, 0, PI), acc, up); break;
+      case 6:
+        for (const [phi, y] of [[-1.15, 1.25], [1.1, 1.18], [-0.35, 0.97], [0.5, 1.03], [1.45, 0.95], [-1.5, 1.08], [2.1, 1.3], [-2.2, 1.15], [2.6, 1.0], [-2.7, 1.33], [3.1, 1.16], [1.9, 1.07], [-1.9, 0.94], [0.25, 1.39], [-0.6, 1.4]]) {
+          const a = on(phi, y, -0.003), d = tf(ball(0.021, acc, up), 0, 0, 0, 1, 1, 0.3);
+          d.position.copy(a.p); d.quaternion.setFromUnitVectors(_Z1, a.n);
         }
         break;
-      }
     }
-    // the badge on the chest
-    const chest = torsoAt(0, 0.45, 0.004), badge = grp(root, chest.p.x, chest.p.y, chest.p.z - 0.008);
-    badge.rotation.x = -0.06;
-    // (every badge but the buttons sits on a round patch, so it stands out whatever the suit's colors)
+    // the badge on the chest panel (the old badges, shrunk to fit: every one but the buttons sits on a round
+    // patch so it stands out whatever the colors)
+    const bp = on(0, 1.22, 0.009), badge = grp(up);
+    badge.position.copy(bp.p); badge.quaternion.setFromUnitVectors(_Z1, bp.n); badge.scale.setScalar(0.42);
     if (L.badge > 0 && L.badge < 6) {
       tf(mk(smoothGeo(new THREE.CylinderGeometry(0.125, 0.125, 0.04, 28)), '#1d2540', badge, 0, 0, -0.012), PI / 2);
-      mk(smoothGeo(new THREE.TorusGeometry(0.125, 0.013, 8, 32)), acc, badge, 0, 0, 0.008);
+      mk(TOR(0.125, 0.013, 8, 32), GOOB.white, badge, 0, 0, 0.008);
     }
     switch (L.badge) {
       case 0:
         mk(roundBox(0.3, 0.2, 0.05, 0.03), '#3b3f4a', badge, 0, 0, 0);
-        ['#ff4b3e', '#3fcf6a', '#ffd23f'].forEach((c, i) => tf(mk(smoothBall(0.03), c, badge, -0.08 + i * 0.08, 0.01, 0.024), 0, 0, 0, 1, 1, 0.6));
+        ['#ff4b3e', '#3fcf6a', '#ffd23f'].forEach((c, i) => tf(ball(0.03, c, badge, -0.08 + i * 0.08, 0.01, 0.024), 0, 0, 0, 1, 1, 0.6));
         break;
       case 1: mk(badgeGeo(starShape(0.1, 0.045)), '#ffd23f', badge, 0, 0, 0); break;
       case 2: {
@@ -175,7 +240,7 @@ function buildAstronaut(o = {}) {
         sl.moveTo(-0.085, 0.06); sl.lineTo(0.085, 0.06); sl.lineTo(0, -0.1); sl.lineTo(-0.085, 0.06);
         mk(badgeGeo(sl), '#ffc94a', badge, 0, 0, 0);
         limb(badge, new V3(-0.088, 0.068, 0.012), new V3(0.088, 0.068, 0.012), 0.022, '#d9933d');
-        for (const [x, y] of [[-0.03, 0.025], [0.03, 0.02], [0, -0.035]]) tf(mk(smoothBall(0.02), '#d63a2a', badge, x, y, 0.026), 0, 0, 0, 1, 1, 0.35);
+        for (const [x, y] of [[-0.03, 0.025], [0.03, 0.02], [0, -0.035]]) tf(ball(0.02, '#d63a2a', badge, x, y, 0.026), 0, 0, 0, 1, 1, 0.35);
         break;
       }
       case 5: {
@@ -188,168 +253,237 @@ function buildAstronaut(o = {}) {
         break;
       }
     }
-    // the backpack
-    switch (L.pack) {
-      case 0:
-        mk(roundBox(0.5, 0.58, 0.2, 0.075, 2), acc, root, 0, 1.22, -0.31);
+    // the backpack (the design's own is a flat rounded pack; the rest are the old ones, shrunk to fit)
+    const pk = grp(up, 0, 1.2, -0.15);
+    if (L.pack === 0) {
+      tf(mk(capsuleGeo(0.1, 0.16, 20), dark, pk), 0, 0, 0, 1.05, 1, 0.55);
+      for (const s of [-1, 1]) {
+        mk(capsuleGeo(0.032, 0.15, 14), '#c9ced6', pk, s * 0.1, -0.005, -0.035);
+        mk(smoothGeo(new THREE.CylinderGeometry(0.013, 0.013, 0.03, 10)), acc, pk, s * 0.1, 0.1, -0.035);
+      }
+    } else if (L.pack < 4) {
+      const g = grp(pk, 0, 0, -0.01);
+      g.scale.setScalar(0.5);
+      if (L.pack === 1) {
+        mk(roundBox(0.5, 0.52, 0.2, 0.075, 2), '#5a606c', g, 0, 0.02, 0);
+        mk(roundBox(0.52, 0.08, 0.21, 0.035, 2), acc, g, 0, 0.14, 0);
         for (const s of [-1, 1]) {
-          limb(root, new V3(s * 0.13, 0.98, -0.45), new V3(s * 0.13, 1.44, -0.45), 0.078, '#c9ced6');
-          mk(smoothGeo(new THREE.CylinderGeometry(0.03, 0.03, 0.06, 12)), dark, root, s * 0.13, 1.54, -0.45);
+          mk(smoothGeo(new THREE.CylinderGeometry(0.09, 0.1, 0.4, 20)), '#c9ced6', g, s * 0.16, -0.12, -0.15);
+          ball(0.09, '#c9ced6', g, s * 0.16, 0.08, -0.15);
+          mk(smoothGeo(new THREE.CylinderGeometry(0.08, 0.11, 0.1, 20)), '#2a2d36', g, s * 0.16, -0.36, -0.15);
+          tf(mk(TOR(0.095, 0.014, 8, 24), '#ff9a3d', g, s * 0.16, -0.41, -0.15, { emissive: '#aa4400' }), PI / 2);
         }
-        break;
-      case 1:
-        mk(roundBox(0.5, 0.52, 0.2, 0.075, 2), '#5a606c', root, 0, 1.24, -0.31);
-        mk(roundBox(0.52, 0.08, 0.21, 0.035, 2), acc, root, 0, 1.36, -0.31);
-        for (const s of [-1, 1]) {
-          mk(smoothGeo(new THREE.CylinderGeometry(0.09, 0.1, 0.4, 20)), '#c9ced6', root, s * 0.16, 1.1, -0.46);
-          mk(smoothBall(0.09), '#c9ced6', root, s * 0.16, 1.3, -0.46);
-          mk(smoothGeo(new THREE.CylinderGeometry(0.08, 0.11, 0.1, 20)), dark, root, s * 0.16, 0.86, -0.46);
-          tf(mk(smoothGeo(new THREE.TorusGeometry(0.095, 0.014, 8, 24)), '#ff9a3d', root, s * 0.16, 0.81, -0.46, { emissive: '#aa4400' }), PI / 2);
-        }
-        break;
-      case 2: {
-        const box = grp(root, 0, 1.2, -0.33);
+      } else if (L.pack === 2) {
+        const box = grp(g, 0, -0.02, -0.02);
         mk(roundBox(0.6, 0.6, 0.12, 0.025, 2), '#e3b26a', box, 0, 0, 0);
         mk(roundBox(0.61, 0.03, 0.125, 0.012, 2), '#c99a55', box, 0, 0.22, 0);
         tf(mk(smoothGeo(new THREE.CylinderGeometry(0.15, 0.15, 0.02, 28)), '#d63a2a', box, 0, -0.02, -0.062), PI / 2);
         tf(mk(smoothGeo(new THREE.CylinderGeometry(0.1, 0.1, 0.02, 24)), '#fff3dc', box, 0, -0.02, -0.07), PI / 2);
-        break;
-      }
-      case 3: {
-        const rk = grp(root, 0, 1.2, -0.44);
-        mk(roundBox(0.3, 0.3, 0.16, 0.06, 2), '#5a606c', root, 0, 1.2, -0.3);
+      } else {
+        const rk = grp(g, 0, -0.02, -0.13);
+        mk(roundBox(0.3, 0.3, 0.16, 0.06, 2), '#5a606c', g, 0, -0.02, 0.01);
         mk(smoothGeo(new THREE.CylinderGeometry(0.13, 0.13, 0.46, 24)), '#f4f1ea', rk, 0, 0, 0);
         mk(smoothGeo(new THREE.CylinderGeometry(0.133, 0.133, 0.07, 24)), acc, rk, 0, 0.1, 0);
         mk(smoothGeo(new THREE.ConeGeometry(0.13, 0.26, 24)), acc, rk, 0, 0.36, 0);
-        mk(smoothGeo(new THREE.CylinderGeometry(0.07, 0.11, 0.09, 20)), dark, rk, 0, -0.27, 0);
-        tf(mk(smoothBall(0.045), '#7fd8ff', rk, 0, 0.04, -0.12), 0, 0, 0, 1, 1, 0.5);
+        mk(smoothGeo(new THREE.CylinderGeometry(0.07, 0.11, 0.09, 20)), '#2a2d36', rk, 0, -0.27, 0);
+        tf(ball(0.045, '#7fd8ff', rk, 0, 0.04, -0.12), 0, 0, 0, 1, 1, 0.5);
         for (let i = 0; i < 3; i++) {
           const a = PI + (i - 1) * 2.1, f = grp(rk, Math.sin(a) * 0.13, -0.16, Math.cos(a) * 0.13);
           f.rotation.y = a;
           mk(roundBox(0.024, 0.18, 0.12, 0.01, 2), acc, f, 0, 0, 0.04);
         }
-        break;
       }
     }
-    // the head, inside a glass bubble
-    const head = grp(root, 0, 1.9, 0);
-    const skin = C('skin'), hc = C('hairCol'), HC = new V3(0, -0.02, 0.02), HR = 0.24;
-    mk(smoothBall(HR), skin, head, HC.x, HC.y, HC.z);
-    for (const s of [-1, 1]) tf(mk(smoothBall(0.055), skin, head, s * 0.235, -0.03, 0.01), 0, 0, 0, 0.6, 1, 1);
-    // a little group sitting on the face at (sideways angle a, upward angle b), facing out; things
-    // inside it are laid out flat (x across, y up, z out of the face)
-    const face = (a, b, lift = 0) => {
-      const n = new V3(Math.sin(a) * Math.cos(b), Math.sin(b), Math.cos(a) * Math.cos(b));
-      const g = grp(head);
-      g.position.copy(n).multiplyScalar(HR + lift).add(HC);
-      g.quaternion.setFromUnitVectors(_Z1, n);
+    // a cape (only out while gliding; in game meters, like the old one)
+    const cape = grp(up, 0, 1.43, -0.13);
+    cape.scale.setScalar(1 / GOOB.s);
+    mk(roundBox(0.5, 0.95, 0.04, 0.02), '#b8142e', cape, 0, -0.475, 0);
+    mk(roundBox(0.52, 0.06, 0.06, 0.025), '#ffd23f', cape, 0, 0, 0);
+    cape.visible = false;
+    // --- arms (shoulder, elbow): long and dangly, mittens at the end
+    const arms = [], fores = [], hands = [];
+    for (const s of [1, -1]) {
+      const c = (L.pattern === 4 && s > 0) || L.pattern === 3 ? acc : suit; // (two-tone: both sleeves; half and half: one)
+      const P0 = new V3(s * 0.09, 1.4, 0), E = new V3(s * 0.23, 1.07, 0.01), W = new V3(s * 0.215, 0.82, 0.075);
+      const [arm, ain] = joint(up, s * 0.14, 1.37, 0);
+      mk(tubeGeo([P0, new V3(s * 0.15, 1.36, 0), new V3(s * 0.2, 1.22, -0.005), E], 0.058, 0.047), c, ain);
+      ball(0.047, c, ain, E.x, E.y, E.z);
+      if (L.pattern === 5) tf(ball(0.072, acc, ain, s * 0.165, 1.37, 0), 0, 0, -s * 0.5, 1.1, 0.72, 1.1); // (shoulder pads)
+      const [fore, fin] = joint(ain, E.x, E.y, E.z);
+      mk(tubeGeo([E, new V3(s * 0.225, 0.92, 0.05), W], 0.047, 0.034), c, fin);
+      ball(0.034, c, fin, W.x, W.y, W.z);
+      tf(mk(TOR(0.036, 0.01, 10, 26), acc, fin, W.x, W.y, W.z), PI / 2 - 0.3, 0, 0); // the cuff
+      tf(ball(0.042, dark, fin, s * 0.212, 0.77, 0.085), 0, 0, 0, 0.8, 1.15, 1); // a mitten
+      tf(mk(capsuleGeo(0.012, 0.03, 10), dark, fin, s * 0.184, 0.78, 0.115), 0.6, 0, -s * 0.4); // its thumb
+      // what it holds: the thing's barrel runs down the forearm (its -z), its top (+y) up when the arm points
+      // ahead, and it's in game meters (so tools keep their size)
+      const hand = grp(fin, s * 0.212, 0.77, 0.085), z = E.clone().sub(W).normalize(), y = new V3(0, 0, 1);
+      y.addScaledVector(z, -y.dot(z)).normalize();
+      hand.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(new V3().crossVectors(y, z), y, z));
+      hand.scale.setScalar(1 / GOOB.s);
+      arms.push(arm); fores.push(fore); hands.push(hand);
+    }
+    // --- the head: a long egg on a neck that wobbles it about inside the helmet (the helmet stays put)
+    const [head, hin2] = joint(up, 0, GOOB.neck, 0.01);
+    const face = grp(hin2, 0, GOOB.headY, 0.01);
+    face.rotation.set(0.06, 0, 0.12); // (a goofy tilt)
+    mk(latheGeo(GOOB.head, GOOB.hz, 36), skin, face);
+    const HP = GOOB.head, hz = GOOB.hz;
+    // a group on the head's skin at (angle round it, height), facing out; lift: how far out
+    const onFace = (phi, y, lift = 0) => { const a = profAt(HP, hz, phi, y, lift), g = grp(face); g.position.copy(a.p); g.quaternion.setFromUnitVectors(_Z1, a.n); return g; };
+    const facePt = (phi, y, lift = 0.004) => profAt(HP, hz, phi, y, lift).p;
+    // a line drawn along the face through [angle, height] points (a smile, a brow)
+    const faceLine = (pts, rad, color, parent = face, lift = 0.004) => {
+      const ps = pts.map(([p, y]) => facePt(p, y, lift)), e = ps[ps.length - 1];
+      for (const o of [mk(tubeGeo(ps, rad, rad, 0, 14, 8), color, face), ball(rad, color, face, ps[0].x, ps[0].y, ps[0].z), ball(rad, color, face, e.x, e.y, e.z)]) parent.attach(o);
+    };
+    // big ears that stick out (they flap)
+    const ears = [];
+    for (const s of [1, -1]) {
+      const ear = grp(face, s * 0.084, 0, -0.01);
+      tf(ball(0.038, skin, ear, s * 0.013, 0, 0), 0, s * 0.5, -s * 0.25, 0.35, 1, 0.75);
+      ears.push(ear);
+    }
+    // eyes: each in a group that blinks, its pupil in a group that looks about. eyeAt: [x, y, z, radius]
+    const eyes = [], pupils = [], eyeAt = [];
+    const eyeball = (x, y, z, R, pr, shine) => {
+      const g = grp(face, x, y, z);
+      ball(R, GOOB.white, g);
+      const pg = grp(g);
+      tf(ball(pr, ink, pg, 0, -0.001, R - pr * 0.25), 0, 0, 0, 1, 1, 0.5);
+      if (shine) tf(ball(pr * 0.38, '#ffffff', pg, -pr * 0.38, pr * 0.4, R + pr * 0.1), 0, 0, 0, 1, 1, 0.5);
+      eyes.push(g); pupils.push(pg); eyeAt.push([x, y, z, R]);
       return g;
     };
-    const arc = (r, t, len = PI) => smoothGeo(new THREE.TorusGeometry(r, t, 6, 14, len));
-    // eyes
-    const ey = 0.13, ex = 0.36;
-    const eye = (a, b, R, pr) => {
-      mk(smoothBall(R), '#ffffff', face(a, b, -R * 0.45), 0, 0, 0);
-      const p = face(a, b - 0.02, R * 0.45);
-      tf(mk(smoothBall(pr), '#15151c', p, 0, 0, 0), 0, 0, 0, 1, 1, 0.6);
-      return p;
-    };
+    const flatEye = (phi, y, lift) => { const g = onFace(phi, y, lift); eyes.push(g); pupils.push(grp(g)); const a = profAt(HP, hz, phi, y); eyeAt.push([a.p.x, a.p.y, a.p.z, 0.03, true]); return g; };
+    const brow = hc === '#e9e4dc' ? '#9a948c' : hc;
     switch (L.eyes) {
-      case 1: for (const s of [-1, 1]) mk(arc(0.042, 0.012), '#15151c', face(s * ex, ey, 0.004), 0, -0.015, 0); break;
-      case 2:
-        for (const s of [-1, 1]) {
-          eye(s * ex, ey - 0.02, 0.066, 0.034);
-          const lid = face(s * ex, ey - 0.02, -0.024);
-          tf(mk(smoothGeo(new THREE.SphereGeometry(0.075, 18, 10, 0, PI * 2, 0, PI / 2)), skin, lid, 0, 0, 0), 0.1, 0, 0);
+      case 1: // happy: shut tight, smiling
+        for (const s of [1, -1]) mk(smoothGeo(new THREE.TorusGeometry(0.024, 0.006, 8, 18, PI)), ink, flatEye(s * 0.72, 0.062, 0.003), 0, -0.01, 0);
+        break;
+      case 2: // sleepy: heavy lids
+        for (const s of [1, -1]) {
+          const g = eyeball(s * 0.058, 0.063, 0.058, 0.04, 0.009);
+          tf(mk(smoothGeo(new THREE.SphereGeometry(0.043, 18, 8, 0, PI * 2, 0, PI / 2)), skin, g), 0.12, 0, 0);
         }
         break;
-      case 3:
-        for (const s of [-1, 1]) {
-          eye(s * ex, ey - 0.02, 0.066, 0.036);
-          const br = face(s * ex, ey + 0.2, 0.006);
-          limb(br, new V3(-s * 0.055, -0.018, 0), new V3(s * 0.05, 0.014, 0), 0.014, hc === '#e9e4dc' ? '#9a948c' : hc);
+      case 3: // angry: brows down
+        for (const s of [1, -1]) {
+          eyeball(s * 0.058, 0.063, 0.058, 0.04, 0.01);
+          faceLine([[s * 0.22, 0.098], [s * 0.55, 0.108], [s * 0.92, 0.124]], 0.007, brow, face, 0.02);
         }
         break;
-      case 4:
-        for (const s of [-1, 1]) {
-          const p = eye(s * ex, ey, 0.085, 0.054);
-          mk(smoothBall(0.017), '#ffffff', p, -0.018, 0.022, 0.03);
-        }
-        break;
-      case 5: for (const s of [-1, 1]) mk(smoothBall(0.03), '#15151c', face(s * 0.33, ey, -0.006), 0, 0, 0); break;
-      case 6: { const p = eye(0, ey + 0.02, 0.1, 0.058); mk(smoothBall(0.02), '#ffffff', p, -0.022, 0.026, 0.03); break; }
-      default: for (const s of [-1, 1]) eye(s * ex, ey, 0.07, 0.038);
+      case 4: for (const s of [1, -1]) eyeball(s * 0.061, 0.068, 0.062, 0.05, 0.017, true); break; // big
+      case 5: for (const s of [1, -1]) ball(0.013, ink, flatEye(s * 0.6, 0.065, -0.004)); break; // dots
+      case 6: eyeball(0, 0.075, 0.074, 0.056, 0.017, true); break; // cyclops
+      default: for (const s of [1, -1]) eyeball(s * 0.058, 0.065, 0.058, 0.04, 0.0085); // round and googly
     }
-    // mouth
-    const mb = -0.34, lip = '#5a2424';
+    // dead: X eyes (hidden until then)
+    const xeyes = grp(face);
+    for (const [x, y, z, R, flat] of eyeAt) {
+      const g = grp(xeyes, x, y, z + (flat ? 0.008 : R * 0.8));
+      for (const a of [0.75, -0.75]) tf(mk(capsuleGeo(0.007, 0.042, 8), ink, g), 0, 0, a);
+    }
+    xeyes.visible = false;
+    // a long droopy nose (it bounces)
+    const nose = grp(face, 0, -0.012, 0.087);
+    nose.attach(tf(mk(capsuleGeo(0.017, 0.035, 12), skin, face, 0, -0.025, 0.1), 1.2, 0, 0));
+    nose.attach(ball(L.extra === 6 ? 0.03 : 0.024, L.extra === 6 ? '#ff2a2a' : skin, face, 0, -0.045, 0.122));
+    if (L.extra === 1) for (const s of [1, -1]) nose.attach(tf(ball(0.022, hc, face, s * 0.024, -0.066, 0.084), 0, 0, s * 0.35, 1.5, 0.6, 0.7)); // (a mustache, under it)
+    // the mouth: lopsided, and a wide open one for yelling (hidden until then). mo(u, v): a point on the face
+    // in the mouth's own tilted frame (u across, v up)
+    const MX = 0.01, MY = -0.09, MA = 0.3;
+    const mo = (u, v) => { const x = MX + u * Math.cos(MA) - v * Math.sin(MA), y = MY + u * Math.sin(MA) + v * Math.cos(MA); return [Math.asin(U.clamp(x / profR(HP, y), -1, 1)), y]; };
+    const mouth = grp(face, MX, MY, 0.058), yell = grp(face, MX, MY, 0.058); // (pivots at the mouth, so it opens in place)
+    const openMouth = (g, sx, sy, tongue) => {
+      const m = grp(face, MX, MY, 0.058);
+      m.rotation.z = MA;
+      tf(ball(0.024, ink, m), 0, 0, 0, 1.5 * sx, 0.75 * sy, 0.5);
+      tf(mk(TOR(0.024, 0.0045, 8, 32), lips, m, 0, 0, 0.008), 0.15, 0, 0, 1.5 * sx, 0.75 * sy, 1);
+      if (tongue) m.attach(tf(mk(capsuleGeo(0.011, 0.018, 10), '#ff6b8a', face, 0.026, -0.103, 0.072), 0.9, 0, 0.5, 1.3, 1, 0.55));
+      g.attach(m);
+      return m;
+    };
+    const smile = (k) => { const pts = []; for (let i = 0; i <= 8; i++) { const u = -0.04 + i * 0.01; pts.push(mo(u, -k * (1 - (u / 0.04) ** 2))); } return pts; };
     switch (L.mouth) {
-      case 1: {
-        const g = face(0, mb + 0.02, 0.002);
-        const d = new THREE.Shape();
-        d.moveTo(-0.075, 0); d.lineTo(0.075, 0); d.absarc(0, 0, 0.075, 0, PI, true);
-        mk(badgeGeo(d, 0.006), '#3a1616', g, 0, 0.012, -0.012);
-        mk(roundBox(0.12, 0.024, 0.014, 0.006), '#ffffff', g, 0, 0.0, 0.004);
+      case 1: { // grin: wide open, teeth showing
+        const m = openMouth(mouth, 1.15, 1.05, false);
+        tf(mk(capsuleGeo(0.0055, 0.045, 8), '#ffffff', m, 0, 0.006, 0.01), 0, 0, PI / 2, 1, 1, 0.6);
         break;
       }
-      case 2: limb(face(0, mb, 0.002), new V3(-0.055, 0, 0), new V3(0.055, 0, 0), 0.012, lip); break;
-      case 3: tf(mk(smoothBall(0.036), '#3a1616', face(0, mb, -0.008), 0, 0, 0), 0, 0, 0, 0.9, 1.15, 0.5); break;
-      case 6: tf(mk(arc(0.055, 0.012, PI * 0.8), lip, face(0.08, mb + 0.02, 0.002), 0, 0.02, 0), 0, 0, PI + 0.55); break;
-      default: {
-        const g = face(0, mb + 0.04, 0.002);
-        tf(mk(arc(0.06, 0.012), lip, g, 0, 0, 0), 0, 0, PI);
-        if (L.mouth === 4) tf(mk(smoothBall(0.028), '#ff6b8a', g, 0.012, -0.066, 0.004), 0, 0, 0, 1, 1.2, 0.5);
-        if (L.mouth === 5) for (const s of [-1, 1]) tf(mk(smoothGeo(new THREE.ConeGeometry(0.013, 0.035, 10)), '#ffffff', g, s * 0.032, -0.06, 0.004), 0, 0, PI);
-      }
+      case 2: faceLine([mo(-0.036, 0.002), mo(0, 0), mo(0.036, 0.002)], 0.0065, line, mouth); break; // flat
+      case 3: openMouth(mouth, 0.62, 1.35, false); break; // surprised
+      case 4: openMouth(mouth, 1, 1, true); break; // tongue out (the design's own)
+      case 5: // fangs
+        faceLine(smile(0.014), 0.0065, line, mouth);
+        for (const u of [-0.015, 0.015]) { const [p, y] = mo(u, -0.014 * (1 - (u / 0.04) ** 2) - 0.008), a = profAt(HP, hz, p, y, 0.007); mouth.attach(tf(mk(smoothGeo(new THREE.ConeGeometry(0.0065, 0.017, 10)), '#ffffff', face, a.p.x, a.p.y, a.p.z), 0, 0, PI)); }
+        break;
+      case 6: { const pts = []; for (let i = 0; i <= 6; i++) { const u = -0.03 + i * 0.012; pts.push(mo(u, u > 0 ? 0.02 * (u / 0.042) ** 2 : 0)); } faceLine(pts, 0.0065, line, mouth); break; } // smirk
+      default: faceLine(smile(0.016), 0.0065, line, mouth); // smile
     }
+    openMouth(yell, 1.05, 1.5, true);
+    yell.visible = false;
     // extras
     switch (L.extra) {
-      case 1: for (const s of [-1, 1]) tf(mk(smoothBall(0.05), hc, face(s * 0.12, -0.2, -0.01), 0, 0, 0), 0, 0, s * 0.35, 1.35, 0.55, 0.55); break;
-      case 2: {
-        const bd = smoothGeo(new THREE.SphereGeometry(0.258, 28, 10, PI / 2 - 1.2, 2.4, 1.98, PI - 1.98));
-        mk(bd, hc, head, HC.x, HC.y, HC.z);
+      case 2: { // a chinstrap beard, up to the ears
+        const lo = (a) => -0.15 + 0.1 * (Math.abs(a) / 1.9) ** 2, hi = (a) => -0.108 + 0.13 * (Math.abs(a) / 1.9) ** 1.6;
+        mk(headPatchGeo(-1.9, 1.9, lo, hi, 0.008, 22, 4), hc, face);
         break;
       }
-      case 3: for (const s of [-1, 1]) for (const [a, b] of [[0.3, -0.1], [0.4, -0.08], [0.35, -0.16]]) mk(smoothBall(0.011), '#9a5a35', face(s * a, b, -0.004), 0, 0, 0); break;
-      case 4: for (const s of [-1, 1]) tf(mk(smoothBall(0.045), '#ff8a9a', face(s * 0.42, -0.14, -0.008), 0, 0, 0), 0, 0, 0, 1.3, 0.8, 0.25); break;
-      case 5:
-        for (const s of [-1, 1]) mk(smoothGeo(new THREE.TorusGeometry(0.077, 0.012, 8, 24)), '#22242c', face(s * ex, ey, 0.062), 0, 0, 0);
-        limb(face(0, ey, 0.066), new V3(-0.018, 0, 0), new V3(0.018, 0, 0), 0.01, '#22242c');
+      case 3: for (const s of [1, -1]) for (const [a, y] of [[0.48, 0.022], [0.6, 0.034], [0.55, 0.004], [0.7, 0.014], [0.42, 0.006]]) ball(0.0045, '#9a5a35', face).position.copy(facePt(s * a, y, 0.001)); break; // freckles
+      case 4: for (const s of [1, -1]) tf(ball(0.021, '#ff8a9a', onFace(s * 0.82, 0.0, -0.004)), 0, 0, 0, 1.3, 0.8, 0.3); break; // blush
+      case 5: // glasses (round, over the eyes)
+        for (const [x, y, z, R] of eyeAt) {
+          const rr = R + 0.007;
+          mk(TOR(rr, 0.0055, 8, 28), '#22242c', face, x, y + 0.002, z + R * 0.92);
+          if (eyeAt.length > 1) limb(face, new V3(x + Math.sign(x) * rr, y + 0.004, z + R * 0.88), new V3(Math.sign(x) * 0.088, 0.03, -0.012), 0.004, '#22242c');
+        }
+        if (eyeAt.length > 1) limb(face, new V3(eyeAt[0][0] - eyeAt[0][3] - 0.007, eyeAt[0][1] + 0.006, eyeAt[0][2] + eyeAt[0][3] * 0.95), new V3(eyeAt[1][0] + eyeAt[1][3] + 0.007, eyeAt[1][1] + 0.006, eyeAt[1][2] + eyeAt[1][3] * 0.95), 0.005, '#22242c');
         break;
-      case 6: mk(smoothBall(0.048), '#ff2a2a', face(0, -0.1, 0.012), 0, 0, 0); break;
     }
-    // hair (kept inside the helmet)
-    const cap = (theta, tilt = -0.35, rr = 0.256) => tf(mk(smoothGeo(new THREE.SphereGeometry(rr, 32, 14, 0, PI * 2, 0, theta)), hc, head, HC.x, HC.y, HC.z), tilt, 0, 0);
-    const spike = (a, b, h, w, sx = 1) => {
-      const g = face(a, b, -0.02);
-      tf(mk(smoothGeo(new THREE.ConeGeometry(w, h, 14)), hc, g, 0, 0, h / 2), PI / 2, 0, 0, sx, 1, 1);
-    };
+    // hair (inside the helmet, following the egg): cap(front edge, back edge, thickness, how fast the edge drops round the sides)
+    const kF = (a, p) => ((1 - Math.cos(a)) / 2) ** p;
+    const cap = (yF, yB, out = 0.01, p = 1) => mk(headPatchGeo(-PI, PI, (a) => yF + (yB - yF) * kF(a, p), () => GOOB.top, out), hc, face);
+    const spike = (phi, y, h, w, flat = 1) => tf(mk(smoothGeo(new THREE.ConeGeometry(w, h, 12)), hc, onFace(phi, y, -0.004), 0, 0, h / 2), PI / 2, 0, 0, flat, 1, 1);
     switch (L.hair) {
-      case 1: cap(0.55, -0.1, 0.25); spike(0, 1.2, 0.12, 0.035); spike(0.4, 1.05, 0.1, 0.03); spike(-0.4, 1.05, 0.1, 0.03); break;
-      case 2: cap(1.3, -0.42); break;
-      case 3: cap(1.1, -0.45); for (const [a, b] of [[0, 1.35], [0.9, 0.95], [-0.9, 0.95], [0, 0.95], [2.2, 0.9], [-2.2, 0.9], [PI, 0.7], [1.6, 0.6], [-1.6, 0.6]]) spike(a, b, 0.12, 0.045); break;
-      case 4: cap(1.25, -0.42); mk(smoothBall(0.085), hc, head, 0, 0.2, -0.13); break;
-      case 5: for (let i = 0; i < 6; i++) spike(0, 0.55 + i * 0.36, 0.12 - Math.abs(i - 2.5) * 0.012, 0.05, 0.4); break;
-      case 6: {
-        cap(1.15, -0.4, 0.245);
-        const curls = [[0, 1.4], [0.8, 1.05], [-0.8, 1.05], [0, 0.95], [1.6, 0.85], [-1.6, 0.85], [2.4, 0.85], [-2.4, 0.85], [PI, 0.7], [0.45, 0.75], [-0.45, 0.75], [1.2, 0.5], [-1.2, 0.5], [2.9, 0.3], [-2.9, 0.3]];
-        for (const [a, b] of curls) mk(smoothBall(0.058), hc, face(a, b, -0.015), 0, 0, 0);
+      case 1: // a tuft, and one curl sticking up
+        cap(0.13, 0.07, 0.007);
+        for (const [a, y] of [[0.35, 0.16], [-0.3, 0.158]]) spike(a, y, 0.03, 0.011);
+        tf(mk(smoothGeo(new THREE.TorusGeometry(0.018, 0.0055, 8, 20, PI * 1.6)), hc, face, 0.004, GOOB.top + 0.022, 0.0), 0, PI / 2, -0.4);
+        break;
+      case 2: cap(0.112, -0.015, 0.014, 1.6); break; // bowl cut
+      case 3: // spiky
+        cap(0.118, 0.02, 0.008, 1.3);
+        for (const [a, y] of [[0, 0.172], [0.7, 0.155], [-0.7, 0.155], [1.7, 0.148], [-1.7, 0.148], [2.6, 0.15], [-2.6, 0.15], [PI, 0.14], [1.2, 0.128], [-1.2, 0.128], [2.2, 0.118], [-2.2, 0.118], [0, 0.14]]) spike(a, y, 0.042, 0.014);
+        break;
+      case 4: cap(0.118, 0.03, 0.008, 1.3); ball(0.034, hc, onFace(PI, 0.13, 0.024)); break; // bun
+      case 5: for (const [a, y, h] of [[0, 0.122, 0.034], [0, 0.148, 0.046], [0, 0.168, 0.054], [PI, 0.166, 0.052], [PI, 0.145, 0.047], [PI, 0.118, 0.04], [PI, 0.085, 0.03]]) spike(a, y, h, 0.03, 0.4); break; // mohawk
+      case 6: { // curly
+        cap(0.12, 0.02, 0.006, 1.3);
+        for (let i = 0; i < 22; i++) { const a = (i * 2.39996) % (PI * 2) - PI, y = 0.172 - (i / 22) * (0.1 + 0.05 * kF(a, 1)); ball(0.017, hc, onFace(a, y, 0.006)); }
         break;
       }
-      case 7:
-        cap(1.3, -0.42);
-        mk(smoothGeo(new THREE.SphereGeometry(0.262, 32, 16, PI, PI, 0.4, 2.1)), hc, head, HC.x, HC.y, HC.z);
-        break;
+      case 7: { const e = (a) => { const t = U.clamp((Math.abs(a) - 0.95) / 1.3, 0, 1); return t * t * (3 - 2 * t); }; mk(headPatchGeo(-PI, PI, (a) => 0.112 - 0.25 * e(a), () => GOOB.top, 0.013), hc, face); break; } // long
     }
-    // the glass bubble (tinted), a shine on it, and the collar ring it sits in
+    // hands off the shadow map: the face's little bits (the head casts it)
+    face.traverse((c) => { if (c.isMesh && c.parent !== face) c.castShadow = false; });
+    // --- the helmet: a glass bubble on the collar, with a shine on it and the hat on top
+    const helmet = grp(up, GOOB.glass[0], GOOB.glass[1], GOOB.glass[2]);
     const vis = C('visor'), op = { '#4a5060': 0.52, '#ffc23a': 0.42, '#bfe8ff': 0.28 }[vis] || 0.36;
-    const glass = mk(smoothGeo(new THREE.SphereGeometry(0.38, 28, 18)), M(vis, { transparent: true, opacity: op, depthWrite: false }), head, 0, 0, 0);
+    const glass = mk(smoothGeo(new THREE.SphereGeometry(GOOB.glassR, 30, 20)), M(vis, { transparent: true, opacity: op, depthWrite: false }), helmet);
     glass.castShadow = false;
-    const shine = tf(mk(smoothBall(0.07), M('#ffffff', { transparent: true, opacity: 0.55, depthWrite: false }), head, -0.17, 0.2, 0.28), 0, 0, 0.6, 1.4, 0.55, 0.3);
-    shine.quaternion.setFromUnitVectors(_Z1, new V3(-0.45, 0.53, 0.72).normalize());
+    const sd = new V3(-0.45, 0.53, 0.72).normalize();
+    const shine = tf(mk(smoothBall(0.045), M('#ffffff', { transparent: true, opacity: 0.55, depthWrite: false }), helmet), 0, 0, 0, 1.4, 0.55, 0.3);
+    shine.position.copy(sd).multiplyScalar(GOOB.glassR - 0.004);
+    shine.quaternion.setFromUnitVectors(_Z1, sd);
     shine.castShadow = false;
-    tf(mk(smoothGeo(new THREE.TorusGeometry(0.3, 0.068, 10, 32)), acc, head, 0, -0.3, 0), PI / 2, 0, 0, 1, 0.86, 1);
-    const hatSlot = grp(head, 0, 0.34, 0);
-    return { root, legL: legs[0], legR: legs[1], armL: arms[0], armR: arms[1], head, hatSlot, hand: arms[1].userData.hand, handL: arms[0].userData.hand };
+    const hatSlot = grp(helmet, 0, GOOB.glassR * 0.895, 0);
+    hatSlot.scale.setScalar(GOOB.glassR / 0.38); // (hats were made for the old, bigger helmet)
+    return {
+      root, pose, spine, hips, legL: legs[0], legR: legs[1], shinL: shins[0], shinR: shins[1], footL: feet[0], footR: feet[1],
+      armL: arms[0], armR: arms[1], foreL: fores[0], foreR: fores[1], hand: hands[1], handL: hands[0],
+      head, eyes, pupils, xeyes, mouth, yell, nose, ears, helmet, hatSlot, cape,
+    };
   });
   mergeParts(r.root, r);
   r.look = lookCode(L);
@@ -509,7 +643,7 @@ function buildHumanoid(o) {
       limb(root, new V3(s * 0.15, 0.8, 0), new V3(s * 0.15, 0.2, 0), 0.115, o.pants || '#34405e');
       mk(roundBox(0.25, 0.15, 0.34, 0.065), o.shoe || '#2a2a2a', root, s * 0.15, 0.075, 0.04);
     }
-    // the same rounded barrel of a body as an astronaut's, a little slimmer (see TORSO)
+    // a rounded barrel of a body (see TORSO)
     const torso = new THREE.LatheGeometry(TORSO.map(([x, y]) => new THREE.Vector2(x, y)), 32);
     torso.scale(0.93, 0.94, TORSO_Z * 0.88);
     mk(smoothGeo(torso), shirt, root, 0, 0.8, 0);
@@ -1648,9 +1782,9 @@ function buildPeelVM() {
 }
 
 /* ---------------- first-person hands (your suit's gloves and sleeves) ---------------- */
-// (the gloves are in your accent color, so they stand out against the guns; glove: that material.
+// (dark gloves like your goober's mittens, with a cuff in your accent color; cuff: that material.
 //  sleeve: your suit's material)
-const SLEEVE = '#f4f1ea', SEAL = '#30343f';
+const SLEEVE = '#f4f1ea';
 // a rounded rod from a to b (a finger, a thumb, a wrist)
 function capsule(parent, a, b, r, color) {
   const d = b.clone().sub(a), len = d.length() || 0.001;
@@ -1661,19 +1795,19 @@ function capsule(parent, a, b, r, color) {
   mk(SPH(r), color, g, 0, 0, 0);
   return g;
 }
-// the glove's wrist, the suit's seal and the sleeve, from `at` heading off along `dir` (out of view)
-function forearm(g, at, dir, glove, sleeve) {
+// the glove's wrist, the cuff and the sleeve, from `at` heading off along `dir` (out of view)
+function forearm(g, at, dir, cuff, sleeve) {
   const q = new THREE.Quaternion().setFromUnitVectors(new V3(0, 1, 0), dir);
   const put = (m, d) => { m.position.copy(at).addScaledVector(dir, d); m.quaternion.copy(q); };
-  put(mk(CYL(0.045, 0.054, 0.075, 16), glove, g), 0.02);
-  put(mk(TOR(0.052, 0.012, 8, 20).rotateX(Math.PI / 2), SEAL, g), 0.06); // (a ring around the wrist)
+  put(mk(CYL(0.045, 0.054, 0.075, 16), GOOB.dark, g), 0.02);
+  put(mk(TOR(0.052, 0.014, 8, 20).rotateX(Math.PI / 2), cuff, g), 0.06); // (a ring round the wrist)
   put(mk(CYL(0.062, 0.08, 0.6, 16), sleeve || SLEEVE, g), 0.365);
 }
 // a right hand around a pistol grip. The group sits in the middle of the grip, tilted like it: the grip
 // runs along y and the fingers wrap around its front (-z). gw, gd: how wide and deep the grip is.
-function buildGripHand(glove, gw = 0.07, gd = 0.09, sleeve) {
+function buildGripHand(cuff, gw = 0.07, gd = 0.09, sleeve) {
   return withHi(null, () => {
-    const g = new THREE.Group(), hx = gw / 2, hz = gd / 2;
+    const g = new THREE.Group(), hx = gw / 2, hz = gd / 2, glove = GOOB.dark;
     tf(mk(roundBox(0.048, 0.112, 0.122, 0.021), glove, g, hx + 0.02, 0.012, 0.006), 0, -0.12, 0); // the back of the hand, on the right side
     mk(roundBox(gw + 0.036, 0.104, 0.046, 0.019), glove, g, 0.008, 0.01, hz + 0.019); // the heel of the hand, behind
     // four fingers curled around the front (a knuckle, then across to the left side)
@@ -1685,16 +1819,16 @@ function buildGripHand(glove, gw = 0.07, gd = 0.09, sleeve) {
     }
     // the thumb, along the left side toward the front
     capsule(g, new V3(-hx + 0.006, 0.062, hz + 0.016), new V3(-hx - 0.014, 0.05, -hz + 0.012), 0.017, glove);
-    forearm(g, new V3(0.022, -0.03, hz + 0.03), new V3(0.42, -0.6, 0.68).normalize(), glove, sleeve);
+    forearm(g, new V3(0.022, -0.03, hz + 0.03), new V3(0.42, -0.6, 0.68).normalize(), cuff, sleeve);
     mergeLocal(g);
     return g;
   });
 }
 // a left hand holding something up from underneath (a barrel, a pump, a tube): the group sits on its
 // middle line; R: how far down its underside is, W: half its width
-function buildSupportHand(glove, R, W, sleeve) {
+function buildSupportHand(cuff, R, W, sleeve) {
   return withHi(null, () => {
-    const g = new THREE.Group();
+    const g = new THREE.Group(), glove = GOOB.dark;
     mk(roundBox(W * 2 + 0.03, 0.036, 0.104, 0.016), glove, g, -0.006, -R - 0.02, 0.006); // the palm, underneath
     // fingers curling up the right side (out a little, then hugging it; never more than a finger's length)
     const top = Math.max(-R * 0.1, -R - 0.014 + 0.08);
@@ -1706,7 +1840,7 @@ function buildSupportHand(glove, R, W, sleeve) {
     }
     // the thumb, lying along the left side
     capsule(g, new V3(-W - 0.006, -R - 0.008, 0.036), new V3(-W - 0.012, Math.max(-R * 0.4, -R - 0.008 + 0.045), -0.022), 0.016, glove);
-    forearm(g, new V3(-0.02, -R - 0.032, 0.05), new V3(-0.5, -0.42, 0.76).normalize(), glove, sleeve);
+    forearm(g, new V3(-0.02, -R - 0.032, 0.05), new V3(-0.5, -0.42, 0.76).normalize(), cuff, sleeve);
     mergeLocal(g);
     return g;
   });
@@ -1726,17 +1860,27 @@ const HAND_SPEC = {
   drill: { grip: [0, -0.12, 0.08, 0.25, 0.09, 0.11], support: [0, 0.02, -0.08, 0.08, 0.08] },
   peel: { grip: [0, -0.1, 0.1, 0.3, 0.07, 0.09], support: [0, -0.01, -0.13, 0.03, 0.03] },
 };
-// put your hands on something you're holding (kind: 'vac', 'drill', 'peel', or a gun type; glove, sleeve:
-// the glove and sleeve materials, in your colors)
-function addHands(vm, kind, glove, sleeve) {
+// put a tool in a goober's hand (m.hand, see buildAstronaut): its grip in the mitten, the barrel down the
+// forearm. kind: 'vac', 'drill', 'peel' or 'zap' (any gun)
+function gripTool(hand, t, kind) {
+  const g = (HAND_SPEC[kind] && HAND_SPEC[kind].grip) || HAND_SPEC.zap.grip;
+  t.rotation.set(0, 0, 0);
+  t.scale.setScalar(1);
+  t.position.set(-g[0], -g[1], -g[2]);
+  hand.add(t);
+  return t;
+}
+// put your hands on something you're holding (kind: 'vac', 'drill', 'peel', or a gun type; cuff, sleeve:
+// the cuff and sleeve materials, in your colors)
+function addHands(vm, kind, cuff, sleeve) {
   const spec = HAND_SPEC[kind] || {}, gp = spec.grip || HAND_SPEC.zap.grip, hands = {};
-  hands.grip = buildGripHand(glove, gp[4], gp[5], sleeve);
+  hands.grip = buildGripHand(cuff, gp[4], gp[5], sleeve);
   hands.grip.position.set(gp[0], gp[1], gp[2]);
   hands.grip.rotation.x = gp[3];
   vm.add(hands.grip);
   if (spec.support) {
     const s = spec.support;
-    hands.support = buildSupportHand(glove, s[3], s[4], sleeve);
+    hands.support = buildSupportHand(cuff, s[3], s[4], sleeve);
     hands.support.position.set(s[0], s[1], s[2]);
     hands.support.userData.home = hands.support.position.clone();
     vm.add(hands.support);

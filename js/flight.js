@@ -52,11 +52,14 @@ const SPACE_ATMO = {
 const nameOf = (id) => (id === Net.myId ? 'you' : (G.remotes.get(id) && G.remotes.get(id).name) || 'someone');
 const _camLook = new THREE.Quaternion(), _camEuler = new THREE.Euler();
 
-// an astronaut sitting down (for whoever is in a seat)
-function seatedAstronaut(color, hat, look) {
+// a goober sitting down (for whoever is in a seat: 'pilot' or 'pass'), put there by the eyes of that seat.
+// Passengers fidget and bop along on the way (see Flight.update)
+function seatedAstronaut(color, hat, look, seat, eye) {
   const a = buildAstronaut({ color, hat, look });
-  a.legL.rotation.x = a.legR.rotation.x = -1.45;
-  a.armL.rotation.x = a.armR.rotation.x = -0.9;
+  a.anim = new GooberAnim(a);
+  a.seat = seat;
+  for (let i = 0; i < 30; i++) a.anim.update(1 / 30, { sit: seat, ground: true, yaw: 0 }); // (settled into the seat)
+  a.root.position.set(eye.x, eye.y - 2.15, eye.z - 0.12);
   a.root.traverse((c) => { if (c.isMesh) c.castShadow = false; });
   return a;
 }
@@ -378,6 +381,7 @@ const Flight = {
   dummies() {
     if (!this.crewGroup) return;
     while (this.crewGroup.children.length) { const c = this.crewGroup.children[0]; this.crewGroup.remove(c); disposeObj(c); }
+    this.sitters = [];
     const inside = this.cur === 'cockpit' || this.cur === 'seat';
     let pi = 0;
     for (const id of Object.keys(this.crew).sort()) {
@@ -385,9 +389,9 @@ const Flight = {
       const eye = seat === 'pilot' ? SEAT : PASS_SEATS[pi++ % PASS_SEATS.length];
       if (mine && inside) continue;
       const r = G.remotes.get(id);
-      const a = seatedAstronaut(mine ? G.color : r ? r.s.c : '#ffffff', mine ? SAVE.hat : r ? r.s.h : 'none', mine ? G.look : r ? r.s.lk : '');
-      a.root.position.set(eye.x, eye.y - 1.9, eye.z - 0.08);
+      const a = seatedAstronaut(mine ? G.color : r ? r.s.c : '#ffffff', mine ? SAVE.hat : r ? r.s.h : 'none', mine ? G.look : r ? r.s.lk : '', seat, eye);
       this.crewGroup.add(a.root);
+      this.sitters.push(a);
     }
   },
   mySeatEye() {
@@ -406,8 +410,7 @@ const Flight = {
     if (!w || !w.parked) return;
     if (pid && !w.parkedDummy) {
       const r = G.remotes.get(pid), mine = pid === Net.myId;
-      const a = seatedAstronaut(mine ? G.color : r ? r.s.c : '#ffffff', mine ? SAVE.hat : r ? r.s.h : 'none', mine ? G.look : r ? r.s.lk : '');
-      a.root.position.set(SEAT.x, SEAT.y - 1.9, SEAT.z - 0.08);
+      const a = seatedAstronaut(mine ? G.color : r ? r.s.c : '#ffffff', mine ? SAVE.hat : r ? r.s.h : 'none', mine ? G.look : r ? r.s.lk : '', 'pilot', SEAT);
       a.root.userData.id = pid;
       w.parkedDummy = a.root;
       w.parked.add(a.root);
@@ -655,6 +658,7 @@ const Flight = {
     if (!this.on) return;
     this.t += dt;
     G.player.vm.visible = false; // no gun in your hand while you're in the ship
+    for (const a of this.sitters || []) a.anim.update(dt, { sit: a.seat, ground: true, yaw: 0 });
     const free = G.locked && !G.panel && !G.chatting;
     const pilot = this.isPilot();
     const can = pilot && free && !this.mapOpen;

@@ -1,3 +1,20 @@
+## New in 1.11: the new Space Goober (and he's a goofball)
+
+- **A brand new goober.** You (and your crew) are now a tall, lanky, goofy astronaut with a pot belly, noodle arms,
+  big boots and a long egg of a head (googly eyes, a droopy nose, big ears) that wobbles about inside a glass bubble.
+- **He does everything the goofy way.** Bouncy walking with floppy arms and a bobbling head, flat-out sprinting with
+  his mouth wide open, flailing and screaming all the way down a long fall, a front flip on a double jump, a
+  superhero pose with the Glider Cape, a cannonball with the Yeti Stompers, arms straight out behind him on a dash.
+  The bigger the gun, the harder it kicks him about; the Grabby Vac nearly pulls him off his feet and the Laser Drill
+  rattles his eyeballs. Something bites him and he's knocked off his feet (from behind, he clutches his backside).
+  When he's down he lies on his back kicking like a flipped bug until a friend picks him up. Stand still and he
+  fidgets: scratching his helmet, trying to pick his nose (the glass is in the way), drumming on his belly.
+- **Emotes (`G`).** Wave, chicken dance, flex, floss, facepalm and faint, a different one each press. In first
+  person the camera swings round so you can watch.
+- **Third person (`V`).** See your goober from behind while you play (or pick the camera in the pause menu).
+- **Customize** fits the new goober: every suit color, pattern, badge, backpack, face, hairdo, extra and hat. The
+  preview goofs about too, and its buttons try out the emotes. Your first-person gloves match his mittens now.
+
 ## New in 1.10: mini bosses, fun on the quiet planets, and meaner critters
 
 - **Mini bosses.** Zap 20 critters on a planet, and from then on every critter you zap has a 2.5% chance of bringing

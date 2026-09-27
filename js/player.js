@@ -91,17 +91,22 @@ class LocalPlayer {
     this.slowK = 1; this.slowT = 0; this.ext = new V3(); // (set by boss fights every frame: goo slows you, wind drags you)
     this.safeT = 0; // critters leave you alone while this counts down (see GRACE)
     this.kickP = 0; this.kickY = 0; this.recoilRot = 0; this.recoilRoll = 0; // (see kick)
+    // your goober, seen from outside (third person, see bodyTick): tpK eases 0 (first person) -> 1, tpD: how far
+    // back the camera is. an / ac: your last move, for your crew to see (see act)
+    this.gb = null; this.tpK = 0; this.tpD = 3.4; this.emoteT = 0; this.emoteOrbit = 0; this.emoteYaw = 0; this.an = 0; this.ac = '';
+    this.using = false; this.sliding = false;
     this.vm = new THREE.Group();
     G.camera.add(this.vm);
-    // your gloves (in your accent color) and sleeves (your suit's color) hold whatever you're holding
-    this.gloveMat = new THREE.MeshToonMaterial({ color: G.color || '#ff7a3d', gradientMap: TOON_GRAD });
+    // your gloves (dark, like your goober's mittens, with cuffs in your accent color) and sleeves (your suit's
+    // color) hold whatever you're holding
+    this.cuffMat = new THREE.MeshToonMaterial({ color: G.color || '#ff7a3d', gradientMap: TOON_GRAD });
     this.sleeveMat = new THREE.MeshToonMaterial({ color: lookColor(G.look, 'body'), gradientMap: TOON_GRAD });
-    this.gloveMat.userData.shared = this.sleeveMat.userData.shared = true; // (every hand uses them, for as long as you play: never freed)
-    this.gloveCol = G.color; this.sleeveLook = G.look;
+    this.cuffMat.userData.shared = this.sleeveMat.userData.shared = true; // (every hand uses them, for as long as you play: never freed)
+    this.cuffCol = G.color; this.sleeveLook = G.look;
     this.vmDrill = buildDrillVM();
     this.vmPeel = buildPeelVM();
-    addHands(this.vmDrill, 'drill', this.gloveMat, this.sleeveMat);
-    addHands(this.vmPeel, 'peel', this.gloveMat, this.sleeveMat);
+    addHands(this.vmDrill, 'drill', this.cuffMat, this.sleeveMat);
+    addHands(this.vmPeel, 'peel', this.cuffMat, this.sleeveMat);
     for (const o of [this.vmDrill, this.vmPeel]) this.vm.add(o);
     this.vmZap = null; this.vmVac = null;
     this.mags = {}; // (how full each of your other guns was when you put it away)
@@ -114,8 +119,8 @@ class LocalPlayer {
     for (const o of [this.vmZap, this.vmVac]) if (o) { this.vm.remove(o); disposeObj(o); }
     this.vmZap = buildZapperVM(SAVE.zap);
     this.vmVac = buildVacVM(SAVE.vacLvl > 0);
-    addHands(this.vmZap, gunDef(SAVE.zap).type, this.gloveMat, this.sleeveMat);
-    addHands(this.vmVac, 'vac', this.gloveMat, this.sleeveMat);
+    addHands(this.vmZap, gunDef(SAVE.zap).type, this.cuffMat, this.sleeveMat);
+    addHands(this.vmVac, 'vac', this.cuffMat, this.sleeveMat);
     this.vm.add(this.vmZap, this.vmVac);
     this.vm.traverse((c) => { if (c.isMesh) { c.castShadow = false; c.receiveShadow = false; } });
     this.layoutVM();
@@ -160,6 +165,7 @@ class LocalPlayer {
     this.reloadT = this.reloadDur = z.rl;
     this.reloadMsg = U.pick(LINES.reload);
     Sound.play('reload');
+    this.act('reload');
   }
   // keep held tools in the lower-right corner on any screen shape
   layoutVM() {
@@ -227,6 +233,8 @@ class LocalPlayer {
       if (Input.tap('Digit3')) this.setTool('drill');
       if (Input.tap('Digit4')) this.setTool('peel');
       if (Input.tap('KeyR')) this.startReload();
+      if (Input.tap('KeyV')) this.toggleView();
+      if (Input.tap('KeyG')) this.emote();
       if (Input.wheel) {
         const avail = TOOLS.filter(hasTool);
         const i = (avail.indexOf(this.tool) + (Input.wheel > 0 ? 1 : -1) + avail.length) % avail.length;
@@ -255,10 +263,13 @@ class LocalPlayer {
     const fric = this.onGround ? (cfg.fric < 5 && SAVE.socks ? 10 : cfg.fric) : this.launchT > 0 ? 0.5 : 2.5;
     this.vel.x = U.damp(this.vel.x, tx, fric, dt);
     this.vel.z = U.damp(this.vel.z, tz, fric, dt);
-    if (this.onGround && cfg.fric < 5 && !SAVE.socks && Math.hypot(this.vel.x, this.vel.z) > 3 && len === 0) {
+    this.sliding = this.onGround && cfg.fric < 5 && !SAVE.socks && Math.hypot(this.vel.x, this.vel.z) > 3 && len === 0;
+    if (this.sliding) {
       this.slideSnd -= dt;
       if (this.slideSnd <= 0) { Sound.play('slide'); this.slideSnd = 0.35; }
     }
+    // moving (or jumping) stops an emote
+    if (this.emoteT > 0) { this.emoteT -= dt; if (len > 0 || (canAct && Input.tap('Space'))) this.stopEmote(); }
     // --- Getaway Sneakers: Q dashes the way you're going (once per jump in the air)
     this.dashCd -= dt; this.launchT -= dt; this.padCd -= dt;
     if (canAct && !frozen && SAVE.dash && Input.tap('KeyQ') && this.dashCd <= 0 && !this.stomping && (this.onGround || !this.airDash)) this.startDash(tx, tz);
@@ -272,7 +283,7 @@ class LocalPlayer {
     const sprung = SAVE.springs;
     if (canAct && !frozen && Input.tap('Space')) {
       if (this.onGround) { this.vel.y = sprung ? 10.2 : 7.4; this.onGround = false; this.jumps = 1; Sound.play(sprung ? 'spring' : 'jump'); }
-      else if (SAVE.boots && this.jumps < 2 && !this.stomping) { this.vel.y = sprung ? 9.2 : 7.0; this.jumps = 2; Sound.play('boing'); FX.burst(this.pos, '#ff9ad5', 8, 3); }
+      else if (SAVE.boots && this.jumps < 2 && !this.stomping) { this.vel.y = sprung ? 9.2 : 7.0; this.jumps = 2; Sound.play('boing'); FX.burst(this.pos, '#ff9ad5', 8, 3); this.act('flip'); }
     }
     // --- Yeti Stompers: C in the air slams you into the ground
     if (canAct && !frozen && SAVE.stomp && Input.tap('KeyC') && !this.onGround && this.airH > 1.2 && !this.stomping) {
@@ -353,6 +364,8 @@ class LocalPlayer {
     this.flashT -= dt;
     if (this.vmZap.userData.flash) this.vmZap.userData.flash.visible = this.flashT > 0;
     this.updateBeam(dt);
+    const bf = this.gbTools && this.gbTools[0] && this.gbTools[0].userData.flash; // (your goober's gun, in third person)
+    if (bf) bf.visible = this.flashT > 0 && this.tpK > 0.5;
     const wheel = this.vmZap.userData.wheel; // (the pizza cutter sitting in the gun, while you have one in hand)
     if (wheel) { wheel.visible = this.ammo > 0; wheel.rotation.x += dt * 3; }
     if ((G.mode === 'boss' || G.mode === 'planet') && !this.dead && !this.ghost) {
@@ -362,6 +375,8 @@ class LocalPlayer {
     UI.planetHp(this.hp);
     // --- actions
     const busy = !canAct || this.dead || this.ghost;
+    this.using = !busy && Input.mouseL && (this.tool === 'vac' || this.tool === 'drill' || (this.tool === 'zap' && this.reloadT <= 0));
+    if (this.using && this.emoteT > 0) this.stopEmote();
     if (!busy) this.useTool(dt);
     else if (this.vacTarget || this.drillTarget) this.releaseTargets();
     if (!busy && Input.clickR) this.throwNade();
@@ -369,8 +384,9 @@ class LocalPlayer {
     this.updateDown(dt);
     this.updateRespawn(dt, canAct);
     if (!this.checkRevive(dt, canAct)) this.checkInteract(canAct && !this.dead);
-    // --- camera
+    // --- camera, and your goober
     this.updateCamera(dt, hs);
+    this.bodyTick(dt);
     UI.ammo(this);
   }
 
@@ -383,6 +399,7 @@ class LocalPlayer {
     this.dashDir.copy(d.normalize());
     this.dashT = DASH.time; this.dashCd = DASH.cd;
     if (!this.onGround) this.airDash = true;
+    this.act('dash');
     this.inv = Math.max(this.inv, 0.2); // (dash through a shockwave and it misses you)
     Sound.play('dash');
     FX.burst(this.pos.clone().setY(this.pos.y + 0.6), '#7dfff0', 8, 3);
@@ -452,6 +469,7 @@ class LocalPlayer {
     this.hp -= d; this.inv = 0.5; this.regenT = 4;
     const dx = this.pos.x - fx, dz = this.pos.z - fz, l = Math.hypot(dx, dz) || 1;
     this.vel.x += (dx / l) * 6; this.vel.z += (dz / l) * 6; this.vel.y = Math.max(this.vel.y, 3.5); this.onGround = false;
+    this.act('hurt', (dx * Math.sin(this.yaw) + dz * Math.cos(this.yaw)) / l < -0.4 ? 'back' : ''); // (from behind: grabs his backside)
     UI.hurt();
     G.shake = Math.max(G.shake, 0.4);
     Sound.play('hurt');
@@ -464,6 +482,7 @@ class LocalPlayer {
   // and you lie there until you hold left click
   die(who) {
     this.down = false; this.dead = true; this.hp = 0; this.deadT = 0;
+    this.stopEmote(); this.act('die');
     this.releaseTargets();
     UI.show('spectate', false);
     const grave = Drops.graveDrop();
@@ -510,6 +529,7 @@ class LocalPlayer {
   respawn() {
     this.dead = false; this.down = false; this.hp = 100; this.inv = 2;
     this.teleport(Game.spawnPoint(), G.world.spawnYaw);
+    this.act('up');
     this.protect(GRACE.respawn);
     FX.burst(this.pos.clone().setY(this.pos.y + 1), '#7dff8a', 12, 4);
     Sound.play('reloaded');
@@ -531,6 +551,7 @@ class LocalPlayer {
   goDown(cause, onBleedOut) {
     const boss = G.mode === 'boss';
     this.down = true; this.dead = true; this.deadT = 0; this.hp = 0;
+    this.stopEmote();
     this.bleedT = boss ? DIFFS[G.diff].revive : DIFFS[G.diff].perma ? Infinity : 25;
     this.onBleedOut = onBleedOut; this.downCause = cause;
     this.releaseTargets();
@@ -584,6 +605,7 @@ class LocalPlayer {
     if (!this.down) return;
     this.down = false; this.dead = false; this.onBleedOut = null; this.helpT = 0;
     this.hp = 40; this.inv = 2.5; this.regenT = 2;
+    this.act('up');
     UI.show('spectate', false);
     FX.burst(this.pos.clone().setY(this.pos.y + 1), '#7dff8a', 14, 4);
     Sound.play('reloaded');
@@ -630,7 +652,7 @@ class LocalPlayer {
     }
     if (t === 'peel') {
       // the peel catches things on its own; clicking is just a very important swing
-      if (Input.clickL && this.swing <= 0) { this.swing = 1; Sound.play('throw'); }
+      if (Input.clickL && this.swing <= 0) { this.swing = 1; Sound.play('throw'); this.act('swing'); }
       return;
     }
     const w = this.world();
@@ -654,7 +676,7 @@ class LocalPlayer {
       if (n.kind === 'ghost') { if (this.suckGhost(n, tier, dt)) return; }
       else this.vacT += dt * tier.speed;
       const k = U.clamp(this.vacT / (VAC_TIME[n.kind] || 0.8), 0, 1);
-      const muzzle = this.vmVac.userData.muzzle.getWorldPosition(new V3());
+      const muzzle = this.muzzle(1);
       n.mesh.position.set(U.lerp(n.x, muzzle.x, k * k), U.lerp(n.y, muzzle.y, k * k) + Math.sin(k * 3) * 0.6, U.lerp(n.z, muzzle.z, k * k));
       n.mesh.scale.setScalar(1 - k * 0.8);
       n.mesh.rotation.y += dt * 12;
@@ -691,7 +713,7 @@ class LocalPlayer {
     n.x = n.home.x + Math.sin(n.st * 2.3) * 1.4;
     n.z = n.home.z + Math.cos(n.st * 1.7) * 1.4;
     n.y = n.home.y + Math.sin(n.st * 3.1) * 0.5;
-    const cp = G.camera.position, to = new V3(n.x - cp.x, n.y + 0.4 - cp.y, n.z - cp.z);
+    const cp = this.rayStart(), to = new V3(n.x - cp.x, n.y + 0.4 - cp.y, n.z - cp.z);
     const onIt = to.dot(this.camDir(new V3())) / (to.length() || 1) > 0.93;
     this.vacT = Math.max(0, this.vacT + dt * tier.speed * (onIt ? 0.45 : -0.6));
     this.aimLost = onIt ? 0 : this.aimLost + dt;
@@ -710,7 +732,7 @@ class LocalPlayer {
     return false;
   }
   findNode(w, kinds, range, minDot) {
-    const cp = G.camera.position, dir = this.camDir(new V3());
+    const cp = this.rayStart(), dir = this.camDir(new V3());
     let best = null, bestScore = Infinity;
     for (const n of w.nodes) {
       if (n.taken || !kinds.includes(n.kind)) continue;
@@ -737,7 +759,8 @@ class LocalPlayer {
     this.ammo--;
     const last = this.ammo <= 0;
     if (last) this.startReload();
-    const o = this.vmZap.userData.muzzle.getWorldPosition(new V3()), d = this.aimFrom(o);
+    this.act('fire', z.type, false); // (your crew gets the shot itself, and does this from that)
+    const o = this.muzzle(), d = this.aimFrom(o);
     const flags = this.shotFlags(last);
     const net = { t: 'shoot', k: z.type, o: v3r(o), d: v3r(d), c: z.color };
     let color = z.color;
@@ -749,7 +772,7 @@ class LocalPlayer {
       Shots.fire('goo', o, d, true, { dmg: z.dmg, radius: z.radius, flags });
       Sound.play('lob'); this.kick('lob');
     } else if (z.type === 'homing') { // ghost wisps that chase whatever is nearest your crosshair
-      Shots.fire('wisp', o, d, true, { dmg: z.dmg, speed: z.speed, turn: z.turn, color: z.color, flags, seek: z.seek, reach: z.reach, target: Shots.seek(G.camera.position, this.camDir(new V3()), z.seek, z.reach) });
+      Shots.fire('wisp', o, d, true, { dmg: z.dmg, speed: z.speed, turn: z.turn, color: z.color, flags, seek: z.seek, reach: z.reach, target: Shots.seek(this.rayStart(), this.camDir(new V3()), z.seek, z.reach) });
       Sound.play('wisp'); this.kick('homing');
     } else if (z.type === 'chain') { // lightning that jumps from one target to the next
       net.pts = this.chainZap(z, o, flags).map(v3r);
@@ -792,13 +815,37 @@ class LocalPlayer {
     UI.toast('Shots go right through ghosts! Press 2 for the Grabby Vac and VACUUM them.', 'purple', 3.5);
   }
   // from the gun toward whatever the crosshair is on
-  aimFrom(o) { return G.camera.position.clone().add(this.camDir(new V3()).multiplyScalar(60)).sub(o).normalize(); }
+  aimFrom(o) { return this.aimPoint().sub(o).normalize(); }
+  // what the crosshair is on. In first person that's just straight ahead; in third person the gun isn't where the
+  // camera is, so it's the first thing along the crosshair past you (a critter, the ground, a wall)
+  aimPoint() {
+    const dir = this.camDir(new V3()), from = this.rayStart();
+    if (this.tpK < 0.5) return from.addScaledVector(dir, 60);
+    const w = this.world(), a = from.clone(), b = new V3();
+    for (let d = 1; d <= 60; d += 1) {
+      b.copy(from).addScaledVector(dir, d);
+      const hit = Shots.test(a, b, null);
+      if (hit) return hit.ctr ? hit.ctr.clone() : b;
+      if (w && (b.y <= w.surfaceAt(b.x, b.z) || (w.solidAt && w.solidAt(b)))) return b;
+      a.copy(b);
+    }
+    return b;
+  }
+  // where rays start (the crosshair's line, from you): the camera in first person, your head in third person
+  rayStart() { return G.camera.position.clone().addScaledVector(this.camDir(new V3()), this.tpK > 0.5 ? this.tpD + 0.3 : 0); }
+  // where shots come out (0: your gun, 1: the vac's nozzle): the one in your hands, or your goober's in third person
+  muzzle(i = 0) {
+    const t = this.tpK > 0.5 && this.gb ? this.gbTools[i] : i ? this.vmVac : this.vmZap;
+    return t.userData.muzzle.getWorldPosition(new V3());
+  }
   // how you shot (for style kills: in the air, after a 360, last shot in the battery...)
   shotFlags(last) { return { air: !this.onGround && this.airH > 0.5, spin: this.spun(), last, run: this.sprintK > 0.5, low: this.hp < 25, from: this.pos.clone() }; }
   muzzleFlash(color) {
     this.flashT = 0.05;
-    const fl = this.vmZap.userData.flash;
-    if (fl) { fl.rotation.z = Math.random() * 6; fl.scale.setScalar(0.8 + Math.random() * 0.5); fl.material.color.set(color); }
+    for (const g of [this.vmZap, this.gbTools && this.gbTools[0]]) {
+      const fl = g && g.userData.flash;
+      if (fl) { fl.rotation.z = Math.random() * 6; fl.scale.setScalar(0.8 + Math.random() * 0.5); fl.material.color.set(color); }
+    }
   }
   // Cryo Beam: hold the trigger and it hits the first thing in its way, ten times a second
   beamTick(z) {
@@ -806,7 +853,8 @@ class LocalPlayer {
     this.ammo--;
     const last = this.ammo <= 0;
     if (last) this.startReload();
-    const cam = G.camera.position, dir = this.camDir(new V3()), w = this.world();
+    this.act('fire', 'beam', false);
+    const cam = this.rayStart(), dir = this.camDir(new V3()), w = this.world();
     // follow the crosshair out until something's in the way
     const a = cam.clone(), b = new V3(), end = cam.clone().addScaledVector(dir, z.range);
     let hit = null;
@@ -818,7 +866,7 @@ class LocalPlayer {
     }
     this.beamN = (this.beamN || 0) + 1;
     if (hit) Shots.land({ flags: this.shotFlags(last), vel: dir, color: z.color }, hit, end.clone(), z.dmg, 'ice', this.beamN % 3 !== 0);
-    const o = this.vmZap.userData.muzzle.getWorldPosition(new V3());
+    const o = this.muzzle();
     this.beamFrom = o; this.beamEnd = end; this.beamT = 0.14;
     Net.relay({ t: 'shoot', k: 'beam', o: v3r(o), e: v3r(end), c: z.color });
     Sound.play('beam');
@@ -827,7 +875,7 @@ class LocalPlayer {
   }
   // Storm Caller: a bolt of lightning down the crosshair, then it jumps to whatever's close (weaker each jump)
   chainZap(z, o, flags) {
-    const cam = G.camera.position, dir = this.camDir(new V3()), w = this.world();
+    const cam = this.rayStart(), dir = this.camDir(new V3()), w = this.world();
     const a = cam.clone(), b = new V3(), end = cam.clone().addScaledVector(dir, z.range);
     let hit = null;
     for (let d = 0.8; d <= z.range; d += 0.8) {
@@ -861,7 +909,8 @@ class LocalPlayer {
     if (this.ammo <= 0 || this.cd > 0) return;
     this.cd = z.cd;
     this.ammo--;
-    const o = this.vmZap.userData.muzzle.getWorldPosition(new V3()), d = this.aimFrom(o);
+    this.act('fire', 'cutter', false);
+    const o = this.muzzle(), d = this.aimFrom(o);
     Shots.fire('cutter', o, d, true, { dmg: z.dmg, out: z.out, flags: this.shotFlags(false) });
     Net.relay({ t: 'shoot', k: 'cutter', o: v3r(o), d: v3r(d), c: z.color });
     Sound.play('cutter');
@@ -883,7 +932,7 @@ class LocalPlayer {
       G.scene.add(this.beam);
     }
     this.beam.visible = on;
-    if (on) aimBeam(this.beam, this.vmZap.userData.muzzle.getWorldPosition(new V3()), this.beamEnd, 1 + Math.sin(G.time * 60) * 0.25);
+    if (on) aimBeam(this.beam, this.muzzle(), this.beamEnd, 1 + Math.sin(G.time * 60) * 0.25);
   }
   // did you just turn all the way around? (in either direction, within the last couple of seconds)
   spun() {
@@ -897,11 +946,12 @@ class LocalPlayer {
     if (this.nadeCd > 0) return;
     this.nadeCd = 0.7;
     SAVE.nades--; persist(); UI.hud();
-    const o = G.camera.position.clone().add(this.camDir(new V3()).multiplyScalar(0.8));
+    const o = this.rayStart().add(this.camDir(new V3()).multiplyScalar(0.8));
     const d = this.camDir(new V3());
     Shots.fire('nade', o, d, true, { dmg: NADE_DMG });
     Net.relay({ t: 'nade', o: [U.r2(o.x), U.r2(o.y), U.r2(o.z)], d: [U.r2(d.x), U.r2(d.y), U.r2(d.z)] });
     Sound.play('throw');
+    this.act('throw');
   }
 
   checkInteract(can) {
@@ -928,6 +978,20 @@ class LocalPlayer {
     let eye = 1.65 + bob - this.landK * 0.22;
     if (this.dead) { this.deadT += dt; eye = U.lerp(1.65, 0.45, U.clamp(this.deadT * 2, 0, 1)); }
     cam.position.set(this.pos.x, this.pos.y + eye, this.pos.z);
+    // third person (V), and while you emote: the camera swings out behind your goober, over his right shoulder
+    // (during an emote it goes round to the front, so you can see his face, and the mouse turns it round him)
+    this.tpK = U.damp(this.tpK, (G.settings.view === 'tp' || this.emoteT > 0) && !this.ghost ? 1 : 0, 6, dt);
+    this.emoteOrbit = U.damp(this.emoteOrbit, this.emoteT > 0 ? PI - 0.5 : 0, 3.2, dt);
+    let yaw = this.yaw;
+    if (this.tpK > 0.001) {
+      yaw += this.emoteOrbit * this.tpK;
+      const side = 0.55 * (1 - this.emoteOrbit / (PI - 0.5)), p = U.clamp(this.pitch, -1.35, 1.35);
+      const piv = new V3(this.pos.x + Math.cos(yaw) * side, this.pos.y + (this.dead ? 0.9 : 1.95), this.pos.z - Math.sin(yaw) * side);
+      const back = new V3(Math.sin(yaw) * Math.cos(p), -Math.sin(p), Math.cos(yaw) * Math.cos(p));
+      const room = this.camRoom(piv, back, 3.4);
+      this.tpD = U.damp(this.tpD, room, room < this.tpD ? 30 : 4, dt);
+      cam.position.lerp(piv.addScaledVector(back, this.tpD), this.tpK);
+    }
     // camera shake: a smooth wobble that fades out and always settles back exactly where you aim
     // (it never touches your actual look direction)
     G.shake = U.clamp(G.shake - dt * 2.4, 0, 1.2);
@@ -935,7 +999,7 @@ class LocalPlayer {
     const sh = Math.min(1, G.shake) ** 2 * 0.03, t = this.shakeT;
     const sx = (Math.sin(t * 1.31) + 0.5 * Math.sin(t * 2.97)) * sh, sy = (Math.cos(t * 1.73) + 0.5 * Math.sin(t * 3.71)) * sh;
     this.kickP = U.damp(this.kickP, 0, 9, dt); this.kickY = U.damp(this.kickY, 0, 9, dt);
-    cam.rotation.set(U.clamp(this.pitch + sx + this.kickP, -1.55, 1.55), this.yaw + sy + this.kickY, this.dead ? Math.min(this.deadT * 0.6, 0.3) : 0, 'YXZ');
+    cam.rotation.set(U.clamp(this.pitch + sx + this.kickP, -1.55, 1.55), yaw + sy + this.kickY, this.dead ? Math.min(this.deadT * 0.6, 0.3) * (1 - this.tpK) : 0, 'YXZ');
     // sprinting widens the view a little
     const fov = 72 + this.sprintK * 7;
     if (Math.abs(cam.fov - fov) > 0.05) { cam.fov = fov; cam.updateProjectionMatrix(); }
@@ -945,15 +1009,98 @@ class LocalPlayer {
     this.swayY = U.damp(this.swayY, U.clamp((this.pitch - this.lastPitch) * 1.6 * k, -0.08, 0.08), 10, dt);
     this.lastYaw = this.yaw; this.lastPitch = this.pitch;
     const sw = this.swapT * this.swapT, run = this.sprintK;
-    this.vm.visible = !this.dead && !this.ghost;
+    this.vm.visible = !this.dead && !this.ghost && this.tpK < 0.5;
     this.vm.position.set(
       Math.cos(this.walkT) * (0.012 + run * 0.02) + this.swayX * 0.5,
       Math.abs(Math.sin(this.walkT)) * (0.012 + run * 0.02) + (this.onGround ? 0 : 0.02) - sw * 0.3 - this.landK * 0.05 - this.swayY * 0.4 - run * 0.03,
       this.recoil);
     this.recoilRot = U.damp(this.recoilRot, 0, 11, dt); this.recoilRoll = U.damp(this.recoilRoll, 0, 10, dt);
     this.vm.rotation.set(this.recoilRot - sw * 0.9 + run * 0.25 - this.swayY, this.swayX * 1.2 + run * 0.3, -this.swayX * 0.8 + this.recoilRoll);
-    if (this.gloveCol !== G.color) { this.gloveCol = G.color; this.gloveMat.color.set(G.color || '#ff7a3d'); }
+    if (this.cuffCol !== G.color) { this.cuffCol = G.color; this.cuffMat.color.set(G.color || '#ff7a3d'); }
     if (this.sleeveLook !== G.look) { this.sleeveLook = G.look; this.sleeveMat.color.set(lookColor(G.look, 'body')); }
+  }
+
+  // how far back the camera can go from `from` (along `dir`) before it'd be in the ground, a wall or a rock
+  camRoom(from, dir, want) {
+    const w = this.world(), p = new V3();
+    const inside = (q) => {
+      if (q.y < w.ground(q.x, q.z, q.y) + 0.3 || (w.solidAt && w.solidAt(q))) return true;
+      for (const b of w.boxes) if (q.y < b.top && q.x > b.x0 - 0.25 && q.x < b.x1 + 0.25 && q.z > b.z0 - 0.25 && q.z < b.z1 + 0.25) return true;
+      for (const c of w.circles) {
+        if ((c.top != null && q.y > c.top + 0.2) || (c.bot != null && q.y < c.bot - 0.2)) continue;
+        const dx = q.x - c.x, dz = q.z - c.z, r = c.r + 0.25;
+        if (dx * dx + dz * dz < r * r) return true;
+      }
+      return false;
+    };
+    for (let d = 0.5; d < want; d += 0.2) if (inside(p.copy(from).addScaledVector(dir, d))) return Math.max(0.5, d - 0.3);
+    return want;
+  }
+  // V: first person / third person
+  toggleView() {
+    G.settings.view = G.settings.view === 'tp' ? 'fp' : 'tp';
+    lsSet('spacegoobers_settings', G.settings);
+    Game.syncSettings();
+    UI.toast(G.settings.view === 'tp' ? 'Third person: that\'s you! (V to switch back)' : 'First person', '', 1.6);
+  }
+  // your goober (seen in third person and while you emote): built the first time it's needed, and again when
+  // your colors, look or vac change. It carries every tool, showing the one you're holding.
+  body() {
+    const key = G.color + '|' + G.look + '|' + (SAVE.vacLvl > 0);
+    if (!this.gb || this.gbKey !== key) {
+      if (this.gb) { G.scene.remove(this.gb.root); disposeObj(this.gb.root); }
+      this.gb = buildAstronaut({ color: G.color, look: G.look, hat: SAVE.hat });
+      this.gbKey = key; this.gbAnim = new GooberAnim(this.gb); this.gbYaw = this.yaw; this.gbZap = null;
+      this.gbTools = [null, buildVacVM(SAVE.vacLvl > 0), buildDrillVM(), buildPeelVM()];
+      this.gbTools.forEach((t, i) => t && gripTool(this.gb.hand, t, TOOLS[i]));
+      G.scene.add(this.gb.root);
+    }
+    if (this.gbZap !== SAVE.zap) { // (a different gun)
+      if (this.gbTools[0]) { this.gb.hand.remove(this.gbTools[0]); disposeObj(this.gbTools[0]); }
+      this.gbTools[0] = gripTool(this.gb.hand, buildZapperVM(SAVE.zap), 'zap');
+      this.gbZap = SAVE.zap;
+    }
+    if (this.gb.hatId !== SAVE.hat) setHat(this.gb, SAVE.hat);
+    return this.gb;
+  }
+  hideBody() { if (this.gb) this.gb.root.visible = false; }
+  // every frame: your goober does whatever you're doing (see GooberAnim)
+  bodyTick(dt) {
+    if (this.tpK < 0.02 || this.ghost) { this.hideBody(); return; }
+    const m = this.body(), ti = TOOLS.indexOf(this.tool);
+    this.gbYaw += U.angDiff(this.gbYaw, this.emoteT > 0 ? this.emoteYaw : this.yaw) * Math.min(1, dt * 14);
+    m.root.visible = true;
+    m.pose.visible = this.tpD > 1 || this.dead; // (backed right up against a wall, you'd only see the inside of your helmet)
+    m.root.position.copy(this.pos);
+    m.root.rotation.y = this.gbYaw + PI;
+    this.gbTools.forEach((t, i) => (t.visible = i === ti));
+    this.gbAnim.update(dt, {
+      vx: this.vel.x + this.ext.x, vy: this.onGround ? 0 : this.vel.y, vz: this.vel.z + this.ext.z, yaw: this.gbYaw, pitch: this.pitch, ground: this.onGround,
+      tool: this.tool, gun: gunDef(SAVE.zap).type, use: this.using, jet: this.jetting, glide: this.gliding, stomp: this.stomping,
+      launch: this.launchT > 0 && !this.onGround, slide: this.sliding, revive: this.reviveT > 0,
+      down: this.down, dead: this.dead && !this.down, lift: this.helpT && G.time - this.helpT < 0.6 ? this.helpP : 0,
+    });
+  }
+  // G: goof off. Every press is the next emote; in first person the camera swings round so you can see it
+  emote() {
+    if (this.dead || this.ghost || !this.onGround) return;
+    const names = Object.keys(GOOB_EMOTES);
+    this.emoteI = this.emoteI == null ? 0 : (this.emoteI + 1) % names.length;
+    const n = names[this.emoteI];
+    this.body();
+    this.emoteT = GOOB_EMOTES[n][0]; this.emoteYaw = this.gbYaw = this.yaw;
+    this.act(n);
+    UI.toast(`${GOOB_EMOTES[n][1]}! (G again: ${GOOB_EMOTES[names[(this.emoteI + 1) % names.length]][1].toLowerCase()})`, '', 1.6);
+  }
+  stopEmote() {
+    if (this.emoteT <= 0) return;
+    this.emoteT = 0;
+    this.act('stop');
+  }
+  // a move your goober makes (your crew sees it too, unless net is false: they find out about those another way)
+  act(n, k, net = true) {
+    if (this.gbAnim) this.gbAnim.play(n, k);
+    if (net) { this.an = (this.an + 1) % 4096; this.ac = k ? n + ':' + k : n; }
   }
 
   netState() {
@@ -963,8 +1110,9 @@ class LocalPlayer {
       og: this.onGround ? 1 : 0, st: Flight.on ? (Flight.seat === 'pilot' ? 1 : 2) : 0,
       t: TOOLS.indexOf(this.tool), h: SAVE.hat, c: G.color, lk: G.look, n: G.name, m: G.mode, p: G.planet,
       hp: Math.round(this.hp), g: this.ghost ? 1 : 0, d: this.dead ? 1 : 0, dn: this.down ? 1 : 0, $: SAVE.bucks, zp: SAVE.zap,
-      u: (this.vacTarget || this.drillTarget || (this.tool === 'zap' && Input.mouseL)) ? 1 : 0,
-      mv: (this.jetting ? 1 : 0) | (this.gliding ? 2 : 0), // (so friends see your jet flames and your cape)
+      u: this.using ? 1 : 0, pt: U.r2(this.pitch), an: this.an, ac: this.ac, // (what your goober is up to, see RemotePlayer)
+      // your movement gear and what's happening to you: jet pack, glider cape, ground pound, flung, sliding, picking someone up
+      mv: (this.jetting ? 1 : 0) | (this.gliding ? 2 : 0) | (this.stomping ? 4 : 0) | (this.launchT > 0 && !this.onGround ? 8 : 0) | (this.sliding ? 16 : 0) | (this.reviveT > 0 ? 32 : 0),
       sf: this.safeT > 0 ? 1 : 0, // (the host's critters leave you alone while you're new here)
     };
   }
@@ -975,6 +1123,7 @@ class RemotePlayer {
   constructor(id, s) {
     this.id = id; this.s = s; this.name = s.n;
     this.m = buildAstronaut({ color: s.c, hat: s.h, look: s.lk });
+    this.anim = new GooberAnim(this.m);
     this.color = s.c; this.look = s.lk || '';
     G.scene.add(this.m.root);
     this.tag = textSprite(s.n, { size: 44, bg: 'rgba(20,20,40,.55)', scale: 0.0065 });
@@ -986,27 +1135,21 @@ class RemotePlayer {
     this.m.root.add(this.ghostTag);
     this.zl = s.zp == null ? -1 : s.zp; // their gun (so you see the one they really have out)
     this.tools = [buildZapperVM(this.zl), buildVacVM(), buildDrillVM(), buildPeelVM()];
-    this.tools.forEach((t) => this.holdTool(t));
+    this.tools.forEach((t, i) => gripTool(this.m.hand, t, TOOLS[i]));
     this.pos = new V3(s.x, s.y, s.z); this.tpos = this.pos.clone();
-    this.tvel = new V3(); this.rcvT = G.time; this.lift = 0;
-    this.yaw = s.yw; this.walk = 0;
+    this.tvel = new V3(); this.vel = new V3(); this.rcvT = G.time; this.lift = 0;
+    this.yaw = s.yw;
     this.center = new V3();
     this.visible = true;
-    // a cape that only shows while they're gliding
-    this.cape = grp(this.m.root, 0, 1.55, -0.34);
-    withHi(null, () => {
-      mk(roundBox(0.72, 1.2, 0.05, 0.024), '#b8142e', this.cape, 0, -0.6, 0);
-      mk(roundBox(0.74, 0.08, 0.07, 0.03), '#ffd23f', this.cape, 0, 0, 0);
-    });
-    this.cape.traverse((c) => { if (c.isMesh) c.receiveShadow = false; });
-    this.cape.visible = false;
+    this.an = s.an; // (the last move of theirs we've seen, see apply)
   }
   // they changed their colors or look: a new astronaut, wearing everything the old one had on
   rebuild(s) {
     const old = this.m;
     this.m = buildAstronaut({ color: s.c, hat: s.h, look: s.lk });
+    this.anim = new GooberAnim(this.m);
     this.color = s.c; this.look = s.lk || '';
-    for (const o of [this.tag, this.ghostTag, this.downTag, this.cape]) if (o) this.m.root.add(o);
+    for (const o of [this.tag, this.ghostTag, this.downTag]) if (o) this.m.root.add(o);
     this.tools.forEach((t) => this.m.hand.add(t));
     this.m.root.position.copy(old.root.position);
     this.m.root.rotation.copy(old.root.rotation);
@@ -1030,8 +1173,15 @@ class RemotePlayer {
     if (zl !== this.zl) { // they switched guns (or bought one)
       this.zl = zl;
       this.m.hand.remove(this.tools[0]); disposeObj(this.tools[0]);
-      this.tools[0] = this.holdTool(buildZapperVM(zl));
+      this.tools[0] = gripTool(this.m.hand, buildZapperVM(zl), 'zap');
     }
+    // a move of theirs (a flip, a dash, a hit, an emote...): their goober does it too
+    if (s.an != null && s.an !== this.an) {
+      if (this.an != null && s.ac) { const [n, k] = String(s.ac).split(':'); this.anim.play(n, k); }
+      this.an = s.an;
+    }
+    if (prev && !prev.d && s.d && !s.dn && !s.g) this.anim.play('die'); // (out cold: spins round first)
+    if (prev && prev.d && !s.d) this.anim.play('up');
     if (s.n !== this.name) {
       this.name = s.n;
       this.m.root.remove(this.tag); disposeObj(this.tag);
@@ -1048,43 +1198,29 @@ class RemotePlayer {
     const ahead = Math.min(G.time - this.rcvT, 0.2);
     const tx = this.tpos.x + this.tvel.x * ahead, ty = this.tpos.y + this.tvel.y * ahead, tz = this.tpos.z + this.tvel.z * ahead;
     if (this.snapNext) { this.pos.set(tx, ty, tz); this.snapNext = false; }
-    const px = this.pos.x, pz = this.pos.z;
     this.pos.x = U.damp(this.pos.x, tx, 16, dt);
     this.pos.y = U.damp(this.pos.y, ty, 16, dt);
     this.pos.z = U.damp(this.pos.z, tz, 16, dt);
     this.yaw += U.angDiff(this.yaw, s.yw) * Math.min(1, dt * 12);
-    const sp = Math.hypot(this.pos.x - px, this.pos.z - pz) / Math.max(dt, 1e-4);
-    this.walk += dt * sp * 1.3;
-    const swing = Math.sin(this.walk * 2) * U.clamp(sp / 5, 0, 1) * 0.7;
-    const r = this.m;
+    const r = this.m, ghost = !!s.g, mv = s.mv || 0;
     r.root.position.copy(this.pos);
     r.root.rotation.y = this.yaw + Math.PI;
-    r.legL.rotation.x = swing; r.legR.rotation.x = -swing;
-    r.armL.rotation.x = -swing * 0.7;
-    r.armR.rotation.x = U.damp(r.armR.rotation.x, -1.45 + (s.u ? Math.sin(G.time * 30) * 0.05 : 0), 10, dt);
     this.tools.forEach((t, i) => (t.visible = i === s.t));
-    const ghost = !!s.g;
-    r.head.visible = !ghost; r.legL.visible = !ghost; r.legR.visible = !ghost;
+    r.pose.visible = !ghost;
     this.ghostTag.visible = ghost;
     if (!this.downTag) { this.downTag = textSprite('REVIVE ME', { size: 44, color: '#ffffff', bg: 'rgba(200,30,30,.8)', scale: 0.0075, depthTest: false, order: 20 }); this.downTag.position.y = 1.6; r.root.add(this.downTag); }
     this.downTag.visible = !!s.dn && !ghost;
     if (s.dn) this.downTag.position.y = 1.5 + Math.sin(G.time * 4) * 0.1;
-    r.root.children.forEach((c) => { if (c.isMesh) c.visible = !ghost; });
-    r.armL.visible = r.armR.visible = !ghost;
-    // knocked down: lying on the ground (and rising as a friend picks them up)
-    if (s.d && !ghost) { r.root.rotation.z = U.damp(r.root.rotation.z, 1.4 * (1 - U.clamp(this.lift, 0, 1)), 6, dt); } else r.root.rotation.z = U.damp(r.root.rotation.z, 0, 8, dt);
+    // everything they're doing, the way their goober does it (see GooberAnim)
+    this.vel.x = U.damp(this.vel.x, this.tvel.x, 10, dt); this.vel.z = U.damp(this.vel.z, this.tvel.z, 10, dt);
+    this.anim.update(dt, {
+      vx: this.vel.x, vy: s.og ? 0 : s.vy || 0, vz: this.vel.z, yaw: this.yaw, pitch: s.pt || 0, ground: !!s.og,
+      tool: TOOLS[s.t], gun: gunDef(this.zl).type, use: !!s.u,
+      jet: !!(mv & 1), glide: !!(mv & 2), stomp: !!(mv & 4), launch: !!(mv & 8), slide: !!(mv & 16), revive: !!(mv & 32),
+      down: !!s.dn, dead: !!s.d && !s.dn, lift: this.lift,
+    });
     this.center.set(this.pos.x, this.pos.y + 1.0, this.pos.z);
-    // their movement gear: flames under a jet pack, a cape streaming out behind while they glide
-    const mv = s.mv || 0;
-    this.cape.visible = !!(mv & 2) && !ghost;
-    if (this.cape.visible) this.cape.rotation.x = 1.1 + Math.sin(G.time * 18) * 0.08; // (streaming out behind them)
-    if (mv & 1 && !ghost && Math.random() < 0.6) FX.burst(this.pos.clone().setY(this.pos.y + 0.4), U.pick(['#ffb23e', '#ff6a1f', '#fff36b']), 1, 2);
-  }
-  // put a tool in their right hand
-  holdTool(t) {
-    t.rotation.x = -Math.PI / 2; t.scale.setScalar(1.2);
-    this.m.hand.add(t);
-    return t;
+    if (mv & 1 && !ghost && Math.random() < 0.6) FX.burst(this.pos.clone().setY(this.pos.y + 0.4), U.pick(['#ffb23e', '#ff6a1f', '#fff36b']), 1, 2); // (jet pack flames)
   }
   dispose() {
     G.scene.remove(this.m.root);
@@ -1280,7 +1416,7 @@ const Shots = {
   steerCutter(s) {
     if (!s.back && s.t >= s.out) this.turnBack(s);
     if (!s.back) return;
-    const home = s.local ? G.camera.position : s.owner && s.owner.visible ? s.owner.center : null;
+    const home = s.local ? G.player.rayStart() : s.owner && s.owner.visible ? s.owner.center : null;
     if (!home) { s.life = 0; return; }
     const d = home.clone().sub(s.pos);
     s.home = d.length();

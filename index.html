@@ -84,6 +84,7 @@
     <div class="setting"><label>Sound volume</label><input type="range" id="s-vol" min="0" max="1" step="0.05"></div>
     <div class="setting"><label>Music volume</label><input type="range" id="s-mus" min="0" max="1" step="0.05"></div>
     <div class="setting"><label for="s-q">Graphics</label><select id="s-q"><option value="high">High (bloom, color grading)</option><option value="low">Low (faster)</option></select></div>
+    <div class="setting"><label for="s-view">Camera <small>(V)</small></label><select id="s-view"><option value="fp">First person</option><option value="tp">Third person (see your goober)</option></select></div>
     <div class="setting ffrow"><label>Friendly fire <b id="v-ff">OFF</b></label><button id="s-ff" class="btn small">Turn on</button><small id="ff-note"></small></div>
     <div class="row2">
       <button id="p-cust" class="btn small">Customize</button>
@@ -136,6 +137,7 @@
 <script src="js/audio.js"></script>
 <script src="js/data.js"></script>
 <script src="js/models.js"></script>
+<script src="js/goober.js"></script>
 <script src="js/items.js"></script>
 <script src="js/world.js"></script>
 <script src="js/post.js"></script>

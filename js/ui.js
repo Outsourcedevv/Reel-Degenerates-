@@ -399,7 +399,8 @@ const UI = {
         <p><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move · <kbd>Shift</kbd> sprint</p>
         <p><kbd>Space</kbd> jump (double jump with Bounce Boots)</p>
         <p>Gear from the shops: <kbd>Q</kbd> dash (Getaway Sneakers) · <kbd>C</kbd> in the air: ground pound (Yeti Stompers) · hold <kbd>Space</kbd> in the air: glide (Glider Cape) or fly (Jet Pack)</p>
-        <p><kbd>E</kbd> talk / use · <kbd>I</kbd> backpack &amp; crew · <kbd>H</kbd> what to do on this planet · <kbd>Esc</kbd> pause</p></div>
+        <p><kbd>E</kbd> talk / use · <kbd>I</kbd> backpack &amp; crew · <kbd>H</kbd> what to do on this planet · <kbd>Esc</kbd> pause</p>
+        <p><kbd>V</kbd> first / third person (see your goober) · <kbd>G</kbd> emote (a different one each press)</p></div>
       <div><h4>Tools</h4>
         <p><kbd>1</kbd> Gun: click to shoot, <kbd>R</kbd> reload. You start with a Squirt Pistol (it's terrible). Every planet sells a different real gun, and you keep every one you buy: press <kbd>1</kbd> again to switch.</p>
         <p><kbd>2</kbd> Grabby Vac: hold click on things to suck them up (junk, berries, chips, snow piles, pearls, litter, crusts). Ghosts too: it's the ONLY way to catch one, and you have to keep it in the middle of your screen.</p>

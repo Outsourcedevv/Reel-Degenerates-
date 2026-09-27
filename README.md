@@ -37,12 +37,22 @@ difficulty:
 Minecraft worlds. When you join a friend, your stuff in their world is saved too, so it's still there next time.
 Hats are the exception: once you own a hat, it's yours in every world (and when you visit friends).
 
-**Your astronaut.** Click **Customize** on the title screen (or in the pause menu) to dress up your astronaut, with
-a turning preview:
+**Your astronaut** is a Space Goober: tall, lanky and goofy, with a pot belly, noodle arms, big boots and a long egg
+of a head (googly eyes, a droopy nose, big ears) that wobbles about inside its glass bubble. He does everything the
+goofy way: bouncy walking with floppy arms, flat-out sprinting with his mouth wide open, flailing all the way down a
+long fall, a front flip on a double jump, getting knocked off his feet when something bites him, and lying on his back
+kicking like a flipped bug when he's down. The bigger the gun, the harder it kicks him about. Stand still for a bit
+and he fidgets: he scratches his helmet, tries to pick his nose (the glass is in the way), drums on his belly, yawns.
+Your crew sees all of it. To see it yourself, press `V` for third person (or pick the camera in the pause menu), and
+press `G` for an emote: wave, chicken dance, flex, floss, facepalm and faint, a different one each press (in first
+person, the camera swings round so you can watch).
 
-- **Suit:** suit color, accent color (belt, collar, gloves and backpack), pattern (stripes, racing stripe, two-tone,
-  half and half, shoulder pads, spots), chest badge (buttons, star, heart, lightning, pizza, moon) and backpack
-  (air tanks, jet pack, pizza box, rocket, or none).
+Click **Customize** on the title screen (or in the pause menu) to dress him up, with a preview of him goofing about
+(the buttons on it try out the emotes):
+
+- **Suit:** suit color, accent color (chest panel, belt, collar, cuffs), pattern (stripes, racing stripe,
+  two-tone, half and half, shoulder pads, spots), chest badge (buttons, star, heart, lightning, pizza, moon) and
+  backpack (air tanks, jet pack, pizza box, rocket, or none).
 - **Face & helmet:** skin, hair and hair color, eyes, mouth, extras (mustache, beard, freckles, blush, glasses, clown
   nose), the tint of your helmet glass, and which of your hats to wear.
 
@@ -96,6 +106,7 @@ Each friend needs to open the game too. The easiest way is to put it online for 
 | `R` | reload (infinite batteries, but the battery pack runs out) |
 | Right click | throw a Goo Grenade (boss fights) |
 | `I` | backpack (drop things) and crew (send money) |
+| `V` / `G` | first or third person (see your goober) / emote (a different one each press) |
 | `H` | what to do on this planet (a short guide) |
 | `T` / `Tab` / `M` / `Esc` | chat / crew list / music / pause |
 | `E` at the ship | get in (and get out again while it's parked on the pad) |
@@ -290,6 +301,7 @@ in your browser (clearing browser data deletes them).
 - `js/items.js`: models of the items you buy, carry and win · `js/thumbs.js`: turns models into the pictures the
   menus show (shop items, backpack, hotbar, faces)
 - `js/custom.js`: the Customize screen (the looks themselves are `LOOK_PARTS` and `buildAstronaut` in `models.js`)
+- `js/goober.js`: how your goober moves (walking, flailing, recoil, fidgets, emotes: `GooberAnim`)
 - `js/post.js`: bloom and color grading · `js/icons.js`: interface icons
 - `js/main.js`: game loop, menus, multiplayer glue · `js/net.js`: networking
 - `desktop/`: the desktop app (Electron). `npm install` then `npm start` runs it; `npm run dist` builds installers.

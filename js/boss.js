@@ -1949,6 +1949,9 @@ class BossFight {
     G.shake = Math.max(G.shake, 0.55);
     Sound.play('hurt');
     if (from) this.hurtDirs.push({ x: from.x, z: from.z, t: 0 });
+    // (your goober gets knocked about: from behind, he clutches his backside)
+    const bx = from ? p.pos.x - from.x : 0, bz = from ? p.pos.z - from.z : 0, bl = Math.hypot(bx, bz) || 1;
+    p.act('hurt', from && (bx * Math.sin(p.yaw) + bz * Math.cos(p.yaw)) / bl < -0.4 ? 'back' : '');
     if (kind === 'coin' && U.chance(0.5)) { addBucks(1); UI.toast('+$1 (at least you got paid)', 'gold', 1.2); }
     if (kind === 'pizza' && U.chance(0.3)) UI.toast('It IS pretty cold, honestly.', '', 1.5);
     if (p.hp <= 0) {
@@ -1962,6 +1965,7 @@ class BossFight {
   die() {
     const p = this.me();
     p.dead = true; p.deadT = 0; p.hp = 0;
+    p.stopEmote(); p.act('die');
     SAVE.stats.deaths++;
     persist();
     Sound.play('death');

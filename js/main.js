@@ -359,9 +359,11 @@ const Game = {
   },
   setupPause() {
     const s = G.settings;
-    const sens = U.$('s-sens'), vol = U.$('s-vol'), mus = U.$('s-mus'), q = U.$('s-q');
+    const sens = U.$('s-sens'), vol = U.$('s-vol'), mus = U.$('s-mus'), q = U.$('s-q'), view = U.$('s-view');
     sens.value = s.sens; vol.value = s.vol; mus.value = s.music; q.value = s.quality;
     q.addEventListener('change', () => { s.quality = q.value; lsSet('spacegoobers_settings', s); Post.apply(); });
+    view.addEventListener('change', () => { s.view = view.value; lsSet('spacegoobers_settings', s); });
+    this.syncSettings();
     U.$('v-sens').textContent = Number(s.sens).toFixed(1);
     const save = () => {
       s.sens = Number(sens.value); s.vol = Number(vol.value); s.music = Number(mus.value);
@@ -376,6 +378,8 @@ const Game = {
     U.$('p-leave').onclick = () => { persist(); Net.leave(); location.reload(); };
     U.$('s-ff').onclick = () => { Sound.play('click'); this.setFF(!G.ff); };
   },
+  // (settings that can change from a key too: the camera, V)
+  syncSettings() { const v = U.$('s-view'); if (v) v.value = G.settings.view === 'tp' ? 'tp' : 'fp'; },
   updatePause() {
     const show = G.started && !G.locked && !G.panel && !G.chatting && !document.getElementById('ending');
     U.$('pause').classList.toggle('hidden', !show);
@@ -631,6 +635,7 @@ const Game = {
       const r = G.remotes.get(m.from || from);
       if (!r || !r.visible) return;
       Shots.remote(m, r);
+      if (m.k !== 'stomp') r.anim.play('fire', m.k); // (and their goober gets kicked about by it)
     });
     N.on('nade', (m, from) => {
       const r = G.remotes.get(m.from || from);
@@ -763,6 +768,7 @@ const Game = {
         cam.lookAt(0, 3, 0);
       } else if (G.mode === 'planet' || G.mode === 'boss') G.player.update(dt);
       else if (G.mode === 'space') Flight.update(dt);
+      if (G.mode !== 'planet' && G.mode !== 'boss' && G.player) G.player.hideBody(); // (you're in the ship, or at the menu)
       if (G.world && G.mode !== 'boss') G.world.update(dt, G.time);
       if (G.boss) G.boss.update(dt);
       Activities.update(dt);
@@ -857,6 +863,7 @@ const Game = {
       if (h.userData.bob) h.position.y = Math.sin(G.time * 3) * 0.04;
     };
     for (const r of G.remotes.values()) doHat(r.m.hatSlot);
+    if (G.player && G.player.gb) doHat(G.player.gb.hatSlot);
   },
 };
 

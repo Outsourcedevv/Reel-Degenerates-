@@ -20,7 +20,7 @@ const G = {
   crew: { summons: {}, heat: 0 }, // shared crew tasks (boss summoning items, pizza warmth), run by the host
   ff: false,             // friendly fire (a world setting the host picks)
   shake: 0,
-  settings: { sens: 1, vol: 0.7, music: 0.45, quality: 'high' },
+  settings: { sens: 1, vol: 0.7, music: 0.45, quality: 'high', view: 'fp' }, // view: 'fp' first person, 'tp' third person (V)
 };
 
 const U = {

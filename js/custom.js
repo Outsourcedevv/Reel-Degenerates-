@@ -2,7 +2,8 @@
 /* =========================================================
    Dressing up your astronaut: colors, pattern, badge,
    backpack, helmet glass, face and hair (see LOOK_PARTS),
-   with a turning 3D preview. Opens from the title screen and
+   with a turning 3D preview of your goober goofing about
+   (and trying out the emotes). Opens from the title screen and
    the pause menu. Your look is kept in this browser and sent
    to your crew, who see exactly this.
    ========================================================= */
@@ -61,7 +62,9 @@ const Custom = {
     const tabs = [['suit', 'Suit'], ['face', 'Face & helmet']].map(([t, n]) => `<button class="stab ${t === this.tab ? 'on' : ''}" data-act="tab" data-t="${t}">${n}</button>`).join('');
     const html = `<h2 class="ph">Your astronaut</h2><p class="psub">Your crew sees you exactly like this.</p>
       <div class="cust">
-        <div class="cust-view"><canvas id="custcv"></canvas><small>Drag to turn around</small></div>
+        <div class="cust-view"><canvas id="custcv"></canvas>
+          <div class="cust-emotes">${Object.entries(GOOB_EMOTES).map(([k, e]) => `<button class="chip" data-act="emo" data-e="${k}">${U.esc(e[1])}</button>`).join('')}</div>
+          <small>Drag to turn around · G in the game: emote</small></div>
         <div class="cust-side"><div class="stabs">${tabs}</div><div class="cust-body">${body}</div></div>
       </div>
       <div class="row2"><button class="btn" data-act="rand">${icon('dice')}Randomize</button><button class="btn green" data-act="close">Done</button></div>`;
@@ -77,6 +80,7 @@ const Custom = {
       el.querySelectorAll('.cgroup').forEach((g) => g.classList.toggle('hidden', g.dataset.tab !== d.t));
       return;
     }
+    if (act === 'emo') { if (this.anim) this.anim.play(d.e); return; }
     if (act === 'set') this.set(d.k, d.v);
     if (act === 'rand') {
       const l = {};
@@ -105,8 +109,8 @@ const Custom = {
   },
   changed() {
     this.save();
-    this.pop = 1;
     this.buildModel();
+    if (this.anim) this.anim.play('yay');
     if (typeof Game !== 'undefined' && Game.drawLook) Game.drawLook();
   },
 
@@ -132,7 +136,7 @@ const Custom = {
     this.pivot = new THREE.Group();
     scene.add(this.pivot);
     this.cam = new THREE.PerspectiveCamera(30, 1, 0.1, 50);
-    Object.assign(this, { r, scene, cv, yaw: 0.35, base: 0.35, zoom: this.tab === 'face' ? 1 : 0, t: 0, last: performance.now(), drag: null, pop: 0 });
+    Object.assign(this, { r, scene, cv, yaw: 0.35, base: 0.35, zoom: this.tab === 'face' ? 1 : 0, t: 0, last: performance.now(), drag: null });
     cv.onpointerdown = (e) => { this.drag = { x: e.clientX, base: this.base }; try { cv.setPointerCapture(e.pointerId); } catch (x) { /* ignore */ } };
     cv.onpointermove = (e) => { if (this.drag) this.base = this.drag.base + (e.clientX - this.drag.x) * 0.012; };
     cv.onpointerup = cv.onpointercancel = () => { this.drag = null; };
@@ -144,6 +148,8 @@ const Custom = {
     if (!this.r) return;
     if (this.model) { this.pivot.remove(this.model.root); disposeObj(this.model.root); }
     this.model = buildAstronaut({ color: G.color, look: G.look, hat: this.hats().hat });
+    this.anim = new GooberAnim(this.model);
+    this.anim.nextFidget = U.rand(1.5, 3); // (he gets bored quickly in here)
     this.pivot.add(this.model.root);
   },
   frame() {
@@ -158,19 +164,11 @@ const Custom = {
     this.zoom = U.damp(this.zoom, this.tab === 'face' ? 1 : 0, 6, dt);
     const z = this.zoom, cam = this.cam;
     cam.aspect = w / h;
-    cam.position.set(0, U.lerp(1.28, 1.95, z), U.lerp(6.2, 3.3, z));
-    cam.lookAt(0, U.lerp(1.12, 1.8, z), 0);
+    cam.position.set(0, U.lerp(1.3, 2.02, z), U.lerp(6.6, 1.95, z));
+    cam.lookAt(0, U.lerp(1.12, 1.95, z), 0);
     cam.updateProjectionMatrix();
-    // idle: breathing, a look around, and a happy hop whenever something changes
-    const m = this.model, t = this.t;
-    this.pop = Math.max(0, this.pop - dt * 2.5);
-    const hop = Math.sin((1 - this.pop) * Math.PI) * (this.pop > 0 ? 1 : 0);
-    m.root.position.y = hop * 0.12;
-    m.root.scale.set(1 + hop * 0.04, 1 - hop * 0.03 + Math.sin(t * 2.2) * 0.006, 1 + hop * 0.04);
-    m.head.rotation.y = Math.sin(t * 0.9) * 0.18;
-    m.head.rotation.z = Math.sin(t * 1.3) * 0.04;
-    m.armL.rotation.z = -0.08 - Math.sin(t * 2.2) * 0.03 - hop * 0.5;
-    m.armR.rotation.z = 0.08 + Math.sin(t * 2.2) * 0.03 + hop * 0.5;
+    // he stands about, fidgets, hops for joy whenever something changes, and does the emotes you click
+    this.anim.update(dt, { ground: true, yaw: 0 });
     this.r.render(this.scene, cam);
   },
   stopView() {
@@ -179,6 +177,6 @@ const Custom = {
     disposeObj(this.scene);
     this.r.dispose();
     try { this.r.forceContextLoss(); } catch (e) { /* ignore */ }
-    this.r = null; this.model = null; this.scene = null;
+    this.r = null; this.model = null; this.anim = null; this.scene = null;
   },
 };
