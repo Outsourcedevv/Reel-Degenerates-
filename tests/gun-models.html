@@ -1,0 +1,51 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Gun model integration checks</title>
+<pre id="results">Running...</pre>
+<script src="../vendor/three.min.js"></script>
+<script src="../js/util.js"></script>
+<script src="../js/data.js"></script>
+<script src="../js/models.js"></script>
+<script src="../js/gun-designs.js"></script>
+<script>
+const report = [];
+function check(condition, message) { if (!condition) throw new Error(message); }
+try {
+  for (let level = -1; level < ZAPPERS.length; level++) {
+    const def = gunDef(level), gun = buildZapperVM(level), other = buildZapperVM(level);
+    const { muzzle, flash, wheel } = gun.userData;
+    check(muzzle.parent === gun && flash.parent === gun, def.name + ': attachment parents');
+    check(muzzle.position.z < -.2, def.name + ': muzzle points forward');
+    check(flash.position.distanceTo(muzzle.position) < .041, def.name + ': flash follows muzzle');
+    const bounds = new THREE.Box3().setFromObject(gun);
+    check(bounds.max.z < .3 && bounds.min.z > -.7 && bounds.max.y < .35, def.name + ': held scale');
+    let meshes = 0;
+    gun.traverse(o => {
+      if (!o.isMesh) return;
+      meshes++;
+      check(Array.from(o.geometry.attributes.position.array).every(Number.isFinite), def.name + ': finite vertices');
+    });
+    check(meshes < 30, def.name + ': static parts batched (' + meshes + ')');
+    addHands(gun, def.type, M('#333333'), M('#ffffff'));
+    check(gun.userData.hands.grip.position.distanceTo(new V3(0, -.1, .08)) < 1e-6, def.name + ': grip anchor');
+    check(!!gun.userData.hands.support === ['spread','lob','beam','chain','rocket','cutter'].includes(def.type), def.name + ': support hand');
+    const hand = new THREE.Group(); gripTool(hand, other, 'zap');
+    check(other.position.distanceTo(new V3(0, .1, -.08)) < 1e-6, def.name + ': third-person attachment');
+    if (def.type === 'cutter') {
+      check(wheel && wheel.children.length > 0, 'Cutter wheel preserved');
+      const pivot = wheel.position.clone(); wheel.rotation.x = 1; wheel.visible = false;
+      check(wheel.position.equals(pivot) && other.userData.wheel.visible, 'Cutter animation is per instance');
+    } else check(!wheel, def.name + ': no cutter rotor');
+    let sharedTextureDisposed = false;
+    const tex = flash.material.map;
+    const onDispose = () => sharedTextureDisposed = true;
+    tex.addEventListener('dispose', onDispose);
+    disposeObj(gun);
+    check(!sharedTextureDisposed, 'Switching guns preserves shared muzzle texture');
+    tex.removeEventListener('dispose', onDispose); disposeObj(other);
+    report.push(def.name + ': PASS (' + meshes + ' meshes before hands)');
+  }
+  window.testResult = { ok: true, report };
+} catch (error) { window.testResult = { ok: false, report, error: error.stack }; }
+document.getElementById('results').textContent = JSON.stringify(window.testResult, null, 2);
+</script>

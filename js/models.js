@@ -1618,112 +1618,12 @@ function buildCutterWheel(parent, r = 0.11) {
 }
 // every gun is its own thing (see ZAPPERS). Points down -z; userData.muzzle is where shots come out.
 function buildZapperVM(lvl = 0) {
-  const z = gunDef(lvl), color = z.color, g = new THREE.Group();
-  let tip = null, wheel = null, mz = -0.4, my = 0.03; // (muzzle position)
-  tf(mk(BOX(0.07, 0.18, 0.09), z.type === 'squirt' ? '#ff8a1f' : '#3b3f4a', g, 0, -0.1, 0.08), 0.3); // grip
-  switch (z.type) {
-    case 'squirt': // Squirt Pistol: a bright plastic water pistol with a see-through tank. Company-issue.
-      mk(BOX(0.085, 0.09, 0.26), '#ff8a1f', g, 0, 0.02, -0.04);
-      mk(BOX(0.07, 0.07, 0.1), M('#7fd4ff', { transparent: true, opacity: 0.55, depthWrite: false }), g, 0, 0.1, 0.0);
-      mk(BOX(0.05, 0.035, 0.08), '#3a9ee0', g, 0, 0.085, 0.0, { emissive: '#0a3a6a' }); // (the water in it)
-      mk(CYL(0.012, 0.012, 0.05, 6), '#ffffff', g, 0, 0.16, 0.0);
-      tf(mk(CYL(0.018, 0.024, 0.14, 8), '#2fb7e0', g, 0, 0.03, -0.23), PI / 2);
-      tf(mk(BOX(0.012, 0.05, 0.03), '#ffffff', g, 0, -0.03, 0.02), 0.4); // the trigger
-      tip = mk(SPH(0.02, 6, 5), '#bff0ff', g, 0, 0.03, -0.3, { emissive: '#3a9ee0' });
-      mz = -0.32;
-      break;
-    case 'spread': // Scrap Scattergun: two fat barrels, a pump, and a lot of duct tape
-      mk(BOX(0.13, 0.12, 0.26), '#b8662e', g, 0, 0.03, 0.02);
-      mk(BOX(0.09, 0.08, 0.1), '#6b4a2b', g, 0, 0.0, 0.16);
-      for (const s of [-1, 1]) {
-        tf(mk(CYL(0.034, 0.034, 0.34, 8), '#4a4f5a', g, s * 0.036, 0.05, -0.27), PI / 2);
-        mk(TOR(0.034, 0.009, 4, 12), '#2b2f38', g, s * 0.036, 0.05, -0.44);
-      }
-      mk(BOX(0.09, 0.05, 0.12), '#6b4a2b', g, 0, -0.01, -0.22);
-      mk(BOX(0.145, 0.035, 0.04), '#c9ced6', g, 0, 0.05, -0.15);
-      for (const zz of [-0.06, 0.02, 0.1]) mk(SPH(0.012, 5, 4), '#ffd23f', g, 0.068, 0.06, zz);
-      mk(BOX(0.015, 0.03, 0.015), '#2b2f38', g, 0, 0.1, -0.05);
-      mz = -0.46; my = 0.05;
-      break;
-    case 'lob': // Goo Lobber: a fat tube with a tank of glowing goo on top
-      tf(mk(CYL(0.075, 0.085, 0.44, 12), '#5b3a8a', g, 0, 0.04, -0.14), PI / 2);
-      for (const zz of [-0.02, -0.3]) mk(TOR(0.082, 0.012, 4, 14), '#ffd23f', g, 0, 0.04, zz);
-      tf(mk(CYL(0.1, 0.08, 0.06, 12), '#3b2a6a', g, 0, 0.04, -0.38), PI / 2);
-      tf(mk(CYL(0.032, 0.032, 0.17, 10), '#ff5fb8', g, 0, 0.15, -0.1, { emissive: '#8a1060' }), PI / 2);
-      tf(mk(CYL(0.042, 0.042, 0.19, 10), M('#dff6ff', { transparent: true, opacity: 0.35, depthWrite: false }), g, 0, 0.15, -0.1), PI / 2);
-      for (const zz of [-0.005, -0.195]) tf(mk(CYL(0.045, 0.045, 0.02, 10), '#9aa3ad', g, 0, 0.15, zz), PI / 2);
-      tip = mk(SPH(0.055, 8, 6), '#ff5fb8', g, 0, 0.04, -0.39, { emissive: '#8a1060' }); // a goo ball, loaded
-      mz = -0.44; my = 0.04;
-      break;
-    case 'jackpot': // Jackpot Blaster: solid gold, with a tiny slot machine on the side
-      tf(mk(SPH(0.1, 10, 8), '#ffd23f', g, 0, 0.03, 0.02, { emissive: '#4a3500' }), 0, 0, 0, 1, 0.95, 1.5);
-      tf(mk(CYL(0.035, 0.05, 0.28, 10), '#c9a227', g, 0, 0.03, -0.2), PI / 2);
-      for (let i = 0; i < 3; i++) mk(TOR(0.052, 0.013, 4, 12), '#ff3df0', g, 0, 0.03, -0.14 - i * 0.07, { emissive: '#aa00aa' });
-      mk(BOX(0.03, 0.075, 0.12), '#1a1a2a', g, 0.095, 0.04, 0.01);
-      ['#ff4b3e', '#ffe066', '#3df0ff'].forEach((c, i) => mk(BOX(0.012, 0.05, 0.028), c, g, 0.111, 0.04, 0.05 - i * 0.037, { emissive: c }));
-      mk(CYL(0.006, 0.006, 0.09, 4), '#cccccc', g, 0.105, 0.11, 0.06);
-      mk(SPH(0.018, 6, 5), '#ff3d3d', g, 0.105, 0.16, 0.06);
-      mk(BOX(0.045, 0.006, 0.012), '#111111', g, 0, 0.125, 0.04); // the coin slot
-      tip = mk(SPH(0.042, 6, 5), '#ffd23f', g, 0, 0.03, -0.35, { emissive: '#ffd23f' });
-      break;
-    case 'beam': // Cryo Beam: glowing coils and a crystal that the beam comes out of
-      mk(BOX(0.11, 0.11, 0.3), '#e6f3ff', g, 0, 0.03, -0.02);
-      tf(mk(CYL(0.022, 0.022, 0.32, 8), '#9fe3ff', g, 0, 0.03, -0.2, { emissive: '#1a6a8a' }), PI / 2);
-      for (let i = 0; i < 4; i++) mk(TOR(0.058, 0.012, 4, 12), '#3aa7ff', g, 0, 0.03, -0.14 - i * 0.055, { emissive: '#0a4a8a' });
-      for (const [x, y] of [[0, 0.1], [0.072, 0.03], [-0.072, 0.03]]) mk(BOX(x ? 0.012 : 0.07, x ? 0.07 : 0.012, 0.18), '#c9dcff', g, x, y, 0.02);
-      tip = tf(mk(OCT(0.05), '#bff6ff', g, 0, 0.03, -0.39, { emissive: '#3aa7ff' }), PI / 2, 0, 0, 0.7, 2.2, 0.7);
-      mz = -0.46;
-      break;
-    case 'cutter': // Pizza Cutter: a launcher with a cutter wheel sitting in the front (it's gone while it's out)
-      mk(BOX(0.08, 0.06, 0.3), '#3b3f4a', g, 0, 0.02, -0.08);
-      mk(BOX(0.05, 0.05, 0.14), '#d6281b', g, 0, 0.06, -0.2);
-      for (const s of [-1, 1]) mk(BOX(0.012, 0.08, 0.08), '#9aa3ad', g, s * 0.025, 0.08, -0.3);
-      wheel = buildCutterWheel(g, 0.11);
-      wheel.position.set(0, 0.07, -0.33);
-      mz = -0.34; my = 0.07;
-      break;
-    case 'homing': { // Wisp Caller: an old iron lantern on a stock, with a ghost wisp trapped inside
-      mk(BOX(0.06, 0.07, 0.22), '#3a3048', g, 0, 0.0, 0.06);
-      for (const [x, z] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) mk(BOX(0.016, 0.15, 0.016), '#2a2233', g, x * 0.05, 0.06, -0.15 + z * 0.05);
-      for (const y of [-0.015, 0.135]) mk(BOX(0.13, 0.02, 0.13), '#2a2233', g, 0, y, -0.15);
-      tf(mk(TOR(0.03, 0.008, 4, 10), '#2a2233', g, 0, 0.17, -0.15), 0, PI / 2, 0);
-      mk(SPH(0.058, 10, 8), M('#dfffe6', { transparent: true, opacity: 0.3, depthWrite: false }), g, 0, 0.06, -0.15);
-      tip = mk(SPH(0.036, 8, 6), '#9dffb0', g, 0, 0.06, -0.15, { emissive: '#3aff6a' });
-      tf(mk(CONE(0.035, 0.12, 6), '#2a2233', g, 0, 0.05, -0.28), -PI / 2);
-      mz = -0.36; my = 0.05;
-      break;
-    }
-    case 'chain': // Storm Caller: a copper coil gun, a ball of lightning crackling between two prongs
-      mk(BOX(0.08, 0.08, 0.2), '#1d2a4a', g, 0, 0.0, 0.06);
-      tf(mk(CYL(0.03, 0.03, 0.3, 8), '#9aa3ad', g, 0, 0.03, -0.14), PI / 2);
-      for (let i = 0; i < 5; i++) mk(TOR(0.046 - i * 0.003, 0.012, 4, 12), '#c87533', g, 0, 0.03, -0.04 - i * 0.045, { emissive: '#3a1a00' });
-      for (const s of [-1, 1]) tf(mk(BOX(0.014, 0.014, 0.16), '#c9ced6', g, s * 0.05, 0.03, -0.36), 0, -s * 0.3, 0);
-      tip = mk(ICO(0.045, 1), '#dff0ff', g, 0, 0.03, -0.41, { emissive: '#6aa8ff' });
-      mk(BOX(0.05, 0.04, 0.05), '#ffd23f', g, 0, 0.06, 0.1, { emissive: '#5a4000' });
-      mz = -0.44;
-      break;
-    case 'rocket': // Same-Day Launcher: a cardboard tube with a parcel loaded in the front
-      tf(mk(CYL(0.075, 0.075, 0.5, 10), '#c9a36b', g, 0, 0.05, -0.12), PI / 2);
-      for (const zz of [0.1, -0.36]) tf(mk(CYL(0.082, 0.082, 0.04, 10), '#8a6a3a', g, 0, 0.05, zz), PI / 2);
-      mk(BOX(0.1, 0.03, 0.12), '#fff6d0', g, 0, 0.13, -0.08);
-      mk(BOX(0.04, 0.05, 0.06), '#3b3f4a', g, 0, 0.14, 0.06);
-      tip = mk(BOX(0.09, 0.09, 0.09), '#ffb23e', g, 0, 0.05, -0.4, { emissive: '#3a2008' });
-      mk(BOX(0.092, 0.02, 0.092), '#e8d8a0', g, 0, 0.05, -0.4);
-      mz = -0.46; my = 0.05;
-      break;
-    default: // Pew Pew Zapper: the classic
-      tf(mk(SPH(0.09, 10, 8), color, g, 0, 0.02, 0.02), 0, 0, 0, 1, 0.9, 1.4);
-      tf(mk(CONE(0.03, 0.1, 4), '#e6e1dc', g, 0, 0.11, 0.04), -0.5, 0, 0, 1, 1, 0.3);
-      tf(mk(CYL(0.03, 0.045, 0.26, 8), '#e6e1dc', g, 0, 0.03, -0.2), PI / 2);
-      for (let i = 0; i < 3; i++) mk(TOR(0.05, 0.014, 4, 10), color, g, 0, 0.03, -0.14 - i * 0.07);
-      tip = mk(SPH(0.04, 6, 5), color, g, 0, 0.03, -0.35, { emissive: color });
-  }
-  const muzzle = grp(g, 0, my, mz);
-  // muzzle flash: a bright star that shows for a frame or two when firing
-  const flash = new THREE.Mesh(new THREE.PlaneGeometry(0.26, 0.26), new THREE.MeshBasicMaterial({ map: flashTex(), color, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
-  flash.position.set(0, my, mz - 0.04); flash.visible = false; flash.renderOrder = 5;
-  g.add(flash);
-  g.userData = { tip, muzzle, flash, wheel };
+  const z = gunDef(lvl), g = GunDesigns.build(z.type), muzzle = g.userData.muzzle;
+  const map = flashTex(); map.userData.shared = true;
+  const flash = new THREE.Mesh(new THREE.PlaneGeometry(0.26, 0.26), new THREE.MeshBasicMaterial({ map, color: z.color, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
+  flash.position.copy(muzzle.position); flash.position.z -= 0.04;
+  flash.visible = false; flash.renderOrder = 5;
+  g.add(flash); g.userData.flash = flash;
   return g;
 }
 let _flashTex = null;
@@ -1873,7 +1773,7 @@ function gripTool(hand, t, kind) {
 // put your hands on something you're holding (kind: 'vac', 'drill', 'peel', or a gun type; cuff, sleeve:
 // the cuff and sleeve materials, in your colors)
 function addHands(vm, kind, cuff, sleeve) {
-  const spec = HAND_SPEC[kind] || {}, gp = spec.grip || HAND_SPEC.zap.grip, hands = {};
+  const spec = vm.userData.handSpec || HAND_SPEC[kind] || {}, gp = spec.grip || HAND_SPEC.zap.grip, hands = {};
   hands.grip = buildGripHand(cuff, gp[4], gp[5], sleeve);
   hands.grip.position.set(gp[0], gp[1], gp[2]);
   hands.grip.rotation.x = gp[3];

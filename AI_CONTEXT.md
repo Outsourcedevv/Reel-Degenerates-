@@ -87,6 +87,15 @@ Known documented systems include:
 
 ## Current Task
 
+### Gun model redesign integration (2026-09-27)
+
+- All ten guns, including the free Squirt Pistol, use the user's approved low-poly designs through `js/gun-designs.js`. `buildZapperVM` remains the shared entry point for local/remote held weapons and thumbnails.
+- Models are procedural and synchronous for offline/file:// and Electron compatibility. The exported concept GLBs are not runtime dependencies. No damage, prices, progression, saves, networking protocol, or casino mechanics changed.
+- Design space (+X forward) is converted to the game's -Z axis and existing grip anchor. Support-hand offsets come from each model's `userData.handSpec`. Static geometry is merged by shared material; the cutter wheel stays independently animated.
+- Open `tests/gun-models.html` for attachment, scale, geometry, batching, per-instance wheel, and shared flash texture disposal checks.
+- Headless Edge checks passed: game boot, all ten weapons firing/ammo/reload, thumbnail rendering, local third-person and remote model construction; desktop bundle includes the new builder. A live multiplayer session and packaged Electron launch have not been tested.
+- No release/version bump is included. Existing flying pizza-cutter projectile geometry is unchanged.
+
 Set up a reliable **Claude ↔ GPT/Codex handoff system** so development can continue with either AI without losing important project context.
 
 This `AI_CONTEXT.md` file is the first shared handoff document.
