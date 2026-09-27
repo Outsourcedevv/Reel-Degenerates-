@@ -1308,6 +1308,7 @@ const Shots = {
     } else if (G.mode === 'planet') {
       const w = G.worlds[G.planet];
       for (const c of Critters.list.values()) consider(Critters.center(c, w), () => (Critters.list.has(c.id) ? Critters.center(c, w) : null));
+      for (const t of Fun.targets) if (t.live) consider(t.c, () => (t.live ? t.c.clone() : null));
     }
     return best;
   },
@@ -1322,6 +1323,7 @@ const Shots = {
     } else if (G.mode === 'planet') {
       const w = G.worlds[G.planet];
       for (const c of Critters.list.values()) { const ctr = Critters.center(c, w); consider({ k: 'critter', c, ctr, key: 'c' + c.id }, ctr); }
+      for (const t of Fun.targets) if (t.live) consider({ k: 'fun', t, key: t.key }, t.c.clone());
     }
     return best;
   },
@@ -1351,6 +1353,8 @@ const Shots = {
       if (m) return { k: 'minion', m, key: 'm' + m.id };
       if (!G.ff) return null;
     } else if (G.mode === 'planet') {
+      const ft = Fun.targets.length ? Fun.hitTest(p0, p1, skip) : null; // (the shooting gallery)
+      if (ft) return ft;
       const ch = Critters.hitTest(p0, p1, skip);
       if (ch) return { k: 'critter', c: ch.c, ctr: ch.ctr, key: 'c' + ch.c.id };
     } else return null;
@@ -1367,6 +1371,7 @@ const Shots = {
     else if (t.k === 'minion') G.boss.hitMinion(t.m, dmg, quiet);
     else if (t.k === 'critter') Critters.hit(t.c, dmg, pos, s.flags ? Object.assign({ dist: s.flags.from.distanceTo(t.ctr) }, s.flags) : null, fx, quiet);
     else if (t.k === 'friend') this.bonkFriend(t.r, s, dmg);
+    else if (t.k === 'fun') Fun.hit(t.t);
   },
   // a bolt landed. Jackpot bolts show what they rolled (and 777s and jackpots go off)
   landBolt(s, hit) {
@@ -1392,6 +1397,7 @@ const Shots = {
         if (cp.distanceTo(pos) > radius + r) continue;
         Critters.hit(c, dmg, cp, flags ? Object.assign({ dist: flags.from.distanceTo(cp) }, flags) : null, fx);
       }
+      if (Fun.targets.length) Fun.blast(pos, radius);
     }
     if (G.ff) for (const r of G.remotes.values()) {
       if (!r.visible || r.s.g || r.s.dn || skip === 'f' + r.id || r.center.distanceTo(pos) > radius + 0.6) continue;

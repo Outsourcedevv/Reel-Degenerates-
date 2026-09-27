@@ -413,6 +413,7 @@ const SAVE_DEFAULT = {
   nades: 0, cargo: [], hats: ['none'], hat: 'none',
   beaten: [], seenIntro: false,
   summons: {}, pity: {}, heat: 0, // boss summoning items held, tries since the last drop, pizza warmth
+  fun: {}, // your best and your medal on each planet's fun thing: { rings: { best, medal }, ... } (see fun.js)
   graves: [], // where you died and dropped your stuff: [{gid, p, x, y, z, items}] (see Drops.graveDrop)
   stats: { collected: 0, gambled: 0, won: 0, lost: 0, deaths: 0, jackpots: 0, bossWins: 0 },
 };

@@ -31,6 +31,7 @@ const PLANETS = [
       'Walk into berries to grab them, or suck them in from below with the Grabby Vac (2).',
       'Sell berries and critters to Chef Snorbo.',
       'Boss: Queen Blorbina. Royal Jelly hides in the big berries on the tallest mushrooms.',
+      'For fun: the Ring Run, a glowing pad a short walk from your ship. Go through every ring as fast as you can.',
     ],
     sky: ['#5b34e8', '#ff9ad5'], fog: ['#e49ae0', 55, 230], stars: 0.55, mood: 'day', // (a bright planet, even with a few stars out)
     sun: ['#fff0ff', 0.95], hemi: ['#ffd0f2', '#2f7a6a', 0.62],
@@ -70,6 +71,7 @@ const PLANETS = [
       'Vacuum the little snow piles (2) for extra stuff.',
       'The ground is slippery. Heated Socks from Pete fix that.',
       'Boss: The Abominable Snowdad. His Space Milk is frozen inside the big crystals.',
+      'For fun: Pete\'s Snowman Shooting Gallery, a short walk from your ship. Shoot the snowmen, NOT the penguins.',
     ],
     // (snow is bright: softer light and a slightly blue-grey snow, so it isn't a white glare you can't see anything in)
     sky: ['#5fa6e6', '#cfe4f5'], fog: ['#bcd3e8', 55, 240], stars: 0.35, mood: 'snow',
@@ -89,6 +91,7 @@ const PLANETS = [
       'Press 2 for your Grabby Vac, then hold left click on a ghost.',
       'Keep the ghost in the middle of your screen until it\'s sucked in. It dodges and BOOs you, so stay on it.',
       'Sell what the ghosts drop at the shop. Boss: Count Carbula. One of the ghosts is haunting his Dinner Bell.',
+      'For fun: the Hedge of No Return, the maze next to the boss altar. Race to the treasure in the middle.',
     ],
     sky: ['#0a0616', '#3b2a5c'], fog: ['#1f1735', 35, 185], stars: 0.95, mood: 'night',
     sun: ['#c9b8ff', 0.72], hemi: ['#a898ff', '#1d2a22', 0.66],

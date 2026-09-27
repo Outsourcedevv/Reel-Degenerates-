@@ -10,7 +10,7 @@ const UI = {
   init() {
     ['hud', 'bucks', 'pizza', 'goal', 'ammo', 'cargo', 'nades', 'roomcode', 'planetname', 'crosshair', 'prompt', 'hint', 'actbar',
       'bossbar', 'phud', 'feed', 'chat', 'chatinput', 'toasts', 'subtitle', 'bigtitle', 'pickups', 'hurt', 'plist',
-      'spectate', 'deathscreen', 'panel', 'panel-inner', 'flyhud', 'gig', 'fuel', 'bosscall', 'threats', 'safe', 'guide'].forEach((id) => (this.el[id] = U.$(id)));
+      'spectate', 'deathscreen', 'panel', 'panel-inner', 'flyhud', 'gig', 'funhud', 'fuel', 'bosscall', 'threats', 'safe', 'guide'].forEach((id) => (this.el[id] = U.$(id)));
     this.el['panel-inner'].addEventListener('click', (e) => {
       const b = e.target.closest('[data-act]');
       if (!b || b.disabled) return;
@@ -187,6 +187,17 @@ const UI = {
     this.setHtml(el.querySelector('.t'), `<small>DELIVER TO</small><b>${U.esc(name)}</b><span>${dist} m · ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}</span>`);
     el.querySelector('.fill').style.width = (U.clamp(t / dur, 0, 1) * 100).toFixed(1) + '%';
     el.classList.toggle('late', t < 6);
+  },
+  // a fun thing you're doing (Ring Run, shooting gallery, maze): what, the big number, a line under it, a bar
+  // (frac null: no bar), warn: it's nearly over. label null: hide it.
+  fun(label, big, sub, frac, warn) {
+    const el = this.el.funhud;
+    if (!label) { if (!el.classList.contains('hidden')) el.classList.add('hidden'); return; }
+    el.classList.remove('hidden');
+    this.setHtml(el.querySelector('.t'), `<small>${U.esc(label)}</small><b>${U.esc(big)}</b><span>${U.esc(sub || '')}</span>`);
+    el.querySelector('.bar').classList.toggle('hidden', frac == null);
+    if (frac != null) el.querySelector('.fill').style.width = (U.clamp(frac, 0, 1) * 100).toFixed(1) + '%';
+    el.classList.toggle('late', !!warn);
   },
   // the Jet Pack's fuel gauge (only while it isn't full)
   fuel(frac, show) {
@@ -390,7 +401,8 @@ const UI = {
         <p>1. Collect the planet's stuff (and zap critters!) and sell it at the shop. Money is tight on the first two planets. Press <kbd>H</kbd> to see what to do on the planet you're on.</p>
         <p>2. Buy gear, starting with a real gun.</p>
         <p>3. Find the boss's summoning item (the whole crew works on it together), then use it at the boss altar.</p>
-        <p>4. Win, then everyone gets in the ship and flies to the next planet. (It won't start until you beat Trashlord Gary.)</p></div>
+        <p>4. Win, then everyone gets in the ship and flies to the next planet. (It won't start until you beat Trashlord Gary.)</p>
+        <p>Just for fun: Planet Gloop has a Ring Run, Frostbyte a Snowman Shooting Gallery and Spookulon a hedge maze. Win medals for cash (each pays once). <kbd>H</kbd> on the planet says where.</p></div>
       <div><h4>Critters</h4>
         <p>They come in sizes from Tiny to GIANT. Bigger ones are rarer, tougher and worth a lot more. Golden ones are worth 8x. When you arrive somewhere they leave you alone for a bit (watch the SAFE timer).</p>
         <p>Style kills pay extra (up to 2x each, they stack up to 5x):in the air, after a 360, with your last shot, long shots, double kills, revenge and more.</p></div>

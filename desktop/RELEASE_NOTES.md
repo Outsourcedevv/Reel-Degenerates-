@@ -1,3 +1,18 @@
+## New in 1.10: fun things to do on the quiet planets
+
+- **Planet Gloop: the Ring Run.** Step onto the glowing pad near your ship and press `E`. Go through every glowing
+  ring as fast as you can: out across the goo, up a mushroom staircase, a leap off the top, and back to the pad. A
+  beam of light shows you the next ring.
+- **Frostbyte: Pete's Snowman Shooting Gallery.** 30 seconds of snowmen popping out of the snow. Snowmen are worth 1
+  point, golden ones 3, and shooting a penguin costs you 2 (they're Pete's cousins). Any gun works, even the Squirt
+  Pistol. Stay at the counter.
+- **Spookulon: the Hedge of No Return.** A maze next to the boss altar with the treasure in the middle. Press `E` at
+  the gate to start the clock. Some of the dead ends are haunted. No going over the hedges.
+- **Medals.** Every run earns a bronze, silver or gold medal. Each medal pays out once per world (up to $310 on the
+  Ring Run, $1,200 at the gallery and $2,400 in the maze), your best is kept, and your crew hears about new medals.
+  Friends can play at the same time, each on their own run.
+- Each planet's guide (`H`) says where to find its fun thing.
+
 ## New in 1.9: a fairer start, bigger planets and a proper ship
 
 - **Updates install themselves.** Download this version once and updates come to you: when a

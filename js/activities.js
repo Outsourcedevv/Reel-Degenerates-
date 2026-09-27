@@ -46,6 +46,7 @@ const Activities = {
     }
     Drops.update(dt);
     Gigs.update(dt);
+    Fun.update(dt);
   },
 
   // you get exactly what it looked like (see PlanetWorld.addNode)

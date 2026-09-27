@@ -131,6 +131,19 @@ health but hit a bit softer than they look. Your ship won't start until you've b
 | 7 | Gigopolis | Delivery gigs: take a parcel at the GigHub kiosk and race it to a door or rooftop (jump pads get you up there). Vacuum litter | Rogue Drones, Trash Pandas, Unpaid Intern Bots, Feral E-Scooters | CEO Chad Grindset ★★★★★★★ | Mandatory Meeting Invite, from a delivery customer |
 | 8 | Zorblax Prime | Catch pepperoni meteors with the Pizza Peel, vacuum burnt crusts | Lava Snails, Magma Imps, Ember Bugs, Royal Hounds | Emperor Zorblax ★★★★★★★★ | Reheated Pizza: catch 15 meteors |
 
+### Just for fun
+
+The planets without a thing of their own have something to play. Press `E` at the start (each planet's guide, `H`,
+says where it is):
+
+| Planet | What | Medals (each pays once per world) |
+| --- | --- | --- |
+| Planet Gloop | **Ring Run**: go through every glowing ring (out across the goo, up a mushroom staircase, a leap off the top) and back to the pad, against the clock. A beam shows the next ring | bronze $40 · silver $90 · gold $180 |
+| Frostbyte | **Snowman Shooting Gallery**: 30 seconds of pop-up snowmen (1 point), golden snowmen (3) and penguins (don't: -2). Any gun works. Stay at the counter | $150 · $350 · $700 |
+| Spookulon | **Hedge of No Return**: a maze next to the boss altar with the treasure in the middle, against the clock. Some dead ends are haunted, and you can't go over the hedges | $300 · $700 · $1,400 |
+
+Your best is kept, and your crew hears about new medals. Friends can play at the same time, each on their own run.
+
 ### Boss fights
 
 Every attack is telegraphed, so you can read the fight:
@@ -241,6 +254,7 @@ in your browser (clearing browser data deletes them).
 - `js/data.js`: planets, items, prices, bosses, jokes (the easiest file to mess with)
 - `js/world.js`, `js/models.js`: planets and all the low-poly models (the casino building is `buildCasino` in `world.js`)
 - `js/boss.js`: boss fights · `js/casino.js`: gambling · `js/activities.js`: collecting, meteors, delivery gigs, summoning items
+- `js/fun.js`: the Ring Run, the Snowman Shooting Gallery and the Hedge of No Return (and their medals)
 - `js/critters.js`: space critters · `js/flight.js`: the ship, cockpit, passenger cabin, star map and landing · `js/shop.js`: shops, boss altars
 - `js/items.js`: models of the items you buy, carry and win · `js/thumbs.js`: turns models into the pictures the
   menus show (shop items, backpack, hotbar, faces)

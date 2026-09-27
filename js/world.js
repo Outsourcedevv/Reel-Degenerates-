@@ -332,10 +332,12 @@ class PlanetWorld {
       for (const [x, z] of [[-10, -30], [10, -30], [-22, -20], [22, -20]]) this.addPad(x, z, 2);
     }
 
+    Fun.reserve(this); // (room for the planet's fun thing, before anything else gets put there)
     this.buildTerrain();
     this.buildShipArea();
     this.buildBeacon();
     this['build_' + this.cfg.id]();
+    Fun.build(this);
     mergeStatic(this.stat);
     this.spawn.y = this.h(this.spawn.x, this.spawn.z) + 0.1;
     this.spawnYaw = Math.atan2(-(16 - this.spawn.x), -(-6 - this.spawn.z));
@@ -598,14 +600,18 @@ class PlanetWorld {
       this.place(buildMushroom(h, r, c), x, z, rng() * 6);
       const top = this.mushroom(x, z, h, r);
       if (withBerry) this.addNode(h > 6 ? 'bigberry' : 'berry', x, top, z);
+      return top;
     };
-    // staircase clusters of mushrooms you can climb
+    // staircase clusters of mushrooms you can climb (remembered, bottom step first: the Ring Run goes up one)
     const clusters = [[40, 14], [-38, -24], [-14, 46], [36, -40], [-52, 22], [60, 30], [-52, -38], [16, 64]];
+    this.climbs = [];
     clusters.forEach(([cx, cz], ci) => {
       let a = rng() * 6, h = 1.8;
+      const steps = [];
+      this.climbs.push({ x: cx, z: cz, steps });
       for (let i = 0; i < 6; i++) {
-        const x = cx + Math.cos(a) * (2.2 + i * 0.5), z = cz + Math.sin(a) * (2.2 + i * 0.5);
-        shroom(x, z, h, 2.2 + rng() * 0.8, true);
+        const x = cx + Math.cos(a) * (2.2 + i * 0.5), z = cz + Math.sin(a) * (2.2 + i * 0.5), r = 2.2 + rng() * 0.8;
+        steps.push({ x, z, r, top: shroom(x, z, h, r, true) });
         this.occupied.push({ x, z, r: 2.5 });
         a += 1.25; h += 1.75 + rng() * 0.4;
       }
