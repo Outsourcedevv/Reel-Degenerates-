@@ -55,6 +55,7 @@ const ICON_PATHS = {
   globe: 'M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0-18 0 M3 12h18 M12 3a14 14 0 0 1 0 18 M12 3a14 14 0 0 0 0 18',
   dice: 'M6 4h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z M8.5 8.5h.01 M15.5 8.5h.01 M12 12h.01 M8.5 15.5h.01 M15.5 15.5h.01',
   brush: 'M18 3l3 3-9 9-3-3z M9 12c-3 0-4.5 2-4.5 4S3 20 3 20s5 .5 7-1.5 1.5-4.5-1-6.5',
+  download: 'M12 3v12 M7 10l5 5 5-5 M4 20h16',
 };
 function icon(name, cls = '') {
   const d = ICON_PATHS[name] || ICON_PATHS.box;

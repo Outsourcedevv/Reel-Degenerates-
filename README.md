@@ -15,6 +15,11 @@ Get it from the [Releases page](https://github.com/Outsourcedevv/Reel-Degenerate
 Send your friends that link, everyone installs it, and you can play together (see below). Solo works offline;
 multiplayer needs internet. Press `F11` for fullscreen.
 
+**Updates install themselves.** You only download the app once (from 1.9 on). When a new version is out, the title
+screen says so: click **Update now** and the game restarts on the new version a few seconds later. It's a small
+download, usually under a megabyte, and your worlds, settings and astronaut stay as they are. Once in a while an update
+needs a fresh download of the whole app; the title screen tells you when, with a button to the Releases page.
+
 ## Play in a browser
 
 Or open `index.html` in Chrome or Edge (double-clicking it works). You need a keyboard and mouse.
@@ -243,4 +248,8 @@ in your browser (clearing browser data deletes them).
 - `js/post.js`: bloom and color grading · `js/icons.js`: interface icons
 - `js/main.js`: game loop, menus, multiplayer glue · `js/net.js`: networking
 - `desktop/`: the desktop app (Electron). `npm install` then `npm start` runs it; `npm run dist` builds installers.
-  GitHub rebuilds the Windows, Mac and Linux downloads on the Releases page whenever the game changes.
+  GitHub rebuilds the Windows, Mac and Linux downloads on the Releases page whenever the game changes, and posts the
+  game's files as one small bundle with a `game.json` next to them. Installed apps check `game.json` when they start
+  and update themselves from the bundle (`desktop/updater.js`, packed by `desktop/pack-game.js`). If a downloaded
+  version won't start, the app goes back to the one it came with. `SPACE_GOOBERS_UPDATES=<a game.json address>
+  npm start` tries updating from the source.

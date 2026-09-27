@@ -73,6 +73,7 @@ const Game = {
     requestAnimationFrame((t) => this.loop(t));
     this.startBackgroundTicker();
     Thumbs.warmAll(); // (draw the item pictures in the background while you're in the menu)
+    Updates.init(); // (in the desktop app: is there a newer version?)
   },
 
   /* ---------------- planets ---------------- */
@@ -853,4 +854,5 @@ const Game = {
 Game.boot().catch((e) => {
   console.error(e);
   U.$('loading-text').textContent = 'Something broke while loading: ' + e.message;
+  Updates.failed(e.message);
 });

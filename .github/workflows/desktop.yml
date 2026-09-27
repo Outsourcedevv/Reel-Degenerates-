@@ -1,5 +1,6 @@
 # Builds the Space Goobers desktop app for Windows, Mac and Linux and posts
-# the downloads on the repository's Releases page.
+# the downloads on the repository's Releases page, along with the game bundle
+# and game.json that installed apps update themselves from (desktop/updater.js).
 # Runs when the game changes on main (or the development branch), when a version
 # tag (like v1.0.0) is pushed, or by hand from the Actions tab. The downloads go
 # on the release for the version in package.json.
@@ -46,6 +47,8 @@ jobs:
         with:
           node-version: 20
       - run: npm install --no-audit --no-fund
+      # (which game ships inside the app, so it knows what's newer later)
+      - run: node desktop/pack-game.js --stamp
       - run: npx electron-builder ${{ matrix.flags }} --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
@@ -67,15 +70,25 @@ jobs:
         with:
           path: out
           merge-multiple: true
+      - name: Pack the game for in-app updates
+        run: node desktop/pack-game.js --bundle game
       - name: Publish the downloads
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           VERSION=$(node -p "require('./package.json').version")
           TAG="v$VERSION"
-          ls -la out
+          ls -la out game
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" out/* --clobber
           else
             gh release create "$TAG" out/* --target "$GITHUB_SHA" --title "Space Goobers $VERSION" --notes-file desktop/RELEASE_NOTES.md
           fi
+          # the game bundle first, then game.json (what installed apps read), once the bundle it points to is up
+          BUNDLE=$(basename game/space-goobers-game-*.gz)
+          gh release upload "$TAG" "game/$BUNDLE" --clobber
+          gh release upload "$TAG" game/game.json --clobber
+          # older bundles of this version aren't needed any more
+          for OLD in $(gh release view "$TAG" --json assets -q '.assets[].name' | grep '^space-goobers-game-' | grep -vxF "$BUNDLE" || true); do
+            gh release delete-asset "$TAG" "$OLD" -y
+          done

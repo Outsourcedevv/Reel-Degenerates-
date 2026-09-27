@@ -1,5 +1,8 @@
 ## New in 1.9: a fairer start, bigger planets and a proper ship
 
+- **Updates install themselves.** Download this version once and updates come to you: when a
+  new version is out, the title screen offers it: click **Update now** and the game restarts on the new version a
+  few seconds later (a small download, usually under a megabyte). Your worlds, settings and astronaut stay.
 - **A (terrible) gun to start with.** Everyone starts with the Squirt Pistol, a leaky water pistol that barely
   tickles a critter. It's enough to get going. Buy a real gun as soon as you can.
 - **Keep every gun you buy.** Switch between them by pressing `1` again, or with **Equip** at any shop. No more
@@ -94,6 +97,8 @@ Windows may show a blue "Windows protected your PC" box because the app isn't si
 **Mac:** download the `.dmg`, open it and drag Space Goobers into Applications. The first time, right-click the app and choose **Open** (it isn't signed by Apple).
 
 **Linux:** download the `.AppImage`, make it executable (`chmod +x`) and run it.
+
+Already on 1.9 or later? You don't need to download anything: the app updates itself when you open it.
 
 ### Playing together
 Everyone installs the app. One person clicks **Host Game** and shares the 5-letter room code; everyone else types it in and clicks **Join**. Multiplayer needs an internet connection; playing solo works offline.
