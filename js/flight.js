@@ -36,8 +36,10 @@ const STEER = {
   space: { rate: 0.75, acc: 1.5, k: 1.8, lead: 0.8, prate: 0.75, pacc: 1.5, pitch: [-1.2, 1.2] },
 };
 // where the planets sit in the solar system. They're far apart: getting between them is a real trip.
+// (SYSTEM_SPREAD: they're that much further apart than drawn here)
+const SYSTEM_SPREAD = 1.25;
 const SYSTEM = [new V3(0, 0, 0), new V3(3300, 260, 1980), new V3(6600, -180, 660), new V3(9460, 330, 2860),
-  new V3(12400, -260, 4300), new V3(15500, 420, 2400), new V3(18600, -120, 4000), new V3(21600, 60, 1800)];
+  new V3(12400, -260, 4300), new V3(15500, 420, 2400), new V3(18600, -120, 4000), new V3(21600, 60, 1800)].map((v) => v.multiplyScalar(SYSTEM_SPREAD));
 const SEAT = new V3(0, 4.1, 2.45);   // pilot's eyes, inside the glass bubble
 // the passenger cabin: a round tube (its middle at height y, radius r) from the back wall to where
 // the cockpit starts, with a floor, and windows from win[0] to win[1] high beside every row of seats
@@ -119,7 +121,7 @@ const Flight = {
   requestSwap() {
     if (this.seat === 'pilot') { Net.toHost({ t: 'seat', want: 'pass' }); return; }
     const pid = this.pilotId();
-    if (pid) { UI.toast(`${nameOf(pid)} is flying. They can press F to give you the seat.`, '', 2.5); return; }
+    if (pid) { UI.toast(`${nameOf(pid)} is flying. They can swap seats with you ({swap} for them too, unless they changed it).`, '', 2.5); return; }
     Net.toHost({ t: 'seat', want: 'pilot' });
   },
   // my seat changed while I'm aboard
@@ -132,7 +134,7 @@ const Flight = {
       this.holdAim();
       if (this.ph === 'atmo') this.vel.set(Math.sin(this.yaw) * (this.speed || 0), this.vel.y, Math.cos(this.yaw) * (this.speed || 0));
       this.sendT = 0; this.landing = false;
-      UI.toast('You have the controls! ' + (this.grounded ? 'Space: lift off' : 'Mouse: steer'), 'good', 2.5);
+      UI.toast('You have the controls! ' + (this.grounded ? '{jump}: lift off' : 'Mouse: steer'), 'good', 2.5);
     } else if (seat === 'pass') {
       this.tpos.copy(this.pos); this.tyaw = this.yaw; this.tpitch = this.pitch;
       UI.toast('You moved to the back seat. Enjoy the ride!', '', 2);
@@ -175,7 +177,7 @@ const Flight = {
     this.setView(seat === 'pilot' ? 'cockpit' : this.pview);
     this.dummies();
     UI.bigTitle(seat === 'pilot' ? 'PILOT SEAT' : 'PASSENGER SEAT',
-      seat === 'pilot' ? 'Space: lift off (once everyone is in) · E: get out · F: move to the back' : 'The pilot flies · F: take the pilot seat if it\'s free · E: get out · V: look from outside',
+      seat === 'pilot' ? '{jump}: lift off (once everyone is in) · {use}: get out · {swap}: move to the back' : 'The pilot flies · {swap}: take the pilot seat if it\'s free · {use}: get out · {view}: look from outside',
       '#bff6ff', 4);
   },
   defaultWaypoint() {
@@ -482,21 +484,21 @@ const Flight = {
   atmo(dt, can) {
     const w = G.worlds[this.planet];
     this.steer(dt, can, STEER.atmo);
-    const key = (c) => can && Input.keys[c];
+    const key = (a) => can && Input.down(a);
     const f = new V3(Math.sin(this.yaw), 0, Math.cos(this.yaw)), side = new V3(f.z, 0, -f.x);
     this.crashCd -= dt; this.hint -= dt;
     if (this.grounded) {
       this.vel.set(0, 0, 0);
-      if (key('Space')) {
+      if (key('jump')) {
         const missing = this.missingCrew();
         if (missing.length) {
           if (this.hint <= 0) { UI.toast(`Waiting for ${missing.join(', ')} to get in the ship! Nobody gets left behind.`, 'bad', 2.6); Sound.play('error'); this.hint = 2.6; }
         } else { this.grounded = false; this.vel.y = 6; this.event({ k: 'liftoff' }); }
       }
     } else {
-      const wantF = key('KeyW') ? FLY.hover.fwd : key('KeyS') ? -12 : 0;
+      const wantF = key('forward') ? FLY.hover.fwd : key('back') ? -12 : 0;
       const nf = U.damp(this.vel.dot(f), wantF, 1.1, dt), ns = U.damp(this.vel.dot(side), 0, 3, dt);
-      const wantUp = key('Space') ? FLY.hover.up : key('KeyC') ? -FLY.hover.up : -FLY.hover.sink;
+      const wantUp = key('jump') ? FLY.hover.up : key('stomp') ? -FLY.hover.up : -FLY.hover.sink;
       this.vel.set(f.x * nf + side.x * ns, U.damp(this.vel.y, wantUp, 2, dt), f.z * nf + side.z * ns);
       this.pos.addScaledVector(this.vel, dt);
       // stay near the landing zone
@@ -529,7 +531,7 @@ const Flight = {
     // down on the pad: everybody hops out (the host makes it official)
     if (onPad) { if (!this.landing) { this.landing = true; Net.toHost({ t: 'landreq', p: this.planet }); } return; }
     // a soft landing, just not on the pad
-    if (this.hint <= 0) { UI.toast('Wrong spot! Lift off (Space) and land on the glowing pad.', 'bad', 3); this.hint = 4; }
+    if (this.hint <= 0) { UI.toast('Wrong spot! Lift off ({jump}) and land on the glowing pad.', 'bad', 3); this.hint = 4; }
   },
 
   /* ---------------- deep space ---------------- */
@@ -602,7 +604,7 @@ const Flight = {
     this.speed = FLY.space.cruise;
     this.tpos.copy(this.pos); this.tyaw = this.yaw; this.tpitch = this.pitch;
     Sound.playMusic('space');
-    UI.bigTitle('DEEP SPACE', this.isPilot() ? `Head for ${PLANETS[this.wp].name}. M: map · Shift: turbo` : `The pilot is heading for ${PLANETS[this.wp].name}. Sit back.`, '#bff6ff', 3.2);
+    UI.bigTitle('DEEP SPACE', this.isPilot() ? `Head for ${PLANETS[this.wp].name}. {map}: map · {sprint}: turbo` : `The pilot is heading for ${PLANETS[this.wp].name}. Sit back.`, '#bff6ff', 3.2);
   },
   spaceFly(dt, can) {
     this.spaceT += dt;
@@ -616,15 +618,15 @@ const Flight = {
     }
     this.steer(dt, can && !this.auto, STEER.space);
     this.bank = U.damp(this.bank, U.clamp(-this.yawV * 0.45, -0.45, 0.45), 4, dt);
-    const key = (c) => can && Input.keys[c];
-    let want = key('KeyW') || this.auto ? FLY.space.max : key('KeyS') ? 15 : U.clamp(this.speed, FLY.space.cruise * 0.6, FLY.space.max);
-    const turbo = key('ShiftLeft') || key('ShiftRight');
+    const key = (a) => can && Input.down(a);
+    let want = key('forward') || this.auto ? FLY.space.max : key('back') ? 15 : U.clamp(this.speed, FLY.space.cruise * 0.6, FLY.space.max);
+    const turbo = key('sprint');
     if (turbo && this.turbo > 0.02) { want = FLY.space.turbo; this.turbo = Math.max(0, this.turbo - dt * 0.3); } else this.turbo = Math.min(1, this.turbo + dt * 0.05);
     this.speed = U.damp(this.speed, want, turbo ? 2.5 : 1.3, dt);
     const prev = this.pos.clone();
     this.pos.addScaledVector(this.fwd(), this.speed * dt);
-    if (key('Space')) this.pos.y += 18 * dt;
-    if (key('KeyC')) this.pos.y -= 18 * dt;
+    if (key('jump')) this.pos.y += 18 * dt;
+    if (key('stomp')) this.pos.y -= 18 * dt;
     // rocks
     this.hitCd -= dt;
     for (const r of this.rocks) {
@@ -663,11 +665,11 @@ const Flight = {
     const pilot = this.isPilot();
     const can = pilot && free && !this.mapOpen;
     if (free) {
-      if (Input.tap('KeyV')) this.cycleView();
-      if (Input.tap('KeyM')) this.toggleMap();
-      if (Input.tap('KeyF')) this.requestSwap();
+      if (Input.hit('view')) this.cycleView();
+      if (Input.hit('map')) this.toggleMap();
+      if (Input.hit('swap')) this.requestSwap();
       // step out, but only while parked on the pad you took off from
-      if (Input.tap('KeyE') && this.ph === 'atmo' && this.grounded && this.planet === G.planet && Math.hypot(this.pos.x, this.pos.z) < FLY.padR + 2) { this.exit(); return; }
+      if (Input.hit('use') && this.ph === 'atmo' && this.grounded && this.planet === G.planet && Math.hypot(this.pos.x, this.pos.z) < FLY.padR + 2) { this.exit(); return; }
     }
     if (pilot) {
       if (this.ph === 'atmo') this.atmo(dt, can); else this.spaceFly(dt, can);
@@ -742,7 +744,7 @@ const Flight = {
       if (!r || r.taken) return;
       r.taken = true; r.m.visible = false;
       FX.ring(r.p.clone(), '#3df0ff', 16); Sound.play('boing');
-      UI.toast('TURBO RING! Hold Shift to boost.', 'good', 1.2);
+      UI.toast('TURBO RING! Hold {sprint} to boost.', 'good', 1.2);
     } else if (m.k === 'coin') {
       const c = this.coins && this.coins[m.i];
       if (!c || c.taken) return;
@@ -815,13 +817,13 @@ const Flight = {
     U.$('flyinst').innerHTML = `<div><small>SPEED</small><b>${Math.round(this.speed || 0)}</b></div>` +
       (this.ph === 'atmo' ? `<div><small>ALTITUDE</small><b>${Math.round(alt)} m</b></div><div class="${warn}"><small>DESCENT</small><b>${vs < 0 ? (-vs).toFixed(1) : '0.0'} m/s</b></div>` : `<div><small>TURBO</small><b>${Math.round(this.turbo * 100)}%</b></div>`);
     let hint;
-    const out = this.ph === 'atmo' && this.grounded && this.planet === G.planet ? ' · E: get out' : '';
-    if (!this.isPilot()) hint = pid ? `${nameOf(pid)} is flying · Mouse: look around · V: ${this.cur === 'seat' ? 'look from outside' : 'back to your seat'} · M: map${out}` : `Nobody is flying! F: take the pilot seat${out}`;
-    else if (this.ph === 'space') hint = this.auto ? 'Autopilot is flying you there · W/S: speed · Shift: turbo · M: map · F: back seat' : 'Mouse: aim (the ship turns to the circle) · W/S: speed · Shift: turbo · Space/C: up/down · M: map · F: back seat';
+    const out = this.ph === 'atmo' && this.grounded && this.planet === G.planet ? ' · {use}: get out' : '';
+    if (!this.isPilot()) hint = pid ? `${nameOf(pid)} is flying · Mouse: look around · {view}: ${this.cur === 'seat' ? 'look from outside' : 'back to your seat'} · {map}: map${out}` : `Nobody is flying! {swap}: take the pilot seat${out}`;
+    else if (this.ph === 'space') hint = this.auto ? 'Autopilot is flying you there · {forward}/{back}: speed · {sprint}: turbo · {map}: map · {swap}: back seat' : 'Mouse: aim (the ship turns to the circle) · {forward}/{back}: speed · {sprint}: turbo · {jump}/{stomp}: up/down · {map}: map · {swap}: back seat';
     else if (this.grounded) {
       const missing = this.missingCrew();
-      hint = (missing.length ? `Waiting for ${missing.join(', ')} to get in · ` : 'Everyone is aboard! Space: lift off · ') + `F: back seat${out}`;
-    } else hint = 'Mouse: aim (the ship turns to the circle) · W/S: forward/back · Space: up · C: down · land slowly on the glowing pad';
+      hint = (missing.length ? `Waiting for ${missing.join(', ')} to get in · ` : 'Everyone is aboard! {jump}: lift off · ') + `{swap}: back seat${out}`;
+    } else hint = 'Mouse: aim (the ship turns to the circle) · {forward}/{back}: forward/back · {jump}: up · {stomp}: down · land slowly on the glowing pad';
     UI.hint(hint);
     // the pilot's aim circle (where the mouse is steering) and a dot where the nose points now
     const aimOn = this.isPilot() && this.cur === 'cockpit';

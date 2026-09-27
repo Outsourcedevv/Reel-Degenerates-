@@ -20,7 +20,7 @@ const G = {
   crew: { summons: {}, heat: 0 }, // shared crew tasks (boss summoning items, pizza warmth), run by the host
   ff: false,             // friendly fire (a world setting the host picks)
   shake: 0,
-  settings: { sens: 1, vol: 0.7, music: 0.45, quality: 'high', view: 'fp' }, // view: 'fp' first person, 'tp' third person (V)
+  settings: { sens: 1, vol: 0.7, music: 0.45, quality: 'high' },
 };
 
 const U = {
@@ -405,9 +405,10 @@ function mergeLocal(root, keep = []) {
 
 /* ---------- save data (per player name, in this browser) ---------- */
 const SAVE_DEFAULT = {
-  v: 3, // save format: 2 = with the three newer planets, 3 = you keep every gun you buy (see migrateSave)
-  bucks: 100, zap: -1, cargoLvl: 0, vacLvl: 0, // zap: the gun in your hand (-1 = the free Squirt Pistol)
-  guns: [], // every gun you've bought (switch between them at a shop, or press 1 again)
+  v: 4, // save format: 2 = with the three newer planets, 3 = you keep every gun you buy, 4 = the hotbar (see migrateSave)
+  bucks: 100, zap: -1, cargoLvl: 0, vacLvl: 0, // zap: the gun you last had out (-1 = the free Squirt Pistol)
+  guns: [], // every gun you've bought (they go on your hotbar, or wait in your locker: see Loadout)
+  slots: null, hand: 0, // your hotbar (see loadout.js) and which slot you have out
   drill: false, boots: false, socks: false, armor: false, lifeIns: false, charm: false, peel: false,
   skates: false, dash: false, stomp: false, springs: false, cape: false, jetpack: false, // movement gear
   nades: 0, cargo: [], hats: ['none'], hat: 'none',
@@ -415,7 +416,8 @@ const SAVE_DEFAULT = {
   summons: {}, pity: {}, heat: 0, // boss summoning items held, tries since the last drop, pizza warmth
   fun: {}, // your best and your medal on each planet's fun thing: { rings: { best, medal }, ... } (see fun.js)
   minis: {}, // mini bosses on each planet: { gloop: { k: critters zapped toward the next one, n: how many went down } }
-  graves: [], // where you died and dropped your stuff: [{gid, p, x, y, z, items}] (see Drops.graveDrop)
+  graves: [], // where you died and dropped your stuff: [{gid, p, x, y, z, items, slots}] (see Drops.graveDrop)
+  bodies: [], // critters you zapped and haven't picked up yet, lying where they landed (see Critters.saveBodies)
   stats: { collected: 0, gambled: 0, won: 0, lost: 0, deaths: 0, jackpots: 0, bossWins: 0 },
 };
 let SAVE = JSON.parse(JSON.stringify(SAVE_DEFAULT));
@@ -436,7 +438,8 @@ function loadSaveKey(key) {
 // Saves from before Spookulon, Nimbus-9 and Gigopolis: Zorblax Prime used to be planet 4 (it's 7 now) and
 // the Pizza Cutter used to be gun 5 (it's 8 now). Anyone who had already made it to Zorblax Prime keeps it open.
 // Saves from before you could keep your guns only knew your best one; the shop showed every gun below it
-// as owned ("yours is better"), so those are all yours now.
+// as owned ("yours is better"), so those are all yours now. Saves from before the hotbar get one filled
+// with what they had.
 function migrateSave(d) {
   if (!d) return d;
   if (!(d.v >= 2)) {
@@ -454,15 +457,14 @@ function migrateSave(d) {
     if (!Array.isArray(d.guns)) d.guns = d.zap >= 0 ? Array.from({ length: d.zap + 1 }, (_, i) => i) : [];
     d.v = 3;
   }
+  // the hotbar: the gun you had out, the vac, your drill and peel, then your best other guns
+  if (d.v < 4) {
+    if (!Array.isArray(d.slots)) d.slots = Loadout.fromOld(d);
+    d.v = 4;
+  }
   return d;
 }
-// switch to a gun you own (-1: the Squirt Pistol)
-function equipGun(i) {
-  if (i !== -1 && !SAVE.guns.includes(i)) return false;
-  SAVE.zap = i;
-  persist();
-  return true;
-}
+
 const nameKey = (name) => name.toLowerCase().replace(/\s+/g, '_');
 // the old one-save-per-name format (still used if you join a host running an old version)
 function loadSave(name) { loadSaveKey('spacegoobers_v1_' + nameKey(name)); }

@@ -13,6 +13,20 @@
 const MINION_KIND = { blorb: 'slime', snowdad: 'snow', count: 'bat', stormy: 'tornado', chad: 'intern', zorblax: 'guard' };
 const MINION_SPD = { guard: 4.2, snow: 3.8, bat: 4.4, tornado: 4.8, intern: 3.6 };
 const RING_COL = { gary: '#b8d86b', blorb: '#ff9ad5', jerry: '#ffd23f', snowdad: '#bff6ff', count: '#ff3d6e', stormy: '#b8d8ff', chad: '#3df0ff', zorblax: '#ff3df0' };
+// how often a boss says something (subtitles): now and then, a random line every `every` seconds, and never
+// sooner than `gap` after the last thing it said. An attack's own line only gets said `attack` of the time.
+const BOSS_TALK = { every: [22, 34], gap: 14, attack: 0.35 };
+// how a boss goes down (seconds): stunned stiff with sparks popping off it, then it spins up off the floor
+// like a top, puffing up bigger and bigger... and goes POP (confetti, coins, its head and hands flying off).
+// The fight ends `end` seconds in.
+const BOSS_DIE = { stun: 0.9, spin: 1.5, end: 4.2 };
+const CONFETTI = ['#ff4b6e', '#ffd23f', '#3aa7ff', '#46d98a', '#b77dff', '#ffffff'];
+// its last words
+const BOSS_LAST = {
+  gary: 'My trash... my beautiful... TRASH...', blorb: 'Tell my jellies... I loved them... wobbly...', jerry: 'The house... always... LOSES?!',
+  snowdad: 'I\'m melting! ...That\'s not even a joke! I\'m actually melting!', count: 'Not like this! I haven\'t even had DINNER!',
+  stormy: 'I\'m just... a light drizzle now...', chad: 'I\'m going to need... to circle back... on this...', zorblax: 'I WANT... TO SPEAK... TO YOUR... MANAGERRRR...',
+};
 const LANE_COL = { jerry: '#ffd23f', count: '#d6281b', stormy: '#fff36b', chad: '#3df0ff' }; // (the rest: pink lasers)
 // in phase 2 attacks come faster and faster, down to this fraction of the normal wait
 const MIN_COMP = { count: 0.75, stormy: 0.7, chad: 0.65, zorblax: 0.55 };
@@ -403,16 +417,14 @@ class BossFight {
       }
       ai.tauntT -= dt;
       if (ai.tauntT <= 0) {
-        ai.tauntT = U.rand(7, 11);
+        ai.tauntT = U.rand(BOSS_TALK.every[0], BOSS_TALK.every[1]);
         const list = this.phase === 2 && this.def.taunts2 ? this.def.taunts2.concat(this.def.taunts) : this.def.taunts;
-        const text = U.pick(list);
-        this.onTaunt(text); Net.toAll({ t: 'btaunt', text });
+        this.say(U.pick(list));
       }
       this.hostMinions(dt);
       if (this.checkAllOut(dt)) this.end(false);
     } else if (this.st === 'dying') {
-      this.pos.y = U.damp(this.pos.y, DECK_Y - 0.6, 2, dt);
-      if (this.t - ai.dieT > 3.4) this.end(true);
+      if (this.t - ai.dieT > BOSS_DIE.end) this.end(true);
     }
     ai.sendT -= dt;
     if (ai.sendT <= 0 && G.online) {
@@ -578,7 +590,7 @@ class BossFight {
     }, { tg: tg.id });
     if (a === 'babies') return this.windup('Royal Babies', 'summon', 0.6, () => {
       this.spawnMinions(p2 ? 4 : 3);
-      this.onTaunt('My children! HUG THEM! HUG THEM TO DEATH!'); Net.toAll({ t: 'btaunt', text: 'My children! HUG THEM! HUG THEM TO DEATH!' });
+      this.say('My children! HUG THEM! HUG THEM TO DEATH!', BOSS_TALK.attack);
       return cd;
     });
     if (a === 'triple') return this.windup('Triple Bounce', 'crouch', 0.6, () => { // three flops in a row, each at whoever's closest
@@ -634,7 +646,7 @@ class BossFight {
         const jack = syms[0] === syms[1] && syms[1] === syms[2];
         const counts = {};
         syms.forEach((s) => (counts[s] = (counts[s] || 0) + (jack ? 1.5 : 1)));
-        if (jack) { this.fire({ k: 'fx', text: 'JACKPOT!!', snd: 'jackpot', shake: 0.5 }); this.onTaunt('JACKPOT! FOR ME!'); Net.toAll({ t: 'btaunt', text: 'JACKPOT! FOR ME!' }); }
+        if (jack) { this.fire({ k: 'fx', text: 'JACKPOT!!', snd: 'jackpot', shake: 0.5 }); this.say('JACKPOT! FOR ME!', 0.6); }
         const l = [];
         const tg2 = this.randTarget();
         for (const [s, c] of Object.entries(counts)) {
@@ -679,8 +691,7 @@ class BossFight {
     if (a === 'icicles') return this.windup('Icicle Drop', 'summon', 0.55, () => { this.fire(this.rain(p2 ? 18 : 12, 'icicle', 16, 0.5)); return cd; });
     if (a === 'kids') return this.windup('Snow Kids', 'summon', 0.6, () => { this.spawnMinions(p2 ? 4 : 3); return cd; });
     if (a === 'joke') {
-      const text = U.pick(this.def.taunts);
-      this.onTaunt(text); Net.toAll({ t: 'btaunt', text });
+      this.say(U.pick(this.def.taunts), 0.6); // (it's a Dad Joke attack: he usually tells one)
       return this.windup('Dad Joke', 'slam', 0.6, () => { // (he slaps his knee so hard the floor shakes)
         this.fire({ k: 'multi', l: [this.ring(this.pos.x, this.pos.z, 9, 12, 0.05), this.ring(this.pos.x, this.pos.z, 9, 12, 0.75), { k: 'fx', snd: 'rimshot' }] });
         return cd;
@@ -730,7 +741,7 @@ class BossFight {
     if (a === 'guards') return this.windup('Guards!', 'summon', 0.6, () => {
       this.spawnMinions(p2 ? 4 : 3);
       const text = 'GUARDS! SEIZE THE DELIVERY PERSON!';
-      this.onTaunt(text); Net.toAll({ t: 'btaunt', text });
+      this.say(text, BOSS_TALK.attack);
       return cd;
     });
     if (a === 'meteors') return this.windup('Meteor Shower', 'summon', 0.55, () => { this.fire(this.rain(p2 ? 18 : 14, 'meteor', 16, 0.6)); return cd; });
@@ -766,7 +777,7 @@ class BossFight {
     }, { tg: tg.id });
     if (a === 'pizza') {
       const text = 'THIS PIZZA IS COLD!';
-      this.onTaunt(text); Net.toAll({ t: 'btaunt', text });
+      this.say(text, BOSS_TALK.attack);
       return this.windup('Cold Pizza', 'throw', 0.45, () => {
         const t = this.aimAt(tg.id);
         if (t) this.fire(this.aimed(this.mouth(), t.p, 9, 1.1, 13, 'pizza', 12, 0.55));
@@ -814,7 +825,7 @@ class BossFight {
     if (a === 'swarm') return this.windup('Children of the Night', 'summon', 0.6, () => {
       this.spawnMinions(p2 ? 4 : 3);
       const text = 'Children of the night! Fetch me CARBS!';
-      this.onTaunt(text); Net.toAll({ t: 'btaunt', text });
+      this.say(text, BOSS_TALK.attack);
       return cd;
     });
     if (a === 'mist') return this.windup('Mist Step', 'spin', 0.45, () => { // turns to mist and reappears right behind you
@@ -884,7 +895,7 @@ class BossFight {
     if (a === 'twisters') return this.windup('Twisters', 'summon', 0.6, () => {
       this.spawnMinions(p2 ? 4 : 3);
       const text = 'Twisters! Go mess up their HAIR!';
-      this.onTaunt(text); Net.toAll({ t: 'btaunt', text });
+      this.say(text, BOSS_TALK.attack);
       return cd;
     });
     if (a === 'chain') return this.windup('Chain Lightning', 'point', 0.5, () => { // strikes walking across the floor at you
@@ -953,7 +964,7 @@ class BossFight {
     if (a === 'interns') return this.windup('Intern Army', 'summon', 0.6, () => {
       this.spawnMinions(p2 ? 4 : 3);
       const text = 'Interns! Get me a coffee! Then get THEM!';
-      this.onTaunt(text); Net.toAll({ t: 'btaunt', text });
+      this.say(text, BOSS_TALK.attack);
       return cd;
     });
     if (a === 'dash') return this.windup('Disrupt!', 'charge', 0.55, () => { // a hoverboard charge straight through you
@@ -1102,8 +1113,16 @@ class BossFight {
     }
   }
   nearFactor(p) { const d = Math.hypot(p.x - this.me().pos.x, p.z - this.me().pos.z); return U.clamp(1.4 - d / 20, 0.2, 1); }
+  // (host) the boss says something, now and then (see BOSS_TALK). chance: how likely it is to bother
+  say(text, chance = 1) {
+    const ai = this.ai;
+    if (Math.random() > chance || this.t - (ai.saidT == null ? -99 : ai.saidT) < BOSS_TALK.gap) return;
+    ai.saidT = this.t;
+    ai.tauntT = Math.max(ai.tauntT, BOSS_TALK.every[0] * 0.6); // (and the next random line waits a while)
+    this.onTaunt(text); Net.toAll({ t: 'btaunt', text });
+  }
   onTaunt(text) {
-    UI.subtitle({ gary: 'GARY', blorb: 'QUEEN BLORBINA', jerry: 'JACKPOT JERRY', snowdad: 'SNOWDAD', count: 'COUNT CARBULA', stormy: 'STORMY', chad: 'CHAD', zorblax: 'ZORBLAX' }[this.id], text);
+    UI.subtitle({ gary: 'GARY', blorb: 'QUEEN BLORBINA', jerry: 'JACKPOT JERRY', snowdad: 'SNOWDAD', count: 'COUNT CARBULA', stormy: 'STORMY', chad: 'CHAD', zorblax: 'ZORBLAX' }[this.id], text, 3);
     Sound.play({ snowdad: 'rimshot', blorb: 'blub', count: 'laugh', stormy: 'thunder', chad: 'ding' }[this.id] || 'dad');
     if (!this.pz && this.st === 'fight') this.setPose('point', 0.25, 0.5, null, true); // (a little gesture to go with it: no glow, it's not an attack)
   }
@@ -1120,7 +1139,7 @@ class BossFight {
   }
   onDying() {
     Sound.play('roar');
-    UI.bigTitle('DEFEATED!', this.def.win, '#7dff8a', 3.2);
+    UI.subtitle(this.def.name.toUpperCase(), BOSS_LAST[this.id] || 'NOOOOOOO!', 2.6);
     UI.bossHp(0);
     UI.bossCall(null); this.call = null;
     for (const h of this.allHazards()) this.removeHazard(h);
@@ -1255,7 +1274,7 @@ class BossFight {
     A.tilt = U.damp(A.tilt, U.clamp(-turn * 0.25, -0.18, 0.18), 6, dt);
     m.root.position.copy(this.rpos);
     m.root.rotation.y = this.rrot;
-    m.root.visible = !this.hidden;
+    m.root.visible = !this.hidden && !A.popped;
     // squash when it lands, stretch while it flies
     if (A.pvy < -6 && A.vy > -1.5) { A.sqv -= Math.min(4, -A.pvy * 0.2); if (!FLOATS[id] || id === 'chad') FX.burst(this.rpos.clone().setY(DECK_Y + 0.2), '#ffffff', 6, 3); }
     A.pvy = A.vy;
@@ -1339,27 +1358,90 @@ class BossFight {
     } else if (id === 'chad') { // the board tips the way he's going
       set(m.board, -0.12 * walkK - A.lean * 0.3, 0, A.tilt * 0.8, Math.sin(t * 3) * 0.08);
     }
-    // defeated: shudder, tip over, smoke
-    if (this.st === 'dying' || (this.over && this.won)) {
-      A.dieT += dt;
-      const shudder = Math.max(0, 1 - A.dieT / 1.4);
-      A.dieRz = U.damp(A.dieRz || 0, Math.PI / 2, 1.6, dt);
-      A.dieY = U.damp(A.dieY == null ? m.body.position.y : A.dieY, 0.5, 2, dt);
-      m.body.rotation.z = A.dieRz + (Math.random() - 0.5) * 0.08 * shudder;
-      m.body.position.y = A.dieY;
-      A.smokeT -= dt;
-      if (A.smokeT <= 0 && A.dieT < 3.2) {
-        A.smokeT = 0.22;
-        const c = this.center().add(new V3(U.rand(-1.5, 1.5), U.rand(-1, 1), U.rand(-1.5, 1.5)));
-        FX.burst(c, U.chance(0.5) ? '#ffffff' : RING_COL[id], 5, 4);
-        this.glow.puff(c, shotColor('meteor'), 3, 0.5);
-      }
-      A.glow = 0.3 * shudder;
-    }
     // the model's materials: flash when hit, glow while winding up
     const u = HI_U.boss;
     u.uFlash.value = Math.min(0.55, this.flash * 0.55);
     u.uGlow.value = A.glow;
+    // defeated (see BOSS_DIE)
+    if (this.st === 'dying' || (this.over && this.won)) this.deathAnim(dt, set);
+  }
+  // (everyone) the boss goes down: stunned, spinning up and puffing up, then POP
+  deathAnim(dt, set) {
+    const m = this.m, A = this.anim, u = HI_U.boss, col = RING_COL[this.id] || '#ffd23f';
+    const t = (A.dieT += dt), S = BOSS_DIE.stun, T = S + BOSS_DIE.spin;
+    if (t < T) {
+      const k = U.clamp((t - S) / BOSS_DIE.spin, 0, 1), spin = t >= S, rise = 1.8 * k * k;
+      if (spin && !A.squeal) { A.squeal = true; Sound.play('deflate'); }
+      // stunned: leaning back, arms flung up, knees knocking, trembling all over. Then spinning up off the
+      // floor like a top, arms flailing, puffing up bigger and bigger
+      A.dieSpin = (A.dieSpin || 0) + dt * (spin ? 3 + 18 * k * k : 0);
+      const tr = spin ? 0.05 : 0.12, jit = () => (Math.random() - 0.5) * tr;
+      set(m.body, -0.22 * (1 - k) + jit(), A.dieSpin, (spin ? Math.sin(t * 8) * 0.3 * (1 - 0.4 * k) : 0) + jit(), 0.15 + rise);
+      const puff = 1 + 0.55 * k * k + Math.sin(t * 34) * 0.05 * k;
+      m.body.scale.set(puff, puff * (1 + 0.1 * Math.sin(t * 21) * k), puff);
+      (m.arms || []).forEach((a, i) => set(a, spin ? Math.sin(t * 24 + i * 2.1) * 1.4 - 1 : -2.7 + Math.sin(t * 40 + i) * 0.12, 0, (i ? 1 : -1) * (spin ? 0.7 + 0.5 * Math.sin(t * 17 + i) : 0.95)));
+      (m.legs || []).forEach((l, i) => set(l, Math.sin(t * (spin ? 26 : 36) + i * 3) * (spin ? 0.9 : 0.25), 0, 0));
+      if (m.head) set(m.head, spin ? Math.sin(t * 19) * 0.35 : -0.5, spin ? Math.sin(t * 13) * 0.6 : Math.sin(t * 27) * 0.15, 0);
+      u.uFlash.value = Math.sin(t * (spin ? 40 + 50 * k : 30)) > 0.2 ? 0.55 : 0.04;
+      u.uGlow.value = 0.2 + 0.4 * k;
+      // sparks popping off it, faster and faster
+      A.sparkT = (A.sparkT || 0) - dt;
+      if (A.sparkT <= 0) {
+        A.sparkT = spin ? 0.06 : 0.12;
+        const r = (this.m.hit[0].r || 2) * puff, p = this.center().add(new V3(U.rand(-r, r), rise + U.rand(-r, r), U.rand(-r, r)));
+        FX.burst(p, Math.random() < 0.5 ? '#ffffff' : col, 5, 6);
+        if (Math.random() < 0.4) this.glow.puff(p, new THREE.Color(col), 2.5, 0.35);
+        if (!spin && Math.random() < 0.5) Sound.play('hit');
+      }
+      G.shake = Math.max(G.shake, (spin ? 0.3 + 0.5 * k : 0.35) * this.nearFactor(this.rpos));
+      return;
+    }
+    if (!A.popped) this.pop(this.center().add(new V3(0, 1.8, 0)), col);
+    u.uFlash.value = 0; u.uGlow.value = 0;
+    // confetti keeps raining down for a moment, and its bits bounce about
+    A.rainT = (A.rainT || 0) - dt;
+    if (t < T + 1.8 && A.rainT <= 0) {
+      A.rainT = 0.06;
+      FX.burst(new V3(this.rpos.x + U.rand(-8, 8), DECK_Y + U.rand(6, 10), this.rpos.z + U.rand(-8, 8)), U.pick(CONFETTI), 3, 2);
+    }
+    for (const d of this.debris || []) {
+      d.t += dt;
+      d.v.y -= 26 * dt;
+      d.o.position.addScaledVector(d.v, dt);
+      d.o.rotation.x += d.w.x * dt; d.o.rotation.y += d.w.y * dt; d.o.rotation.z += d.w.z * dt;
+      const p = d.o.position;
+      if (p.y < DECK_Y + 0.3 && Math.hypot(p.x, p.z) < ARENA_R) {
+        p.y = DECK_Y + 0.3;
+        if (d.v.y < 0) {
+          if (d.v.y < -3 && G.player.pos.distanceTo(p) < 30) Sound.play('thud');
+          d.v.y *= -0.45; d.v.x *= 0.65; d.v.z *= 0.65; d.w.multiplyScalar(0.55);
+        }
+      }
+      if (d.t > 2.4) d.o.scale.multiplyScalar(Math.max(0, 1 - dt * 3)); // (and shrinks away)
+    }
+  }
+  // POP: a huge bang of confetti and coins, and its head and hands (and hat) go flying
+  pop(c, col) {
+    const A = this.anim, m = this.m;
+    A.popped = true;
+    Sound.play('kaboom'); Sound.play('party');
+    G.shake = Math.max(G.shake, 1.2 * this.nearFactor(this.rpos));
+    FX.burst(c, col, 40, 13); FX.burst(c, '#ffffff', 24, 10); FX.burst(c, '#ffd23f', 22, 9);
+    for (const cc of CONFETTI) FX.burst(c, cc, 14, 12);
+    FX.ring(new V3(c.x, DECK_Y + 0.2, c.z), col, 12); FX.ring(new V3(c.x, DECK_Y + 0.3, c.z), '#ffffff', 17);
+    for (let i = 0; i < 16; i++) this.glow.puff(c.clone().add(new V3(U.rand(-3, 3), U.rand(-2, 3), U.rand(-3, 3))), new THREE.Color(U.pick([col, '#ffd23f', '#ffffff'])), 4, 0.9);
+    this.debris = [];
+    for (const o of [m.head, ...(m.arms || []), m.crown, m.lid, m.board, m.lever]) {
+      if (!o || !o.parent) continue;
+      G.scene.attach(o); // (keeping where it is: it just isn't part of the boss any more)
+      this.rest.delete(o); // (so the boss's own animation leaves it alone)
+      const d = o.getWorldPosition(new V3()).sub(c).setY(0);
+      if (d.lengthSq() < 0.01) d.set(Math.random() - 0.5, 0, Math.random() - 0.5);
+      d.normalize();
+      this.debris.push({ o, t: 0, v: new V3(d.x * U.rand(5, 9), U.rand(9, 14), d.z * U.rand(5, 9)), w: new V3(U.rand(-10, 10), U.rand(-10, 10), U.rand(-10, 10)) });
+    }
+    m.root.visible = false;
+    UI.bigTitle('DEFEATED!', this.def.win, '#7dff8a', 3.2);
   }
 
   surfaceY(p) { return Math.hypot(p.x, p.z) < ARENA_R + 0.3 ? DECK_Y : WATER_Y - 1; }
@@ -2037,9 +2119,11 @@ class BossFight {
       if (document.pointerLockElement) document.exitPointerLock();
       UI.openPanel(html + '<div class="center" style="margin-top:12px"><button class="btn big" data-act="back" style="max-width:320px">Back to the planet ▶</button></div>',
         (act) => { if (act === 'back') UI.closePanel(); }, null, () => Game.endBoss(won && this.id === 'zorblax'));
-    }, won ? 2600 : 1200);
+    }, won ? 1700 : 1200);
   }
   dispose() {
+    for (const d of this.debris || []) dropObj(d.o);
+    this.debris = null;
     for (const h of this.allHazards()) this.removeHazard(h);
     for (const id of [...this.minions.keys()]) { const m = this.minions.get(id); if (m.mesh) dropObj(m.mesh); }
     this.minions.clear();

@@ -279,7 +279,7 @@ const Meteors = {
     p.vel.x += (dx / d) * 10; p.vel.z += (dz / d) * 10; p.vel.y = 6.5; p.onGround = false;
     G.shake = Math.max(G.shake, 0.8);
     Sound.play('bonk');
-    UI.toast(U.pick(LINES.meteorBonk) + (SAVE.peel ? ' (Press 4 for the Pizza Peel!)' : ' Dave sells a Pizza Peel for catching these.'), 'purple', 2.4);
+    UI.toast(U.pick(LINES.meteorBonk) + (SAVE.peel ? ' Take out your Pizza Peel ({tool:peel})!' : ' Dave sells a Pizza Peel for catching these.'), 'purple', 2.4);
   },
 };
 
@@ -436,7 +436,7 @@ const Summons = {
   goal() {
     if (!G.started || G.mode !== 'planet') return { text: '' };
     const b = PLANETS[G.planet].boss, s = SUMMONS[b], boss = BOSSES[b];
-    if (!SAVE.guns.length) return { text: `Buy a real gun from ${SHOPS[PLANETS[G.planet].shop].npc}` + (G.planet === 0 ? ' (vacuum junk with 2 and sell it)' : '') };
+    if (!SAVE.guns.length) return { text: `Buy a real gun from ${SHOPS[PLANETS[G.planet].shop].npc}` + (G.planet === 0 ? ' (vacuum up junk and sell it)' : '') };
     if (this.has(b)) return { text: `The crew has ${s.name}. Use it at the boss altar`, ready: true };
     if (G.progress.includes(b)) {
       const next = PLANETS[G.planet + 1];
@@ -451,9 +451,10 @@ const Summons = {
    Drop stuff from your backpack (press I) and it lands in front of you in a
    little crate. Anyone can walk over it to pick it up. The host keeps the list,
    so two people can't grab the same crate.
-   When you die, everything but your vac lands in a grave where you fell. Only
-   you can pick that one up, and it's in your save, so it waits for you (even if
-   you quit and come back). Gear in a crate is written 'gear:zap:2', 'gear:drill',
+   When you die, everything but your vac (and the Squirt Pistol) lands in a grave
+   where you fell. Only you can pick that one up, and it's in your save, so it
+   waits for you (even if you quit and come back), and everything goes back on
+   your hotbar where it was. Gear in a crate is written 'gear:zap:2', 'gear:drill',
    'gear:peel' or 'gear:nades:5'; everything else is a backpack entry. */
 const DROP_LIFE = 600; // seconds before a crate on the ground disappears (graves never do)
 const Drops = {
@@ -471,10 +472,11 @@ const Drops = {
     }
     items.push(...SAVE.cargo);
     if (!items.length) return null;
-    if (!insured) { SAVE.zap = -1; SAVE.guns = []; SAVE.drill = false; SAVE.peel = false; SAVE.nades = 0; }
+    const slots = Loadout.slots().slice(); // (so it all goes back where it was)
+    if (!insured) { SAVE.zap = -1; SAVE.guns = []; SAVE.drill = false; SAVE.peel = false; SAVE.nades = 0; Loadout.afterDeath(); }
     SAVE.cargo = [];
     const p = G.player.pos;
-    const g = { gid: Date.now().toString(36) + Math.random().toString(36).slice(2, 7), p: G.planet, x: U.r2(p.x), y: U.r2(p.y), z: U.r2(p.z), items };
+    const g = { gid: Date.now().toString(36) + Math.random().toString(36).slice(2, 7), p: G.planet, x: U.r2(p.x), y: U.r2(p.y), z: U.r2(p.z), items, slots };
     SAVE.graves = (SAVE.graves || []).concat(g);
     persist();
     this.sendGrave(g);
@@ -490,7 +492,6 @@ const Drops = {
     let name, pic;
     if (k === 'zap' && ZAPPERS[+n]) {
       if (!SAVE.guns.includes(+n)) SAVE.guns.push(+n);
-      if (SAVE.zap === -1) SAVE.zap = +n; // (back in your hand: the first one listed is the one you had out)
       name = ZAPPERS[+n].name; pic = 'zap:' + n;
     }
     else if (k === 'drill') { SAVE.drill = true; name = 'Laser Drill'; pic = 'drill'; }
@@ -580,6 +581,7 @@ const Drops = {
     }
     if (m.to !== Net.myId || !m.items) return;
     const gear = m.items.filter((e) => e.startsWith('gear:')), loot = m.items.filter((e) => !e.startsWith('gear:'));
+    const grave = m.grave && (SAVE.graves || []).find((g) => g.gid === m.grave);
     if (m.grave) {
       // my own stuff: all of it comes back, even into a full backpack
       for (const e of loot) { SAVE.cargo.push(e); UI.pickup('+ ' + cargoRes(e).name, '#ffffff', Thumbs.cargoKey(e)); }
@@ -591,6 +593,8 @@ const Drops = {
       Activities.showLoot(got);
     }
     for (const e of gear) this.giveGear(e);
+    if (grave && grave.slots) Loadout.restore(grave.slots); // (your gear goes back in the slots it was in)
+    else for (const e of gear) { const [, k, n] = e.split(':'); if (k === 'zap' || k === 'drill' || k === 'peel') Loadout.add(k === 'zap' ? 'gun:' + n : k); }
     if (gear.length) G.player.refreshGear();
     Sound.play('pickup');
     persist();

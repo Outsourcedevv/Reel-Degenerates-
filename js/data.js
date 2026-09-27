@@ -8,8 +8,8 @@ const PLANETS = [
     id: 'scrap', name: 'Scrapyard-9', icon: 'gear', boss: 'gary', shop: 'scrap', activity: 'scrap', music: 'scrap',
     blurb: 'A moon made entirely of garbage. Smells like it too.',
     steps: [
-      'Press 2 for your Grabby Vac, then hold left click on the glowing junk to suck it up.',
-      'Walk up to Robo-Pawn\'s shop, press E and sell it. Then buy a real gun (your Squirt Pistol is awful).',
+      'Take out your Grabby Vac ({tool:vac}), then hold {fire} on the glowing junk to suck it up.',
+      'Walk up to Robo-Pawn\'s shop, press {use} and sell it. Then buy a real gun (your Squirt Pistol is awful).',
       'Zap critters and sell them too. Careful: the mean ones hunt you, and pounce when they crouch.',
       'Boss: Trashlord Gary. His Stinky Crown is buried in the junk. Take it to the boss altar.',
     ],
@@ -28,7 +28,7 @@ const PLANETS = [
     blurb: 'Low gravity slime jungle. Everything is sticky. Everything.',
     steps: [
       'Low gravity! Jump up the giant mushrooms like stairs.',
-      'Walk into berries to grab them, or suck them in from below with the Grabby Vac (2).',
+      'Walk into berries to grab them, or suck them in from below with the Grabby Vac ({tool:vac}).',
       'Sell berries and critters to Chef Snorbo.',
       'Boss: Queen Blorbina. Royal Jelly hides in the big berries on the tallest mushrooms.',
       'For fun: the Ring Run, a glowing pad a short walk from your ship. Go through every ring as fast as you can.',
@@ -49,8 +49,8 @@ const PLANETS = [
     blurb: 'The casino planet. Nobody has ever left with money. Nobody.',
     steps: [
       'Every game is inside the Luckstar Casino, the big building next to your ship.',
-      'Walk up to a game and press E: slots, roulette, snail races, coin flips and mystery crates.',
-      'People drop chips everywhere. Vacuum them up (2) and sell them.',
+      'Walk up to a game and press {use}: slots, roulette, snail races, coin flips and mystery crates.',
+      'People drop chips everywhere. Vacuum them up ({tool:vac}) and sell them.',
       'Boss: Jackpot Jerry. Win his Golden Token from a Mystery Crate, or buy one from Mr. Chips.',
     ],
     sky: ['#070420', '#3d1570'], fog: ['#231048', 60, 250], stars: 1.0, mood: 'night',
@@ -67,8 +67,8 @@ const PLANETS = [
     id: 'frost', name: 'Frostbyte', icon: 'gem', boss: 'snowdad', shop: 'frost', activity: 'crystal', music: 'frost',
     blurb: 'Ice planet. The ground is slippery and so are the prices.',
     steps: [
-      'Buy a Laser Drill from Penguin Pete. Press 3 and hold left click on a big crystal to mine it.',
-      'Vacuum the little snow piles (2) for extra stuff.',
+      'Buy a Laser Drill from Penguin Pete. Take it out ({tool:drill}) and hold {fire} on a big crystal to mine it.',
+      'Vacuum the little snow piles ({tool:vac}) for extra stuff.',
       'The ground is slippery. Heated Socks from Pete fix that.',
       'Boss: The Abominable Snowdad. His Space Milk is frozen inside the big crystals.',
       'For fun: Pete\'s Snowman Shooting Gallery, a short walk from your ship. Shoot the snowmen, NOT the penguins.',
@@ -88,7 +88,7 @@ const PLANETS = [
     blurb: 'A haunted moon. The ghosts are mostly harmless. They do NOT pay rent.',
     steps: [
       '!Ghosts can\'t be shot. You have to VACUUM them.',
-      'Press 2 for your Grabby Vac, then hold left click on a ghost.',
+      'Take out your Grabby Vac ({tool:vac}), then hold {fire} on a ghost.',
       'Keep the ghost in the middle of your screen until it\'s sucked in. It dodges and BOOs you, so stay on it.',
       'Sell what the ghosts drop at the shop. Boss: Count Carbula. One of the ghosts is haunting his Dinner Bell.',
       'For fun: the Hedge of No Return, the maze next to the boss altar. Race to the treasure in the middle.',
@@ -107,7 +107,7 @@ const PLANETS = [
     id: 'cloud', name: 'Nimbus-9', icon: 'star', boss: 'stormy', shop: 'cloud', activity: 'pearl', music: 'cloud',
     blurb: 'A planet made of clouds. Solid-ish clouds. Please do not look down.',
     steps: [
-      'Grab Sky Pearls: walk into them, or suck them in with the Grabby Vac (2).',
+      'Grab Sky Pearls: walk into them, or suck them in with the Grabby Vac ({tool:vac}).',
       'Stand in a glowing updraft to float up to the next island.',
       'Fall off and you drop through the clouds (you wash up back at the ship).',
       'Boss: Stormy McStormface. A Weather Balloon is tangled in the big pearls on the highest islands.',
@@ -123,9 +123,9 @@ const PLANETS = [
     id: 'city', name: 'Gigopolis', icon: 'box', boss: 'chad', shop: 'city', activity: 'deliver', music: 'city',
     blurb: 'A planet-sized city where everyone has four side hustles and rent is due. Always.',
     steps: [
-      'Walk up to the GigHub kiosk and press E to take a delivery gig.',
+      'Walk up to the GigHub kiosk and press {use} to take a delivery gig.',
       'Run the parcel to the glowing beam before the timer runs out. Faster = bigger tip. Jump pads get you onto roofs.',
-      'Vacuum litter off the streets (2) for extra cash.',
+      'Vacuum litter off the streets ({tool:vac}) for extra cash.',
       'Boss: CEO Chad Grindset. One of your delivery customers has his Mandatory Meeting Invite.',
     ],
     sky: ['#12072e', '#ff5fa2'], fog: ['#3a1850', 60, 260], stars: 0.55, mood: 'night',
@@ -139,9 +139,9 @@ const PLANETS = [
     id: 'zorb', name: 'Zorblax Prime', icon: 'crown', boss: 'zorblax', shop: 'zorb', activity: 'meteor', music: 'zorb',
     blurb: 'Home of Emperor Zorblax. He ordered the pizza. He is NOT happy. Also it rains pepperoni.',
     steps: [
-      'Buy the Pizza Peel from Dave. Press 4, then stand inside a glowing circle to catch the pepperoni meteor.',
+      'Buy the Pizza Peel from Dave. Take it out ({tool:peel}), then stand inside a glowing circle to catch the pepperoni meteor.',
       'Every catch warms up the pizza. At 15 it\'s warm enough to deliver.',
-      'Vacuum burnt crusts (2) for spare change.',
+      'Vacuum burnt crusts ({tool:vac}) for spare change.',
       'Boss: Emperor Zorblax. Use the Reheated Pizza at the boss altar.',
     ],
     sky: ['#1a0010', '#ff4a2a'], fog: ['#5e1520', 50, 230], stars: 0.7, mood: 'night',
@@ -229,8 +229,8 @@ const rollLoot = (kind, rng = Math.random) => Array.from({ length: LOOT_N[kind] 
    (pizza cutters that fly out and come back).
    dmg: per bolt / pellet / splash / beam tick / slice · cd: seconds between shots (beam: between ticks)
    mag: shots per battery (beam: ticks of charge; cutter: how many you can have out) · rl: reload seconds.
-   (Ammo is infinite, but batteries need swapping.) Every gun you buy is yours to keep: switch between them
-   at any shop, or press 1 again with your gun out. */
+   (Ammo is infinite, but batteries need swapping.) Every gun you buy is yours to keep: put as many as you
+   like on your hotbar (see Loadout), the rest wait in your locker. */
 const ZAPPERS = [
   { name: 'Pew Pew Zapper',   short: 'Zapper',       type: 'bolt',    dmg: 14, cd: 0.30, mag: 12, rl: 1.3,  color: '#ff4b3e' },
   { name: 'Scrap Scattergun', short: 'Scattergun',   type: 'spread',  dmg: 8,  cd: 0.62, mag: 6,  rl: 1.4,  color: '#ffb23e', pellets: 6, spread: 0.075 },
@@ -303,7 +303,7 @@ const SHOPS = {
       { kind: 'zap', lvl: 3, price: 4000, desc: 'Every shot is a slot pull. Usually normal. Sometimes x2. Rarely 777. Once in a blue moon: JACKPOT.' },
       { kind: 'nades', price: 180, name: 'Goo Grenades x5', desc: 'Imported from Gloop. Same price everywhere. (It\'s the law.)' },
       { kind: 'summon', b: 'jerry', price: 7500, desc: 'Summons Jackpot Jerry at the altar. Non-refundable. Like everything here.' },
-      { kind: 'dash', price: 2500, name: 'Getaway Sneakers', desc: 'Press Q to dash. For outrunning debt collectors. Works in the air too.' },
+      { kind: 'dash', price: 2500, name: 'Getaway Sneakers', desc: 'Press {dash} to dash. For outrunning debt collectors. Works in the air too.' },
       { kind: 'charm', price: 77, name: 'Lucky Space Foot', desc: 'Does absolutely nothing. You will feel lucky, though.' },
       { kind: 'hat', id: 'tophat', price: 900 },
       { kind: 'hat', id: 'crown', price: 5000 },
@@ -315,7 +315,7 @@ const SHOPS = {
     items: [
       { kind: 'drill', price: 800, name: 'Laser Drill', desc: 'For mining crystals. NOT for dentistry.' },
       { kind: 'socks', price: 500, name: 'Heated Socks', desc: 'No more slipping around. Toasty toes.' },
-      { kind: 'stomp', price: 4000, name: 'Yeti Stompers', desc: 'Press C in the air to slam into the ground. Squashes critters. Wakes the neighbors.' },
+      { kind: 'stomp', price: 4000, name: 'Yeti Stompers', desc: 'Press {stomp} in the air to slam into the ground. Squashes critters. Wakes the neighbors.' },
       { kind: 'zap', lvl: 4, price: 9000, desc: 'Hold to fire a freezing beam. Freezes critters solid. Just keep it on the boss.' },
       { kind: 'cargo', lvl: 3, price: 3800, name: 'Industrial Fridge', desc: 'Holds 60 things. You are wearing a fridge now.' },
       { kind: 'hat', id: 'viking', price: 600 },
@@ -338,7 +338,7 @@ const SHOPS = {
     greet: ['Ahoy! Welcome aboard! There is no boat. I just like saying ahoy.', 'Albatross by birth, sky-sailor by trade, shopkeeper by debt.', 'Mind the edge. The first step is a doozy. So are all the others.'],
     items: [
       { kind: 'zap', lvl: 6, price: 15000, desc: 'Calls down lightning that jumps from target to target. Three bounces, and every one still hurts. Great for crowds.' },
-      { kind: 'cape', price: 9000, name: 'Glider Cape', desc: 'Hold Space while falling to glide. Makes falling off an island much less of a whole thing.' },
+      { kind: 'cape', price: 9000, name: 'Glider Cape', desc: 'Hold {jump} while falling to glide. Makes falling off an island much less of a whole thing.' },
       { kind: 'nades', price: 180, name: 'Goo Grenades x5', desc: 'Aerodynamic now. (They are not.)' },
       { kind: 'hat', id: 'aviator', price: 2000 },
       { kind: 'hat', id: 'umbrella', price: 3000 },
@@ -349,7 +349,7 @@ const SHOPS = {
     greet: ['Hello. I am one (1) normal adult man. Buying? Selling? Please do not look at my legs.', 'We... I mean I... have the best prices in Gigopolis. Rent is due. Buy something.', '*rustling* Ignore that. That was my coat. It does that.'],
     items: [
       { kind: 'zap', lvl: 7, price: 20000, desc: 'Launches express parcels that explode on delivery. Big splash damage. Shoot the ground under you mid-jump to rocket-jump onto a roof. (Somehow it doesn\'t hurt.)' },
-      { kind: 'jetpack', price: 14000, name: 'Jet Pack', desc: 'Hold Space in the air to fly up. Fuel runs out fast and refills on the ground. Found in a dumpster. Works fine. Probably.' },
+      { kind: 'jetpack', price: 14000, name: 'Jet Pack', desc: 'Hold {jump} in the air to fly up. Fuel runs out fast and refills on the ground. Found in a dumpster. Works fine. Probably.' },
       { kind: 'nades', price: 180, name: 'Goo Grenades x5', desc: 'Now with next-day shipping.' },
       { kind: 'hat', id: 'headset', price: 2500 },
       { kind: 'hat', id: 'cap', price: 1200 },
@@ -598,10 +598,12 @@ const STYLE_MAX = 5; // stacked style bonuses never pay more than this in total
 /* ---------- difficulty: picked when you make a world ---------- */
 // dmg: how hard enemies hit you · crit: how much health critters have · revive: in a boss fight with friends,
 // how many seconds until you get back up by yourself (as long as a friend is still standing)
+// dmg: how hard enemies hit · crit: how tough critters are · crits: how many critters are about on a planet at
+// once · spawn: seconds between new critters turning up [while there are less than half that many, after that]
 const DIFFS = {
-  easy: { name: 'Easy', dmg: 1, crit: 1, revive: 10, desc: 'Enemies hit normally. Die on a planet and you just get back up. Boss fights: one life, but friends can pick you up (or you get up after 10s).' },
-  hard: { name: 'Hard', dmg: 2, crit: 1.75, revive: 15, desc: 'Everything hits twice as hard and critters are much tougher. Mini bosses have a new attack. Boss fights: one life, friends can pick you up (or you get up after 15s).' },
-  hardcore: { name: 'Hardcore', dmg: 3.5, crit: 2.5, revive: 20, perma: true, desc: 'Everything hits WAY harder, critters are tanks, mini bosses have two new attacks, and if you die, you die for good. The world is deleted. With friends in a boss fight you get back up after 20s, if one of them is still standing.' },
+  easy: { name: 'Easy', dmg: 1, crit: 1, crits: 14, spawn: [0.7, 6.5], revive: 10, desc: 'Enemies hit normally, and there are fewer critters about. Die on a planet and you just get back up. Boss fights: one life, but friends can pick you up (or you get up after 10s).' },
+  hard: { name: 'Hard', dmg: 2, crit: 1.75, crits: 24, spawn: [0.3, 3], revive: 15, desc: 'Everything hits twice as hard, critters are much tougher, there are more of them and they come back faster. Mini bosses have a new attack. Boss fights: one life, friends can pick you up (or you get up after 15s).' },
+  hardcore: { name: 'Hardcore', dmg: 3.5, crit: 2.5, crits: 32, spawn: [0.2, 1.6], revive: 20, perma: true, desc: 'Everything hits WAY harder, critters are tanks and they\'re everywhere, mini bosses have two new attacks, and if you die, you die for good. The world is deleted. With friends in a boss fight you get back up after 20s, if one of them is still standing.' },
 };
 
 const SUMMONS = {
@@ -636,7 +638,7 @@ const SUMMONS = {
   count: {
     name: 'Count\'s Dinner Bell', icon: 'alert', src: 'ghost', chance: 0.04, pity: 22,
     hint: 'find his Dinner Bell: one of the ghosts is haunting it',
-    how: 'One of the ghosts drifting around the graveyards is haunting it. Vacuum ghosts (2) until it turns up.',
+    how: 'One of the ghosts drifting around the graveyards is haunting it. Vacuum ghosts ({tool:vac}) until it turns up.',
     found: 'Ding ding! Somewhere, a vampire just got very hungry.',
     line: 'You ring the Dinner Bell. The graveyard goes very, very quiet...',
   },

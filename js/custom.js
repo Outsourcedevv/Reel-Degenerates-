@@ -64,7 +64,7 @@ const Custom = {
       <div class="cust">
         <div class="cust-view"><canvas id="custcv"></canvas>
           <div class="cust-emotes">${Object.entries(GOOB_EMOTES).map(([k, e]) => `<button class="chip" data-act="emo" data-e="${k}">${U.esc(e[1])}</button>`).join('')}</div>
-          <small>Drag to turn around · G in the game: emote</small></div>
+          <small>Drag to turn around · ${U.esc(Keys.name('emote'))} in the game: emote</small></div>
         <div class="cust-side"><div class="stabs">${tabs}</div><div class="cust-body">${body}</div></div>
       </div>
       <div class="row2"><button class="btn" data-act="rand">${icon('dice')}Randomize</button><button class="btn green" data-act="close">Done</button></div>`;

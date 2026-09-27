@@ -29,9 +29,9 @@ difficulty:
 
 | Difficulty | What changes |
 | --- | --- |
-| Easy | Enemies hit normally. Die on a planet and you get back up (see below). |
-| Hard | Everything hits twice as hard. Critters have 1.75x the health. Mini bosses learn a new attack (and pay 1.5x). |
-| Hardcore | Everything hits 3.5x as hard and critters have 2.5x the health. Mini bosses learn two new attacks (and pay 2x). Solo, if you die, the world is deleted. With friends, you go down and can be revived, but if the whole crew is down at once, the world is deleted. |
+| Easy | Enemies hit normally, and there are fewer critters about (up to 14 at once, slow to come back). Die on a planet and you get back up (see below). |
+| Hard | Everything hits twice as hard. Critters have 1.75x the health, and there are more of them (up to 24, back quicker). Mini bosses learn a new attack (and pay 1.5x). |
+| Hardcore | Everything hits 3.5x as hard and critters have 2.5x the health, and they're everywhere (up to 32, back fast). Mini bosses learn two new attacks (and pay 2x). Solo, if you die, the world is deleted. With friends, you go down and can be revived, but if the whole crew is down at once, the world is deleted. |
 
  Each world is its own save, like
 Minecraft worlds. When you join a friend, your stuff in their world is saved too, so it's still there next time.
@@ -43,9 +43,8 @@ goofy way: bouncy walking with floppy arms, flat-out sprinting with his mouth wi
 long fall, a front flip on a double jump, getting knocked off his feet when something bites him, and lying on his back
 kicking like a flipped bug when he's down. The bigger the gun, the harder it kicks him about. Stand still for a bit
 and he fidgets: he scratches his helmet, tries to pick his nose (the glass is in the way), drums on his belly, yawns.
-Your crew sees all of it. To see it yourself, press `V` for third person (or pick the camera in the pause menu), and
-press `G` for an emote: wave, chicken dance, flex, floss, facepalm and faint, a different one each press (in first
-person, the camera swings round so you can watch).
+Your crew sees all of it. Press `G` for an emote: wave, chicken dance, flex, floss, facepalm and faint, a different
+one each press (the camera swings round in front of him so you can watch, and back into your helmet after).
 
 Click **Customize** on the title screen (or in the pause menu) to dress him up, with a preview of him goofing about
 (the buttons on it try out the emotes):
@@ -93,6 +92,10 @@ Each friend needs to open the game too. The easiest way is to put it online for 
 
 ## Controls
 
+Every key (and mouse button) can be changed: **Keybinds** in the pause menu or on the title screen. Click an action,
+press the key you want. A key that's taken swaps over, and every hint in the game shows your keys. These are the
+defaults:
+
 | Key | Does |
 | --- | --- |
 | `W` `A` `S` `D` / `Shift` | move / sprint |
@@ -100,13 +103,13 @@ Each friend needs to open the game too. The easiest way is to put it online for 
 | `Q` | dash (Getaway Sneakers, from Luckstar) |
 | `C` in the air | ground pound (Yeti Stompers, from Frostbyte) |
 | hold `Space` in the air | glide (Glider Cape, from Nimbus-9) or fly (Jet Pack, from Gigopolis) |
-| `E` | talk, shop, use things · hold next to a downed friend to pick them up |
-| `1` `2` `3` `4` | gun, Grabby Vac, Laser Drill, Pizza Peel · `1` again switches between the guns you own |
-| Left click | use your tool |
+| `E` | talk, shop, use things, pick up critters you zapped · hold next to a downed friend to pick them up |
+| `1` to `5` / mouse wheel | take out what's in that hotbar slot / flip through your hotbar |
+| Left click | use what you're holding |
 | `R` | reload (infinite batteries, but the battery pack runs out) |
 | Right click | throw a Goo Grenade (boss fights) |
 | `I` | backpack (drop things) and crew (send money) |
-| `V` / `G` | first or third person (see your goober) / emote (a different one each press) |
+| `G` | emote (a different one each press) |
 | `H` | what to do on this planet (a short guide) |
 | `T` / `Tab` / `M` / `Esc` | chat / crew list / music / pause |
 | `E` at the ship | get in (and get out again while it's parked on the pad) |
@@ -119,13 +122,24 @@ Each friend needs to open the game too. The easiest way is to put it online for 
 
 You start with a Grabby Vac and the Squirt Pistol, a leaky water pistol that barely tickles a critter (company
 policy: the cheapest gun there is). On each planet you collect stuff, sell it at the shop and buy gear (a real gun
-first). Money is tight on the first two planets, so expect to work for it. Every gun you buy is yours to keep: press
-`1` again to switch between them, or use **Equip** at any shop. Shops are split into Weapons, Gear, Special,
-Cosmetics and Sell tabs, and you can walk up to a shop from any side. Anything sold on more than one planet costs
+first). Money is tight on the first two planets, so expect to work for it. Shops are split into Weapons, Gear,
+Special, Cosmetics, Loadout and Sell tabs, and you can walk up to a shop from any side.
+
+**Your hotbar** has five slots (`1` to `5`). Put anything you own in any slot: three guns and the Grabby Vac, the
+Laser Drill next to your best gun, whatever you like. Pressing a slot's key takes out what's in that slot (and only
+that: it never flips you to some other gun). Everything you own that isn't on your hotbar waits in your locker, and
+on any shop's **Loadout** tab you can put things on your hotbar, take anything off, or swap two slots around. Every
+gun you buy is yours to keep; a new one goes straight onto your hotbar if there's room (your first real gun takes
+the Squirt Pistol's place). If you die, your gear drops with you and its slots wait for it: pick your stuff back up
+and everything goes back where it was. Anything sold on more than one planet costs
 the same everywhere, and you can buy any backpack straight away (no need to own the smaller one first).
 
 Every planet has a short guide to what to do there: it shows up when you arrive, and `H` brings it back. The Grabby
 Vac is handy everywhere: everything you can suck up shows the actual thing you'll get, floating over a glowing ring.
+
+Every planet is an island in a sea of something (sludge, goo, liquid gold, freezing water, lava...) that ripples
+along and washes foam up the shore. You can wade across the ponds on the islands and out into the shallows (it
+slows you down); go out too far and the sea washes you back to shore.
 
 Bosses don't just show up: find the planet's summoning item (they're rare, so expect to grind), use it at the boss
 altar and win. Summoning uses the item up, so a rematch needs another one. Boss fights are long: bosses have a lot of
@@ -171,6 +185,11 @@ Every attack is telegraphed, so you can read the fight:
 - **Where it's coming from.** Everything a boss throws glows and leaves a trail. Arrows around your crosshair point at
   shots coming from where you aren't looking, a red arc shows which way a hit came from, and a big arrow at the edge
   of the screen points at the boss when it's off screen.
+
+Bosses only pipe up now and then (a line every half a minute or so). Beat one and it goes out with a bang: stunned
+stiff with sparks popping off it, then it spins up off the floor puffing up bigger and bigger until it goes POP in a
+shower of confetti and coins, its head and hands bouncing across the arena. Mini bosses go flying end over end, land
+on their backs with their legs in the air, and a moment later go pop too.
 
 Each boss has its own set of attacks. Some of the nastier ones:
 
@@ -227,7 +246,10 @@ direction: Slot Mimics and Royal Hounds throw three at a time, Frost Pups and St
 goo and Frost Pup snowballs slow you down, and Goo Leeches, Grave Grubs and Magma Imps leave puddles where they land.
 From Luckstar on, the biters throw things too now and then (dice, icicles, bones, stolen fries, garbage, lava). Feral
 E-Scooters charge from way off. Shoot a mean one and it comes for you, and its friends nearby join in. Each one bites
-on its own timer, so a pack is dangerous. Zap them and sell them at the shop. When you join a game, land on a planet
+on its own timer, so a pack is dangerous. Zap them and sell them at the shop: a zapped critter goes flying, bounces
+and lands in a heap (legs in the air, seeing stars), and you walk over and press `E` to bag it (or vacuum it up).
+Only the one who zapped it can pick it up. If your backpack is full it just waits there for you, even if you fly off
+and come back later. How many critters are about depends on the world's difficulty. When you join a game, land on a planet
 or respawn, they leave you alone for a bit (watch the **SAFE** timer), unless you shoot one first. Their colors and
 an outline keep them from blending into the ground. They come in six sizes, from Tiny to GIANT: the bigger they are, the more they're worth,
 but the rarer they are (and the harder they hit). Golden ones are worth a fortune.
@@ -296,7 +318,8 @@ in your browser (clearing browser data deletes them).
 - `js/world.js`, `js/models.js`: planets and all the low-poly models (the casino building is `buildCasino` in `world.js`)
 - `js/boss.js`: boss fights · `js/casino.js`: gambling · `js/activities.js`: collecting, meteors, delivery gigs, summoning items
 - `js/fun.js`: the Ring Run, the Snowman Shooting Gallery and the Hedge of No Return (and their medals)
-- `js/critters.js`: space critters · `js/miniboss.js`: mini bosses (their attacks are `MB_ATTACKS`, the rest is `MINIBOSSES` in `data.js`)
+- `js/controls.js`: keybinds (`KEY_ACTIONS`) and the Keybinds screen · `js/loadout.js`: your hotbar and locker
+- `js/critters.js`: space critters (and zapped ones lying about) · `js/miniboss.js`: mini bosses (their attacks are `MB_ATTACKS`, the rest is `MINIBOSSES` in `data.js`)
   · `js/hazards.js`: what they throw at you, marked on the ground · `js/flight.js`: the ship, cockpit, passenger cabin, star map and landing · `js/shop.js`: shops, boss altars
 - `js/items.js`: models of the items you buy, carry and win · `js/thumbs.js`: turns models into the pictures the
   menus show (shop items, backpack, hotbar, faces)

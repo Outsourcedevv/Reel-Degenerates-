@@ -1,3 +1,28 @@
+## New in 1.12: a hotbar, keybinds, critters you pick up, and bosses that go out with a bang
+
+- **A 5-slot hotbar.** Put anything you own in any slot: carry three guns and the Grabby Vac if you like. Pressing a
+  slot's key takes out what's in that slot and only that (no more flipping to your last gun). Everything else waits
+  in your locker: swap things in, take anything off, or swap two slots on any shop's new **Loadout** tab. New guns
+  go straight onto your hotbar if there's room. Die and your gear's slots wait for it; pick your stuff up and it all
+  goes back where it was.
+- **Keybinds.** Change any key (or mouse button) on the new Keybinds screen, in the pause menu or on the title
+  screen. Every hint in the game shows your keys.
+- **Zapped critters go flying.** They tumble, bounce and land in a heap with their legs in the air (seeing stars).
+  Walk over and press `E` to bag it, or vacuum it up. Backpack full? It waits right there, even if you fly off and
+  come back later.
+- **Boss deaths.** A beaten boss is stunned stiff with sparks popping off it, spins up off the floor puffing up
+  bigger and bigger, and goes POP in a shower of confetti and coins, its head and hands bouncing across the arena
+  (with some famous last words). Mini bosses go flying, land on their backs and pop a moment later.
+- **Bosses talk less.** Their lines come up every half a minute or so instead of every few seconds.
+- **The water moves.** Ripples drift across the seas and ponds, foam washes up the shore, lava has glowing cracks,
+  and it doesn't swell up and down over the beach any more. No more invisible walls in the water: wade across the
+  ponds and out into the shallows (it slows you down); too far out and the sea washes you back to shore.
+- **More critters on harder worlds.** Easy has fewer about (and they're slow to come back), Hard has more, and
+  Hardcore is crawling with them.
+- **More room.** The planets are further apart in space, and Nimbus-9's outer islands sit a bit further out.
+- **No more third person.** The `V` camera and its pause-menu setting are gone. (Emotes still swing the camera round
+  so you can watch your goober dance.)
+
 ## New in 1.11: the new Space Goober (and he's a goofball)
 
 - **A brand new goober.** You (and your crew) are now a tall, lanky, goofy astronaut with a pot belly, noodle arms,

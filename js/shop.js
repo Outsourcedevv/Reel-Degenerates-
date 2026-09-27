@@ -33,13 +33,12 @@ const Shop = {
     // returns {name, desc, icon, chips[], owned, locked, lockMsg}
     const r = { name: it.name, desc: it.desc || '', icon: 'box', pic: Thumbs.shopKey(it), chips: [], owned: false, locked: false, lockMsg: '' };
     switch (it.kind) {
-      case 'zap': { // (any gun can be bought straight away, and every gun you buy is yours to keep: equip any of them)
+      case 'zap': { // (any gun can be bought straight away, and every gun you buy is yours to keep: see the Loadout tab)
         const z = ZAPPERS[it.lvl];
         r.name = z.name; r.icon = 'gun';
         r.chips = gunChips(z);
         r.owned = SAVE.guns.includes(it.lvl);
-        r.equip = r.owned && SAVE.zap !== it.lvl ? it.lvl : null;
-        if (SAVE.zap === it.lvl) r.ownedMsg = 'EQUIPPED';
+        if (r.owned) r.ownedMsg = Loadout.find('gun:' + it.lvl) >= 0 ? 'ON YOUR HOTBAR' : 'IN YOUR LOCKER';
         break;
       }
       case 'cargo':
@@ -56,8 +55,8 @@ const Shop = {
       case 'springs': r.icon = 'boots'; r.chips = ['SUPER JUMP']; r.owned = SAVE.springs; break;
       case 'cape': r.icon = 'star'; r.chips = ['HOLD SPACE: GLIDE']; r.owned = SAVE.cape; break;
       case 'jetpack': r.icon = 'rocket'; r.chips = ['HOLD SPACE: FLY', `${JET.fuel}s OF FUEL`]; r.owned = SAVE.jetpack; break;
-      case 'drill': r.icon = 'drill'; r.chips = ['TOOL 3', 'MINES CRYSTALS']; r.owned = SAVE.drill; break;
-      case 'peel': r.icon = 'peel'; r.chips = ['TOOL 4', 'CATCHES METEORS']; r.owned = SAVE.peel; break;
+      case 'drill': r.icon = 'drill'; r.chips = ['HOTBAR TOOL', 'MINES CRYSTALS']; r.owned = SAVE.drill; break;
+      case 'peel': r.icon = 'peel'; r.chips = ['HOTBAR TOOL', 'CATCHES METEORS']; r.owned = SAVE.peel; break;
       case 'socks': r.icon = 'sock'; r.chips = ['NO SLIPPING']; r.owned = SAVE.socks; break;
       case 'armor': r.icon = 'shield'; r.chips = ['-30% DAMAGE']; r.owned = SAVE.armor; break;
       case 'life': r.icon = 'heart'; r.chips = ['KEEP YOUR GEAR WHEN YOU DIE']; r.owned = SAVE.lifeIns; break;
@@ -68,14 +67,60 @@ const Shop = {
     }
     return r;
   },
-  // every gun you own (the Squirt Pistol too), to equip whichever you like
-  gunRack() {
-    return [-1, ...SAVE.guns.slice().sort((a, b) => a - b)].map((l) => {
-      const z = gunDef(l), on = SAVE.zap === l;
-      return `<div class="card2 ${on ? 'owned' : ''}"><div class="ic">${Thumbs.img('zap:' + l, '', 'gun')}</div>
-        <div class="info"><h4>${U.esc(z.name)}</h4><div class="chips">${gunChips(z).slice(0, 2).map((c) => `<span>${U.esc(c)}</span>`).join('')}</div></div>
-        ${on ? '<div class="badge ok">EQUIPPED</div>' : `<button class="price equip" data-act="equip" data-l="${l}">Equip</button>`}</div>`;
-    }).join('');
+  // a few words about something you can hold (for the Loadout tab)
+  gearChips(it) {
+    const g = Loadout.gun(it);
+    if (g != null) return gunChips(gunDef(g)).slice(0, 2);
+    return { vac: [SAVE.vacLvl > 0 ? 'TURBO' : 'VACUUMS STUFF', `${VAC[SAVE.vacLvl > 0 ? 1 : 0].range}m REACH`], drill: ['MINES CRYSTALS'], peel: ['CATCHES METEORS'] }[it] || [];
+  },
+  // your hotbar and your locker: put anything in any slot, take anything off (sel: the slot you clicked)
+  sel: null,
+  loadoutHtml() {
+    const s = Loadout.slots(), sel = this.sel, locker = Loadout.locker();
+    const slot = (it, i) => {
+      const ok = Loadout.at(i), lost = !ok && Loadout.valid(it);
+      return `<div class="lslot ${sel === i ? 'sel' : ''} ${ok ? '' : 'empty'} ${lost ? 'lost' : ''} ${G.player && G.player.slot === i ? 'out' : ''}" data-act="lsel" data-i="${i}">
+        <span class="k">${U.esc(Keys.name('slot' + (i + 1)))}</span>
+        <div class="ic">${ok || lost ? Thumbs.img(Loadout.pic(it), '', Loadout.icon(it)) : ''}</div>
+        <b>${ok ? U.esc(Loadout.name(it)) : lost ? `${U.esc(Loadout.name(it))}<small>in your grave</small>` : 'Empty'}</b>
+        ${ok || lost ? `<button class="lx" data-act="loff" data-i="${i}" title="Take it off">${icon('close')}</button>` : ''}</div>`;
+    };
+    const card = (it) => `<div class="card2"><div class="ic">${Thumbs.img(Loadout.pic(it), '', Loadout.icon(it))}</div>
+      <div class="info"><h4>${U.esc(Loadout.name(it))}</h4><div class="chips">${this.gearChips(it).map((c) => `<span>${U.esc(c)}</span>`).join('')}</div></div>
+      <button class="price equip" data-act="lput" data-it="${it}">${sel == null ? 'Put on hotbar' : `Put in slot ${sel + 1}`}</button></div>`;
+    return `<h5 class="shead">Your hotbar</h5><div class="lbar">${s.map(slot).join('')}</div>
+      <p class="tip">${sel == null ? 'Click a slot to pick it, then click something in your locker to put it there (or another slot to swap the two). The X takes a thing off.' : `Slot ${sel + 1} picked: click something in your locker to put it here, or another slot to swap them.`}</p>
+      <h5 class="shead">Your locker</h5>` + (locker.length ? `<div class="cards hats">${locker.map(card).join('')}</div>` : '<p class="tip">Everything you own is on your hotbar.</p>');
+  },
+  loadoutAct(act, d) {
+    const i = Number(d.i);
+    if (act === 'lsel') {
+      if (this.sel == null) this.sel = i;
+      else if (this.sel === i) this.sel = null;
+      else { Loadout.swap(this.sel, i); this.sel = null; Sound.play('reload'); }
+    } else if (act === 'loff') {
+      Loadout.clear(i);
+      if (this.sel === i) this.sel = null;
+      this.line = U.pick(['Into the locker it goes. I\'ll charge you rent on that eventually.', 'Taken off. It\'ll be here. Probably.', 'Your locker. Not a trash can. Well. Kind of.']);
+    } else if (act === 'lput') {
+      const at = this.sel != null ? this.sel : Loadout.free();
+      if (at < 0) { UI.toast('Your hotbar is full! Take something off (the X), or click a slot to swap it out.', 'bad', 2.8); Sound.play('error'); return; }
+      Loadout.set(at, d.it);
+      this.sel = null;
+      Sound.play('reload');
+      this.line = U.pick(['Good choice. They all shoot the same direction.', 'Classic. Like you. A classic mistake.', 'Swapped. No refunds on the old one. It\'s still yours though.']);
+    }
+    G.player.refreshGear();
+    UI.hud();
+  },
+  // you bought something to hold: onto your hotbar (and into your hands), or into your locker if it's full
+  gotGear(it, first) {
+    const had = Loadout.slots().slice(), i = Loadout.add(it), name = Loadout.name(it);
+    if (i < 0) { UI.toast(`${name} is in your locker: your hotbar's full. Swap it in on the Loadout tab.`, 'good', 4); this.tab = 'loadout'; return; }
+    G.player.refreshGear();
+    G.player.selectSlot(i, true);
+    const out = had[i] && had[i] !== it && Loadout.owned(had[i]) ? ` (your ${Loadout.name(had[i])} went to your locker)` : '';
+    UI.toast(first ? `Your first real gun! It's on your hotbar: {slot${i + 1}}${out}. {reload} to reload.` : `${name} is on your hotbar: {slot${i + 1}}${out}.` + (it === 'peel' ? ' Stand in the landing circles!' : ''), 'good', 4);
   },
   // pricier stuff gets a fancier frame
   tier(price) { return price >= 5000 ? 'legend' : price >= 1500 ? 'epic' : price >= 400 ? 'rare' : 'common'; },
@@ -89,22 +134,21 @@ const Shop = {
       case 'zap': {
         const first = !SAVE.guns.length;
         if (!SAVE.guns.includes(it.lvl)) SAVE.guns.push(it.lvl);
-        G.player.equip(it.lvl);
-        if (first) UI.toast('Your first real gun! Press 1 to hold it, R to reload. Press 1 again to switch guns.', 'good', 4);
+        this.gotGear('gun:' + it.lvl, first);
         break;
       }
       case 'summon': Summons.earn(it.b); break;
       case 'cargo': SAVE.cargoLvl = Math.max(SAVE.cargoLvl, it.lvl); UI.toast(`Backpack upgraded: ${CARGO[SAVE.cargoLvl]} slots!`, 'good', 2.5); break;
       case 'vac': SAVE.vacLvl = 1; G.player.refreshGear(); break;
-      case 'boots': SAVE.boots = true; UI.toast('Double jump unlocked! Press Space twice.', 'good', 3); break;
-      case 'skates': SAVE.skates = true; UI.toast('Duct-Tape Skates on! Hold Shift to really go.', 'good', 3); break;
-      case 'dash': SAVE.dash = true; UI.toast('Getaway Sneakers! Press Q to dash (once in the air, too).', 'good', 3.5); break;
-      case 'stomp': SAVE.stomp = true; UI.toast('Yeti Stompers! Jump, then press C to slam down.', 'good', 3.5); break;
+      case 'boots': SAVE.boots = true; UI.toast('Double jump unlocked! Press {jump} twice.', 'good', 3); break;
+      case 'skates': SAVE.skates = true; UI.toast('Duct-Tape Skates on! Hold {sprint} to really go.', 'good', 3); break;
+      case 'dash': SAVE.dash = true; UI.toast('Getaway Sneakers! Press {dash} to dash (once in the air, too).', 'good', 3.5); break;
+      case 'stomp': SAVE.stomp = true; UI.toast('Yeti Stompers! Jump, then press {stomp} to slam down.', 'good', 3.5); break;
       case 'springs': SAVE.springs = true; UI.toast('Spring-Heeled Jacks! Your jumps are WAY higher now.', 'good', 3.5); break;
-      case 'cape': SAVE.cape = true; UI.toast('Glider Cape! Hold Space while you fall to glide.', 'good', 3.5); break;
-      case 'jetpack': SAVE.jetpack = true; UI.toast('Jet Pack! In the air, hold Space to fly. Fuel refills on the ground.', 'good', 4); break;
-      case 'drill': SAVE.drill = true; G.player.refreshGear(); G.player.setTool('drill', true); UI.toast('Laser Drill equipped! (Press 3)', 'good', 3); break;
-      case 'peel': SAVE.peel = true; G.player.refreshGear(); G.player.setTool('peel', true); UI.toast('Pizza Peel equipped! (Press 4) Stand in the landing circles!', 'good', 3); break;
+      case 'cape': SAVE.cape = true; UI.toast('Glider Cape! Hold {jump} while you fall to glide.', 'good', 3.5); break;
+      case 'jetpack': SAVE.jetpack = true; UI.toast('Jet Pack! In the air, hold {jump} to fly. Fuel refills on the ground.', 'good', 4); break;
+      case 'drill': SAVE.drill = true; this.gotGear('drill'); break;
+      case 'peel': SAVE.peel = true; this.gotGear('peel'); break;
       case 'socks': SAVE.socks = true; break;
       case 'armor': SAVE.armor = true; break;
       case 'life': SAVE.lifeIns = true; break;
@@ -128,22 +172,22 @@ const Shop = {
     this.cur = shopId;
     const cfg = SHOPS[shopId];
     const items = !SAVE.guns.length && !cfg.items.some((it) => it.kind === 'zap' && it.lvl === 0) ? [STARTER_GUN, ...cfg.items] : cfg.items;
-    const has = (sec) => sec === 'looks' || items.some((it) => this.section(it) === sec);
+    const has = (sec) => sec === 'looks' || sec === 'loadout' || items.some((it) => this.section(it) === sec);
     if (!G.panel) {
       this.line = U.pick(cfg.greet);
+      this.sel = null;
       this.tab = SAVE.cargo.length ? 'sell' : ['weapons', 'gear', 'special', 'looks'].find(has);
     }
     if (tab) this.tab = tab;
     if (this.tab !== 'sell' && !has(this.tab)) this.tab = ['weapons', 'gear', 'special', 'looks'].find(has);
     const cap = CARGO[SAVE.cargoLvl], value = Activities.cargoValue();
-    const tabs = [['weapons', 'gun', 'Weapons'], ['gear', 'boots', 'Gear'], ['special', 'star', 'Special'], ['looks', 'hat', 'Cosmetics'], ['sell', 'cash', `Sell${SAVE.cargo.length ? ` (${SAVE.cargo.length})` : ''}`]]
+    const tabs = [['weapons', 'gun', 'Weapons'], ['gear', 'boots', 'Gear'], ['special', 'star', 'Special'], ['looks', 'hat', 'Cosmetics'], ['loadout', 'bag', 'Loadout'], ['sell', 'cash', `Sell${SAVE.cargo.length ? ` (${SAVE.cargo.length})` : ''}`]]
       .filter(([t]) => t === 'sell' || has(t))
       .map(([t, ic, lab]) => `<button class="stab ${this.tab === t ? 'on' : ''}" data-act="tab" data-t="${t}">${icon(ic)}${lab}</button>`).join('');
     const card = (it, i) => {
       const inf = this.itemInfo(it), poor = SAVE.bucks < it.price;
       const cls = inf.owned ? 'owned' : inf.locked ? 'locked' : poor ? 'poor' : '';
-      const btn = inf.equip != null ? `<button class="price equip" data-act="equip" data-l="${inf.equip}">Equip</button>`
-        : inf.owned ? `<div class="badge ok">${icon('check')} ${inf.ownedMsg || 'OWNED'}</div>`
+      const btn = inf.owned ? `<div class="badge ok">${icon('check')} ${inf.ownedMsg || 'OWNED'}</div>`
         : inf.locked ? `<div class="badge lock">${icon('lock')} ${U.esc(inf.lockMsg)}</div>`
         : `<button class="price" data-act="buy" data-i="${i}" ${poor ? 'disabled' : ''}>${U.bucks(it.price)}</button>`;
       return `<div class="card2 ${this.tier(it.price)} ${cls}">
@@ -165,6 +209,8 @@ const Shop = {
       body = SAVE.cargo.length
         ? `<div class="srows">${rows}</div><button class="sellall" data-act="sellall">Sell everything <b>${U.bucks(value)}</b></button>`
         : `<div class="empty"><div>${Thumbs.img('cargo:' + SAVE.cargoLvl, '', 'bag')}</div>Your backpack is empty.<br>Go vacuum, catch or zap something!</div>`;
+    } else if (this.tab === 'loadout') {
+      body = this.loadoutHtml();
     } else if (this.tab === 'looks') {
       // hats for sale here, then everything you own to wear
       const forSale = items.map((it, i) => [it, i]).filter(([it]) => this.section(it) === 'looks');
@@ -176,8 +222,7 @@ const Shop = {
         '<p class="tip">Your hats come with you to every world. More come from other shops, and from Mystery Crates on Luckstar.</p>';
     } else {
       body = '<div class="cards">' + items.map((it, i) => [it, i]).filter(([it]) => this.section(it) === this.tab).map(([it, i]) => card(it, i)).join('') + '</div>';
-      if (this.tab === 'weapons') body = `<h5 class="shead">For sale</h5>${body}<h5 class="shead">Your guns</h5><div class="cards hats">${this.gunRack()}</div>` +
-        '<p class="tip">Every gun you buy is yours to keep. Equip any of them here, or press 1 again while your gun is out to switch.</p>';
+      if (this.tab === 'weapons') body += '<p class="tip">Every gun you buy is yours to keep. Carry as many as you like on your hotbar: pick what goes where on the <b>Loadout</b> tab.</p>';
       if (this.tab === 'special') body += '<p class="tip">Summoning items belong to the whole crew: anyone can use them at the boss altar.</p>';
     }
     const html = `<div class="shop2" style="--acc:${cfg.color}">
@@ -201,7 +246,7 @@ const Shop = {
         UI.toast(`Sold for ${U.bucks(v)}!`, 'good');
       }
       if (act === 'hat') { SAVE.hat = d.h; persist(); Sound.play('buy'); }
-      if (act === 'equip') { G.player.equip(Number(d.l)); this.line = U.pick(['Good choice. They all shoot the same direction.', 'Classic. Like you. A classic mistake.', 'Swapped. No refunds on the old one. It\'s still yours though.']); }
+      if (act === 'lsel' || act === 'loff' || act === 'lput') this.loadoutAct(act, d);
       this.open(shopId);
     };
     if (G.panel) { UI.setPanel(html); UI.panelHandler = handler; }
@@ -218,7 +263,9 @@ const Shop = {
     const reward = first ? b.reward : Math.round(b.reward * 0.5);
     const rec = BOSS_REC[bid];
     const have = Summons.has(bid);
-    const gun = U.esc(gunDef(SAVE.zap).name) + (SAVE.zap < rec ? ` <span class="pill" style="background:#ff8a80">Recommended: ${U.esc(ZAPPERS[rec].name)}</span>` : '');
+    // (the guns on your hotbar: that's what you'll have in there)
+    const guns = Loadout.slots().map((x, i) => Loadout.gun(Loadout.at(i))).filter((g) => g != null), best = guns.length ? Math.max(...guns) : -2;
+    const gun = (guns.length ? guns.map((g) => U.esc(gunDef(g).name)).join(', ') : 'None on your hotbar!') + (best < rec ? ` <span class="pill" style="background:#ff8a80">Recommended: ${U.esc(ZAPPERS[rec].name)}</span>` : '');
     const smPic = Thumbs.img('sum:' + bid, 'inline', sm.icon);
     const btn = !have ? `<button class="btn big" disabled style="max-width:440px">${smPic} You need ${U.esc(sm.name)}</button>`
       : `<button class="btn big red" data-act="summon" style="max-width:440px">${smPic} Use ${U.esc(sm.name)} to summon!</button>`;
@@ -233,13 +280,13 @@ const Shop = {
       <table class="list">
         <tr><td>Health</td><td class="r"><b>${hp.toLocaleString()}</b> ${n > 1 ? `(scaled for ${n} goobers)` : ''}</td></tr>
         <tr><td>Reward (each player)</td><td class="r"><b>${U.bucks(reward)}</b> ${first ? '' : '(rematch: half)'}</td></tr>
-        <tr><td>Your gun</td><td class="r">${gun}</td></tr>
+        <tr><td>Your guns</td><td class="r">${gun}</td></tr>
         <tr><td>Lives</td><td class="r">One${n > 1 ? `. If you go down, a friend can pick you up, or you get back up after ${DIFFS[G.diff].revive}s while one of them is still standing` : '. Solo, dying loses the fight'}${DIFFS[G.diff].perma ? ' (Hardcore: for good)' : ''}</td></tr>
         <tr><td>Gear</td><td class="r">Grenades: ${SAVE.nades}${SAVE.armor ? ' · Company Armor' : ''}</td></tr>
         <tr><td>Status</td><td class="r">${G.progress.includes(bid) ? 'Beaten (next planet unlocked)' : 'Not beaten yet'}</td></tr>
       </table>
-      <p class="muted">Summoning uses up the item, win or lose, and pulls in everyone on the planet. Dodge with WASD + Space (jump over the glowing shockwave rings!). Red circles on the floor mean MOVE. If everybody goes down, the boss wins.</p>
-      ${bid === 'zorblax' ? `<p class="muted">${SAVE.peel ? 'Tip: hold out your Pizza Peel (4) to catch the Emperor\'s flying pizza slices.' : 'Rumor has it Dave\'s Pizza Peel can catch flying pizza.'}</p>` : ''}
+      <p class="muted">${keyKbd('Summoning uses up the item, win or lose, and pulls in everyone on the planet. Dodge with {forward}{left}{back}{right} + {jump} (jump over the glowing shockwave rings!). Red circles on the floor mean MOVE. If everybody goes down, the boss wins.')}</p>
+      ${bid === 'zorblax' ? `<p class="muted">${SAVE.peel ? keyHtml('Tip: hold out your Pizza Peel ({tool:peel}) to catch the Emperor\'s flying pizza slices.') : 'Rumor has it Dave\'s Pizza Peel can catch flying pizza.'}</p>` : ''}
       <div class="center">${btn}</div>`,
     (act) => { if (act === 'summon') Game.requestSummon(bid); });
   },

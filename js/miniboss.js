@@ -713,7 +713,8 @@ const MiniBoss = {
       this.onDie(m);
     }
   },
-  // it's done for: a big bang, and everyone on the planet gets paid
+  // it's done for: a big bang, it goes flying end over end and lands on its back with its legs in the air (a
+  // moment later it goes POP, see Critters.popBody), and everyone on the planet gets paid
   onDie(m) {
     const b = this.b;
     if (!b || m.id !== b.id || m.p !== G.planet) return;
@@ -721,7 +722,10 @@ const MiniBoss = {
     FX.burst(c, def.color, 30, 9); FX.burst(c, '#ffffff', 16, 6); FX.burst(c, '#ffd23f', 12, 7);
     FX.ring(new V3(b.rx, gy + 0.2, b.rz), def.color, 7); FX.ring(new V3(b.rx, gy + 0.3, b.rz), '#ffffff', 10);
     for (let i = 0; i < 14; i++) this.glow().puff(c.clone().add(new V3(U.rand(-2, 2), U.rand(-1.5, 2.5), U.rand(-2, 2))), new THREE.Color(def.color), 3, 0.9);
-    this.remove();
+    for (const o of [b.m.tag, b.m.aura, b.m.tele]) if (o) o.visible = false;
+    const a = Math.random() * Math.PI * 2;
+    Critters.makeBody({ id: 0, k: -1, sz: 2, g: 0, m: b.m, rx: b.rx, rz: b.rz, rry: b.rry }, { v: [Math.cos(a) * 1.5, 10, Math.sin(a) * 1.5], w: [Math.sin(a) * 4.5, U.rand(-1.5, 1.5), -Math.cos(a) * 4.5], f: 0 }, null, { s: def.s, pop: 2.4, color: def.color });
+    this.b = null; // (its model lives on for a moment, as the body)
     Hazards.clear();
     this.hud(0);
     if (Net.isHost && SAVE.minis && SAVE.minis[b.pid]) SAVE.minis[b.pid].n = (SAVE.minis[b.pid].n || 0) + 1;

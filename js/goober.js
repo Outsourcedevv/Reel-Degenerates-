@@ -8,8 +8,8 @@
    a flipped bug when he's down. Stand still and he fidgets.
    Worked out fresh every frame from what he's doing (see
    GooberAnim.update) plus one-off moves (play), so he looks
-   the same to you (third person, the Customize screen) as to
-   your crew (from what your game sends them).
+   the same to you (while you emote, the Customize screen) as
+   to your crew (from what your game sends them).
    ========================================================= */
 
 // how hard each gun knocks him about when it goes off

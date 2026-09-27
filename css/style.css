@@ -908,3 +908,53 @@ img.thumb.inline { display: inline-block; width: 32px; height: 32px; vertical-al
 #funhud { border-top-color: var(--acc2); }
 #funhud .t small { color: var(--acc2); }
 #funhud .t b { font-size: 28px; font-variant-numeric: tabular-nums; }
+
+/* ---------- v1.12: the hotbar (5 slots, anything in any slot) ---------- */
+#hotbar .slot.empty { opacity: .55; }
+#hotbar .slot.empty .ic { width: 42px; height: 42px; }
+#hotbar .slot.lost .ic { opacity: .35; filter: grayscale(1); }
+#hotbar .slot.lost small { color: #ff8a80; }
+#hotbar .slot.on.empty { opacity: .85; }
+#hotbar .slot small { max-width: 66px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* the shop's Loadout tab: your hotbar, then your locker */
+.lbar { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+.lslot {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 20px 6px 10px; cursor: pointer; text-align: center;
+  background: rgba(255,255,255,.04); border: 1px solid var(--line2); border-radius: 6px; transition: background .12s, border-color .12s, transform .12s;
+}
+.lslot:hover { background: rgba(255,255,255,.09); transform: translateY(-2px); }
+.lslot.sel { border-color: var(--acc); background: rgba(255,176,32,.13); box-shadow: 0 0 0 1px var(--acc) inset; }
+.lslot.out::after { content: 'IN HAND'; position: absolute; right: 6px; top: 5px; font-family: var(--font-h); font-size: 9px; letter-spacing: 1.5px; color: var(--green); }
+.lslot .k { position: absolute; left: 7px; top: 4px; font-family: var(--font-h); font-weight: 700; font-size: 13px; color: var(--acc); }
+.lslot .ic { width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; }
+.lslot b { font-family: var(--font-h); font-weight: 700; font-size: 13px; line-height: 1.15; color: #fff; }
+.lslot b small { display: block; font-size: 10px; letter-spacing: 1px; color: #ff8a80; text-transform: uppercase; }
+.lslot.empty b { color: var(--muted); }
+.lslot.lost .ic { opacity: .35; filter: grayscale(1); }
+.lslot .lx {
+  position: absolute; right: 4px; bottom: 4px; width: 24px; height: 24px; padding: 0; display: flex; align-items: center; justify-content: center; cursor: pointer;
+  color: #ffb3ad; background: rgba(0,0,0,.35); border: 1px solid rgba(255,120,110,.35); border-radius: 4px;
+}
+.lslot .lx:hover { background: #7d1a15; color: #fff; }
+.lslot .lx .ico { width: 14px; height: 14px; }
+@media (max-width: 760px) { .lbar { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+/* ---------- v1.12: keybinds ---------- */
+#panel-inner:has(.kbgrid) { width: min(900px, 100%); }
+.kbgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 6px 22px; max-height: min(60vh, 560px); overflow-y: auto; padding-right: 6px; }
+.kbgroup h4 { margin: 8px 0 4px; font-family: var(--font-h); font-weight: 700; font-size: 12px; letter-spacing: 3px; text-transform: uppercase; color: var(--acc); border-bottom: 1px solid var(--line); padding-bottom: 4px; }
+.kbrow { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 3px 0; font-size: 13px; color: #d7dde7; }
+.kbkey {
+  min-width: 96px; padding: 5px 10px; cursor: pointer; font-family: var(--font-h); font-weight: 700; font-size: 13px; letter-spacing: 1px; color: #fff;
+  background: rgba(255,255,255,.07); border: 1px solid var(--line2); border-bottom-width: 2px; border-radius: 5px; transition: background .12s, border-color .12s;
+}
+.kbkey:hover { background: rgba(255,255,255,.14); }
+.kbkey.changed { border-color: rgba(58,167,255,.7); }
+.kbkey.clash { border-color: #ff6b6b; color: #ffb3ad; }
+.kbkey.wait { background: var(--acc); border-color: var(--acc); color: #120c00; animation: kbwait 1s ease-in-out infinite; }
+@keyframes kbwait { 50% { box-shadow: 0 0 0 4px rgba(255,176,32,.25); } }
+#panel-inner .kbgrid + .tip { text-align: center; font-size: 12px; color: var(--muted); margin: 10px 0 0; }
+.row2.tight { margin-top: 6px; }
+.row.mhelp { align-self: flex-start; }
+#pause .row2 .btn { flex: 1; white-space: nowrap; padding-left: 8px; padding-right: 8px; justify-content: center; }
+#pause .row2.tight .btn { flex: none; }

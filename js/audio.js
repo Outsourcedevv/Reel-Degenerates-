@@ -166,6 +166,15 @@ const Sound = {
       case 'swirl': N(1.4, { ftype: 'bandpass', freq: 260, slide: 1300, vol: 0.22, q: 0.8, attack: 0.35 }); T(110, 1.2, { type: 'sine', slide: 60, vol: 0.12, attack: 0.3 }); break;
       case 'mist': T(900, 0.45, { type: 'sine', slide: 180, vol: 0.08, vib: 9 }); N(0.45, { ftype: 'highpass', freq: 2400, vol: 0.09 }); break;
       case 'rimshot': T(180, 0.08, { vol: 0.15 }); N(0.08, { ftype: 'highpass', freq: 1800, vol: 0.12, delay: 0.12 }); N(0.5, { ftype: 'highpass', freq: 6000, vol: 0.08, delay: 0.3 }); break;
+      // a zapped critter landing in a heap
+      case 'thud': T(130, 0.14, { slide: 55, vol: 0.2 }); N(0.09, { freq: 600, slide: 200, vol: 0.12 }); break;
+      // wading into the goo / the sea (big: falling right in)
+      case 'wade': N(0.18, { ftype: 'bandpass', freq: 1500 + Math.random() * 500, slide: 600, vol: 0.06, q: 1.4 }); break;
+      case 'splash': N(0.45, { ftype: 'bandpass', freq: 1600, slide: 350, vol: 0.22, q: 1.1 }); T(260, 0.18, { type: 'triangle', slide: 900, vol: 0.06 }); break;
+      // boss deaths: going pop, and letting all the air out
+      case 'kaboom': N(1.3, { freq: 2600, slide: 60, vol: 0.5 }); T(75, 1.0, { slide: 28, vol: 0.38 }); N(0.5, { ftype: 'highpass', freq: 3000, vol: 0.12, delay: 0.1 }); break;
+      case 'deflate': T(520, 1.3, { type: 'sawtooth', slide: 85, vol: 0.07, vib: 22, filter: 1600 }); N(1.2, { ftype: 'bandpass', freq: 2200, slide: 500, vol: 0.06, q: 3 }); break;
+      case 'party': [0, 0.09, 0.18].forEach((d, i) => T(620 + i * 180, 0.22, { type: 'square', slide: 900 + i * 200, vol: 0.05, delay: d })); N(0.3, { ftype: 'highpass', freq: 4000, vol: 0.08, delay: 0.05 }); break;
     }
   },
 

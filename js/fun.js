@@ -109,7 +109,7 @@ const Fun = {
    Planet Gloop: the Ring Run
    ========================================================= */
 const RING_RUN = {
-  id: 'rings', name: 'Ring Run', verb: 'E to start', low: true,
+  id: 'rings', name: 'Ring Run', verb: '{use} to start', low: true,
   prize: [40, 90, 180], medals: [90, 60, 45], // (worked out from the course, see build)
   show: clock,
   start: { x: -20, z: -8 }, climb: 1, stairs: { x: -38, z: -24 }, // (Gloop's second mushroom staircase)
@@ -248,7 +248,7 @@ const RING_RUN = {
    Frostbyte: Pete's Snowman Shooting Gallery
    ========================================================= */
 const GALLERY = {
-  id: 'gallery', name: 'Snowman Shooting Gallery', verb: 'E to play (30 seconds)', low: false,
+  id: 'gallery', name: 'Snowman Shooting Gallery', verb: '{use} to play (30 seconds)', low: false,
   prize: [150, 350, 700], medals: [10, 18, 26],
   show: (s) => `${s} pts`,
   booth: { x: 10, z: 37 }, dur: 30,
@@ -382,7 +382,7 @@ const GALLERY = {
    Spookulon: the Hedge of No Return
    ========================================================= */
 const MAZE = {
-  id: 'maze', name: 'Hedge of No Return', verb: 'E to start the clock', low: true,
+  id: 'maze', name: 'Hedge of No Return', verb: '{use} to start the clock', low: true,
   prize: [300, 700, 1400], medals: [120, 70, 45],
   show: clock,
   at: { x: -30, z: -44.8 }, nx: 10, nz: 7, cs: 3.2, H: 3.4,

@@ -2,24 +2,29 @@
 /* =========================================================
    Input, local player, remote players, shots & effects
    ========================================================= */
+// Keys and mouse buttons are both "keys" here (mouse buttons are Mouse0, Mouse1...). The game asks about
+// actions (down('jump'), hit('reload')), and Keys (controls.js) knows which key each one is on.
 const Input = {
-  keys: {}, pressed: {}, mouseL: false, mouseR: false, clickL: false, clickR: false, dx: 0, dy: 0, wheel: 0,
+  keys: {}, pressed: {}, dx: 0, dy: 0, wheel: 0,
   init() {
     addEventListener('keydown', (e) => {
-      if (G.chatting || e.target.tagName === 'INPUT') return;
-      if (e.code === 'Tab' || e.code === 'Space') e.preventDefault();
-      if (!this.keys[e.code]) this.pressed[e.code] = true;
-      this.keys[e.code] = true;
+      if (G.chatting || e.target.tagName === 'INPUT' || Keys.capturing) return;
+      const c = normKey(e.code);
+      if (c === 'Tab' || c === 'Space' || (G.started && G.locked && Keys.bound(c) && c !== 'Escape')) e.preventDefault();
+      if (!this.keys[c]) this.pressed[c] = true;
+      this.keys[c] = true;
     });
-    addEventListener('keyup', (e) => { this.keys[e.code] = false; });
+    addEventListener('keyup', (e) => { this.keys[normKey(e.code)] = false; });
     addEventListener('mousedown', (e) => {
       if (!G.locked) return;
-      if (e.button === 0) { this.mouseL = true; this.clickL = true; }
-      if (e.button === 2) { this.mouseR = true; this.clickR = true; }
+      const c = 'Mouse' + e.button;
+      if (e.button > 0) e.preventDefault(); // (no scrolling with the middle button)
+      if (!this.keys[c]) this.pressed[c] = true;
+      this.keys[c] = true;
     });
     addEventListener('mouseup', (e) => {
-      if (e.button === 0) this.mouseL = false;
-      if (e.button === 2) this.mouseR = false;
+      this.keys['Mouse' + e.button] = false;
+      if (G.started && (e.button === 3 || e.button === 4)) e.preventDefault(); // (the side buttons go "back" in a browser: not mid-game)
     });
     addEventListener('mousemove', (e) => {
       if (!G.locked) return;
@@ -28,22 +33,29 @@ const Input = {
     });
     addEventListener('wheel', (e) => { if (G.locked) this.wheel += Math.sign(e.deltaY); }, { passive: true });
     addEventListener('contextmenu', (e) => e.preventDefault());
-    addEventListener('blur', () => { this.keys = {}; this.mouseL = this.mouseR = false; });
+    addEventListener('auxclick', (e) => { if (G.started) e.preventDefault(); });
+    addEventListener('blur', () => { this.keys = {}; });
   },
+  // a raw key (Escape, Enter: the ones that aren't anybody's keybind)
   tap(code) { return !!this.pressed[code]; },
-  endFrame() { this.pressed = {}; this.clickL = this.clickR = false; this.dx = this.dy = 0; this.wheel = 0; },
+  // is the key for this action held down / was it pressed this frame?
+  down(a) { return !!this.keys[Keys.map[a]]; },
+  hit(a) { return !!this.pressed[Keys.map[a]]; },
+  // forget this action's key is held, until it's pressed again (dying mid-shot doesn't also respawn you)
+  release(a) { this.keys[Keys.map[a]] = false; },
+  endFrame() { this.pressed = {}; this.dx = this.dy = 0; this.wheel = 0; },
 };
 
-const TOOLS = ['zap', 'vac', 'drill', 'peel'];
+const TOOLS = ['zap', 'vac', 'drill', 'peel']; // (the kinds of thing you can hold: every gun is a 'zap'. See Loadout)
 // what the Grabby Vac can suck up, and how many seconds each takes (a Turbo Vac is twice as fast). Ghosts fight back.
 const VAC_TIME = { scrap: 0.8, ghost: 0.8, berry: 0.45, bigberry: 0.7, pearl: 0.5, bigpearl: 0.8, chips: 0.5, snow: 0.9, litter: 0.6, crust: 0.7 };
 const VAC_KINDS = Object.keys(VAC_TIME);
 // what to do with it on each planet (by activity)
 const VAC_HINT = {
-  scrap: 'Hold left click on the glowing junk to suck it up', berry: 'Hold left click on a berry to suck it in (even ones up on the mushrooms)',
-  casino: 'Hold left click on dropped chips to vacuum them up', crystal: 'Hold left click on a snow pile to vacuum it · big crystals need the Laser Drill (3)',
-  ghost: 'Hold left click on a ghost and keep it in the middle of your screen until it\'s sucked in', pearl: 'Hold left click on a pearl to suck it in, even from a distance',
-  deliver: 'Hold left click on litter to clean up the streets', meteor: 'Hold left click on burnt crusts to vacuum them up',
+  scrap: 'Hold {fire} on the glowing junk to suck it up', berry: 'Hold {fire} on a berry to suck it in (even ones up on the mushrooms)',
+  casino: 'Hold {fire} on dropped chips to vacuum them up', crystal: 'Hold {fire} on a snow pile to vacuum it · big crystals need the Laser Drill',
+  ghost: 'Hold {fire} on a ghost and keep it in the middle of your screen until it\'s sucked in', pearl: 'Hold {fire} on a pearl to suck it in, even from a distance',
+  deliver: 'Hold {fire} on litter to clean up the streets', meteor: 'Hold {fire} on burnt crusts to vacuum them up',
 };
 // what to point it at on each planet (by activity)
 const VAC_WHAT = { scrap: 'a glowing junk pile', berry: 'a berry', casino: 'a dropped chip', crystal: 'a snow pile', ghost: 'a ghost (get closer)', pearl: 'a pearl', deliver: 'some litter', meteor: 'a burnt crust' };
@@ -52,11 +64,12 @@ const DASH = { speed: 22, time: 0.18, cd: 1.1 };
 const JET = { fuel: 2.2, up: 7, acc: 24, refuel: 0.6, hold: 0.22 }; // (seconds of fuel; hold Space this long before it kicks in)
 const CAPE_FALL = 2.2; // how fast you fall while gliding
 const STOMP = { speed: 32, r: 4.5, dmg: 80 };
-const RESPAWN_HOLD = 1.2; // seconds of holding left click to get back up after dying
+const RESPAWN_HOLD = 1.2; // seconds of holding the fire button to get back up after dying
+// wading in liquid: how much it slows you (per metre deep, never below `min`), and how deep the sea can get
+// before it washes you back to shore
+const WADE = { slow: 0.55, min: 0.5, deep: 1.25 };
 // how long critters leave you alone after you join the game, land on a planet, or get back up after dying
 const GRACE = { join: 20, land: 15, respawn: 10 };
-// tools you have to buy first (the Grabby Vac is free, and so is the gun: everybody has at least the Squirt Pistol)
-const hasTool = (t) => (t !== 'drill' || SAVE.drill) && (t !== 'peel' || SAVE.peel);
 
 // how hard each kind of gun kicks. up / side: how far the view jumps (radians; it settles back, except
 // `stay` of it: pull back down). back / rot: how far the gun jumps back and tips up in your hands. sh: screen shake
@@ -77,7 +90,7 @@ class LocalPlayer {
     this.pos = new V3(); this.vel = new V3();
     this.yaw = 0; this.pitch = 0;
     this.onGround = false; this.jumps = 0;
-    this.tool = 'zap';
+    this.tool = null; this.slot = 0; this.shown = undefined; // (what you have out: the thing in hotbar slot `slot`, see Loadout)
     this.hp = 100; this.inv = 0; this.regenT = 0; this.dead = false; this.ghost = false; this.down = false; this.bleedT = 0; this.reviveT = 0;
     this.cd = 0; this.nadeCd = 0; this.walkT = 0; this.recoil = 0; this.deadT = 0;
     this.swapT = 0; this.sprintK = 0; this.landK = 0; this.swayX = 0; this.swayY = 0; this.lastYaw = 0; this.lastPitch = 0; this.flashT = 0;
@@ -91,8 +104,8 @@ class LocalPlayer {
     this.slowK = 1; this.slowT = 0; this.ext = new V3(); // (set by boss fights every frame: goo slows you, wind drags you)
     this.safeT = 0; // critters leave you alone while this counts down (see GRACE)
     this.kickP = 0; this.kickY = 0; this.recoilRot = 0; this.recoilRoll = 0; // (see kick)
-    // your goober, seen from outside (third person, see bodyTick): tpK eases 0 (first person) -> 1, tpD: how far
-    // back the camera is. an / ac: your last move, for your crew to see (see act)
+    // your goober, seen from outside while you emote (see bodyTick): tpK eases 0 (your own eyes) -> 1 (the
+    // camera out in front of him), tpD: how far away the camera is. an / ac: your last move, for your crew to see (see act)
     this.gb = null; this.tpK = 0; this.tpD = 3.4; this.emoteT = 0; this.emoteOrbit = 0; this.emoteYaw = 0; this.an = 0; this.ac = '';
     this.using = false; this.sliding = false;
     this.vm = new THREE.Group();
@@ -107,56 +120,96 @@ class LocalPlayer {
     this.vmPeel = buildPeelVM();
     addHands(this.vmDrill, 'drill', this.cuffMat, this.sleeveMat);
     addHands(this.vmPeel, 'peel', this.cuffMat, this.sleeveMat);
-    for (const o of [this.vmDrill, this.vmPeel]) this.vm.add(o);
+    for (const o of [this.vmDrill, this.vmPeel]) { this.vm.add(o); this.prepVM(o); }
     this.vmZap = null; this.vmVac = null;
+    this.vmGuns = new Map(); // (every gun you've had out, built the first time: swapping guns is instant)
     this.mags = {}; // (how full each of your other guns was when you put it away)
     this.refreshGear();
   }
   world() { return G.mode === 'boss' ? G.arena : G.world; }
 
-  // (re)build the zapper and vac in your hands to match what you own
+  // what you own changed (you bought something, died, got your stuff back): your hands match it again, still
+  // holding what you had out if you can (the vac is rebuilt if it's a Turbo Vac now)
   refreshGear() {
-    for (const o of [this.vmZap, this.vmVac]) if (o) { this.vm.remove(o); disposeObj(o); }
-    this.vmZap = buildZapperVM(SAVE.zap);
-    this.vmVac = buildVacVM(SAVE.vacLvl > 0);
-    addHands(this.vmZap, gunDef(SAVE.zap).type, this.cuffMat, this.sleeveMat);
-    addHands(this.vmVac, 'vac', this.cuffMat, this.sleeveMat);
-    this.vm.add(this.vmZap, this.vmVac);
-    this.vm.traverse((c) => { if (c.isMesh) { c.castShadow = false; c.receiveShadow = false; } });
-    this.layoutVM();
-    this.refill();
-    this.setTool(hasTool(this.tool) ? this.tool : hasTool('zap') ? 'zap' : 'vac', true);
+    const turbo = SAVE.vacLvl > 0;
+    if (!this.vmVac || this.vmVac.userData.turbo !== turbo) {
+      if (this.vmVac) { this.vm.remove(this.vmVac); disposeObj(this.vmVac); }
+      this.vmVac = buildVacVM(turbo);
+      this.vmVac.userData.turbo = turbo;
+      addHands(this.vmVac, 'vac', this.cuffMat, this.sleeveMat);
+      this.vm.add(this.vmVac);
+      this.prepVM(this.vmVac);
+    }
+    if (!this.vmZap) this.setGun(SAVE.zap);
+    const hand = Loadout.at(this.slot) ? this.slot : Loadout.find(this.shown) >= 0 && Loadout.at(Loadout.find(this.shown)) ? Loadout.find(this.shown) : Math.max(0, Loadout.firstUsed());
+    this.shown = undefined; // (whatever's in that slot now, take it out)
+    this.selectSlot(hand, true);
   }
-  // fresh battery pack (new gun, new boss fight, respawn)
+  // a gun's model in your hands (built the first time you take that gun out, then kept)
+  gunVM(l) {
+    let vm = this.vmGuns.get(l);
+    if (!vm) {
+      vm = buildZapperVM(l);
+      addHands(vm, gunDef(l).type, this.cuffMat, this.sleeveMat);
+      this.vm.add(vm);
+      this.prepVM(vm);
+      this.vmGuns.set(l, vm);
+    }
+    return vm;
+  }
+  prepVM(o) {
+    o.traverse((c) => { if (c.isMesh) { c.castShadow = false; c.receiveShadow = false; } });
+    o.visible = false;
+    this.layoutVM();
+  }
+  // fresh batteries in every gun (a boss fight, a respawn)
   refill() {
     this.reloadT = 0;
-    this.ammo = gunDef(SAVE.zap).mag;
+    this.ammo = gunDef(this.gunL == null ? SAVE.zap : this.gunL).mag;
     this.mags = {};
   }
-  // switch to another gun you own (each one remembers how full it was, so swapping isn't a free reload)
-  equip(i) {
-    if (i === SAVE.zap) return;
-    const z = gunDef(SAVE.zap);
-    if (z.type !== 'cutter') this.mags[SAVE.zap] = this.reloadT > 0 ? 0 : this.ammo;
-    if (!equipGun(i)) return;
-    const keep = this.mags;
-    this.refreshGear();
-    this.mags = keep;
-    const n = gunDef(i);
-    // (a Pizza Cutter has whichever of its cutters aren't still flying around)
+  // the gun your ammo counter is about. Each gun keeps its own battery, so swapping isn't a free reload
+  // (a Pizza Cutter has whichever of its cutters aren't still flying around)
+  setGun(l) {
+    SAVE.zap = l;
+    if (this.vmZap && l === this.gunL) return;
+    if (this.vmZap) {
+      if (gunDef(this.gunL).type !== 'cutter') this.mags[this.gunL] = this.reloadT > 0 ? 0 : this.ammo;
+      this.vmZap.visible = false;
+    }
+    this.gunL = l; // (the gun this.ammo is about)
+    this.vmZap = this.gunVM(l);
+    this.reloadT = 0;
+    const n = gunDef(l);
     if (n.type === 'cutter') this.ammo = Math.max(0, n.mag - Shots.list.filter((c) => c.kind === 'cutter' && c.local).length);
-    else this.ammo = keep[i] == null ? n.mag : keep[i];
-    this.setTool('zap', true);
-    this.swapT = 1;
-    Sound.play('reload');
-    UI.toast(`Equipped: ${n.name}`, 'good', 1.4);
+    else this.ammo = this.mags[l] == null ? n.mag : this.mags[l];
+  }
+  // take out what's in hotbar slot i (an empty slot: empty hands). Pressing the key for what you already
+  // have out does nothing: it never swaps you to some other gun.
+  selectSlot(i, quiet) {
+    if (i < 0 || i >= HOTBAR) return;
+    const it = Loadout.at(i), t = Loadout.tool(it), g = Loadout.gun(it);
+    if (i === this.slot && it === this.shown) return;
+    const was = this.tool;
+    this.slot = i; SAVE.hand = i;
+    if (g != null) this.setGun(g);
+    if (!quiet) { Sound.play(t === 'zap' && g !== Loadout.gun(this.shown) ? 'reload' : 'click'); this.swapT = 1; }
+    if (was !== t) this.reloadT = 0; // (putting the gun away cancels a reload)
+    this.tool = t; this.shown = it;
+    if (t === 'zap' && this.ammo <= 0) this.startReload();
+    this.vmZap.visible = t === 'zap';
+    this.vmVac.visible = t === 'vac';
+    this.vmDrill.visible = t === 'drill';
+    this.vmPeel.visible = t === 'peel';
+    this.releaseTargets();
+    if (!quiet && !it) UI.toast(`Slot ${i + 1} is empty. Fill it on any shop's Loadout tab.`, '', 1.8);
     UI.hud();
   }
-  // press 1 with your gun already out: the next gun you own
-  nextGun() {
-    const list = [-1, ...SAVE.guns.slice().sort((a, b) => a - b)];
-    if (list.length < 2) { UI.toast('That\'s your only gun. Shops sell better ones!', '', 1.8); return; }
-    this.equip(list[(list.indexOf(SAVE.zap) + 1) % list.length]);
+  // take out the first thing on your hotbar of this kind ('zap': a gun). false: there isn't one
+  takeOut(tool, quiet) {
+    const i = Loadout.findTool(tool);
+    if (i >= 0) this.selectSlot(i, quiet);
+    return i >= 0;
   }
   startReload() {
     const z = gunDef(SAVE.zap);
@@ -171,32 +224,14 @@ class LocalPlayer {
   layoutVM() {
     const d = 0.5, hh = d * Math.tan(THREE.MathUtils.degToRad(G.camera.fov / 2)), hw = hh * G.camera.aspect;
     const x = Math.min(0.24, hw * 0.55), y = -hh * 0.45;
-    for (const o of [this.vmZap, this.vmVac, this.vmDrill, this.vmPeel]) { if (o) { o.position.set(x, y, -d); o.userData.base = o.position.clone(); o.scale.setScalar(0.62); } }
-  }
-  setTool(t, quiet) {
-    if (!hasTool(t)) {
-      if (!quiet) {
-        UI.toast({ drill: 'No Laser Drill yet! Penguin Pete sells one on Frostbyte.', peel: 'No Pizza Peel yet! Dave sells one on Zorblax Prime.' }[t], 'bad');
-        Sound.play('error');
-      }
-      return;
-    }
-    if (this.tool !== t) {
-      if (!quiet) { Sound.play('click'); this.swapT = 1; }
-      this.reloadT = 0; // putting the zapper away cancels a reload
-    }
-    this.tool = t;
-    if (t === 'zap' && this.ammo <= 0) this.startReload();
-    this.vmZap.visible = t === 'zap';
-    this.vmVac.visible = t === 'vac';
-    this.vmDrill.visible = t === 'drill';
-    this.vmPeel.visible = t === 'peel';
-    this.releaseTargets();
-    UI.hud();
+    for (const o of [...(this.vmGuns ? this.vmGuns.values() : []), this.vmVac, this.vmDrill, this.vmPeel]) { if (o) { o.position.set(x, y, -d); o.userData.base = o.position.clone(); o.scale.setScalar(0.62); } }
   }
   releaseTargets() {
     if (this.vacTarget) { this.vacTarget.grab = false; this.vacTarget.home = null; this.vacTarget.st = 0; } // (a ghost goes back to drifting)
-    if (this.vacTarget && !this.vacTarget.taken) { this.vacTarget.mesh.scale.setScalar(1); this.vacTarget.mesh.position.set(this.vacTarget.x, this.vacTarget.y, this.vacTarget.z); }
+    if (this.vacTarget && !this.vacTarget.taken) {
+      this.vacTarget.mesh.scale.setScalar(1); this.vacTarget.mesh.position.set(this.vacTarget.x, this.vacTarget.y, this.vacTarget.z);
+      if (this.vacTarget.kind === 'body') this.vacTarget.mesh.quaternion.copy(this.vacTarget.q); // (a critter you zapped: back how it was lying)
+    }
     this.vacTarget = null; this.vacT = 0;
     if (this.drillTarget && !this.drillTarget.taken) this.drillTarget.mesh.position.set(this.drillTarget.x, this.drillTarget.y, this.drillTarget.z);
     this.drillTarget = null; this.drillT = 0;
@@ -226,35 +261,30 @@ class LocalPlayer {
     // remember where you were looking lately (a full turn right before a kill is a "360")
     this.yawLog.push([G.time, this.yaw]);
     while (this.yawLog.length && G.time - this.yawLog[0][0] > 2.2) this.yawLog.shift();
-    // --- tool switching
+    // --- your hotbar: each slot's key takes out what's in that slot; the wheel flips through the full ones
     if (canAct) {
-      if (Input.tap('Digit1')) { if (this.tool === 'zap') this.nextGun(); else this.setTool('zap'); }
-      if (Input.tap('Digit2')) this.setTool('vac');
-      if (Input.tap('Digit3')) this.setTool('drill');
-      if (Input.tap('Digit4')) this.setTool('peel');
-      if (Input.tap('KeyR')) this.startReload();
-      if (Input.tap('KeyV')) this.toggleView();
-      if (Input.tap('KeyG')) this.emote();
+      for (let i = 0; i < HOTBAR; i++) if (Input.hit('slot' + (i + 1))) this.selectSlot(i);
+      if (Input.hit('reload')) this.startReload();
+      if (Input.hit('emote')) this.emote();
       if (Input.wheel) {
-        const avail = TOOLS.filter(hasTool);
-        const i = (avail.indexOf(this.tool) + (Input.wheel > 0 ? 1 : -1) + avail.length) % avail.length;
-        this.setTool(avail[i]);
+        const dir = Input.wheel > 0 ? 1 : -1;
+        for (let k = 1; k < HOTBAR; k++) { const j = (this.slot + dir * k + HOTBAR) % HOTBAR; if (Loadout.at(j)) { this.selectSlot(j); break; } }
       }
     }
     // --- movement
     let mx = 0, mz = 0;
     const frozen = this.dead;
     if (canAct && !frozen) {
-      if (Input.keys.KeyW) mz += 1;
-      if (Input.keys.KeyS) mz -= 1;
-      if (Input.keys.KeyA) mx -= 1;
-      if (Input.keys.KeyD) mx += 1;
+      if (Input.down('forward')) mz += 1;
+      if (Input.down('back')) mz -= 1;
+      if (Input.down('left')) mx -= 1;
+      if (Input.down('right')) mx += 1;
     }
-    const sprint = Input.keys.ShiftLeft || Input.keys.ShiftRight;
+    const sprint = Input.down('sprint');
     // (goo or a snowball a critter threw at you slows you down for a bit; boss fights set slowK themselves)
     if (this.slowT > 0) this.slowT -= dt;
     if (G.mode === 'planet') this.slowK = this.slowT > 0 ? 0.55 : 1;
-    const speed = (sprint ? 8.6 * (SAVE.skates ? 1.35 : 1) : 5.6) * (this.ghost ? 1.3 : 1) * this.slowK; // (Duct-Tape Skates: faster sprinting)
+    const speed = (sprint ? 8.6 * (SAVE.skates ? 1.35 : 1) : 5.6) * (this.ghost ? 1.3 : 1) * this.slowK * (this.wadeK || 1); // (Duct-Tape Skates: faster sprinting; wading: slower)
     const sy = Math.sin(this.yaw), cy = Math.cos(this.yaw);
     let tx = (-sy * mz + cy * mx), tz = (-cy * mz - sy * mx);
     const len = Math.hypot(tx, tz);
@@ -269,10 +299,10 @@ class LocalPlayer {
       if (this.slideSnd <= 0) { Sound.play('slide'); this.slideSnd = 0.35; }
     }
     // moving (or jumping) stops an emote
-    if (this.emoteT > 0) { this.emoteT -= dt; if (len > 0 || (canAct && Input.tap('Space'))) this.stopEmote(); }
+    if (this.emoteT > 0) { this.emoteT -= dt; if (len > 0 || (canAct && Input.hit('jump'))) this.stopEmote(); }
     // --- Getaway Sneakers: Q dashes the way you're going (once per jump in the air)
     this.dashCd -= dt; this.launchT -= dt; this.padCd -= dt;
-    if (canAct && !frozen && SAVE.dash && Input.tap('KeyQ') && this.dashCd <= 0 && !this.stomping && (this.onGround || !this.airDash)) this.startDash(tx, tz);
+    if (canAct && !frozen && SAVE.dash && Input.hit('dash') && this.dashCd <= 0 && !this.stomping && (this.onGround || !this.airDash)) this.startDash(tx, tz);
     if (this.dashT > 0) {
       this.dashT -= dt;
       const k = this.dashT > 0 ? 1 : 0.45; // (then ease off, so it's a quick burst and not a long slide)
@@ -281,19 +311,19 @@ class LocalPlayer {
     }
     // --- jumping (way higher with Spring-Heeled Jacks, double jump with Bounce Boots)
     const sprung = SAVE.springs;
-    if (canAct && !frozen && Input.tap('Space')) {
+    if (canAct && !frozen && Input.hit('jump')) {
       if (this.onGround) { this.vel.y = sprung ? 10.2 : 7.4; this.onGround = false; this.jumps = 1; Sound.play(sprung ? 'spring' : 'jump'); }
       else if (SAVE.boots && this.jumps < 2 && !this.stomping) { this.vel.y = sprung ? 9.2 : 7.0; this.jumps = 2; Sound.play('boing'); FX.burst(this.pos, '#ff9ad5', 8, 3); this.act('flip'); }
     }
     // --- Yeti Stompers: C in the air slams you into the ground
-    if (canAct && !frozen && SAVE.stomp && Input.tap('KeyC') && !this.onGround && this.airH > 1.2 && !this.stomping) {
+    if (canAct && !frozen && SAVE.stomp && Input.hit('stomp') && !this.onGround && this.airH > 1.2 && !this.stomping) {
       this.stomping = true; this.dashT = 0;
       this.vel.set(this.vel.x * 0.2, -STOMP.speed, this.vel.z * 0.2);
       Sound.play('dash');
     }
     this.vel.y -= cfg.grav * dt;
     // --- hold Space in the air: fly with the Jet Pack (while it has fuel), or glide with the Glider Cape
-    const hold = canAct && !frozen && !!Input.keys.Space;
+    const hold = canAct && !frozen && Input.down('jump');
     this.spaceHold = hold ? this.spaceHold + dt : 0;
     this.jetting = this.gliding = false;
     if (!this.onGround && hold && !this.stomping && !this.ghost) {
@@ -334,6 +364,7 @@ class LocalPlayer {
       this.teleport(G.world.spawn, G.world.spawnYaw);
       UI.toast(cfg.islands ? U.pick(LINES.fellClouds) : `You fell in the ${cfg.liquid.name}. Gross.`, 'bad', 3);
     }
+    if (G.mode === 'planet' && !cfg.islands) this.wade(dt, cfg);
     // --- timers
     this.cd -= dt; this.nadeCd -= dt; this.inv -= dt;
     if (this.safeT > 0 && G.mode === 'planet') {
@@ -364,7 +395,7 @@ class LocalPlayer {
     this.flashT -= dt;
     if (this.vmZap.userData.flash) this.vmZap.userData.flash.visible = this.flashT > 0;
     this.updateBeam(dt);
-    const bf = this.gbTools && this.gbTools[0] && this.gbTools[0].userData.flash; // (your goober's gun, in third person)
+    const bf = this.gbTools && this.gbTools[0] && this.gbTools[0].userData.flash; // (your goober's gun, seen while you emote)
     if (bf) bf.visible = this.flashT > 0 && this.tpK > 0.5;
     const wheel = this.vmZap.userData.wheel; // (the pizza cutter sitting in the gun, while you have one in hand)
     if (wheel) { wheel.visible = this.ammo > 0; wheel.rotation.x += dt * 3; }
@@ -375,11 +406,11 @@ class LocalPlayer {
     UI.planetHp(this.hp);
     // --- actions
     const busy = !canAct || this.dead || this.ghost;
-    this.using = !busy && Input.mouseL && (this.tool === 'vac' || this.tool === 'drill' || (this.tool === 'zap' && this.reloadT <= 0));
+    this.using = !busy && Input.down('fire') && (this.tool === 'vac' || this.tool === 'drill' || (this.tool === 'zap' && this.reloadT <= 0));
     if (this.using && this.emoteT > 0) this.stopEmote();
     if (!busy) this.useTool(dt);
     else if (this.vacTarget || this.drillTarget) this.releaseTargets();
-    if (!busy && Input.clickR) this.throwNade();
+    if (!busy && Input.hit('nade')) this.throwNade();
     // --- interaction prompt
     this.updateDown(dt);
     this.updateRespawn(dt, canAct);
@@ -388,6 +419,24 @@ class LocalPlayer {
     this.updateCamera(dt, hs);
     this.bodyTick(dt);
     UI.ammo(this);
+  }
+
+  // in the liquid (a pond, the edge of the sea): it slows you down and splashes about. Too far out and the sea
+  // washes you back to the last dry spot you stood on.
+  wade(dt, cfg) {
+    const depth = WATER_Y - this.pos.y, wet = depth > 0.05 && this.airH < 0.3;
+    if (!this.dryPos) this.dryPos = this.pos.clone();
+    if (this.onGround && depth < -0.05) this.dryPos.copy(this.pos);
+    this.wadeK = U.damp(this.wadeK || 1, wet ? Math.max(WADE.min, 1 - depth * WADE.slow) : 1, 8, dt);
+    const col = cfg.liquid.color, feet = this.pos.clone().setY(WATER_Y + 0.05);
+    if (wet && !this.wet) { Sound.play('splash'); FX.burst(feet, col, 10, 3.5); FX.ring(feet, col, 1.2); }
+    this.wet = wet;
+    this.wadeT = (this.wadeT || 0) - dt;
+    if (wet && Math.hypot(this.vel.x, this.vel.z) > 1 && this.wadeT <= 0) { this.wadeT = 0.28; Sound.play('wade'); FX.burst(feet, col, 3, 2.2); }
+    if (depth < WADE.deep || this.dead) return;
+    this.teleport(this.dryPos.clone().setY(this.dryPos.y + 0.3), this.yaw);
+    Sound.play('splash');
+    UI.toast(`Too deep! The ${cfg.liquid.name} washed you back to shore. Gross.`, 'bad', 2.4);
   }
 
   /* ----- movement gear ----- */
@@ -486,6 +535,7 @@ class LocalPlayer {
     this.releaseTargets();
     UI.show('spectate', false);
     const grave = Drops.graveDrop();
+    this.refill();
     this.refreshGear();
     SAVE.stats.deaths++;
     persist();
@@ -515,15 +565,15 @@ class LocalPlayer {
   waitForRespawn(fn) { this.waitRespawn = fn; this.respawnHold = 0; this.respawnArmed = false; }
   updateRespawn(dt, canAct) {
     if (!this.waitRespawn) return;
-    if (!Input.mouseL) this.respawnArmed = true; // (let go first: dying mid-shot doesn't count as holding)
-    const holding = canAct && this.respawnArmed && Input.mouseL;
+    if (!Input.down('fire')) this.respawnArmed = true; // (let go first: dying mid-shot doesn't count as holding)
+    const holding = canAct && this.respawnArmed && Input.down('fire');
     this.respawnHold = holding ? this.respawnHold + dt : Math.max(0, this.respawnHold - dt * 2);
     UI.respawnFill(this.respawnHold / RESPAWN_HOLD);
     if (this.respawnHold < RESPAWN_HOLD) return;
     const fn = this.waitRespawn;
     this.waitRespawn = null;
     UI.death(false);
-    Input.mouseL = false; // (the click that got you up doesn't also fire/vacuum)
+    Input.release('fire'); // (the click that got you up doesn't also fire/vacuum)
     fn();
   }
   respawn() {
@@ -556,8 +606,8 @@ class LocalPlayer {
     this.onBleedOut = onBleedOut; this.downCause = cause;
     this.releaseTargets();
     Sound.play('death');
-    UI.bigTitle('YOU\'RE DOWN', `${cause ? cause + ' got you. ' : ''}A friend can pick you up: they walk over and hold E.` + (boss ? ` Or you get back up by yourself in ${this.bleedT}s, if one of them is still standing.` : ''), '#ff6b6b', 3.4);
-    const html = `<b>${U.esc(G.name)}</b> is down! Go pick them up (walk over and hold E).`;
+    UI.bigTitle('YOU\'RE DOWN', `${cause ? cause + ' got you. ' : ''}A friend can pick you up: they walk over and hold {use}.` + (boss ? ` Or you get back up by yourself in ${this.bleedT}s, if one of them is still standing.` : ''), '#ff6b6b', 3.4);
+    const html = `<b>${U.esc(G.name)}</b> is down! Go pick them up (walk over and hold {use}).`;
     UI.feed(html, 'bad');
     Net.relay({ t: 'ann', html, cls: 'bad' });
   }
@@ -597,7 +647,7 @@ class LocalPlayer {
     const el = UI.el.spectate;
     el.classList.remove('hidden');
     const txt = helped ? `${this.helpBy.toUpperCase()} IS PICKING YOU UP · ${Math.round(this.helpP * 100)}%`
-      : standing ? `DOWN · A FRIEND CAN PICK YOU UP (HOLD E) · BACK UP BY YOURSELF IN ${Math.max(1, Math.ceil(this.bleedT))}s`
+      : standing ? `DOWN · A FRIEND CAN PICK YOU UP · BACK UP BY YOURSELF IN ${Math.max(1, Math.ceil(this.bleedT))}s`
       : 'DOWN · NOBODY LEFT STANDING...';
     if (el.textContent !== txt) el.textContent = txt;
   }
@@ -613,7 +663,7 @@ class LocalPlayer {
   }
   // a friend is lifting you up (they're holding E next to you)
   helped(by, p) { this.helpT = G.time; this.helpBy = by; this.helpP = p; }
-  // walk up to a downed friend and hold E to pick them up (the bleed-out timer pauses while you do)
+  // walk up to a downed friend and hold E (use) to pick them up (the bleed-out timer pauses while you do)
   checkRevive(dt, canAct) {
     let best = null, bd = 3.2;
     if (canAct && !this.dead && !this.ghost) {
@@ -625,8 +675,8 @@ class LocalPlayer {
     }
     for (const r of G.remotes.values()) if (r !== best) r.lift = 0;
     if (!best) { if (this.reviveT > 0) { this.reviveT = 0; UI.action(null); } return false; }
-    UI.prompt(`Hold E to pick up ${best.name}`);
-    if (Input.keys.KeyE) {
+    UI.prompt(`Hold to pick up ${best.name}`);
+    if (Input.down('use')) {
       this.reviveT += dt;
       best.lift = this.reviveT / 2.5;
       UI.action(best.lift, `PICKING UP ${best.name.toUpperCase()}...`);
@@ -646,33 +696,34 @@ class LocalPlayer {
 
   useTool(dt) {
     const t = this.tool;
+    if (!t) { if (Input.hit('fire') && G.mode === 'planet') UI.toast('Your hands are empty! Pick a hotbar slot with something in it.', '', 1.6); return; }
     if (t === 'zap') {
-      if (Input.mouseL && this.cd <= 0) this.fireZap();
+      if (Input.down('fire') && this.cd <= 0) this.fireZap();
       return;
     }
     if (t === 'peel') {
       // the peel catches things on its own; clicking is just a very important swing
-      if (Input.clickL && this.swing <= 0) { this.swing = 1; Sound.play('throw'); this.act('swing'); }
+      if (Input.hit('fire') && this.swing <= 0) { this.swing = 1; Sound.play('throw'); this.act('swing'); }
       return;
     }
     const w = this.world();
     if (t === 'vac') {
-      if (!Input.mouseL) { if (this.vacTarget) this.releaseTargets(); this.vmVac.userData.noz.rotation.z = 0; return; }
+      if (!Input.down('fire')) { if (this.vacTarget) this.releaseTargets(); this.vmVac.userData.noz.rotation.z = 0; return; }
       Sound.play('vac');
       this.vmVac.userData.noz.rotation.z = Math.sin(G.time * 40) * 0.05;
       const tier = VAC[SAVE.vacLvl];
       if (!this.vacTarget || this.vacTarget.taken) {
         this.vacT = 0;
-        this.vacTarget = this.findNode(w, VAC_KINDS, tier.range, 0.88);
+        this.vacTarget = this.findNode(w, VAC_KINDS, tier.range, 0.88) || (G.mode === 'planet' ? Critters.findBody(this.rayStart(), this.camDir(new V3()), tier.range, 0.88) : null);
         if (this.vacTarget) { this.vacTarget.grab = true; this.booT = U.rand(0.6, 1.2); this.aimLost = 0; }
         const what = G.mode === 'planet' && VAC_WHAT[PLANETS[G.planet].activity];
-        if (!this.vacTarget && Input.clickL) UI.toast(what ? `Point it at ${what}!` : 'Nothing to vacuum here...', '', 1.4);
+        if (!this.vacTarget && Input.hit('fire')) UI.toast(what ? `Point it at ${what}!` : 'Nothing to vacuum here...', '', 1.4);
       }
       const n = this.vacTarget;
       if (!n) return;
       const d = Math.hypot(n.x - this.pos.x, n.z - this.pos.z);
       if (d > tier.range + 1.5) { this.releaseTargets(); return; }
-      if (SAVE.cargo.length >= CARGO[SAVE.cargoLvl]) { UI.toast(U.pick(LINES.cargoFull), 'bad', 1.6); this.releaseTargets(); Input.mouseL = false; return; }
+      if (SAVE.cargo.length >= CARGO[SAVE.cargoLvl]) { UI.toast(U.pick(LINES.cargoFull), 'bad', 1.6); this.releaseTargets(); Input.release('fire'); return; }
       if (n.kind === 'ghost') { if (this.suckGhost(n, tier, dt)) return; }
       else this.vacT += dt * tier.speed;
       const k = U.clamp(this.vacT / (VAC_TIME[n.kind] || 0.8), 0, 1);
@@ -681,22 +732,26 @@ class LocalPlayer {
       n.mesh.scale.setScalar(1 - k * 0.8);
       n.mesh.rotation.y += dt * 12;
       UI.action(k, n.kind === 'ghost' ? (this.aimLost > 0 ? 'KEEP IT IN YOUR SIGHTS!' : 'SUCKING UP A GHOST...') : 'VACUUMING...');
-      if (k >= 1) { Activities.collect(n); this.vacTarget = null; this.vacT = 0; UI.action(null); }
+      if (k >= 1) {
+        if (n.kind === 'body') { if (!Critters.pickBody(n)) { this.releaseTargets(); return; } }
+        else Activities.collect(n);
+        this.vacTarget = null; this.vacT = 0; UI.action(null);
+      }
       return;
     }
     if (t === 'drill') {
       const bit = this.vmDrill.userData.bit;
-      if (!Input.mouseL) { if (this.drillTarget) this.releaseTargets(); return; }
+      if (!Input.down('fire')) { if (this.drillTarget) this.releaseTargets(); return; }
       bit.rotation.z += dt * 30;
       if (!this.drillTarget || this.drillTarget.taken) {
         this.drillT = 0;
         this.drillTarget = this.findNode(w, ['crystal'], 5, 0.8);
-        if (!this.drillTarget && Input.clickL) UI.toast(PLANETS[G.planet].activity === 'crystal' ? 'Get closer to a crystal!' : 'No crystals here...', '', 1.4);
+        if (!this.drillTarget && Input.hit('fire')) UI.toast(PLANETS[G.planet].activity === 'crystal' ? 'Get closer to a crystal!' : 'No crystals here...', '', 1.4);
       }
       const n = this.drillTarget;
       if (!n) return;
       if (Math.hypot(n.x - this.pos.x, n.z - this.pos.z) > 6.5) { this.releaseTargets(); return; }
-      if (SAVE.cargo.length >= CARGO[SAVE.cargoLvl]) { UI.toast(U.pick(LINES.cargoFull), 'bad', 1.6); this.releaseTargets(); Input.mouseL = false; return; }
+      if (SAVE.cargo.length >= CARGO[SAVE.cargoLvl]) { UI.toast(U.pick(LINES.cargoFull), 'bad', 1.6); this.releaseTargets(); Input.release('fire'); return; }
       this.drillT += dt;
       Sound.play('drill');
       n.mesh.position.set(n.x + (Math.random() - 0.5) * 0.12, n.y, n.z + (Math.random() - 0.5) * 0.12);
@@ -812,12 +867,12 @@ class LocalPlayer {
     if (G.mode !== 'planet' || PLANETS[G.planet].activity !== 'ghost' || G.time < (this.ghostTipT || 0)) return;
     if (!this.findNode(G.world, ['ghost'], 40, 0.97)) return;
     this.ghostTipT = G.time + 6;
-    UI.toast('Shots go right through ghosts! Press 2 for the Grabby Vac and VACUUM them.', 'purple', 3.5);
+    UI.toast('Shots go right through ghosts! Take out the Grabby Vac ({tool:vac}) and VACUUM them.', 'purple', 3.5);
   }
   // from the gun toward whatever the crosshair is on
   aimFrom(o) { return this.aimPoint().sub(o).normalize(); }
-  // what the crosshair is on. In first person that's just straight ahead; in third person the gun isn't where the
-  // camera is, so it's the first thing along the crosshair past you (a critter, the ground, a wall)
+  // what the crosshair is on. Normally that's just straight ahead; while the camera is out in front of you (an
+  // emote) the gun isn't where the camera is, so it's the first thing along the crosshair past you
   aimPoint() {
     const dir = this.camDir(new V3()), from = this.rayStart();
     if (this.tpK < 0.5) return from.addScaledVector(dir, 60);
@@ -831,9 +886,9 @@ class LocalPlayer {
     }
     return b;
   }
-  // where rays start (the crosshair's line, from you): the camera in first person, your head in third person
+  // where rays start (the crosshair's line, from you): the camera, or your head while the camera is out front
   rayStart() { return G.camera.position.clone().addScaledVector(this.camDir(new V3()), this.tpK > 0.5 ? this.tpD + 0.3 : 0); }
-  // where shots come out (0: your gun, 1: the vac's nozzle): the one in your hands, or your goober's in third person
+  // where shots come out (0: your gun, 1: the vac's nozzle): the one in your hands, or your goober's while you emote
   muzzle(i = 0) {
     const t = this.tpK > 0.5 && this.gb ? this.gbTools[i] : i ? this.vmVac : this.vmZap;
     return t.userData.muzzle.getWorldPosition(new V3());
@@ -967,9 +1022,17 @@ class LocalPlayer {
       if (dot < 0.2) continue;
       if (d < bd) { bd = d; best = it; }
     }
+    // a critter you zapped, lying there: pick it up (when it's closer than anything else you could use)
+    const body = Critters.nearBody(this.pos, dir);
+    if (body && (!best || Math.hypot(body.pos.x - this.pos.x, body.pos.z - this.pos.z) < bd)) {
+      const full = SAVE.cargo.length >= CARGO[SAVE.cargoLvl], r = cargoRes(body.entry || '');
+      UI.prompt(full ? `Backpack full! (${r.name} waits here till you've sold some stuff)` : `Pick up ${r.name} (${U.bucks(r.v)})`);
+      if (Input.hit('use')) Critters.pickBody(body);
+      return;
+    }
     this.near = best;
     UI.prompt(best ? (typeof best.label === 'function' ? best.label() : best.label) : null);
-    if (best && Input.tap('KeyE')) best.fn();
+    if (best && Input.hit('use')) best.fn();
   }
 
   updateCamera(dt, hs) {
@@ -978,9 +1041,9 @@ class LocalPlayer {
     let eye = 1.65 + bob - this.landK * 0.22;
     if (this.dead) { this.deadT += dt; eye = U.lerp(1.65, 0.45, U.clamp(this.deadT * 2, 0, 1)); }
     cam.position.set(this.pos.x, this.pos.y + eye, this.pos.z);
-    // third person (V), and while you emote: the camera swings out behind your goober, over his right shoulder
-    // (during an emote it goes round to the front, so you can see his face, and the mouse turns it round him)
-    this.tpK = U.damp(this.tpK, (G.settings.view === 'tp' || this.emoteT > 0) && !this.ghost ? 1 : 0, 6, dt);
+    // while you emote the camera swings out round to the front of your goober, so you can see his face (the
+    // mouse turns it round him), and back into your helmet when you're done
+    this.tpK = U.damp(this.tpK, this.emoteT > 0 && !this.ghost ? 1 : 0, 6, dt);
     this.emoteOrbit = U.damp(this.emoteOrbit, this.emoteT > 0 ? PI - 0.5 : 0, 3.2, dt);
     let yaw = this.yaw;
     if (this.tpK > 0.001) {
@@ -1036,15 +1099,8 @@ class LocalPlayer {
     for (let d = 0.5; d < want; d += 0.2) if (inside(p.copy(from).addScaledVector(dir, d))) return Math.max(0.5, d - 0.3);
     return want;
   }
-  // V: first person / third person
-  toggleView() {
-    G.settings.view = G.settings.view === 'tp' ? 'fp' : 'tp';
-    lsSet('spacegoobers_settings', G.settings);
-    Game.syncSettings();
-    UI.toast(G.settings.view === 'tp' ? 'Third person: that\'s you! (V to switch back)' : 'First person', '', 1.6);
-  }
-  // your goober (seen in third person and while you emote): built the first time it's needed, and again when
-  // your colors, look or vac change. It carries every tool, showing the one you're holding.
+  // your goober (seen while you emote): built the first time it's needed, and again when your colors, look or
+  // vac change. It carries every tool, showing the one you're holding.
   body() {
     const key = G.color + '|' + G.look + '|' + (SAVE.vacLvl > 0);
     if (!this.gb || this.gbKey !== key) {
@@ -1081,7 +1137,7 @@ class LocalPlayer {
       down: this.down, dead: this.dead && !this.down, lift: this.helpT && G.time - this.helpT < 0.6 ? this.helpP : 0,
     });
   }
-  // G: goof off. Every press is the next emote; in first person the camera swings round so you can see it
+  // G: goof off. Every press is the next emote, and the camera swings round so you can see it
   emote() {
     if (this.dead || this.ghost || !this.onGround) return;
     const names = Object.keys(GOOB_EMOTES);
@@ -1090,7 +1146,7 @@ class LocalPlayer {
     this.body();
     this.emoteT = GOOB_EMOTES[n][0]; this.emoteYaw = this.gbYaw = this.yaw;
     this.act(n);
-    UI.toast(`${GOOB_EMOTES[n][1]}! (G again: ${GOOB_EMOTES[names[(this.emoteI + 1) % names.length]][1].toLowerCase()})`, '', 1.6);
+    UI.toast(`${GOOB_EMOTES[n][1]}! ({emote} again: ${GOOB_EMOTES[names[(this.emoteI + 1) % names.length]][1].toLowerCase()})`, '', 1.6);
   }
   stopEmote() {
     if (this.emoteT <= 0) return;

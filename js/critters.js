@@ -11,10 +11,15 @@
    its friends nearby join in. Zap them, sell them. Every
    one rolls a size (bigger = rarer, tougher, worth more).
    Kill them in style for a bonus multiplier.
+   A zapped critter goes flying, bounces, and lies there in a
+   heap (legs in the air) until whoever zapped it picks it up
+   (E, or the Grabby Vac). Backpack full? It waits for you,
+   even if you leave the planet (or the game) and come back.
    The host runs their brains and tells everyone where they
    are; each player checks bites and hits on themselves.
    ========================================================= */
-const CRIT_MAX = 22;       // alive at once on a planet (they're big planets)
+// how many are about on a planet at once, and how fast they turn up, depends on the world's difficulty (see DIFFS)
+const critCap = () => (DIFFS[G.diff] || DIFFS.easy).crits;
 const CRIT_SEND = 1 / 8;   // host sync rate
 const GOLD_CHANCE = 0.03;
 // mean critters hunting: how far they see you, how far from home they'll go, when they give up, how much faster
@@ -31,6 +36,11 @@ const SPIT = { min: 3.2, max: 13, speed: 12, cd: [2.6, 3.6], keep: [6.5, 10], dm
 const TOSS = { min: 5, max: 14, windup: 0.4, cd: [3.5, 5.5] };
 
 const POUNCE_MARK = {}; // (the pounce warning's shared shapes, made the first time one's needed)
+// zapped critters (see makeBody): gravity, how much of a bounce is left after each one, how fast they stop sliding,
+// how long somebody else's catch lies around, the most of yours there can be lying around, and how close you
+// have to be to pick one up
+const BODY = { grav: 24, bounce: 0.42, fric: 4, keep: 120, max: 50, reach: 2.6 };
+const _bq = new THREE.Quaternion(), _bv = new V3(), _bv2 = new V3();
 
 const Critters = {
   list: new Map(), // id -> critter
@@ -47,6 +57,7 @@ const Critters = {
     this.planet = pi;
     if (Net.isHost && this.anyoneHere()) this.host(dt);
     this.animate(dt);
+    this.updateBodies(dt);
     this.bites(dt);
     this.updateSpits(dt);
   },
@@ -68,8 +79,9 @@ const Critters = {
     const w = G.worlds[G.planet];
     if (!w) return;
     this.spawnT -= dt;
-    if (this.list.size < CRIT_MAX && this.spawnT <= 0) {
-      this.spawnT = this.list.size < CRIT_MAX / 2 ? 0.3 : 4;
+    const cap = critCap(), rate = (DIFFS[G.diff] || DIFFS.easy).spawn;
+    if (this.list.size < cap && this.spawnT <= 0) {
+      this.spawnT = this.list.size < cap / 2 ? rate[0] : rate[1];
       this.spawn(w);
     }
     const ps = this.players();
@@ -523,7 +535,7 @@ const Critters = {
       else if (fx === 'shock') c.shockT = 0.8;
       return;
     }
-    const m = { t: 'cdie', id, by };
+    const m = Object.assign({ t: 'cdie', id, by }, this.fling(c, by));
     Net.toAll(m);
     this.onDie(m);
     MiniBoss.onKill(c.x, c.z); // (enough of these, and something big turns up)
@@ -534,11 +546,273 @@ const Critters = {
     const def = this.kinds(G.planet)[c.k];
     const w = G.worlds[G.planet];
     const pos = c.m.hover ? this.center(c, w) : new V3(c.rx, w.gh(c.rx, c.rz) + 0.4 * SIZES[c.sz].s, c.rz);
-    FX.burst(pos, c.g ? '#ffd23f' : '#ff9a3d', Math.round(12 * SIZES[c.sz].s), 5);
-    FX.ring(pos, '#ffffff', 2 * SIZES[c.sz].s);
+    FX.burst(pos, c.g ? '#ffd23f' : '#ff9a3d', Math.round(10 * SIZES[c.sz].s), 5);
+    FX.ring(pos, '#ffffff', 1.6 * SIZES[c.sz].s);
     Sound.play('splat');
-    this.remove(m.id);
-    if (m.by === Net.myId) this.loot(def, c, pos);
+    this.list.delete(m.id);
+    const b = this.makeBody(c, m);
+    if (m.by === Net.myId) this.loot(def, c, pos, b);
+  },
+  // host: which way a zapped critter goes flying (away from whoever zapped it), how it spins, and how it ends
+  // up lying (so everybody sees the same tumble)
+  fling(c, by) {
+    const q = by === Net.myId ? G.player.pos : G.remotes.get(by) ? G.remotes.get(by).tpos : null;
+    let dx = q ? c.x - q.x : Math.random() - 0.5, dz = q ? c.z - q.z : Math.random() - 0.5;
+    const l = Math.hypot(dx, dz) || 1, s = Math.sqrt(SIZES[c.sz].s), sp = U.rand(3.2, 5.2) / s, spin = U.rand(8, 13) / s;
+    dx /= l; dz /= l;
+    // tumbling end over end, away from you (plus a bit of a twist)
+    return { v: [U.r2(dx * sp), U.r2(U.rand(5.5, 7.5) / Math.sqrt(s)), U.r2(dz * sp)], w: [U.r2(dz * spin + U.rand(-2, 2)), U.r2(U.rand(-3, 3)), U.r2(-dx * spin + U.rand(-2, 2))], f: Math.random() < 0.6 ? 0 : Math.random() < 0.5 ? 1 : 2 };
+  },
+
+  /* ---------- zapped critters, lying about ---------- */
+  bodies: new Map(), // id -> body (every planet's: they stay in their own world, see PlanetWorld.dyn)
+  // the critter c just got zapped: it goes flying (m: the host's fling), bounces and settles, and lies there.
+  // opt (a mini boss going down): s its size, pop: seconds it lies there before it goes pop (nobody picks it up)
+  makeBody(c, m, saved, opt = {}) {
+    const w = G.worlds[saved ? saved.p : G.planet];
+    if (!w) return null;
+    const s = opt.s || (SIZES[c.sz] ? SIZES[c.sz].s : 1), root = c.m.root;
+    for (const k of ['tele', 'ice', 'goo', 'zapFx']) if (c[k]) { root.remove(c[k]); if (k !== 'tele') disposeObj(c[k]); c[k] = null; }
+    c.m.body.scale.setScalar(1);
+    if (c.m.hover) c.m.body.position.y = 0;
+    // the body spins round its middle: a holder there, with the critter hanging off it
+    const hc = c.m.hy != null ? c.m.hy : c.m.hit * 0.8;
+    const holder = new THREE.Group();
+    root.position.set(0, -hc * s, 0); root.rotation.set(0, 0, 0);
+    holder.add(root);
+    w.dyn.add(holder);
+    const b = {
+      id: m ? m.id : c.id, key: saved ? saved.key : 'b' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      p: saved ? saved.p : G.planet, k: c.k, sz: c.sz, g: c.g, m: c.m, holder, mesh: holder, kind: 'body', s,
+      pos: new V3(c.rx, w.gh(c.rx, c.rz) + hc * s, c.rz), vel: new V3(), q: new THREE.Quaternion().setFromAxisAngle(new V3(0, 1, 0), c.rry || 0), w: new V3(),
+      t: 0, rest: false, settle: 0, bounces: 0, flip: 0, mine: false, entry: null, born: G.time, twitch: U.rand(1, 3), stars: null, pop: opt.pop, color: opt.color,
+      legs: c.m.legs.map((l) => ({ l, x: l.rotation.x, vx: 0, z: 0, vz: 0, tx: U.rand(-1.1, 1.1), tz: U.rand(-0.5, 0.5) })),
+      wings: (c.m.wings || []).map((l, i) => ({ l, z: l.rotation.z, vz: 0, tz: (i ? -1 : 1) * 1.1 })),
+    };
+    b.hull = this.hull(b, hc);
+    if (saved) { // (lying where you left it)
+      b.pos.set(saved.x, saved.y, saved.z); b.q.set(saved.q[0], saved.q[1], saved.q[2], saved.q[3]);
+      b.rest = true; b.mine = true; b.entry = saved.e; b.stars = null;
+    } else {
+      const f = m && Array.isArray(m.v) ? m : this.fling(c, m && m.by);
+      b.vel.set(f.v[0], f.v[1], f.v[2]); b.w.set(f.w[0], f.w[1], f.w[2]); b.flip = f.f || 0;
+      b.pos.y += 0.25;
+    }
+    b.x = b.pos.x; b.y = b.pos.y; b.z = b.pos.z;
+    holder.position.copy(b.pos); holder.quaternion.copy(b.q);
+    this.bodies.set(b.key, b);
+    return b;
+  },
+  // a handful of its outermost points (from its real shape): what touches the ground as it tumbles
+  hull(b, hc) {
+    const root = b.m.root, pts = [], dirs = [];
+    for (const x of [-1, 0, 1]) for (const y of [-1, 0, 1]) for (const z of [-1, 0, 1]) if (x || y || z) dirs.push(new V3(x, y, z).normalize());
+    const best = dirs.map(() => -Infinity), inv = new THREE.Matrix4(), mm = new THREE.Matrix4(), v = new V3();
+    root.updateWorldMatrix(true, true);
+    inv.copy(root.matrixWorld).invert();
+    root.traverse((o) => {
+      if (!o.isMesh || !o.visible || !o.geometry || !o.geometry.attributes.position) return; // (not a hidden glow ring)
+      mm.multiplyMatrices(inv, o.matrixWorld);
+      const pa = o.geometry.attributes.position, step = Math.max(1, Math.floor(pa.count / 400));
+      for (let i = 0; i < pa.count; i += step) {
+        v.fromBufferAttribute(pa, i).applyMatrix4(mm);
+        dirs.forEach((d, k) => { const dd = v.dot(d); if (dd > best[k]) { best[k] = dd; pts[k] = v.clone(); } });
+      }
+    });
+    // (in the holder's space: the critter hangs off it, scaled)
+    return pts.filter(Boolean).map((p) => p.multiplyScalar(b.s).add(new V3(0, -hc * b.s, 0)));
+  },
+  // how far its lowest point is above whatever's under it (and the lowest point, in pt)
+  lowest(b, w, pt) {
+    let low = Infinity;
+    for (const h of b.hull) {
+      _bv.copy(h).applyQuaternion(b.q).add(b.pos);
+      const d = _bv.y - Math.max(w.ground(_bv.x, _bv.z, _bv.y + 0.6), WATER_Y);
+      if (d < low) { low = d; if (pt) pt.copy(_bv); }
+    }
+    return low;
+  },
+  updateBodies(dt) {
+    for (const b of [...this.bodies.values()]) {
+      const w = G.worlds[b.p];
+      if (!w || b.taken) continue;
+      b.t += dt;
+      // somebody else's catch: it goes away after a while (sinking into the ground)
+      if (!b.mine && b.pop == null && G.time - b.born > BODY.keep) {
+        b.holder.position.y -= dt * 0.6;
+        if (G.time - b.born > BODY.keep + 3) this.dropBody(b.key);
+        continue;
+      }
+      if (b.p !== G.planet || b.grab) continue; // (another planet's, or in the Grabby Vac)
+      // (lying still a long way off: not drawn, like pickups, see NODE_VIEW)
+      if (b.rest && G.player) { const far = (b.pos.x - G.player.pos.x) ** 2 + (b.pos.z - G.player.pos.z) ** 2 > NODE_VIEW * NODE_VIEW; b.holder.visible = !far; if (far) continue; }
+      if (!b.rest) this.tumble(b, w, dt);
+      this.flop(b, dt);
+      if (b.pop != null && b.rest && (b.popT = (b.popT || 0) + dt) > b.pop) this.popBody(b);
+    }
+  },
+  // flying, bouncing, sliding, and finally lying there
+  tumble(b, w, dt) {
+    b.vel.y -= BODY.grav * dt;
+    const nx = b.pos.x + b.vel.x * dt, nz = b.pos.z + b.vel.z * dt;
+    // (it doesn't fly off the island, or into a wall: it bounces back)
+    if (w.h(nx, nz) < 0.4 || (w.blocked && w.blocked(nx, nz, b.pos.y) && !w.cfg.islands) || w.solidAt(_bv2.set(nx, b.pos.y, nz))) { b.vel.x *= -0.4; b.vel.z *= -0.4; }
+    else { b.pos.x = nx; b.pos.z = nz; }
+    b.pos.y += b.vel.y * dt;
+    const a = b.w.length();
+    if (a > 1e-4) { _bq.setFromAxisAngle(_bv2.copy(b.w).divideScalar(a), a * dt); b.q.premultiply(_bq).normalize(); }
+    const low = this.lowest(b, w);
+    const touching = low < 0.04;
+    if (low < 0) {
+      b.pos.y -= low;
+      if (b.vel.y < 0) {
+        const hit = -b.vel.y;
+        if (hit > 2.2 && b.bounces < 4) { // a bounce: a bit less every time, and it gets knocked into a new spin
+          b.bounces++;
+          b.vel.y = hit * BODY.bounce;
+          b.w.set(b.w.x * 0.55 + U.rand(-3, 3), b.w.y * 0.5 + U.rand(-2, 2), b.w.z * 0.55 + U.rand(-3, 3));
+          for (const l of b.legs) { l.vx += U.rand(-14, 14); l.vz += U.rand(-8, 8); }
+          b.squash = 0.3;
+          if (b.p === G.planet && G.player.pos.distanceTo(b.pos) < 30) { Sound.play(b.bounces === 1 ? 'thud' : 'boing'); FX.burst(b.pos.clone().setY(b.pos.y - 0.2), '#e8e0d0', 4, 2); }
+        } else b.vel.y = 0;
+      }
+    }
+    if (touching) { // sliding along the ground: friction, and the spin dies down
+      const k = Math.exp(-BODY.fric * dt);
+      b.vel.x *= k; b.vel.z *= k; b.w.multiplyScalar(Math.exp(-3 * dt));
+    }
+    // (in the goo, the lava, the sea: it floats there, bobbing)
+    b.squash = Math.max(0, (b.squash || 0) - dt * 2.5);
+    const sq = 1 - Math.sin(b.squash / 0.3 * Math.PI) * 0.18;
+    b.m.root.scale.set(b.s * (2 - sq), b.s * sq, b.s * (2 - sq));
+    // nearly stopped: roll over onto its back (or its side) and lie still
+    if (touching && Math.abs(b.vel.y) < 0.5 && Math.hypot(b.vel.x, b.vel.z) < 0.8 && b.t > 0.35) b.settle += dt;
+    if (b.settle > 0) this.settle(b, w, dt);
+    b.holder.position.copy(b.pos); b.holder.quaternion.copy(b.q);
+  },
+  settle(b, w, dt) {
+    if (!b.restQ) {
+      // keep the way it's facing, then lie it down: on its back, legs in the air (or on a side)
+      _bv.set(0, 0, 1).applyQuaternion(b.q); _bv.y = 0;
+      const yaw = _bv.lengthSq() > 1e-4 ? Math.atan2(_bv.x, _bv.z) : 0;
+      b.restQ = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, yaw, [Math.PI, Math.PI / 2, -Math.PI / 2][b.flip] || Math.PI, 'YXZ'));
+      b.fromQ = b.q.clone();
+    }
+    const k = Math.min(1, b.settle / 0.45), e = k * k * (3 - 2 * k);
+    b.q.copy(b.fromQ).slerp(b.restQ, e);
+    b.w.set(0, 0, 0); b.vel.x *= 0.8; b.vel.z *= 0.8; b.vel.y = 0;
+    b.pos.y -= this.lowest(b, w) - 0.02; // (its lowest point just on the ground)
+    if (k < 1) return;
+    b.rest = true;
+    b.x = b.pos.x; b.y = b.pos.y; b.z = b.pos.z;
+    b.m.root.scale.setScalar(b.s);
+    // knocked out cold: little stars going round over it for a bit
+    const st = new THREE.Group();
+    for (let i = 0; i < 3; i++) { const a = (i / 3) * Math.PI * 2; mk(OCT(0.07), '#fff36b', st, Math.cos(a) * 0.32, 0, Math.sin(a) * 0.32, { emissive: '#aa8800' }); }
+    st.position.set(b.pos.x, b.pos.y + 0.45 * b.s + 0.35, b.pos.z);
+    w.dyn.add(st);
+    b.stars = st; b.starT = 5;
+    if (b.mine) this.saveBodies();
+  },
+  // legs (and wings) flop about on springs; lying there, now and then one twitches
+  flop(b, dt) {
+    const K = 60, D = 7;
+    for (const l of b.legs) {
+      if (b.rest) { b.twitch -= dt; if (b.twitch <= 0 && b.t < 40) { b.twitch = U.rand(1.2, 3.5); l.vx += U.rand(-10, 10); } }
+      l.vx += (K * (l.tx - l.x) - D * l.vx) * dt; l.x += l.vx * dt;
+      l.vz += (K * (l.tz - l.z) - D * l.vz) * dt; l.z += l.vz * dt;
+      l.l.rotation.set(l.x, 0, l.z);
+    }
+    for (const wg of b.wings) { wg.vz += (K * (wg.tz - wg.z) - D * wg.vz) * dt; wg.z += wg.vz * dt; wg.l.rotation.z = wg.z; }
+    if (b.stars) {
+      b.starT -= dt;
+      b.stars.rotation.y += dt * 4;
+      b.stars.scale.setScalar(U.clamp(b.starT, 0, 1));
+      if (b.starT <= 0) { if (b.stars.parent) b.stars.parent.remove(b.stars); disposeObj(b.stars); b.stars = null; }
+    }
+  },
+  // (a mini boss, after lying there a moment) POP: confetti and coins, and it's gone
+  popBody(b) {
+    const c = b.pos.clone().setY(b.pos.y + 0.3 * b.s);
+    for (const col of ['#ff4b6e', '#ffd23f', '#3aa7ff', '#46d98a', '#b77dff', b.color || '#ffffff']) FX.burst(c, col, 10, 8);
+    FX.burst(c, '#ffd23f', 14, 6);
+    FX.ring(c, b.color || '#ffffff', 5);
+    if (G.mode === 'planet' && G.player.pos.distanceTo(c) < 40) { Sound.play('party'); Sound.play('boom'); }
+    this.dropBody(b.key);
+  },
+  dropBody(key) {
+    const b = this.bodies.get(key);
+    if (!b) return;
+    for (const o of [b.holder, b.stars]) if (o) { if (o.parent) o.parent.remove(o); disposeObj(o); }
+    this.bodies.delete(key);
+    if (b.mine) this.saveBodies();
+  },
+  // yours, lying still, close enough to pick up and more or less in front of you: the nearest one (or null)
+  nearBody(from, dir, reach = BODY.reach) {
+    let best = null, bd = Infinity;
+    for (const b of this.bodies.values()) {
+      if (!b.mine || !b.rest || b.taken || b.p !== G.planet) continue;
+      const dx = b.pos.x - from.x, dz = b.pos.z - from.z, d = Math.hypot(dx, dz);
+      if (d > reach + 0.3 * b.s || Math.abs(b.pos.y - from.y) > 2.4) continue;
+      const dot = d > 0.6 ? (dx * dir.x + dz * dir.z) / (d * Math.hypot(dir.x, dir.z) + 1e-6) : 1;
+      if (dot < 0.25) continue;
+      if (d < bd) { bd = d; best = b; }
+    }
+    return best;
+  },
+  // for the Grabby Vac: one of yours along where you're pointing it
+  findBody(cp, dir, range, minDot) {
+    let best = null, bs = Infinity;
+    for (const b of this.bodies.values()) {
+      if (!b.mine || !b.rest || b.taken || b.p !== G.planet) continue;
+      const dx = b.x - cp.x, dy = b.y - cp.y, dz = b.z - cp.z, d = Math.hypot(dx, dy, dz);
+      if (d > range + 1.5) continue;
+      const dot = (dx * dir.x + dy * dir.y + dz * dir.z) / d;
+      if (dot < minDot) continue;
+      const sc = d * (2 - dot);
+      if (sc < bs) { bs = sc; best = b; }
+    }
+    return best;
+  },
+  bodyName(b) { const r = cargoRes(b.entry || ''); return r.name; },
+  // bag it (E, or the Grabby Vac got it). Backpack full: it stays right where it is
+  pickBody(b) {
+    if (!b || !b.mine || b.taken) return false;
+    if (SAVE.cargo.length >= CARGO[SAVE.cargoLvl]) { UI.toast('Backpack full! Sell stuff and come back for it: it\'ll wait right here.', 'bad', 2.4); Sound.play('error'); return false; }
+    b.taken = true;
+    SAVE.cargo.push(b.entry);
+    SAVE.stats.collected++;
+    const rare = Activities.showLoot([b.entry]);
+    const at = b.pos.clone().setY(b.pos.y + 0.4);
+    FX.text(at.clone().setY(at.y + 0.8), b.g ? 'GOLDEN!' : 'BAGGED!', b.g ? '#ffd23f' : '#7dff8a', 46);
+    FX.burst(at, b.g ? '#ffd23f' : '#7dff8a', 8, 3);
+    Sound.play(rare ? 'rare' : 'pickup');
+    if (Net.online) Net.relay({ t: 'cpick', id: b.id, p: b.p });
+    this.dropBody(b.key);
+    if (SAVE.cargo.length >= CARGO[SAVE.cargoLvl]) UI.toast('Backpack full! Sell stuff at the shop.', 'bad', 2.2);
+    persist();
+    UI.hud();
+    return true;
+  },
+  // a friend picked up one of theirs
+  onPick(m) { for (const b of this.bodies.values()) if (b.id === m.id && b.p === m.p && !b.mine) { this.dropBody(b.key); break; } },
+  // yours lying about are in your save, so they wait for you (see restoreBodies)
+  saveBodies() {
+    const mine = [...this.bodies.values()].filter((b) => b.mine && b.rest && !b.taken);
+    // (a lot of them left lying around: the oldest one gets dragged off by its friends)
+    while (mine.length > BODY.max) { const o = mine.shift(); this.bodies.delete(o.key); for (const x of [o.holder, o.stars]) if (x) { if (x.parent) x.parent.remove(x); disposeObj(x); } }
+    SAVE.bodies = mine.map((b) => ({ key: b.key, p: b.p, k: b.k, sz: b.sz, g: b.g, x: U.r2(b.x), y: U.r2(b.y), z: U.r2(b.z), q: [b.q.x, b.q.y, b.q.z, b.q.w].map((v) => Math.round(v * 1000) / 1000), e: b.entry }));
+    persist();
+  },
+  // after landing (or coming back to the game): yours on this planet are lying where you left them
+  restoreBodies() {
+    const kinds = this.kinds(G.planet);
+    for (const d of SAVE.bodies || []) {
+      if (d.p !== G.planet || this.bodies.has(d.key) || !kinds[d.k]) continue;
+      const m = buildCritter(kinds[d.k].id, !!d.g);
+      m.root.scale.setScalar(SIZES[d.sz] ? SIZES[d.sz].s : 1);
+      this.makeBody({ id: 0, k: d.k, sz: d.sz, g: d.g, m, rx: d.x, rz: d.z, rry: 0 }, null, d);
+    }
   },
 
   // which style bonuses this kill earned (each is at most 2x; they stack up to STYLE_MAX)
@@ -561,8 +835,8 @@ const Critters = {
     this.kills.push(G.time);
     return out;
   },
-  // the one who zapped it gets the body. Yes, you sell the body.
-  loot(def, c, pos) {
+  // the one who zapped it gets the body. Yes, you sell the body. (It lies there until you pick it up, see pickBody)
+  loot(def, c, pos, b) {
     const styles = this.styleOf(c);
     this.bitBy.delete(c.id);
     let mult = 1;
@@ -575,17 +849,12 @@ const Critters = {
       UI.toast(`STYLE KILL x${mult}${maxed ? ' (max!)' : ''}: ${styles.map((s) => `${STYLE[s].name} x${STYLE[s].m}`).join(' · ')}`, 'gold', 3);
       Sound.play(mult >= 3 ? 'jackpot' : 'win');
       SAVE.stats.style = (SAVE.stats.style || 0) + 1;
-    }
-    if (SAVE.cargo.length >= CARGO[SAVE.cargoLvl]) { UI.toast('Backpack full! Go sell stuff, then come back for more critters.', 'bad', 2.2); return; }
-    const key = critKey(def.id, c.sz, !!c.g);
-    const entry = mult > 1 ? `${key}*${mult}` : key;
-    SAVE.cargo.push(entry);
-    SAVE.stats.collected++;
+    } else if (c.g || c.sz >= 4) FX.text(pos.clone().setY(pos.y + 1.4), c.g ? 'GOLDEN!' : SIZES[c.sz].name.toUpperCase() + '!', c.g ? '#ffd23f' : '#7dff8a', 50);
     SAVE.stats.critters = (SAVE.stats.critters || 0) + 1;
-    const rare = Activities.showLoot([entry]);
-    if (!styles.length) FX.text(pos.clone().setY(pos.y + 1.2), c.g ? 'GOLDEN!' : c.sz >= 4 ? SIZES[c.sz].name.toUpperCase() + '!' : 'BAGGED!', c.g ? '#ffd23f' : '#7dff8a', 50);
-    if (!styles.length) Sound.play(rare ? 'rare' : 'pickup');
+    const key = critKey(def.id, c.sz, !!c.g);
+    if (b) { b.mine = true; b.entry = mult > 1 ? `${key}*${mult}` : key; }
+    if (!this.pickTip) { this.pickTip = true; UI.toast('Walk over to it and press {use} to bag it (or vacuum it up)!', '', 3); }
+    else if (SAVE.cargo.length >= CARGO[SAVE.cargoLvl] && G.time - (this.fullTipT || -99) > 20) { this.fullTipT = G.time; UI.toast('Backpack full: it\'ll wait right there until you\'ve sold some stuff.', 'bad', 2.6); }
     persist();
-    UI.hud();
   },
 };

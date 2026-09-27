@@ -10,6 +10,7 @@ const smooth = (a, b, x) => { const t = U.clamp((x - a) / (b - a), 0, 1); return
 // city out to CITY_R, then the harbor), on a ground grid of 2 m squares. Everything scattered around (and the
 // critters) spreads out over all of it.
 const PLANET_R = 90, CITY_R = 92;
+const LAKE_D = 0.45; // (the deepest a pond on a planet gets: see PlanetWorld.rawH)
 const NODE_VIEW = 80; // (pickups further away than this aren't drawn)
 const TERRAIN_S = 280, TERRAIN_N = 140; // planet ground: 280 m square, 140 x 140 grid
 // the Luckstar Casino: one big hall west of the landing pad, front door facing the ship
@@ -54,8 +55,27 @@ const NIMBUS_FLOATERS = [
   { from: 9, a: -0.9, r: 4.5, top: 16, big: 1 },
   { from: 10, a: 2.2, r: 4.5, top: 16, big: 1 },
 ];
-// work out where the high islands and every updraft go
+// the four outer islands sit a bit further out than they were drawn above (NIMBUS_SPREAD times as far from
+// the landing island), and everything on them goes with them: their floating islands, the ends of the
+// bridges out to them, the weather station. Then: work out where the high islands and every updraft go.
+const NIMBUS_SPREAD = 1.12;
+const nimbusMove = (x, z) => { // how far the island under (x, z) moved
+  for (let i = 2; i < NIMBUS_ISLANDS.length; i++) {
+    const s = NIMBUS_ISLANDS[i];
+    if (Math.hypot(x - s.x, z - s.z) < s.r + 12) return [s.x * (NIMBUS_SPREAD - 1), s.z * (NIMBUS_SPREAD - 1)];
+  }
+  return [0, 0];
+};
 (() => {
+  for (const f of NIMBUS_FLOATERS) if (f.from == null) { const [dx, dz] = nimbusMove(f.x, f.z); f.x += dx; f.z += dz; }
+  for (const b of NIMBUS_BRIDGES) {
+    const [ax, az] = nimbusMove(b[0], b[1]), [bx, bz] = nimbusMove(b[2], b[3]);
+    // (an end that moved reaches a little further onto its island, so the bridge still meets it)
+    const l = Math.hypot(b[2] - b[0], b[3] - b[1]) || 1, ux = (b[2] - b[0]) / l, uz = (b[3] - b[1]) / l;
+    if (ax || az) { b[0] += ax - ux * 1.5; b[1] += az - uz * 1.5; }
+    if (bx || bz) { b[2] += bx + ux * 1.5; b[3] += bz + uz * 1.5; }
+  }
+  for (let i = 2; i < NIMBUS_ISLANDS.length; i++) { const s = NIMBUS_ISLANDS[i]; s.x *= NIMBUS_SPREAD; s.z *= NIMBUS_SPREAD; }
   for (const f of NIMBUS_FLOATERS) {
     if (f.from == null) { f.vx = f.x + Math.cos(f.va) * (f.r + 2.4); f.vz = f.z + Math.sin(f.va) * (f.r + 2.4); continue; }
     const src = NIMBUS_FLOATERS[f.from], c = Math.cos(f.a), sn = Math.sin(f.a);
@@ -242,6 +262,7 @@ function setAtmosphere(cfg, bossTint) {
   G.hemi.groundColor.set(cfg.hemi[1]);
   G.hemi.intensity = cfg.hemi[2] * dim;
   G.liquid.set(cfg.liquid);
+  G.liquid.setWorld(G.mode === 'boss' ? null : G.worlds[PLANETS.indexOf(cfg)]); // (where its shore is, for the foam)
   // how much things glow (bloom) depends on how bright the place is: bright planets bloom a lot less,
   // or their pastel ground and sunlit mushrooms turn into white glare
   const mood = cfg.mood || (cfg.stars > 0.5 ? 'night' : 'day');
@@ -251,9 +272,22 @@ function setAtmosphere(cfg, bossTint) {
   Post.setMood(bossTint || G.mode === 'boss' ? (mood === 'night' ? 'boss' : 'bossDay') : cfg.stars >= 1 && !(cfg.bodies || []).length ? 'space' : mood);
 }
 
-/* ---------------- liquid sea (water / goo / gold / lava) ---------------- */
-function waveH(x, z, t) {
-  return Math.sin(x * 0.18 + t * 1.1) * 0.16 + Math.cos(z * 0.21 + t * 0.9) * 0.14 + Math.sin((x + z) * 0.07 + t * 0.6) * 0.1;
+/* ---------------- liquid sea (water / goo / gold / lava) ----------------
+   The sea round every planet (and the ponds on it). It bobs a little, but mostly it FLOWS: ripples
+   drift across it (see LIQUID_LOOK), and foam laps at the shore, coming in in bands and washing out
+   again. The foam knows where the shore is from a picture of the planet's depth (see Liquid.setWorld). */
+// how each kind of liquid moves: speed (how fast its ripples drift), size (bigger: wider ripples), line: how
+// much its ripple lines light up (and in what color), foam (color, how much), bob: how high it heaves
+const LIQUID_LOOK = {
+  water: { speed: 1, size: 1, line: ['#ffffff', 0.55], foam: ['#ffffff', 0.9], bob: 0.07 },
+  goo: { speed: 0.55, size: 1.5, line: ['#ffffff', 0.3], foam: ['#ffffff', 0.55], bob: 0.05 },
+  gold: { speed: 0.7, size: 1.2, line: ['#fff6c8', 0.6], foam: ['#fff3b0', 0.8], bob: 0.05 },
+  lava: { speed: 0.3, size: 1.8, line: ['#ffe066', 0.85], foam: ['#2a0a00', 0.8], bob: 0.04 },
+  cloud: { speed: 0.35, size: 2.4, line: ['#ffffff', 0.35], foam: ['#ffffff', 0.4], bob: 0.1 },
+};
+const liquidKind = (cfg) => cfg.kind || (/lava/.test(cfg.name) ? 'lava' : /cloud/.test(cfg.name) ? 'cloud' : /gold/.test(cfg.name) ? 'gold' : /goo|sludge|ecto/.test(cfg.name) ? 'goo' : 'water');
+function waveH(x, z, t, k = 1) {
+  return (Math.sin(x * 0.18 + t * 1.1) * 0.4 + Math.cos(z * 0.21 + t * 0.9) * 0.35 + Math.sin((x + z) * 0.07 + t * 0.6) * 0.25) * k;
 }
 class Liquid {
   constructor(scene) {
@@ -262,23 +296,85 @@ class Liquid {
     this.geo = geo;
     this.base = Float32Array.from(geo.attributes.position.array);
     this.mat = new THREE.MeshPhongMaterial({ color: '#2fb7d6', transparent: true, opacity: 0.88, shininess: 70, specular: 0x555555, flatShading: true });
+    // (the ripples and the foam, painted on in the shader)
+    this.u = {
+      uTime: { value: 0 }, uDepth: { value: Liquid.deep() }, uBox: { value: new THREE.Vector4(-140, -140, 280, 280) },
+      uLine: { value: new THREE.Color('#ffffff') }, uLineK: { value: 0.45 }, uFoam: { value: new THREE.Color('#ffffff') }, uFoamK: { value: 0.9 },
+      uSpeed: { value: 1 }, uSize: { value: 1 },
+    };
+    this.mat.onBeforeCompile = (sh) => {
+      Object.assign(sh.uniforms, this.u);
+      sh.vertexShader = 'varying vec3 vWp;\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n  vWp = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+      sh.fragmentShader = `varying vec3 vWp;
+uniform float uTime, uLineK, uFoamK, uSpeed, uSize; uniform sampler2D uDepth; uniform vec4 uBox; uniform vec3 uLine, uFoam;
+` + sh.fragmentShader.replace('vec4 diffuseColor = vec4( diffuse, opacity );', `vec4 diffuseColor = vec4( diffuse, opacity );
+  {
+    vec2 p = vWp.xz / uSize; float t = uTime * uSpeed;
+    // two sets of ripples drifting different ways (wobbly lines where each one crosses zero)
+    float w1 = abs(sin(dot(p, vec2(0.36, 0.14)) + t * 1.5 + sin(p.y * 0.21 + t * 0.9) * 1.6));
+    float w2 = abs(sin(dot(p, vec2(-0.13, 0.4)) - t * 1.15 + sin(p.x * 0.17 - t * 0.7) * 1.6));
+    float lines = 1.0 - smoothstep(0.0, 0.16, min(w1, w2));
+    // (and broad lighter and darker swells rolling along under them)
+    float shade = 0.5 + 0.5 * sin(dot(p, vec2(0.09, 0.12)) + t * 0.8 + sin(p.x * 0.05 - t * 0.3) * 2.0);
+    diffuseColor.rgb *= 0.82 + 0.3 * shade;
+    // foam at the shore: right at the edge, and bands of it washing in toward the land
+    float d = texture2D(uDepth, (vWp.xz - uBox.xy) / uBox.zw).r * 3.0;
+    float edge = 1.0 - smoothstep(0.03, 0.3, d + 0.06 * sin(uTime * 1.7 + vWp.x * 0.5 + vWp.z * 0.4));
+    float band = smoothstep(0.6, 0.78, fract(d * 1.3 + uTime * 0.32 * uSpeed)) * (1.0 - smoothstep(0.3, 1.3, d));
+    diffuseColor.rgb = mix(diffuseColor.rgb, uLine, lines * uLineK * (0.55 + 0.45 * shade) * smoothstep(0.1, 0.5, d + 0.3));
+    diffuseColor.rgb = mix(diffuseColor.rgb, uFoam, clamp(max(edge, band * 0.9) * uFoamK, 0.0, 1.0));
+  }`);
+    };
     this.mesh = new THREE.Mesh(geo, this.mat);
     this.mesh.receiveShadow = true;
     this.mesh.frustumCulled = false;
     scene.add(this.mesh);
     this.cell = 340 / 60;
+    this.bob = 0.07;
+  }
+  // (no shore anywhere: deep all over)
+  static deep() {
+    if (!Liquid._deep) { Liquid._deep = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1, THREE.RGBAFormat); Liquid._deep.needsUpdate = true; }
+    return Liquid._deep;
   }
   set(cfg) {
     this.mat.color.set(cfg.color);
     this.mat.opacity = cfg.op;
     this.mat.emissive.set(cfg.glow ? cfg.color : '#000000');
     this.mat.emissiveIntensity = cfg.glow ? 0.45 : 0;
+    const L = LIQUID_LOOK[liquidKind(cfg)] || LIQUID_LOOK.water;
+    this.u.uLine.value.set(L.line[0]); this.u.uLineK.value = L.line[1];
+    this.u.uFoam.value.set(L.foam[0]); this.u.uFoamK.value = L.foam[1];
+    this.u.uSpeed.value = L.speed; this.u.uSize.value = L.size;
+    this.bob = L.bob;
+  }
+  // where the shore is on this planet (null: nowhere, like round a boss arena): how deep the liquid is at
+  // every point of the ground grid, as a picture (made once per planet)
+  setWorld(w) {
+    if (!w || !w.h) { this.u.uDepth.value = Liquid.deep(); return; }
+    if (!w.depthTex) {
+      const N = TERRAIN_N + 1, S = TERRAIN_S, c = S / TERRAIN_N, data = new Uint8Array(N * N * 4);
+      for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+        const d = U.clamp((WATER_Y - w.h(i * c - S / 2, j * c - S / 2)) / 3, 0, 1) * 255, k = (j * N + i) * 4;
+        data[k] = data[k + 1] = data[k + 2] = d; data[k + 3] = 255;
+      }
+      const tex = new THREE.DataTexture(data, N, N, THREE.RGBAFormat);
+      tex.magFilter = tex.minFilter = THREE.LinearFilter;
+      tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
+      tex.needsUpdate = true;
+      w.depthTex = tex;
+    }
+    this.u.uDepth.value = w.depthTex;
+    // (the picture's corners are the middles of the edge cells)
+    const c = TERRAIN_S / TERRAIN_N;
+    this.u.uBox.value.set(-TERRAIN_S / 2 - c / 2, -TERRAIN_S / 2 - c / 2, TERRAIN_S + c, TERRAIN_S + c);
   }
   update(t, cx, cz) {
     const ox = Math.round(cx / this.cell) * this.cell, oz = Math.round(cz / this.cell) * this.cell;
     this.mesh.position.set(ox, WATER_Y, oz);
-    const p = this.geo.attributes.position.array, b = this.base;
-    for (let i = 0; i < p.length; i += 3) p[i + 1] = waveH(b[i] + ox, b[i + 2] + oz, t);
+    this.u.uTime.value = t;
+    const p = this.geo.attributes.position.array, b = this.base, k = this.bob;
+    for (let i = 0; i < p.length; i += 3) p[i + 1] = waveH(b[i] + ox, b[i + 2] + oz, t, k);
     this.geo.attributes.position.needsUpdate = true;
   }
 }
@@ -356,7 +452,11 @@ class PlanetWorld {
     const n = (Math.sin(x * 0.09 + ph) * Math.cos(z * 0.08 - ph) + 0.5 * Math.sin(x * 0.21 + z * 0.17 + ph * 3)) * amp;
     const inland = U.clamp((1 - e) * 4, 0, 1);
     const calm = 0.2 + 0.8 * smooth(12, 34, r); // gentle ground around the landing site
-    return base + n * inland * calm;
+    const hh = base + n * inland * calm;
+    // ponds and lakes on the island: never deeper than LAKE_D, so you can wade right across them (the sea
+    // out past the shore gets deep, see LocalPlayer.update)
+    if (hh >= 0 || e >= 0.9) return hh;
+    return U.lerp(hh, -LAKE_D * (1 - Math.exp(hh / LAKE_D)), U.clamp((0.9 - e) / 0.15, 0, 1));
   }
   addPad(x, z, r) { this.pads.push({ x, z, r, h: this.rawH(x, z) }); }
   // a flat rectangle of ground at height h (for big buildings)
@@ -1065,7 +1165,8 @@ class PlanetWorld {
     this.scatter(20, 12, 80, 1.8, (x, z) => this.rock(x, z, U.pick(['#e2ebfa', '#ffd6f4', '#d6ecff'])));
     // a rainbow over the bridge to the altar, a weather station on the north island
     const rb = buildRainbow(7.5); rb.position.set(0, 1.6, -27); this.stat.add(rb);
-    const an = buildAnemometer(); this.place(an, 4, 65, 0, null, 0.2); this.circle(4, 65, 0.3);
+    const [ax, az] = [4 + 2 * (NIMBUS_SPREAD - 1), 65 + 62 * (NIMBUS_SPREAD - 1)]; // (on the north island, wherever it is)
+    const an = buildAnemometer(); this.place(an, ax, az, 0, null, 0.2); this.circle(ax, az, 0.3);
     this.anim.push((t, dt) => { an.userData.cups.rotation.y += dt * 4; });
     // hot air balloons drifting round the planet
     this.balloons = ['#ff4b6e', '#ffd23f', '#3aa7ff', '#46d98a'].map((c, i) => {
@@ -1248,9 +1349,9 @@ class PlanetWorld {
       const feet = Math.max(y, this.gh(x, z));
       if (feet + 1.8 > c.bot && feet < c.rim - 0.5) return true;
     }
-    if (this.cfg.islands) return false; // (on Nimbus-9 you can walk right off the edge. Don't.)
-    if (this.onPlatform(x, z, y)) return false;
-    return this.h(x, z) < -0.6;
+    // (no walls in the water: wade into a pond, or out into the sea until it's too deep, see LocalPlayer.update.
+    // On Nimbus-9 you can walk right off the edge. Don't.)
+    return false;
   }
   // is this point inside a building? (shots stop there)
   solidAt(p) {

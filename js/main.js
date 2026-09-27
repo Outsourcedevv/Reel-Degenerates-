@@ -130,6 +130,7 @@ const Game = {
     Flight.clearCrew(); // everyone's out: the seats are empty again
     Flight.parkedPilot();
     Drops.restoreGraves();
+    Critters.restoreBodies();
     UI.hud();
     Sound.playMusic(PLANETS[i].music);
     if (!moved) return;
@@ -196,6 +197,7 @@ const Game = {
     };
     U.$('m-code').addEventListener('keydown', (e) => { if (e.key === 'Enter') U.$('m-join').click(); });
     U.$('m-how').onclick = () => { Sound.init(); UI.showHow(); };
+    U.$('m-keys').onclick = () => { Sound.init(); KeybindsUI.open(); };
   },
 
   /* ---------------- worlds ---------------- */
@@ -264,13 +266,15 @@ const Game = {
     G.started = true;
     G.mode = 'planet';
     G.player.vm.visible = true;
+    G.player.refill();
+    G.player.slot = U.clamp(SAVE.hand | 0, 0, HOTBAR - 1); // (holding what you had out last time)
     G.player.refreshGear();
-    G.player.setTool(hasTool('zap') ? 'zap' : 'vac', true);
     G.player.resetLife();
     G.player.teleport(this.spawnPoint(), G.world.spawnYaw);
     G.player.updateCamera(0, 0);
     G.player.protect(GRACE.join);
     Drops.restoreGraves(); // (stuff you dropped when you died here last time is still waiting)
+    Critters.restoreBodies(); // (and so are the critters you zapped and didn't pick up)
     U.$('menu').classList.add('hidden');
     U.$('hud').classList.remove('hidden');
     if (Net.online) {
@@ -359,11 +363,9 @@ const Game = {
   },
   setupPause() {
     const s = G.settings;
-    const sens = U.$('s-sens'), vol = U.$('s-vol'), mus = U.$('s-mus'), q = U.$('s-q'), view = U.$('s-view');
+    const sens = U.$('s-sens'), vol = U.$('s-vol'), mus = U.$('s-mus'), q = U.$('s-q');
     sens.value = s.sens; vol.value = s.vol; mus.value = s.music; q.value = s.quality;
     q.addEventListener('change', () => { s.quality = q.value; lsSet('spacegoobers_settings', s); Post.apply(); });
-    view.addEventListener('change', () => { s.view = view.value; lsSet('spacegoobers_settings', s); });
-    this.syncSettings();
     U.$('v-sens').textContent = Number(s.sens).toFixed(1);
     const save = () => {
       s.sens = Number(sens.value); s.vol = Number(vol.value); s.music = Number(mus.value);
@@ -374,12 +376,11 @@ const Game = {
     [sens, vol, mus].forEach((e) => e.addEventListener('input', save));
     U.$('p-resume').onclick = () => this.lock();
     U.$('p-how').onclick = () => UI.showHow(true);
+    U.$('p-keys').onclick = () => KeybindsUI.open(true);
     U.$('p-cust').onclick = () => Custom.open(true);
     U.$('p-leave').onclick = () => { persist(); Net.leave(); location.reload(); };
     U.$('s-ff').onclick = () => { Sound.play('click'); this.setFF(!G.ff); };
   },
-  // (settings that can change from a key too: the camera, V)
-  syncSettings() { const v = U.$('s-view'); if (v) v.value = G.settings.view === 'tp' ? 'tp' : 'fp'; },
   updatePause() {
     const show = G.started && !G.locked && !G.panel && !G.chatting && !document.getElementById('ending');
     U.$('pause').classList.toggle('hidden', !show);
@@ -450,7 +451,7 @@ const Game = {
     p.resetLife(); // (even if you were lying dead on the planet: you're needed)
     p.inv = 3;
     p.refill();
-    if (hasTool('zap')) p.setTool('zap', true);
+    if (p.tool !== 'zap') p.takeOut('zap', true); // (a gun out, if there's one on your hotbar)
     G.boss = new BossFight(bossId, seed, ids);
     const def = BOSSES[bossId];
     UI.bossBar(true, def);
@@ -606,6 +607,7 @@ const Game = {
     N.on('met', (m) => { if (!Net.isHost) Meteors.spawn(m); });
     N.on('crit', (m) => Critters.onSnap(m));
     N.on('cdie', (m) => { if (!Net.isHost) Critters.onDie(m); });
+    N.on('cpick', (m) => Critters.onPick(m));
     N.on('cspit', (m) => { if (!Net.isHost) Critters.onSpit(m); });
     N.on('mb', (m) => { if (!Net.isHost) MiniBoss.onSnap(m); });
     N.on('mbatk', (m) => { if (!Net.isHost) MiniBoss.onAtk(m); });
@@ -799,59 +801,67 @@ const Game = {
   },
   keys() {
     if (!G.started) return;
-    if (G.panel && (Input.tap('Escape') || Input.tap('KeyE') || (Flight.mapOpen && Input.tap('KeyM'))) && !document.getElementById('ending')) { Input.pressed = {}; UI.closePanel(); return; }
+    if (G.panel && (Input.tap('Escape') || Input.hit('use') || (Flight.mapOpen && Input.hit('map'))) && !document.getElementById('ending')) { Input.pressed = {}; UI.closePanel(); return; }
     if (G.panel || G.chatting) return;
     if (this.fallback && G.locked && Input.tap('Escape')) { G.locked = false; this.updatePause(); return; }
-    if (Input.tap('KeyT') || Input.tap('Enter')) { this.openChat(); return; }
-    if (Input.tap('KeyI') && G.mode === 'planet' && !G.player.dead) { UI.openBag(); return; }
-    if (Input.tap('KeyH') && G.mode === 'planet') UI.guide(!UI.guideOn);
+    if (Input.hit('chat') || (Input.tap('Enter') && !Keys.bound('Enter'))) { this.openChat(); return; }
+    if (Input.hit('bag') && G.mode === 'planet' && !G.player.dead) { UI.openBag(); return; }
+    if (Input.hit('guide') && G.mode === 'planet') UI.guide(!UI.guideOn);
     if (G.mode !== 'planet' && UI.guideOn) UI.guide(false);
-    if (Input.tap('KeyM') && G.mode !== 'space') { // (M is the map while flying)
+    if (Input.hit('music') && (G.mode !== 'space' || Keys.map.music !== Keys.map.map)) { // (in the ship M is the star map)
       if (Sound.music.on) { Sound.stopMusic(); UI.toast('Music off', '', 1); }
       else { Sound.playMusic(G.mode === 'boss' ? (G.boss && G.boss.id === 'zorblax' ? 'final' : 'boss') : PLANETS[G.planet].music); UI.toast('Music on', '', 1); }
     }
-    UI.plist(!!Input.keys.Tab);
+    UI.plist(Input.down('crew'));
   },
-  // what clicking does with the gun you've got (every gun works differently, see ZAPPERS; press 1 again to switch)
+  // what shooting does with the gun you've got out (every gun works differently, see ZAPPERS)
   gunHint() {
     const z = gunDef(SAVE.zap);
     switch (z.type) {
-      case 'squirt': return 'Click: squirt (it\'s terrible: buy a real gun!) · R: refill';
-      case 'spread': return 'Click: blast · R: reload';
-      case 'lob': return 'Click: lob goo (aim a bit high) · R: reload';
-      case 'jackpot': return 'Click: shoot and pray · R: reload';
-      case 'beam': return 'Hold click: freeze beam · R: recharge';
-      case 'cutter': return 'Click: throw a pizza cutter (it comes back)';
-      case 'homing': return 'Click: ghost wisps (they chase things) · R: reload';
-      case 'chain': return 'Click: chain lightning (it jumps between targets) · R: reload';
-      case 'rocket': return 'Click: launch a parcel (shoot your feet to rocket-jump) · R: reload';
-      default: return 'Click: zap · R: reload';
+      case 'squirt': return '{fire}: squirt (it\'s terrible: buy a real gun!) · {reload}: refill';
+      case 'spread': return '{fire}: blast · {reload}: reload';
+      case 'lob': return '{fire}: lob goo (aim a bit high) · {reload}: reload';
+      case 'jackpot': return '{fire}: shoot and pray · {reload}: reload';
+      case 'beam': return 'Hold {fire}: freeze beam · {reload}: recharge';
+      case 'cutter': return '{fire}: throw a pizza cutter (it comes back)';
+      case 'homing': return '{fire}: ghost wisps (they chase things) · {reload}: reload';
+      case 'chain': return '{fire}: chain lightning (it jumps between targets) · {reload}: reload';
+      case 'rocket': return '{fire}: launch a parcel (shoot your feet to rocket-jump) · {reload}: reload';
+      default: return '{fire}: zap · {reload}: reload';
     }
+  },
+  // "3: Laser Drill for the crystals" if it's on your hotbar ("the Laser Drill for the crystals (on your
+  // hotbar: see any shop)" if it isn't)
+  slotTip(tool, what) {
+    const i = Loadout.findTool(tool);
+    return i >= 0 ? `${Keys.name('slot' + (i + 1))}: ${what}` : `${what} (put it on your hotbar at a shop)`;
   },
   updateHint() {
     const p = G.player;
     let h = '';
     if (G.mode === 'boss') {
       if (p.ghost) h = '';
-      else h = `${this.gunHint()} · Right-click: Goo Grenade (${SAVE.nades}) · Space: jump the rings!`;
-      if (h && G.boss && G.boss.id === 'zorblax' && SAVE.peel) h += ' · 4: Pizza Peel catches pizza!';
+      else if (p.tool !== 'zap') h = Loadout.findTool('zap') >= 0 ? this.slotTip('zap', 'take out a gun!') : 'No gun on your hotbar! Dodge, and throw Goo Grenades ({nade})';
+      else h = `${this.gunHint()} · {nade}: Goo Grenade (${SAVE.nades}) · {jump}: jump the rings!`;
+      if (h && G.boss && G.boss.id === 'zorblax' && SAVE.peel) h += ' · ' + this.slotTip('peel', 'the Pizza Peel catches pizza!');
     } else if (G.mode === 'planet') {
       const act = PLANETS[G.planet].activity;
       const inCasino = act === 'casino' && G.world.inCasino(p.pos);
-      if (p.tool === 'vac') h = VAC_HINT[act] || 'Hold left click on stuff to vacuum it up';
-      else if (p.tool === 'drill') h = 'Hold left click on a big crystal to mine it';
+      if (p.tool === 'vac') h = VAC_HINT[act] || 'Hold {fire} on stuff to vacuum it up';
+      else if (p.tool === 'drill') h = 'Hold {fire} on a big crystal to mine it';
       else if (p.tool === 'peel') h = act === 'meteor' ? 'Stand inside a glowing circle as the meteor comes down to catch it!' : 'The Pizza Peel catches meteors on Zorblax Prime';
+      else if (!p.tool) h = `Your hands are empty (hotbar slot ${p.slot + 1}) · {slot1}-{slot5}: take something out`;
       else { // your gun: what it does, plus the one thing to know about this planet
         const tip = {
-          scrap: '2: Grabby Vac for the junk', berry: 'jump up the mushrooms for berries' + (SAVE.boots ? ' (double jump!)' : ''),
-          crystal: SAVE.drill ? '3: Laser Drill for the crystals' : 'Penguin Pete sells a Laser Drill for the crystals',
-          ghost: 'ghosts can\'t be shot: press 2 and VACUUM them', pearl: 'stand in a glowing updraft to float up',
-          deliver: 'take a delivery gig at the GigHub kiosk (E)', meteor: SAVE.peel ? '4: Pizza Peel for the meteors' : 'Dave sells a Pizza Peel for the meteors',
+          scrap: this.slotTip('vac', 'Grabby Vac for the junk'), berry: 'jump up the mushrooms for berries' + (SAVE.boots ? ' (double jump!)' : ''),
+          crystal: SAVE.drill ? this.slotTip('drill', 'Laser Drill for the crystals') : 'Penguin Pete sells a Laser Drill for the crystals',
+          ghost: 'ghosts can\'t be shot: ' + this.slotTip('vac', 'VACUUM them'), pearl: 'stand in a glowing updraft to float up',
+          deliver: 'take a delivery gig at the GigHub kiosk ({use})', meteor: SAVE.peel ? this.slotTip('peel', 'Pizza Peel for the meteors') : 'Dave sells a Pizza Peel for the meteors',
         }[act];
-        h = act === 'casino' ? (inCasino ? 'Walk up to any game and press E' : 'Every game is in the casino next to your ship') : this.gunHint() + (tip ? ' · ' + tip : '');
+        h = act === 'casino' ? (inCasino ? 'Walk up to any game and press {use}' : 'Every game is in the casino next to your ship') : this.gunHint() + (tip ? ' · ' + tip : '');
       }
       if (act === 'deliver' && Gigs.cur) h = 'Get the parcel to the glowing beam before time runs out! Jump pads launch you onto roofs';
-      h += ' · H: what to do here';
+      h += ' · {guide}: what to do here';
     }
     UI.hint(h);
   },
