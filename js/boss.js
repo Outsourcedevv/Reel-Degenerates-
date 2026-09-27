@@ -24,6 +24,7 @@ const SHOT_COL = {
   trash: '#c8e27a', tire: '#ffb347', goo: '#ff5fb8', coin: '#ffd23f', cherry: '#ff4a4a', lemon: '#fff06b', snow: '#e8f6ff', icicle: '#9fe8ff',
   laser: '#ff3df0', pizza: '#ffb13d', meteor: '#ff6a1f', bat: '#c07bff', breadstick: '#ffcf7a', hail: '#cfeaff', bolt: '#fff36b', email: '#8fd0ff',
   coffee: '#d6a064', slip: '#ff9ad5', card: '#ff5a7a', bigsnow: '#ffffff', lid: '#c8e27a',
+  bone: '#f4efe0', dice: '#ff5a5a', parcel: '#e0b070', fries: '#ffd23f', lava: '#ff6a1f', ecto: '#7dff8a', // (mini bosses)
 };
 const _shotC = {};
 const shotColor = (k) => _shotC[k] || (_shotC[k] = new THREE.Color(SHOT_COL[k] || '#ff6a6a'));

@@ -5,7 +5,9 @@
    a way off (a red "!" and a growl), chase you down, crouch
    and POUNCE (a red mark on the ground shows where), and the
    rarer mean kind on each planet throws or spits things at
-   you from a distance. Shoot one and it comes for you, and
+   you from a distance, aiming where you're heading (some of
+   the biters throw things too, now and then). Keep changing
+   direction! Shoot one and it comes for you, and
    its friends nearby join in. Zap them, sell them. Every
    one rolls a size (bigger = rarer, tougher, worth more).
    Kill them in style for a bonus multiplier.
@@ -22,8 +24,11 @@ const HUNT = { sight: 17, leash: 45, giveUp: 30, chase: 1.3, angry: 10, pack: 14
 // (it leaps a bit further than the range it starts from: stand still and it lands on you, move and it misses)
 const POUNCE = { range: 4, windup: 0.55, time: 0.36, speed: 12, cd: [2.2, 3.4], rest: 0.5, dmg: 1.4 };
 const CHARGE = { range: 9.5, windup: 0.8, time: 0.6, speed: 17 }; // (Feral E-Scooters: a long, fast charge)
-// throwing and spitting: from how far, how fast it flies, how often, the distance they like to keep, damage
-const SPIT = { min: 3.2, max: 13, speed: 12, cd: [2.6, 3.6], keep: [6.5, 10], dmg: 0.8 };
+// throwing and spitting: from how far, how fast it flies, how often, the distance they like to keep, damage,
+// and how far ahead of you they aim (1: right where you'll be if you keep going the same way)
+const SPIT = { min: 3.2, max: 13, speed: 12, cd: [2.6, 3.6], keep: [6.5, 10], dmg: 0.8, lead: 0.95 };
+// biters that also throw things (toss): from how far, the wind-up (it stops and rears up), and how often
+const TOSS = { min: 5, max: 14, windup: 0.4, cd: [3.5, 5.5] };
 
 const POUNCE_MARK = {}; // (the pounce warning's shared shapes, made the first time one's needed)
 
@@ -53,8 +58,8 @@ const Critters = {
   // everyone on the planet (for fleeing and chasing). safe: they just got here, so mean critters leave them be
   players() {
     const out = [];
-    if (G.mode === 'planet' && !G.player.dead) out.push({ id: Net.myId, p: G.player.pos, safe: G.player.safeT > 0 });
-    for (const r of G.remotes.values()) if (r.s.m === 'planet' && r.s.p === G.planet && !r.s.d) out.push({ id: r.id, p: r.tpos, safe: !!r.s.sf });
+    if (G.mode === 'planet' && !G.player.dead) out.push({ id: Net.myId, p: G.player.pos, v: G.player.vel, safe: G.player.safeT > 0 });
+    for (const r of G.remotes.values()) if (r.s.m === 'planet' && r.s.p === G.planet && !r.s.d) out.push({ id: r.id, p: r.tpos, v: r.tvel, safe: !!r.s.sf });
     return out;
   },
 
@@ -96,8 +101,18 @@ const Critters = {
       return;
     }
   },
+  // host: one of this planet's critters, right here (a mini boss calling for backup: already mad at foe)
+  spawnAt(k, x, z, sz, foe) {
+    const kinds = this.kinds(G.planet), w = G.worlds[G.planet];
+    const c = this.add(this.nextId++, k, 0, x, z, Math.random() * 6, sz);
+    c.hp = c.max = kinds[k].hp * SIZES[sz].hp * (DIFFS[G.diff] || DIFFS.easy).crit;
+    c.hx = x; c.hz = z;
+    if (foe) { c.foe = foe; c.angryT = 12; c.tossCd = U.rand(1, 2.5); }
+    FX.burst(new V3(x, w.gh(x, z) + 0.3, z), '#ffffff', 8, 3);
+    return c;
+  },
   think(c, w, ps, dt) {
-    c.atkCd = (c.atkCd || 0) - dt; c.angryT = (c.angryT || 0) - dt;
+    c.atkCd = (c.atkCd || 0) - dt; c.angryT = (c.angryT || 0) - dt; c.tossCd = (c.tossCd || 0) - dt;
     if (c.st === 2 || c.st === 3) { c.spd = 0; c.a = 0; return; } // frozen solid / stunned (and that stops a pounce)
     const def = this.kinds(G.planet)[c.k], sz = SIZES[c.sz];
     const speed = def.speed * sz.spd * (c.st === 1 ? 0.4 : 1);
@@ -169,6 +184,13 @@ const Critters = {
       if (c.aT <= 0) { c.a = 0; c.atkCd = U.rand(P.cd[0], P.cd[1]); c.restT = P.rest; }
       return true;
     }
+    if (c.a === 3) { // reared up, about to throw something
+      c.aT -= dt; c.spd = 0;
+      const q = this.target(c, ps);
+      if (q) c.ry = Math.atan2(q.p.x - c.x, q.p.z - c.z);
+      if (c.aT <= 0) { c.a = 0; if (q) this.spit(c, def, sz, q, true); }
+      return true;
+    }
     if (c.restT > 0) { c.restT -= dt; c.spd = 0; return true; } // (catching its breath: your chance)
     const q = this.target(c, ps);
     const was = c.foe;
@@ -186,6 +208,8 @@ const Critters = {
       c.ry = Math.atan2(dx, dz);
       return true;
     }
+    // (biters that throw: now and then, from a way off, they stop and throw something first)
+    if (def.toss && c.tossCd <= 0 && c.atkCd <= 0 && d > TOSS.min && d < TOSS.max) { c.a = 3; c.aT = TOSS.windup; c.spd = 0; c.tossCd = U.rand(TOSS.cd[0], TOSS.cd[1]); c.ry = Math.atan2(dx, dz); return true; }
     if (d < P.range && d > 1.3 * sz.s && c.atkCd <= 0) { c.a = 1; c.aT = P.windup; c.spd = 0; c.ry = Math.atan2(dx, dz); if (def.charge) this.beep(c); return true; }
     this.step(c, w, sz, q.p.x, q.p.z, d < 1.05 * sz.s ? 0 : run, dt);
     return true;
@@ -196,6 +220,7 @@ const Critters = {
     if (!w) return;
     const s = SIZES[c.sz].s, at = new V3(c.rx, w.gh(c.rx, c.rz) + (c.m.hit * 2 + 0.6) * s, c.rz);
     FX.text(at, '!', '#ff4b4b', 64);
+    if (!(c.tossCd > 0)) c.tossCd = U.rand(0.2, 0.7); // (biters that throw open with a throw, from where they spotted you)
     if (G.mode === 'planet' && !G.player.dead && Math.hypot(G.player.pos.x - c.rx, G.player.pos.z - c.rz) < 20) Sound.play('growl');
   },
 
@@ -220,7 +245,7 @@ const Critters = {
   },
   clear() {
     for (const id of [...this.list.keys()]) this.remove(id);
-    for (const sp of this.spits) { if (sp.mesh.parent) sp.mesh.parent.remove(sp.mesh); disposeObj(sp.mesh); }
+    for (const sp of this.spits) if (sp.mesh) { if (sp.mesh.parent) sp.mesh.parent.remove(sp.mesh); disposeObj(sp.mesh); }
     this.spits.length = 0;
   },
   // client: the host's snapshot of the planet's critters
@@ -277,6 +302,7 @@ const Critters = {
       if (c.zapFx && c.zapFx.visible) c.zapFx.rotation.y += dt * 9;
       c.flash = Math.max(0, c.flash - dt * 5);
       if (c.a === 1) c.m.body.scale.set(1.15, 0.72 + Math.sin(c.t * 40) * 0.04, 1.15); // (crouched, trembling)
+      else if (c.a === 3) c.m.body.scale.set(0.88, 1.18 + Math.sin(c.t * 40) * 0.03, 0.88); // (reared up to throw)
       else if (c.lungeT > 0) c.m.body.scale.set(0.9, 1.05, 1.25);
       else c.m.body.scale.setScalar(1 + c.flash * 0.25);
       if (c.m.body.userData.spark) c.m.body.userData.spark.rotation.y += dt * 4;
@@ -360,39 +386,65 @@ const Critters = {
   },
 
   /* ---------- things they throw and spit ---------- */
-  // host: throw one at q (where they are right now: keep moving and it misses)
-  spit(c, def, sz, q) {
-    const w = G.worlds[G.planet];
-    const m = { t: 'cspit', p: G.planet, k: c.k, sz: c.sz, g: c.g,
-      f: [U.r2(c.x), U.r2(w.gh(c.x, c.z) + (c.m.hit * 1.3 + 0.3) * sz.s), U.r2(c.z)], to: [U.r2(q.p.x), U.r2(w.gh(q.p.x, q.p.z) + 0.3), U.r2(q.p.z)] };
+  // host: throw at q, aiming where they're heading (toss: a biter's occasional throw). Keep going the same
+  // way and it gets you; change direction (or stop) and it misses.
+  spit(c, def, sz, q, toss) {
+    const w = G.worlds[G.planet], sp = toss ? def.toss : def.spit;
+    const from = new V3(c.x, w.gh(c.x, c.z) + (c.m.hit * 1.3 + 0.3) * sz.s, c.z);
+    const speed = SPIT.speed * (sp.fast ? 1.6 : 1), lead = sp.lead != null ? sp.lead : SPIT.lead, v = q.v || { x: 0, z: 0 };
+    const n = sp.n || 1, l = [];
+    // (how long it takes to get to where they'll be, not to where they are: further away takes longer)
+    let T = Math.hypot(q.p.x - from.x, q.p.z - from.z) / speed;
+    T = Math.hypot(q.p.x + v.x * T - from.x, q.p.z + v.z * T - from.z) / speed;
+    for (let i = 0; i < n; i++) {
+      const dl = (sp.gap || 0) * i, ahead = (T + dl) * lead;
+      let x = q.p.x + v.x * ahead, z = q.p.z + v.z * ahead;
+      if (sp.fan && n > 1) { // (spread out, around where it's aiming)
+        const a = (i / (n - 1) - 0.5) * sp.fan, dx = x - from.x, dz = z - from.z, cs = Math.cos(a), sn = Math.sin(a);
+        x = from.x + dx * cs + dz * sn; z = from.z - dx * sn + dz * cs;
+      }
+      l.push([U.r2(x), U.r2(w.gh(x, z) + 0.3), U.r2(z), U.r2(dl)]);
+    }
+    const m = { t: 'cspit', p: G.planet, k: c.k, sz: c.sz, g: c.g, ts: toss ? 1 : 0, f: [U.r2(from.x), U.r2(from.y), U.r2(from.z)], l };
     if (Net.online) Net.toAll(m);
     this.onSpit(m);
   },
   onSpit(m) {
-    const def = m.p === G.planet && this.kinds(m.p)[m.k];
-    if (!def || !def.spit || !G.worlds[m.p]) return;
-    const sp = def.spit, from = new V3(...m.f), to = new V3(...m.to), d = from.distanceTo(to);
+    const def = m.p === G.planet && this.kinds(m.p)[m.k], sp = def && (m.ts ? def.toss : def.spit);
+    if (!sp || !G.worlds[m.p] || !Array.isArray(m.l)) return;
+    const from = new V3(...m.f), base = def.dmg * SIZES[m.sz].dmg * (m.g ? 1.5 : 1);
+    for (const [x, y, z, dl] of m.l) {
+      const to = new V3(x, y, z), d = from.distanceTo(to), fast = !!sp.fast;
+      this.spits.push({ from, to, t: -(dl || 0), T: Math.max(0.2, d / (SPIT.speed * (fast ? 1.6 : 1))), arc: fast ? 0.3 : 0.2 * d, mesh: null, sp, trail: 0,
+        dmg: base * SPIT.dmg, base, name: def.name });
+    }
+  },
+  spitMesh(sp) {
     let mesh;
     if (sp.what === 'can') mesh = tf(mk(CYL(0.14, 0.14, 0.34, 8), '#b8c0c8'), Math.PI / 2, 0, 0);
     else if (sp.what === 'coin') mesh = tf(mk(CYL(0.2, 0.2, 0.05, 12), '#ffd23f', null, 0, 0, 0, { emissive: '#8a6a00' }), Math.PI / 2, 0, 0);
+    else if (['dice', 'bone', 'fries', 'trash', 'lava', 'icicle'].includes(sp.what)) return projMesh(sp.what, sp.what === 'icicle' ? 0.2 : 0.26);
     else mesh = new THREE.Mesh(new THREE.SphereGeometry(sp.what === 'snow' ? 0.26 : 0.22, 10, 8), new THREE.MeshBasicMaterial({ color: sp.c }));
     mesh.castShadow = false;
-    mesh.position.copy(from);
-    G.worlds[m.p].dyn.add(mesh);
-    const fast = !!sp.fast;
-    this.spits.push({ from, to, t: 0, T: Math.max(0.2, d / (SPIT.speed * (fast ? 1.6 : 1))), arc: fast ? 0.3 : 0.2 * d, mesh, sp, trail: 0,
-      dmg: def.dmg * SIZES[m.sz].dmg * (m.g ? 1.5 : 1) * SPIT.dmg, name: def.name });
-    if (G.mode === 'planet' && G.player.pos.distanceTo(from) < 26) Sound.play('spit');
+    return mesh;
   },
   updateSpits(dt) {
-    const p = G.player;
+    const p = G.player, w = G.worlds[G.planet];
     for (let i = this.spits.length - 1; i >= 0; i--) {
       const s = this.spits[i];
       s.t += dt;
+      if (s.t < 0) continue; // (the next one in a burst)
+      if (!s.mesh) {
+        s.mesh = this.spitMesh(s.sp);
+        s.mesh.position.copy(s.from);
+        if (w) w.dyn.add(s.mesh);
+        if (G.mode === 'planet' && p.pos.distanceTo(s.from) < 26) Sound.play('spit');
+      }
       const k = Math.min(1, s.t / s.T);
       s.mesh.position.lerpVectors(s.from, s.to, k);
       s.mesh.position.y += 4 * s.arc * k * (1 - k);
       s.mesh.rotation.y += dt * 9;
+      if (s.sp.what === 'bone' || s.sp.what === 'dice') s.mesh.rotation.x += dt * 11;
       s.trail -= dt;
       if (s.trail <= 0) { s.trail = 0.05; FX.burst(s.mesh.position, s.sp.c, 1, 0.5); }
       let done = k >= 1;
@@ -407,7 +459,10 @@ const Critters = {
       }
       if (done) {
         FX.burst(s.mesh.position, s.sp.c, 10, 4);
-        if (s.sp.what === 'goo' || s.sp.what === 'ecto') Sound.play('splat');
+        if (s.sp.what === 'goo' || s.sp.what === 'ecto' || s.sp.what === 'lava') Sound.play('splat');
+        // (some leave a puddle where they come down: the same spot for everyone)
+        const pl = s.sp.pool;
+        if (pl) Hazards.add({ k: 'zone', c: [U.r2(s.to.x), U.r2(s.to.z)], r: pl.r, w: 0, dur: pl.dur, d: Math.round(s.base * pl.d * 10) / 10, kind: pl.kind, sl: pl.kind === 'goo' ? 1 : 0, tk: 0.7 }, s.name);
         if (s.mesh.parent) s.mesh.parent.remove(s.mesh);
         disposeObj(s.mesh);
         this.spits.splice(i, 1);
@@ -471,6 +526,7 @@ const Critters = {
     const m = { t: 'cdie', id, by };
     Net.toAll(m);
     this.onDie(m);
+    MiniBoss.onKill(c.x, c.z); // (enough of these, and something big turns up)
   },
   onDie(m) {
     const c = this.list.get(m.id);

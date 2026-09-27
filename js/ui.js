@@ -272,6 +272,15 @@ const UI = {
     this.el.bossbar.classList.remove('p2');
     this.bossHp(1);
   },
+  // the same bar for a mini boss out on a planet (while you're close to it)
+  miniBar(on, b) {
+    this.show('bossbar', on);
+    if (!on) { this.bossCall(null); return; }
+    this.el.bossbar.querySelector('.name').textContent = b.def.name;
+    this.el.bossbar.querySelector('.diff').textContent = `MINI BOSS · ${(DIFFS[G.diff] || DIFFS.easy).name.toUpperCase()}`;
+    this.el.bossbar.classList.remove('p2');
+    this.bossHp(b.hp / b.max, !!b.en);
+  },
   bossHp(frac, p2) {
     const w = (U.clamp(frac, 0, 1) * 100).toFixed(1) + '%';
     this.el.bossbar.querySelector('.fill').style.width = w;
@@ -405,7 +414,8 @@ const UI = {
         <p>Just for fun: Planet Gloop has a Ring Run, Frostbyte a Snowman Shooting Gallery and Spookulon a hedge maze. Win medals for cash (each pays once). <kbd>H</kbd> on the planet says where.</p></div>
       <div><h4>Critters</h4>
         <p>They come in sizes from Tiny to GIANT. Bigger ones are rarer, tougher and worth a lot more. Golden ones are worth 8x. When you arrive somewhere they leave you alone for a bit (watch the SAFE timer), unless you shoot one first.</p>
-        <p>Mean ones hunt you: a red ! means one spotted you. When one crouches over a red mark, it's about to pounce: step aside. Some throw things (goo and snowballs slow you down). Shoot one and its friends join in.</p>
+        <p>Mean ones hunt you: a red ! means one spotted you. When one crouches over a red mark, it's about to pounce: step aside. Lots of them throw things, aimed where you're heading: keep changing direction. Goo and snowballs slow you down, some leave puddles. Shoot one and its friends join in.</p>
+        <p>Mini bosses: zap 20 critters on a planet (not Scrapyard-9) and from then on every one you zap has a small chance of bringing its huge, crowned mini boss. Like a boss fight: it names each attack and marks it on the ground first. Hard and Hardcore give it extra attacks. Everyone on the planet gets paid when it goes down.</p>
         <p>Style kills pay extra (up to 2x each, they stack up to 5x):in the air, after a 360, with your last shot, long shots, double kills, revenge and more.</p></div>
       <div><h4>The ship</h4>
         <p><kbd>E</kbd> at the ship to get in. First one in flies, everyone else rides in the back. It only takes off once the whole crew is in.</p>

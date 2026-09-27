@@ -30,8 +30,8 @@ difficulty:
 | Difficulty | What changes |
 | --- | --- |
 | Easy | Enemies hit normally. Die on a planet and you get back up (see below). |
-| Hard | Everything hits twice as hard. Critters have 1.75x the health. |
-| Hardcore | Everything hits 3.5x as hard and critters have 2.5x the health. Solo, if you die, the world is deleted. With friends, you go down and can be revived, but if the whole crew is down at once, the world is deleted. |
+| Hard | Everything hits twice as hard. Critters have 1.75x the health. Mini bosses learn a new attack (and pay 1.5x). |
+| Hardcore | Everything hits 3.5x as hard and critters have 2.5x the health. Mini bosses learn two new attacks (and pay 2x). Solo, if you die, the world is deleted. With friends, you go down and can be revived, but if the whole crew is down at once, the world is deleted. |
 
  Each world is its own save, like
 Minecraft worlds. When you join a friend, your stuff in their world is saved too, so it's still there next time.
@@ -211,12 +211,38 @@ Movement gear you can pick up along the way (you keep it when you die):
 
 Shy critters run away. Mean ones hunt you: a red **!** and a growl mean one has spotted you. They run you down,
 and when one crouches over a red mark on the ground it's about to pounce (step aside!). The rarer mean kind on every
-planet throws or spits things from a distance (Goo Leech goo and Frost Pup snowballs slow you down), and Feral
+planet keeps its distance and throws or spits things at you, aimed at where you're heading, so keep changing
+direction: Slot Mimics and Royal Hounds throw three at a time, Frost Pups and Static Sprites two in a row, Goo Leech
+goo and Frost Pup snowballs slow you down, and Goo Leeches, Grave Grubs and Magma Imps leave puddles where they land.
+From Luckstar on, the biters throw things too now and then (dice, icicles, bones, stolen fries, garbage, lava). Feral
 E-Scooters charge from way off. Shoot a mean one and it comes for you, and its friends nearby join in. Each one bites
 on its own timer, so a pack is dangerous. Zap them and sell them at the shop. When you join a game, land on a planet
 or respawn, they leave you alone for a bit (watch the **SAFE** timer), unless you shoot one first. Their colors and
 an outline keep them from blending into the ground. They come in six sizes, from Tiny to GIANT: the bigger they are, the more they're worth,
 but the rarer they are (and the harder they hit). Golden ones are worth a fortune.
+
+### Mini bosses
+
+Zap 20 critters on a planet and from then on every critter you zap there has a 2.5% chance of bringing that planet's
+mini boss (about 40 more kills on average; the count starts again after one turns up). Everyone on the planet gets a
+heads-up at 20. Scrapyard-9 doesn't have one. A mini boss is a huge, crowned version of one of the planet's critters
+that hunts you across the planet. It fights like a boss: each attack winds up with its name under the health bar,
+and everything that can hurt you is marked on the ground first (circles that fill up, shockwaves to jump, arrows
+where it's about to charge, marks where things will land, puddles). It has two attacks on Easy, learns a new one on
+Hard and one more on Hardcore, and on harder worlds it's also tougher and quicker. Below half health it gets angry
+and attacks faster. When it goes down, everyone on the planet gets paid (1.5x on Hard, 2x on Hardcore).
+
+| Planet | Mini boss | Easy | + Hard | + Hardcore | Pays |
+| --- | --- | --- | --- | --- | --- |
+| Planet Gloop | Sir Squelchalot (a Gloop Hopper that ate all the others) | Belly Flop (jumps on you, then a shockwave), Goo Volley (lobbed goo, sticky puddles) | Split! (three Gloop Hoppers) | Goo Geysers (erupt under you as you run) | $220 |
+| Luckstar | The Pit Boss (a slot machine that runs the floor) | Coin Fan, Roll the Dice (giant dice down marked lanes) | Chip Rain | Double Down (two charges in a row) | $1,200 |
+| Frostbyte | Mama Yeti (someone zapped her babies) | Snowball Barrage, Ground Pound (two shockwaves) | Icicle Rain | Avalanche (rolls at you as a giant snowball) | $2,000 |
+| Spookulon | Bonejangles (Skele-Tom's big brother) | Bone Toss, Grave Grab (hands out of the ground: they slow you) | Ecto Nova (rings of gunk to slip between) | Rise, Boneheads! (three Skele-Toms) | $2,800 |
+| Nimbus-9 | Thunderhead (a Static Sprite that became weather) | Zap Zap Zap, Lightning Strike | Static Shock (shockwaves and a charged patch) | Chain Storm (lightning chasing you) | $3,800 |
+| Gigopolis | Scooterzilla (every abandoned e-scooter, welded into one) | Full Throttle (a charge), Parking Tickets | Calling Backup (three Feral E-Scooters) | Surge Pricing (it rains parcels) | $5,000 |
+| Zorblax Prime | Cerberoni (the Emperor's guard dog) | Triple Fireball, Royal Pounce | Lava Spit (burning puddles) | Meteor Shower | $8,000 |
+
+### Style kills
 
 Kill them in style for a bonus. Each bonus is at most 2x, and they stack up to 5x in total:
 
@@ -259,7 +285,8 @@ in your browser (clearing browser data deletes them).
 - `js/world.js`, `js/models.js`: planets and all the low-poly models (the casino building is `buildCasino` in `world.js`)
 - `js/boss.js`: boss fights · `js/casino.js`: gambling · `js/activities.js`: collecting, meteors, delivery gigs, summoning items
 - `js/fun.js`: the Ring Run, the Snowman Shooting Gallery and the Hedge of No Return (and their medals)
-- `js/critters.js`: space critters · `js/flight.js`: the ship, cockpit, passenger cabin, star map and landing · `js/shop.js`: shops, boss altars
+- `js/critters.js`: space critters · `js/miniboss.js`: mini bosses (their attacks are `MB_ATTACKS`, the rest is `MINIBOSSES` in `data.js`)
+  · `js/hazards.js`: what they throw at you, marked on the ground · `js/flight.js`: the ship, cockpit, passenger cabin, star map and landing · `js/shop.js`: shops, boss altars
 - `js/items.js`: models of the items you buy, carry and win · `js/thumbs.js`: turns models into the pictures the
   menus show (shop items, backpack, hotbar, faces)
 - `js/custom.js`: the Customize screen (the looks themselves are `LOOK_PARTS` and `buildAstronaut` in `models.js`)

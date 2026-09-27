@@ -552,6 +552,7 @@ const Game = {
     N.on('take', (m) => { if (Net.isHost) Activities.onTake(m); });
     N.on('snailreq', () => { if (Net.isHost) Casino.onRequest(); });
     N.on('hitc', (m, from) => { if (Net.isHost) Critters.damage(m.id, Math.min(400, Number(m.dmg) || 0), from, ['goo', 'ice', 'shock'].includes(m.fx) ? m.fx : null); });
+    N.on('hitmb', (m, from) => { if (Net.isHost) MiniBoss.onHit(m, from); });
     N.on('summon', (m, from) => { if (Net.isHost) this.onSummon(m, from); });
     N.on('hitb', (m, from) => { if (Net.isHost && G.boss && G.boss.inFight(from)) G.boss.damage(Math.min(400, Number(m.dmg) || 0)); });
     N.on('hitm', (m) => { if (Net.isHost && G.boss) G.boss.damageMinion(m.id, Math.min(400, Number(m.dmg) || 0)); });
@@ -602,6 +603,9 @@ const Game = {
     N.on('crit', (m) => Critters.onSnap(m));
     N.on('cdie', (m) => { if (!Net.isHost) Critters.onDie(m); });
     N.on('cspit', (m) => { if (!Net.isHost) Critters.onSpit(m); });
+    N.on('mb', (m) => { if (!Net.isHost) MiniBoss.onSnap(m); });
+    N.on('mbatk', (m) => { if (!Net.isHost) MiniBoss.onAtk(m); });
+    N.on('mbdie', (m) => { if (!Net.isHost) MiniBoss.onDie(m); });
     N.on('bstart', (m) => {
       if (!G.started || G.mode !== 'planet') return;
       if (m.ids.includes(Net.myId)) this.beginBoss(m.b, m.seed, m.ids);
@@ -762,7 +766,11 @@ const Game = {
       if (G.world && G.mode !== 'boss') G.world.update(dt, G.time);
       if (G.boss) G.boss.update(dt);
       Activities.update(dt);
-      if (G.started) Critters.update(dt); // (the host keeps critters going even while sitting in the parked ship)
+      if (G.started) { // (the host keeps critters going even while sitting in the parked ship)
+        Critters.update(dt);
+        MiniBoss.update(dt);
+        Hazards.update(dt);
+      }
       Meteors.update(dt);
       Casino.update(dt);
       Shots.update(dt);

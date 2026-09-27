@@ -1,11 +1,19 @@
-## New in 1.10: fun on the quiet planets, and meaner critters
+## New in 1.10: mini bosses, fun on the quiet planets, and meaner critters
 
+- **Mini bosses.** Zap 20 critters on a planet, and from then on every critter you zap has a 2.5% chance of bringing
+  the planet's mini boss: a huge, crowned, very angry version of one of its critters (Sir Squelchalot, The Pit Boss,
+  Mama Yeti, Bonejangles, Thunderhead, Scooterzilla and Cerberoni; none on Scrapyard-9). It hunts you across the
+  planet and fights like a boss: every attack winds up with its name under the health bar, and everything that can
+  hurt you is marked on the ground first. Two attacks on Easy, a new one on Hard and another new one on Hardcore.
+  Everyone on the planet gets paid when it goes down (more on Hard and Hardcore).
 - **Meaner critters.** Mean critters now hunt you. They spot you from further away (a red **!** and a growl), run
   you down, and crouch before they pounce, with a red mark on the ground showing where they'll land: step aside!
-  The rarer mean kind on every planet throws or spits things at you from a distance (cans, goo, coins, snowballs,
-  glowing gunk, sparks, fireballs), and the goo and snowballs slow you down. Feral E-Scooters charge from way off.
-  Shoot a mean one and it comes for you, and its friends nearby join in. Each critter bites on its own timer, so a
-  pack is dangerous. They still leave you alone for a bit when you arrive, unless you shoot one first.
+  The rarer mean kind on every planet keeps its distance and throws or spits things at you, aimed at where you're
+  heading, so keep changing direction. Some throw three at a time or two in a row, goo and snowballs slow you down,
+  and goo, glowing gunk and lava leave puddles. From Luckstar on, the biters throw things too now and then. Feral
+  E-Scooters charge from way off. Shoot a mean one and it comes for you, and its friends nearby join in. Each
+  critter bites on its own timer, so a pack is dangerous. They still leave you alone for a bit when you arrive,
+  unless you shoot one first.
 
 - **Planet Gloop: the Ring Run.** Step onto the glowing pad near your ship and press `E`. Go through every glowing
   ring as fast as you can: out across the goo, up a mushroom staircase, a leap off the top, and back to the pad. A

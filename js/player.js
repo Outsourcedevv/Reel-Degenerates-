@@ -1312,6 +1312,8 @@ const Shots = {
       const w = G.worlds[G.planet];
       for (const c of Critters.list.values()) consider(Critters.center(c, w), () => (Critters.list.has(c.id) ? Critters.center(c, w) : null));
       for (const t of Fun.targets) if (t.live) consider(t.c, () => (t.live ? t.c.clone() : null));
+      const b = MiniBoss.b;
+      if (b && b.rise <= 0) consider(MiniBoss.center(b, w), () => (MiniBoss.b === b ? MiniBoss.center(b, w) : null));
     }
     return best;
   },
@@ -1327,6 +1329,7 @@ const Shots = {
       const w = G.worlds[G.planet];
       for (const c of Critters.list.values()) { const ctr = Critters.center(c, w); consider({ k: 'critter', c, ctr, key: 'c' + c.id }, ctr); }
       for (const t of Fun.targets) if (t.live) consider({ k: 'fun', t, key: t.key }, t.c.clone());
+      if (MiniBoss.b && MiniBoss.b.rise <= 0) consider({ k: 'mini', key: 'mb' }, MiniBoss.center(MiniBoss.b, w));
     }
     return best;
   },
@@ -1360,6 +1363,8 @@ const Shots = {
       if (ft) return ft;
       const ch = Critters.hitTest(p0, p1, skip);
       if (ch) return { k: 'critter', c: ch.c, ctr: ch.ctr, key: 'c' + ch.c.id };
+      const mb = MiniBoss.hitTest(p0, p1, skip);
+      if (mb) return mb;
     } else return null;
     // friends: always a (harmless) bonk on planets; in boss fights only with friendly fire on
     for (const r of G.remotes.values()) {
@@ -1375,6 +1380,7 @@ const Shots = {
     else if (t.k === 'critter') Critters.hit(t.c, dmg, pos, s.flags ? Object.assign({ dist: s.flags.from.distanceTo(t.ctr) }, s.flags) : null, fx, quiet);
     else if (t.k === 'friend') this.bonkFriend(t.r, s, dmg);
     else if (t.k === 'fun') Fun.hit(t.t);
+    else if (t.k === 'mini') MiniBoss.hit(dmg, pos, fx, quiet);
   },
   // a bolt landed. Jackpot bolts show what they rolled (and 777s and jackpots go off)
   landBolt(s, hit) {
@@ -1401,6 +1407,7 @@ const Shots = {
         Critters.hit(c, dmg, cp, flags ? Object.assign({ dist: flags.from.distanceTo(cp) }, flags) : null, fx);
       }
       if (Fun.targets.length) Fun.blast(pos, radius);
+      MiniBoss.blast(pos, radius, dmg, fx, skip);
     }
     if (G.ff) for (const r of G.remotes.values()) {
       if (!r.visible || r.s.g || r.s.dn || skip === 'f' + r.id || r.center.distanceTo(pos) > radius + 0.6) continue;

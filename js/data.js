@@ -434,6 +434,10 @@ const BOSSES = {
 
 /* ---------- space critters: roam each planet, zap them, sell them ----------
    mood: 'shy' ones run away, 'mean' ones chase you and bite. w = how often that kind shows up.
+   spit: it keeps its distance and throws things at you (aiming where you're heading). n: how many at once,
+   fan: spread out this much, gap: one after the other, lead: how far ahead of you it aims (1 = all the way),
+   slow: getting hit slows you down, pool: it leaves a puddle where it lands (d: how much that hurts)
+   toss: it bites, but now and then it stops and throws something at you from a way off
    3% of spawns are golden (worth 8x). Every spawn also rolls a size (see SIZES).
    (Scrapyard and Gloop critters are worth a third of what they used to be.) */
 const CRITTERS = {
@@ -441,49 +445,49 @@ const CRITTERS = {
     { id: 'rat', name: 'Trash Rat', icon: 'paw', mood: 'shy', w: 36, hp: 18, speed: 5.2, v: 8, desc: 'Lives in garbage. Loves garbage. Is garbage.' },
     { id: 'crab', name: 'Rust Crab', icon: 'paw', mood: 'mean', w: 26, hp: 40, speed: 3.2, dmg: 8, v: 15, desc: 'Pinches first, asks questions never.' },
     { id: 'pigeon', name: 'Scrap Pigeon', icon: 'paw', mood: 'shy', w: 22, hp: 14, speed: 6.2, v: 10, desc: 'Half bird, half hubcap. All attitude.' },
-    { id: 'gremlin', name: 'Can Gremlin', icon: 'paw', mood: 'mean', w: 16, hp: 34, speed: 4.2, dmg: 7, v: 14, spit: { c: '#b8c0c8', what: 'can' }, desc: 'Lives in a soup can. Bites ankles for fun. Throws cans at you from a distance.' },
+    { id: 'gremlin', name: 'Can Gremlin', icon: 'paw', mood: 'mean', w: 16, hp: 34, speed: 4.2, dmg: 7, v: 14, spit: { c: '#b8c0c8', what: 'can', lead: 0.5 }, desc: 'Lives in a soup can. Bites ankles for fun. Throws cans at you from a distance.' },
   ],
   gloop: [
     { id: 'blob', name: 'Blobbo', icon: 'paw', mood: 'shy', w: 36, hp: 30, speed: 4.6, v: 13, desc: 'A tiny sad slime. Sold by the pound.' },
     { id: 'hopper', name: 'Gloop Hopper', icon: 'paw', mood: 'mean', w: 26, hp: 55, speed: 4.0, dmg: 9, v: 23, desc: 'Jumps at your face. On purpose.' },
     { id: 'shroomy', name: 'Puffshroom', icon: 'paw', mood: 'shy', w: 22, hp: 36, speed: 3.4, v: 16, desc: 'A mushroom that learned to run. Badly.' },
-    { id: 'leech', name: 'Goo Leech', icon: 'paw', mood: 'mean', w: 16, hp: 48, speed: 3.6, dmg: 8, v: 20, spit: { c: '#ff5fb8', what: 'goo', slow: 1.8 }, desc: 'Sticky, slurpy, and very interested in your leg. Spits goo that slows you down.' },
+    { id: 'leech', name: 'Goo Leech', icon: 'paw', mood: 'mean', w: 16, hp: 48, speed: 3.6, dmg: 8, v: 20, spit: { c: '#ff5fb8', what: 'goo', slow: 1.8, pool: { r: 1.6, dur: 3.5, kind: 'goo', d: 0 } }, desc: 'Sticky, slurpy, and very interested in your leg. Spits goo that slows you down (and leaves a sticky puddle).' },
   ],
   luck: [
     { id: 'chipbug', name: 'Chip Beetle', icon: 'paw', mood: 'shy', w: 36, hp: 45, speed: 5.0, v: 60, desc: 'A beetle shaped like a poker chip. Worth more than one.' },
-    { id: 'dice', name: 'Dice Goblin', icon: 'paw', mood: 'mean', w: 26, hp: 80, speed: 3.8, dmg: 10, v: 110, desc: 'Rolled a 1 on "being friendly".' },
+    { id: 'dice', name: 'Dice Goblin', icon: 'paw', mood: 'mean', w: 26, hp: 80, speed: 3.8, dmg: 10, v: 110, toss: { c: '#ffffff', what: 'dice' }, desc: 'Rolled a 1 on "being friendly". Also rolls dice. At your head.' },
     { id: 'card', name: 'Card Crawler', icon: 'paw', mood: 'shy', w: 22, hp: 40, speed: 5.6, v: 70, desc: 'The ace of spades, with legs. Folds under pressure.' },
-    { id: 'mimic', name: 'Slot Mimic', icon: 'paw', mood: 'mean', w: 16, hp: 95, speed: 3.4, dmg: 11, v: 140, spit: { c: '#ffd23f', what: 'coin' }, desc: 'Looks like a tiny slot machine. Has teeth. Pays out in pain (coins, thrown hard).' },
+    { id: 'mimic', name: 'Slot Mimic', icon: 'paw', mood: 'mean', w: 16, hp: 95, speed: 3.4, dmg: 11, v: 140, spit: { c: '#ffd23f', what: 'coin', n: 3, fan: 0.4 }, desc: 'Looks like a tiny slot machine. Has teeth. Pays out in pain (three coins at a time, thrown hard).' },
   ],
   frost: [
     { id: 'mite', name: 'Snow Mite', icon: 'paw', mood: 'shy', w: 36, hp: 60, speed: 5.4, v: 90, desc: 'Fluffy. Cold. Surprisingly fast.' },
-    { id: 'weasel', name: 'Ice Weasel', icon: 'paw', mood: 'mean', w: 26, hp: 110, speed: 4.4, dmg: 12, v: 160, desc: 'Weasels are mean. Space weasels are space mean.' },
+    { id: 'weasel', name: 'Ice Weasel', icon: 'paw', mood: 'mean', w: 26, hp: 110, speed: 4.4, dmg: 12, v: 160, toss: { c: '#bff6ff', what: 'icicle' }, desc: 'Weasels are mean. Space weasels are space mean. They throw icicles.' },
     { id: 'pengy', name: 'Penguling', icon: 'paw', mood: 'shy', w: 22, hp: 70, speed: 4.4, v: 110, desc: 'Penguin Pete\'s cousin. Owes him money.' },
-    { id: 'pup', name: 'Frost Pup', icon: 'paw', mood: 'mean', w: 16, hp: 120, speed: 4.8, dmg: 12, v: 175, spit: { c: '#eef6ff', what: 'snow', slow: 1.2 }, desc: 'A baby yeti. Snowdad\'s? Nobody asks. Throws snowballs.' },
+    { id: 'pup', name: 'Frost Pup', icon: 'paw', mood: 'mean', w: 16, hp: 120, speed: 4.8, dmg: 12, v: 175, spit: { c: '#eef6ff', what: 'snow', slow: 1.2, n: 2, gap: 0.3 }, desc: 'A baby yeti. Snowdad\'s? Nobody asks. Throws snowballs, two at a time.' },
   ],
   spook: [
     { id: 'batlet', name: 'Space Bat', icon: 'paw', mood: 'shy', w: 36, hp: 95, speed: 6.2, v: 150, desc: 'Hangs upside down. Even in zero gravity. Show-off.' },
-    { id: 'skelly', name: 'Skele-Tom', icon: 'paw', mood: 'mean', w: 26, hp: 150, speed: 4.6, dmg: 14, v: 260, desc: 'A skeleton named Tom. Bone to be wild.' },
+    { id: 'skelly', name: 'Skele-Tom', icon: 'paw', mood: 'mean', w: 26, hp: 150, speed: 4.6, dmg: 14, v: 260, toss: { c: '#f4efe0', what: 'bone' }, desc: 'A skeleton named Tom. Bone to be wild. Throws his spare bones.' },
     { id: 'pumpkin', name: 'Jack-o\'-Lander', icon: 'paw', mood: 'shy', w: 22, hp: 120, speed: 4.2, v: 190, desc: 'A pumpkin with legs. Lights up when it\'s scared. It is always scared.' },
-    { id: 'grub', name: 'Grave Grub', icon: 'paw', mood: 'mean', w: 16, hp: 170, speed: 4.0, dmg: 15, v: 290, spit: { c: '#7dff8a', what: 'ecto' }, desc: 'Lives under tombstones. Comes out for ankles. Spits glowing gunk.' },
+    { id: 'grub', name: 'Grave Grub', icon: 'paw', mood: 'mean', w: 16, hp: 170, speed: 4.0, dmg: 15, v: 290, spit: { c: '#7dff8a', what: 'ecto', pool: { r: 1.5, dur: 3, kind: 'ecto', d: 0.3 } }, desc: 'Lives under tombstones. Comes out for ankles. Spits glowing gunk that burns where it lands.' },
   ],
   cloud: [
     { id: 'puff', name: 'Cloud Puff', icon: 'paw', mood: 'shy', w: 36, hp: 110, speed: 5.4, v: 190, desc: 'A tiny cloud with a face. Rains when it\'s sad.' },
-    { id: 'gull', name: 'Sky Gull', icon: 'paw', mood: 'mean', w: 26, hp: 170, speed: 5.4, dmg: 15, v: 320, desc: 'Steals your lunch. Then comes back for you.' },
+    { id: 'gull', name: 'Sky Gull', icon: 'paw', mood: 'mean', w: 26, hp: 170, speed: 5.4, dmg: 15, v: 320, toss: { c: '#ffd23f', what: 'fries' }, desc: 'Steals your lunch. Then throws it at you. Then comes back for you.' },
     { id: 'kite', name: 'Wild Kite', icon: 'paw', mood: 'shy', w: 22, hp: 130, speed: 6.4, v: 240, desc: 'Broke its string years ago. Never looked back.' },
-    { id: 'spark', name: 'Static Sprite', icon: 'paw', mood: 'mean', w: 16, hp: 190, speed: 4.8, dmg: 16, v: 360, spit: { c: '#7fd8ff', what: 'zap', fast: true }, desc: 'A little ball of lightning with a big attitude. Zaps on contact, and from a distance.' },
+    { id: 'spark', name: 'Static Sprite', icon: 'paw', mood: 'mean', w: 16, hp: 190, speed: 4.8, dmg: 16, v: 360, spit: { c: '#7fd8ff', what: 'zap', fast: true, n: 2, gap: 0.25 }, desc: 'A little ball of lightning with a big attitude. Zaps on contact, and from a distance (twice).' },
   ],
   city: [
     { id: 'drone', name: 'Rogue Drone', icon: 'paw', mood: 'shy', w: 36, hp: 130, speed: 6.0, v: 240, desc: 'Quit its delivery job. Now it just hovers. Living the dream.' },
-    { id: 'panda', name: 'Trash Panda', icon: 'paw', mood: 'mean', w: 26, hp: 200, speed: 5.0, dmg: 17, v: 380, desc: 'A raccoon. Related to Trevor? Trevor says no. Trevor is lying.' },
+    { id: 'panda', name: 'Trash Panda', icon: 'paw', mood: 'mean', w: 26, hp: 200, speed: 5.0, dmg: 17, v: 380, toss: { c: '#c8e27a', what: 'trash' }, desc: 'A raccoon. Related to Trevor? Trevor says no. Trevor is lying. Throws garbage.' },
     { id: 'intern', name: 'Unpaid Intern Bot', icon: 'paw', mood: 'shy', w: 22, hp: 150, speed: 4.6, v: 290, desc: 'Works for exposure. Runs away from responsibility.' },
     { id: 'scooter', name: 'Feral E-Scooter', icon: 'paw', mood: 'mean', w: 16, hp: 230, speed: 6.6, dmg: 18, v: 440, charge: true, desc: 'Abandoned on a sidewalk. Went wild. Beeps angrily, then charges from way off.' },
   ],
   zorb: [
     { id: 'lsnail', name: 'Lava Snail', icon: 'paw', mood: 'shy', w: 36, hp: 135, speed: 3.0, v: 290, desc: 'Slow, hot, and crunchy.' },
-    { id: 'imp', name: 'Magma Imp', icon: 'paw', mood: 'mean', w: 26, hp: 225, speed: 4.8, dmg: 19, v: 500, desc: 'Works for the Emperor. Paid in lava.' },
+    { id: 'imp', name: 'Magma Imp', icon: 'paw', mood: 'mean', w: 26, hp: 225, speed: 4.8, dmg: 19, v: 500, toss: { c: '#ff6a1f', what: 'lava', pool: { r: 1.4, dur: 3, kind: 'fire', d: 0.3 } }, desc: 'Works for the Emperor. Paid in lava. Throws it, too.' },
     { id: 'ember', name: 'Ember Bug', icon: 'paw', mood: 'shy', w: 22, hp: 120, speed: 5.8, v: 330, desc: 'A little bug that is also a little fire.' },
-    { id: 'hound', name: 'Royal Hound', icon: 'paw', mood: 'mean', w: 16, hp: 255, speed: 5.4, dmg: 20, v: 570, spit: { c: '#ff6a1f', what: 'fire' }, desc: 'The Emperor\'s guard dog. Three eyes, zero chill. Breathes fireballs.' },
+    { id: 'hound', name: 'Royal Hound', icon: 'paw', mood: 'mean', w: 16, hp: 255, speed: 5.4, dmg: 20, v: 570, spit: { c: '#ff6a1f', what: 'fire', n: 3, fan: 0.35 }, desc: 'The Emperor\'s guard dog. Three eyes, zero chill. Breathes three fireballs at a time.' },
   ],
 };
 /* how big a critter is. Bigger ones are rarer, tougher, bite harder and are worth a lot more. */
@@ -514,6 +518,63 @@ for (const list of Object.values(CRITTERS)) {
   }
 }
 
+/* ---------- mini bosses: a huge, angry critter that can turn up once you've zapped enough of them ----------
+   Once 20 critters have been zapped on a planet, every kill after that has a 2.5% chance of bringing its mini
+   boss (not on Scrapyard-9). base: the critter it's a giant version of · s: how much bigger · dmg: how hard
+   its attacks hit (before the difficulty) · keep: how far away it likes to fight from · reward: bucks for
+   everyone on the planet when it goes down (more on Hard and Hardcore).
+   atk: its attacks on every difficulty; hard: a new one it only does on Hard and Hardcore; hardcore: another
+   new one, only on Hardcore (see ATTACKS in miniboss.js). */
+const MB_AFTER = 20, MB_CHANCE = 0.025;
+const MINIBOSSES = {
+  gloop: {
+    name: 'Sir Squelchalot', base: 'hopper', s: 4.2, hp: 1400, dmg: 9, speed: 3.6, keep: 5, reward: 220, color: '#ff7a2a',
+    quote: 'A Gloop Hopper that ate every other Gloop Hopper. Still hungry. Still hopping.',
+    atk: ['flop', 'goovolley'], hard: 'split', hardcore: 'geyser',
+    taunts: ['SQUELCH!', 'I am the hoppiest!', 'You look like a snack. A crunchy one.', 'Hop hop hop... ON YOU!'],
+  },
+  luck: {
+    name: 'The Pit Boss', base: 'mimic', s: 3.8, hp: 2800, dmg: 11, speed: 3.3, keep: 9, reward: 1200, color: '#ffd23f',
+    quote: 'A slot machine that runs the casino floor. Card counters get counted. Then crushed.',
+    atk: ['coinfan', 'diceroll'], hard: 'chiprain', hardcore: 'doubledown',
+    taunts: ['Place your bets!', 'The house ALWAYS wins!', 'You\'re cut off, pal!', 'Nobody walks out of MY casino!'],
+  },
+  frost: {
+    name: 'Mama Yeti', base: 'pup', s: 4.0, hp: 4500, dmg: 13, speed: 3.7, keep: 7, reward: 2000, color: '#bff6ff',
+    quote: 'Somebody zapped her babies. Somebody is you.',
+    atk: ['snowbarrage', 'groundpound'], hard: 'iciclerain', hardcore: 'avalanche',
+    taunts: ['WHO ZAPPED MY BABIES?!', 'Time for a snow day. FOREVER.', 'Put on a coat! Oh wait, you won\'t need one.', 'Mama\'s MAD!'],
+  },
+  spook: {
+    name: 'Bonejangles', base: 'skelly', s: 3.5, hp: 6000, dmg: 15, speed: 3.9, keep: 7, reward: 2800, color: '#7dff8a',
+    quote: 'Skele-Tom\'s big brother. Taller hat. Worse attitude. Rattles when he laughs.',
+    atk: ['bonefan', 'gravegrab'], hard: 'ectonova', hardcore: 'rise',
+    taunts: ['I have a bone to pick with you!', 'Nyeh heh heh!', 'You\'ll fit right in down here.', 'Rattle rattle, you\'re in a battle!'],
+  },
+  cloud: {
+    name: 'Thunderhead', base: 'spark', s: 4.0, hp: 8000, dmg: 16, speed: 4.2, keep: 10, reward: 3800, color: '#7fd8ff',
+    quote: 'A Static Sprite that got so angry it became weather.',
+    atk: ['zapbolts', 'strike'], hard: 'staticring', hardcore: 'chainstorm',
+    taunts: ['KZZZZT!', 'Feel the BUZZ!', 'Forecast: YOU, crispy.', 'I\'m positively charged. You\'re negatively doomed.'],
+  },
+  city: {
+    name: 'Scooterzilla', base: 'scooter', s: 4.0, hp: 11000, dmg: 17, speed: 4.8, keep: 10, reward: 5000, color: '#3ddc84',
+    quote: 'Every abandoned e-scooter in Gigopolis, welded into one. 0 stars. Rides you.',
+    atk: ['ram', 'tickets'], hard: 'swarm', hardcore: 'surge',
+    taunts: ['BEEP BEEP! MOVE!', 'Your ride has arrived. It IS the ride.', 'Surge pricing is in effect!', 'Please rate your trip. Oh wait.'],
+  },
+  zorb: {
+    name: 'Cerberoni', base: 'hound', s: 3.9, hp: 14000, dmg: 19, speed: 4.4, keep: 7, reward: 8000, color: '#ff6a1f',
+    quote: 'The Emperor\'s favorite guard dog. Three eyes, three appetites, zero chill.',
+    atk: ['firefan', 'pounce'], hard: 'lavapools', hardcore: 'meteors',
+    taunts: ['GRRRAWR!', 'The Emperor says NO DELIVERIES!', 'Who\'s a good boy? NOT YOU!', 'I smell pepperoni. And FEAR.'],
+  },
+};
+// on harder worlds they're tougher, wind up faster, rest less between attacks, and pay more
+const MB_DIFF = { easy: { hp: 1, pace: 1, pay: 1 }, hard: { hp: 1.4, pace: 0.9, pay: 1.5 }, hardcore: { hp: 1.8, pace: 0.8, pay: 2 } };
+// the attacks a mini boss does on this difficulty
+const mbAttacks = (def, diff) => def.atk.concat(diff === 'hard' || diff === 'hardcore' ? [def.hard] : [], diff === 'hardcore' ? [def.hardcore] : []);
+
 /* ---------- style kills: bonus multipliers for zapping critters in style ----------
    Each one is at most 2x; they stack (up to STYLE_MAX). The bonus is baked into what the critter sells for. */
 const STYLE = {
@@ -539,8 +600,8 @@ const STYLE_MAX = 5; // stacked style bonuses never pay more than this in total
 // how many seconds until you get back up by yourself (as long as a friend is still standing)
 const DIFFS = {
   easy: { name: 'Easy', dmg: 1, crit: 1, revive: 10, desc: 'Enemies hit normally. Die on a planet and you just get back up. Boss fights: one life, but friends can pick you up (or you get up after 10s).' },
-  hard: { name: 'Hard', dmg: 2, crit: 1.75, revive: 15, desc: 'Everything hits twice as hard and critters are much tougher. Boss fights: one life, friends can pick you up (or you get up after 15s).' },
-  hardcore: { name: 'Hardcore', dmg: 3.5, crit: 2.5, revive: 20, perma: true, desc: 'Everything hits WAY harder, critters are tanks, and if you die, you die for good. The world is deleted. With friends in a boss fight you get back up after 20s, if one of them is still standing.' },
+  hard: { name: 'Hard', dmg: 2, crit: 1.75, revive: 15, desc: 'Everything hits twice as hard and critters are much tougher. Mini bosses have a new attack. Boss fights: one life, friends can pick you up (or you get up after 15s).' },
+  hardcore: { name: 'Hardcore', dmg: 3.5, crit: 2.5, revive: 20, perma: true, desc: 'Everything hits WAY harder, critters are tanks, mini bosses have two new attacks, and if you die, you die for good. The world is deleted. With friends in a boss fight you get back up after 20s, if one of them is still standing.' },
 };
 
 const SUMMONS = {

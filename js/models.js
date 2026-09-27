@@ -1124,6 +1124,31 @@ function buildCritter(kind, gold) {
   mergeLocal(m.body, keep);
   return m;
 }
+// a mini boss: a huge version of one of the planet's critters, with a crown, a glow on the ground under it
+// and its name over its head (so you know it's not just a GIANT one)
+function buildMiniBoss(def) {
+  const m = buildCritter(def.base, false), s = def.s;
+  m.root.scale.setScalar(s);
+  const top = m.hy != null ? m.hy + m.hit * 0.9 : m.hit * 1.9;
+  const crown = grp(m.body, 0, top, 0);
+  withHi('crit', () => {
+    mk(CYL(0.15, 0.13, 0.09, 12), '#ffcf3a', crown, 0, 0.045, 0, { emissive: '#7a5200' });
+    for (let i = 0; i < 5; i++) {
+      const a = (i / 5) * PI * 2;
+      mk(CONE(0.04, 0.12, 6), '#ffcf3a', crown, Math.sin(a) * 0.12, 0.14, Math.cos(a) * 0.12, { emissive: '#7a5200' });
+      mk(SPH(0.022, 6, 5), i % 2 ? '#ff3d6e' : '#3df0ff', crown, Math.sin(a) * 0.145, 0.05, Math.cos(a) * 0.145, { emissive: i % 2 ? '#8a0020' : '#007a8a' });
+    }
+  });
+  mergeLocal(crown);
+  const aura = new THREE.Mesh(new THREE.RingGeometry(0.55, 0.78, 40), new THREE.MeshBasicMaterial({ color: def.color, transparent: true, opacity: 0.5, depthWrite: false, side: THREE.DoubleSide }));
+  aura.rotation.x = -PI / 2; aura.position.y = 0.04; aura.renderOrder = 3;
+  m.root.add(aura);
+  const tag = textSprite(def.name, { size: 44, color: '#ffffff', bg: 'rgba(120,20,30,.6)', scale: 0.009 / s });
+  tag.position.y = top + 0.5;
+  m.root.add(tag);
+  Object.assign(m, { crown, aura, tag, top });
+  return m;
+}
 function buildCritterParts(kind, gold) {
   const root = new THREE.Group(), body = grp(root);
   const C = (c) => (gold ? '#ffd23f' : c); // golden critters are golden all over
@@ -2067,6 +2092,28 @@ function projParts(kind, r) {
       mk(TOR(r * 0.96, 0.07, 6, 28), '#66755c', g, 0, 0, 0).rotation.x = PI / 2;
       mk(TOR(0.28, 0.07, 6, 12), '#66755c', g, 0, 0.2, 0);
       break;
+    // (what the mini bosses throw)
+    case 'bone': // a cartoon bone, spinning end over end
+      tf(mk(CYL(r * 0.22, r * 0.22, r * 2, 6), '#f4efe0', g, 0, 0, 0), 0, 0, PI / 2);
+      for (const s of [-1, 1]) for (const k of [-1, 1]) mk(SPH(r * 0.32, 6, 5), '#f4efe0', g, s * r, k * r * 0.24, 0);
+      break;
+    case 'dice': { // a big fuzzy-free die, rolling
+      mk(BOX(r * 1.5, r * 1.5, r * 1.5), '#ffffff', g, 0, 0, 0, { emissive: '#3a3a3a' });
+      const pip = (x, y, z) => mk(SPH(r * 0.14, 5, 4), '#d6281b', g, x * r * 0.76, y * r * 0.76, z * r * 0.76);
+      pip(0, 0, 1); pip(0.45, 0.45, -1); pip(-0.45, -0.45, -1); pip(1, 0.45, 0.45); pip(1, -0.45, -0.45); pip(1, 0, 0);
+      pip(-1, 0.45, 0.45); pip(-1, -0.45, -0.45); pip(-1, 0.45, -0.45); pip(-1, -0.45, 0.45); pip(0.45, 1, 0.45); pip(-0.45, 1, -0.45);
+      break;
+    }
+    case 'parcel': // a delivery box (somebody's order, probably)
+      mk(BOX(r * 1.6, r * 1.2, r * 1.3), '#c89a5a', g, 0, 0, 0, { emissive: '#2a1a08' });
+      mk(BOX(r * 1.62, r * 1.22, r * 0.22), '#e8d9a8', g, 0, 0, 0);
+      break;
+    case 'fries': // stolen lunch
+      mk(BOX(r * 0.9, r * 0.8, r * 0.6), '#d6281b', g, 0, -r * 0.2, 0);
+      for (let i = 0; i < 5; i++) tf(mk(BOX(r * 0.14, r * 0.9, r * 0.14), '#ffd23f', g, (i - 2) * r * 0.17, r * 0.35, (i % 2 - 0.5) * r * 0.2, { emissive: '#554400' }), 0, 0, (i - 2) * 0.12);
+      break;
+    case 'lava': mk(ICO(r, 1), '#ff6a1f', g, 0, 0, 0, { emissive: '#c83a00' }); break;
+    case 'ecto': mk(SPH(r, 8, 6), '#7dff8a', g, 0, 0, 0, { emissive: '#1f8a3a' }); break;
     default: mk(SPH(r, 6, 5), '#ffffff', g, 0, 0, 0, { emissive: '#666666' });
   }
   g.traverse((c) => { if (c.isMesh) c.castShadow = false; });
