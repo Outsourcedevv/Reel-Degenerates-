@@ -36,6 +36,9 @@
   is left.
 - **Fixed: a gun you took out for the first time could sit right in your face** (huge, in the middle of the screen)
   until the window was resized.
+- **Headshots and hitmarkers.** Shots to the head do double damage (1.5x on bosses) with a red HEADSHOT number and
+  a helmet "ping", and finishing a critter with one is a new HEADSHOT style kill (1.5x). Every hit you land flashes a
+  hitmarker round your crosshair, red for a headshot. Shots now go exactly where your crosshair is, however close.
 - **Friendly fire hits harder.** With it on, your shots hit your crew for 75% of their damage (it was half).
 - **No more third person.** The `V` camera and its pause-menu setting are gone. (Emotes still swing the camera round
   so you can watch your goober dance.)

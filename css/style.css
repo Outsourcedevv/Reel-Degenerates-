@@ -277,9 +277,21 @@ kbd {
 }
 #crosshair::before { left: 10px; top: 0; width: 2px; height: 22px; clip-path: polygon(0 0, 100% 0, 100% 35%, 0 35%, 0 65%, 100% 65%, 100% 100%, 0 100%); }
 #crosshair::after { top: 10px; left: 0; height: 2px; width: 22px; clip-path: polygon(0 0, 35% 0, 35% 100%, 0 100%, 0 0, 65% 0, 100% 0, 100% 100%, 65% 100%); }
-#crosshair.hit { animation: xhit .2s; }
-#crosshair.hit::before, #crosshair.hit::after { background: var(--red); }
-@keyframes xhit { 0% { transform: scale(1.5) rotate(45deg); } 100% { transform: none; } }
+/* the hitmarker: four ticks round the crosshair for a moment when a shot of yours lands (red: a headshot) */
+#hitmark { position: absolute; left: 50%; top: 50%; width: 0; height: 0; opacity: 0; pointer-events: none; }
+#hitmark i {
+  position: absolute; left: -1.5px; top: -6px; width: 3px; height: 12px; border-radius: 1px;
+  background: #fff; box-shadow: 0 0 2px rgba(0,0,0,.9);
+}
+#hitmark i:nth-child(1) { transform: rotate(45deg) translateY(-15px); }
+#hitmark i:nth-child(2) { transform: rotate(135deg) translateY(-15px); }
+#hitmark i:nth-child(3) { transform: rotate(225deg) translateY(-15px); }
+#hitmark i:nth-child(4) { transform: rotate(315deg) translateY(-15px); }
+#hitmark.on { animation: hitmark .3s ease-out; }
+#hitmark.head i { background: #ff2b2b; height: 15px; top: -7.5px; box-shadow: 0 0 5px rgba(255,30,30,.85), 0 0 2px rgba(0,0,0,.9); }
+#hitmark.head.on { animation: hitmark-head .45s ease-out; }
+@keyframes hitmark { 0% { opacity: 1; transform: scale(1.35); } 55% { opacity: 1; } 100% { opacity: 0; transform: scale(1); } }
+@keyframes hitmark-head { 0% { opacity: 1; transform: scale(1.7) rotate(10deg); } 65% { opacity: 1; } 100% { opacity: 0; transform: scale(1.1); } }
 
 #prompt {
   position: absolute; left: 50%; top: 58%; transform: translateX(-50%);
@@ -387,7 +399,7 @@ kbd {
 @keyframes flash { from { opacity: 1; } to { opacity: 0; } }
 
 /* ---------- flight HUD ---------- */
-#hud.flying #hotbar, #hud.flying #crosshair, #hud.flying #ammo, #hud.flying #prompt, #hud.flying #actbar, #hud.flying #phud,
+#hud.flying #hotbar, #hud.flying #crosshair, #hud.flying #hitmark, #hud.flying #ammo, #hud.flying #prompt, #hud.flying #actbar, #hud.flying #phud,
 #hud.flying #goal, #hud.flying #safe, #hud.flying #cargo, #hud.flying #pizza, #hud.flying #nades, #hud.flying #planetname { display: none !important; }
 #radar, #flyinst { display: none; }
 #hud.flying #radar, #hud.flying #flyinst { display: block; }
@@ -803,7 +815,7 @@ img.thumb.inline { display: inline-block; width: 32px; height: 32px; vertical-al
 #deathscreen .hold { position: relative; margin-top: 30px; width: min(380px, 82vw); height: 38px; border: 1px solid rgba(255,255,255,.4); background: rgba(0,0,0,.45); overflow: hidden; }
 #deathscreen .hold .fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: var(--acc); box-shadow: 0 0 18px rgba(255,176,32,.6); }
 #deathscreen .hold span { position: relative; line-height: 38px; font-size: 13px; letter-spacing: 3px; color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,.8); }
-#hud.dead #hotbar, #hud.dead #ammo, #hud.dead #crosshair, #hud.dead #prompt, #hud.dead #hint, #hud.dead #threats { display: none; }
+#hud.dead #hotbar, #hud.dead #ammo, #hud.dead #crosshair, #hud.dead #hitmark, #hud.dead #prompt, #hud.dead #hint, #hud.dead #threats { display: none; }
 @media (max-width: 700px) { #deathscreen .t { font-size: 38px; letter-spacing: 5px; } }
 
 /* ---------- customize your astronaut ---------- */

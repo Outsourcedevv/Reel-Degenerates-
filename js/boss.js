@@ -1963,10 +1963,28 @@ class BossFight {
       if (this.canHurt() && Math.hypot(me.pos.x - mesh.position.x, me.pos.z - mesh.position.z) < 1.0 && me.pos.y < DECK_Y + 1.5) this.hurt(8, 'minion', false, mesh.position);
     }
   }
+  // its head, for headshots: the top one of its hit spheres if it has more than one, or the top of it
+  headSphere() {
+    const hs = this.m.hit;
+    if (hs.length > 1) { const h = hs.reduce((a, b) => (b.o.y > a.o.y ? b : a)); return { p: this.world(h.o), r: h.r, h }; }
+    const h = hs[0];
+    return { p: this.world(new V3(h.o.x, h.o.y + h.r * 0.55, h.o.z + h.r * 0.2)), r: h.r * 0.5, h: null };
+  }
+  // does a shot from p0 to p1 hit it? false, or { head: through its head }
   hitTest(p0, p1) {
     if (this.st !== 'fight' || this.hidden) return false;
-    for (const h of this.m.hit) if (U.segSphere(p0, p1, this.world(h.o), h.r)) return true;
-    return false;
+    const hd = this.headSphere();
+    let tb = -1;
+    for (const h of this.m.hit) {
+      if (h === hd.h) continue;
+      const t = U.segEnter(p0, p1, this.world(h.o), h.r);
+      if (t >= 0 && (tb < 0 || t < tb)) tb = t;
+    }
+    const th = U.segEnter(p0, p1, hd.p, hd.r);
+    if (tb < 0 && th < 0) return false;
+    // (a head of its own: into it without going through much of the rest first. Just one big round body:
+    // anywhere up top counts)
+    return { head: th >= 0 && (!hd.h || tb < 0 || (th - tb) * p0.distanceTo(p1) < 0.5) };
   }
   // the first minion a shot from p0 to p1 passes through (skip: ones this shot already hit, keyed 'm' + id)
   minionOn(p0, p1, skip) {
@@ -1981,19 +1999,17 @@ class BossFight {
     if (!m.mesh) return;
     const c = m.mesh.position.clone(); c.y += 0.6;
     FX.burst(c, '#ffffff', quiet ? 2 : 5, 3);
-    if (!quiet) { FX.text(c.clone().setY(c.y + 0.8), String(dmg), '#ffffff', 36); Sound.play('hit'); }
+    if (!quiet) hitFeedback(c.clone().setY(c.y + 0.2), dmg, false, 36);
     if (m.an) m.an.pop = 0.72; // (a little squish)
     if (Net.isHost) this.damageMinion(m.id, dmg); else Net.toHost({ t: 'hitm', id: m.id, dmg });
   }
   hitMinions(p0, p1, dmg) { const m = this.minionOn(p0, p1); if (m) this.hitMinion(m, dmg); return !!m; }
-  // quiet: no damage number or sound (the Cryo Beam hits ten times a second)
-  localHit(dmg, pos, quiet) {
+  // quiet: no damage number or sound (the Cryo Beam hits ten times a second) · head: a headshot
+  localHit(dmg, pos, quiet, head) {
     this.flash = Math.max(this.flash, quiet ? 0.3 : 1);
     if (!quiet) {
       this.anim.flinch = 1;
-      FX.text(pos.clone().add(new V3(0, 0.6, 0)), String(dmg), dmg >= 50 ? '#ffd23f' : '#ffffff', dmg >= 50 ? 60 : 44);
-      Sound.play('hit');
-      const x = UI.el.crosshair; x.classList.remove('hit'); void x.offsetWidth; x.classList.add('hit');
+      hitFeedback(pos, dmg, head, dmg >= 50 ? 60 : 44, dmg >= 50 ? '#ffd23f' : '#ffffff');
     }
     FX.burst(pos, RING_COL[this.id], quiet ? 2 : 4, 3);
     if (Net.isHost) this.damage(dmg); else Net.toHost({ t: 'hitb', dmg });

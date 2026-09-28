@@ -285,6 +285,14 @@ and attacks faster. When it goes down, everyone on the planet gets paid (1.5x on
 | Gigopolis | Scooterzilla (every abandoned e-scooter, welded into one) | Full Throttle (a charge), Parking Tickets | Calling Backup (three Feral E-Scooters) | Surge Pricing (it rains parcels) | $5,000 |
 | Zorblax Prime | Cerberoni (the Emperor's guard dog) | Triple Fireball, Royal Pounce | Lava Spit (burning puddles) | Meteor Shower | $8,000 |
 
+### Headshots
+
+Aim for the head. A shot that lands right in a critter's head (where its eyes are), a mini boss's, a boss's or a
+friend's helmet (with friendly fire on) does **double damage** (1.5x on a boss: their heads are big targets), and
+the number over it comes up red with HEADSHOT over it. It works with bullets, Scattergun pellets, wisps, pizza
+cutters, the Cryo Beam and the Storm Caller's first strike; splashes (goo, parcels, grenades) just splash. Every
+hit you land flashes a hitmarker round your crosshair: white for a hit, red for a headshot.
+
 ### Style kills
 
 Kill them in style for a bonus. Each bonus is at most 2x, and they stack up to 5x in total:
@@ -299,6 +307,7 @@ Kill them in style for a bonus. Each bonus is at most 2x, and they stack up to 5
 | Double Kill | 1.5x | two kills within 3 seconds |
 | Revenge | 1.5x | kill the critter that just bit you |
 | Clutch | 1.5x | kill it while you're under 25 HP |
+| Headshot | 1.5x | finish it with a shot to the head |
 | One Shot | 1.3x | take it down with a single hit |
 | Point Blank | 1.25x | kill it from right up close |
 | On The Run | 1.2x | kill it while sprinting |

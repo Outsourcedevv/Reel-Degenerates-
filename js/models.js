@@ -1289,7 +1289,12 @@ function buildCritterParts(kind, gold) {
   const E = gold ? { emissive: '#aa7700' } : undefined;
   const legs = [];
   const leg = (x, z, h = 0.25, col = '#3b3f4a') => { const l = grp(body, x, h, z); mk(BOX(0.07, h, 0.07), C(col), l, 0, -h / 2, 0, E); legs.push(l); };
-  const eyes = (y, z, spread, r = 0.07) => { for (const s of [-1, 1]) { mk(SPH(r, 6, 5), '#ffffff', body, s * spread, y, z); mk(SPH(r * 0.55, 5, 4), '#111111', body, s * spread, y, z + r * 0.6); } };
+  // (its head is wherever its eyes are: see head, below)
+  let head = null;
+  const eyes = (y, z, spread, r = 0.07) => {
+    if (!head) head = [0, y, z - 0.08, U.clamp(spread * 1.8, 0.1, 0.22)];
+    for (const s of [-1, 1]) { mk(SPH(r, 6, 5), '#ffffff', body, s * spread, y, z); mk(SPH(r * 0.55, 5, 4), '#111111', body, s * spread, y, z + r * 0.6); }
+  };
   let hit = 0.45, hy = null, hover = 0, wings = null, rotors = null, rolls = null;
   switch (kind) {
     case 'rat':
@@ -1603,7 +1608,9 @@ function buildCritterParts(kind, gold) {
       break;
   }
   if (gold) { const sp = mk(OCT(0.08), '#fff6b0', root, 0, 1.0, 0, { emissive: '#ffcc00' }); sp.castShadow = false; body.userData.spark = sp; }
-  return { root, body, legs, hit, hy, hover, wings, rotors, rolls };
+  // head: [x, y, z, radius] of its head, for headshots (no eyes: the top front of it)
+  if (!head) head = [0, (hy != null ? hy : hit * 0.8) + hit * 0.5, hit * 0.3, hit * 0.5];
+  return { root, body, legs, hit, hy, hover, wings, rotors, rolls, head };
 }
 
 /* ---------------- tools (first-person) ---------------- */

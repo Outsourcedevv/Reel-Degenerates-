@@ -10,7 +10,7 @@ const UI = {
   init() {
     ['hud', 'bucks', 'pizza', 'goal', 'ammo', 'cargo', 'nades', 'roomcode', 'planetname', 'crosshair', 'prompt', 'hint', 'actbar',
       'bossbar', 'phud', 'feed', 'chat', 'chatinput', 'toasts', 'subtitle', 'bigtitle', 'pickups', 'hurt', 'plist',
-      'spectate', 'deathscreen', 'panel', 'panel-inner', 'flyhud', 'gig', 'funhud', 'fuel', 'bosscall', 'threats', 'safe', 'guide', 'hotbar'].forEach((id) => (this.el[id] = U.$(id)));
+      'spectate', 'deathscreen', 'panel', 'panel-inner', 'flyhud', 'gig', 'funhud', 'fuel', 'bosscall', 'threats', 'safe', 'guide', 'hotbar', 'hitmark'].forEach((id) => (this.el[id] = U.$(id)));
     this.el['panel-inner'].addEventListener('click', (e) => {
       const b = e.target.closest('[data-act]');
       if (!b || b.disabled) return;
@@ -238,6 +238,15 @@ const UI = {
     Game.updatePause();
   },
 
+  // a shot of yours landed: the hitmarker round the crosshair flashes (red for a headshot)
+  hitmark(head) {
+    const h = this.el.hitmark;
+    if (!h) return;
+    h.classList.remove('on', 'head');
+    void h.offsetWidth; // (so it plays again, even hit after hit)
+    h.classList.add('on');
+    if (head) h.classList.add('head');
+  },
   hurt() {
     Post.hurt(0.7);
     const h = this.el.hurt;

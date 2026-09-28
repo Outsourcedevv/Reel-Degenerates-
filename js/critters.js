@@ -42,6 +42,12 @@ const POUNCE_MARK = {}; // (the pounce warning's shared shapes, made the first t
 const BODY = { grav: 24, bounce: 0.42, fric: 4, keep: 120, max: 50, reach: 2.6 };
 const _bq = new THREE.Quaternion(), _bv = new V3(), _bv2 = new V3();
 
+// a critter's (or a mini boss's) head in the world, for headshots: { p, r } (m: its model, standing at `at`,
+// turned ry, scaled up s)
+function critterHead(m, at, ry, s) {
+  const h = m.head || [0, m.hit, 0, m.hit * 0.5], c = Math.cos(ry), sn = Math.sin(ry), x = h[0] * s, z = h[2] * s;
+  return { p: new V3(at.x + x * c + z * sn, at.y + h[1] * s, at.z - x * sn + z * c), r: h[3] * s };
+}
 const Critters = {
   list: new Map(), // id -> critter
   spits: [],       // things critters threw or spat, in the air right now
@@ -488,29 +494,33 @@ const Critters = {
     const s = SIZES[c.sz].s;
     return new V3(c.rx, w.gh(c.rx, c.rz) + (c.m.hy != null ? c.m.hy * s : c.m.hit * s * 0.8), c.rz);
   },
-  // the first critter a shot from p0 to p1 passes through (skip: ones this shot already hit, keyed 'c' + id)
+  // its head (where its eyes are, see buildCritterParts), in the world: { p, r }
+  headAt(c) { return critterHead(c.m, c.m.root.position, c.rry, SIZES[c.sz].s); },
+  // the first critter a shot from p0 to p1 passes through (skip: ones this shot already hit, keyed 'c' + id).
+  // head: it went in through the head
   hitTest(p0, p1, skip) {
     const w = G.worlds[G.planet];
     for (const c of this.list.values()) {
       if (skip && skip.has('c' + c.id)) continue;
-      const r = c.m.hit * SIZES[c.sz].s;
-      const ctr = this.center(c, w);
-      if (U.segSphere(p0, p1, ctr, r + 0.15)) return { c, ctr };
+      const r = c.m.hit * SIZES[c.sz].s, ctr = this.center(c, w), hd = this.headAt(c);
+      const k = U.bodyOrHead(p0, p1, ctr, r + 0.15, hd.p, hd.r);
+      if (k >= 0) return { c, ctr, head: k === 1 };
     }
     return null;
   },
   // flags: what the shooter was doing when they fired (see LocalPlayer.fireZap)
   // fx: 'goo' slows it down, 'ice' freezes it · quiet: no damage number or sound (the Cryo Beam ticks fast)
-  hit(c, dmg, pos, flags, fx, quiet) {
+  // head: a headshot (the damage is already doubled, see Shots.land)
+  hit(c, dmg, pos, flags, fx, quiet, head) {
     c.flash = 1;
     // shooting a mean one while critters are still leaving you alone: you started it
     if (G.player.safeT > 0 && this.kinds(G.planet)[c.k].mood === 'mean') { G.player.safeT = 0; UI.toast('You started it! Mean critters can bite you now.', 'bad', 2.4); }
     // remember HOW I hit it; if this hit turns out to be the kill, the style bonus comes from here
     const full = c.myHits === 0 && (Net.isHost ? c.hp >= c.max : c.pct >= 100);
     c.myHits++;
-    c.style = Object.assign({}, flags || {}, { first: full && c.myHits === 1 });
+    c.style = Object.assign({}, flags || {}, { first: full && c.myHits === 1, head: !!head });
     FX.burst(pos, fx === 'ice' ? '#bff6ff' : c.g ? '#ffd23f' : '#ffffff', quiet ? 2 : 4, 3);
-    if (!quiet) { FX.text(pos.clone().setY(pos.y + 0.6), String(dmg), '#ffffff', 36); Sound.play('hit'); }
+    if (!quiet) hitFeedback(pos, dmg, head, 36);
     if (Net.isHost) this.damage(c.id, dmg, Net.myId, fx);
     else Net.toHost({ t: 'hitc', id: c.id, dmg, fx });
   },
@@ -825,6 +835,7 @@ const Critters = {
     else if (f.dist != null && f.dist <= 2.6) out.push('close');
     if (f.first && c.myHits === 1) out.push('one');
     if (f.run) out.push('run');
+    if (f.head) out.push('head');
     if (f.low) out.push('clutch');
     const bit = this.bitBy.get(c.id);
     if (bit != null && G.time - bit < 8) out.push('revenge');

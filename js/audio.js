@@ -135,6 +135,8 @@ const Sound = {
       case 'reelstop': T(300, 0.08, { type: 'square', vol: 0.09 }); break;
       case 'throw': N(0.25, { ftype: 'bandpass', freq: 1500, slide: 600, vol: 0.2, q: 1.5 }); break;
       case 'hit': T(240, 0.09, { type: 'square', slide: 90, vol: 0.12 }); N(0.07, { freq: 3000, vol: 0.1 }); break;
+      // a headshot: a bonk and a ping, right off the helmet
+      case 'headshot': T(240, 0.08, { type: 'square', slide: 90, vol: 0.1 }); T(1900, 0.1, { type: 'square', vol: 0.05, delay: 0.01 }); T(2850, 0.22, { type: 'triangle', vol: 0.09, delay: 0.02 }); N(0.05, { ftype: 'highpass', freq: 5000, vol: 0.07 }); break;
       case 'hurt': T(320, 0.25, { type: 'sawtooth', slide: 110, vol: 0.15, filter: 1600 }); break;
       case 'roar': T(90, 1.4, { type: 'sawtooth', slide: 45, vol: 0.22, filter: 500, vib: 5 }); N(1.2, { freq: 500, vol: 0.22 }); break;
       case 'boom': N(0.9, { freq: 700, slide: 80, vol: 0.4 }); T(70, 0.6, { slide: 30, vol: 0.28 }); break;

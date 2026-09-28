@@ -72,6 +72,9 @@ const WADE = { slow: 0.55, min: 0.5, deep: 1.25 };
 const FF_DMG = 0.75;
 // how long you hold E (use) over a downed friend to pick them up (see LocalPlayer.checkRevive)
 const REVIVE_TIME = 5;
+// a headshot (a bullet, pellet, wisp, pizza cutter, the Cryo Beam or the Storm Caller's first strike right in
+// the head: see Shots.land) does this many times the damage (a boss's head is a big target: less)
+const HEADSHOT = { mult: 2, boss: 1.5 };
 // how long critters leave you alone after you join the game, land on a planet, or get back up after dying
 const GRACE = { join: 20, land: 15, respawn: 10 };
 
@@ -884,16 +887,22 @@ class LocalPlayer {
   }
   // from the gun toward whatever the crosshair is on
   aimFrom(o) { return this.aimPoint().sub(o).normalize(); }
-  // what the crosshair is on. Normally that's just straight ahead; while the camera is out in front of you (an
-  // emote) the gun isn't where the camera is, so it's the first thing along the crosshair past you
+  // what the crosshair is on: the first thing along it (a critter's head, say), a little way into it, so a shot
+  // from the gun (which isn't quite where your eyes are) goes right where you aimed, however close it is.
+  // Nothing there: 60m out.
   aimPoint() {
     const dir = this.camDir(new V3()), from = this.rayStart();
-    if (this.tpK < 0.5) return from.addScaledVector(dir, 60);
     const w = this.world(), a = from.clone(), b = new V3();
     for (let d = 1; d <= 60; d += 1) {
       b.copy(from).addScaledVector(dir, d);
-      const hit = Shots.test(a, b, null);
-      if (hit) return hit.ctr ? hit.ctr.clone() : b;
+      if (Shots.test(a, b, null)) { // (then closer in: where exactly it goes into it)
+        let e = d - 1 + 0.1;
+        for (; e < d + 0.05; e += 0.1) { b.copy(from).addScaledVector(dir, e); if (Shots.test(a, b, null)) break; }
+        // (the crosshair's on its head: aim right into that)
+        const p = new V3();
+        for (let k = 0.05; k <= 0.6; k += 0.05) { p.copy(from).addScaledVector(dir, e + k); const t = Shots.test(a, p, null); if (t && t.head) return p.addScaledVector(dir, 0.08); }
+        return b.addScaledVector(dir, 0.15);
+      }
       if (w && (b.y <= w.surfaceAt(b.x, b.z) || (w.solidAt && w.solidAt(b)))) return b;
       a.copy(b);
     }
@@ -1321,6 +1330,8 @@ class RemotePlayer {
     this.center.set(this.pos.x, this.pos.y + 1.0, this.pos.z);
     if (mv & 1 && !ghost && Math.random() < 0.6) FX.burst(this.pos.clone().setY(this.pos.y + 0.4), U.pick(['#ffb23e', '#ff6a1f', '#fff36b']), 1, 2); // (jet pack flames)
   }
+  // their helmet (for headshots): about where it is when they're on their feet
+  headPos() { return (this.hd || (this.hd = new V3())).set(this.pos.x, this.pos.y + 1.95, this.pos.z); }
   dispose() {
     G.scene.remove(this.m.root);
     disposeObj(this.m.root);
@@ -1589,7 +1600,8 @@ const Shots = {
   // what a shot flying from p0 to p1 runs into first (skip: things this shot already hit, by key)
   test(p0, p1, skip) {
     if (G.mode === 'boss' && G.boss) {
-      if (!(skip && skip.has('boss')) && G.boss.hitTest(p0, p1)) return { k: 'boss', key: 'boss' };
+      const bh = !(skip && skip.has('boss')) && G.boss.hitTest(p0, p1);
+      if (bh) return { k: 'boss', key: 'boss', head: bh.head };
       const m = G.boss.minionOn(p0, p1, skip);
       if (m) return { k: 'minion', m, key: 'm' + m.id };
       if (!G.ff) return null;
@@ -1597,25 +1609,29 @@ const Shots = {
       const ft = Fun.targets.length ? Fun.hitTest(p0, p1, skip) : null; // (the shooting gallery)
       if (ft) return ft;
       const ch = Critters.hitTest(p0, p1, skip);
-      if (ch) return { k: 'critter', c: ch.c, ctr: ch.ctr, key: 'c' + ch.c.id };
+      if (ch) return { k: 'critter', c: ch.c, ctr: ch.ctr, key: 'c' + ch.c.id, head: ch.head };
       const mb = MiniBoss.hitTest(p0, p1, skip);
       if (mb) return mb;
     } else return null;
     // friends: always a (harmless) bonk on planets; in boss fights only with friendly fire on
     for (const r of G.remotes.values()) {
       if (!r.visible || r.s.g || r.s.dn || (skip && skip.has('f' + r.id))) continue;
-      if (U.segSphere(p0, p1, r.center, 0.75)) return { k: 'friend', r, key: 'f' + r.id };
+      const k = U.bodyOrHead(p0, p1, r.center, 0.75, r.headPos(), 0.3);
+      if (k >= 0) return { k: 'friend', r, key: 'f' + r.id, head: k === 1 };
     }
     return null;
   },
-  // my shot hit something (fx: 'goo' slows critters, 'ice' freezes them; quiet: skip the damage number)
+  // my shot hit something (fx: 'goo' slows critters, 'ice' freezes them; quiet: skip the damage number). Right
+  // in the head (t.head, see test): a headshot, for more damage (see HEADSHOT)
   land(s, t, pos, dmg, fx, quiet) {
-    if (t.k === 'boss') G.boss.localHit(dmg, pos, quiet);
+    const head = !!t.head;
+    if (head) dmg = Math.round(dmg * (t.k === 'boss' ? HEADSHOT.boss : HEADSHOT.mult));
+    if (t.k === 'boss') G.boss.localHit(dmg, pos, quiet, head);
     else if (t.k === 'minion') G.boss.hitMinion(t.m, dmg, quiet);
-    else if (t.k === 'critter') Critters.hit(t.c, dmg, pos, s.flags ? Object.assign({ dist: s.flags.from.distanceTo(t.ctr) }, s.flags) : null, fx, quiet);
-    else if (t.k === 'friend') this.bonkFriend(t.r, s, dmg);
-    else if (t.k === 'fun') Fun.hit(t.t);
-    else if (t.k === 'mini') MiniBoss.hit(dmg, pos, fx, quiet);
+    else if (t.k === 'critter') Critters.hit(t.c, dmg, pos, s.flags ? Object.assign({ dist: s.flags.from.distanceTo(t.ctr) }, s.flags) : null, fx, quiet, head);
+    else if (t.k === 'friend') this.bonkFriend(t.r, s, dmg, head);
+    else if (t.k === 'fun') { Fun.hit(t.t); UI.hitmark(false); }
+    else if (t.k === 'mini') MiniBoss.hit(dmg, pos, fx, quiet, head);
   },
   // a bolt landed. Jackpot bolts show what they rolled (and 777s and jackpots go off)
   landBolt(s, hit) {
@@ -1649,20 +1665,32 @@ const Shots = {
       this.bonkFriend(r, { vel: r.center.clone().sub(pos), color: '#ff5fb8' }, dmg);
     }
   },
-  // my shot hit a friend: a harmless BONK, or real damage when the host turned on friendly fire
-  bonkFriend(r, s, dmg) {
+  // my shot hit a friend: a harmless BONK, or real damage when the host turned on friendly fire (head: right
+  // on the helmet)
+  bonkFriend(r, s, dmg, head) {
     if ((this.bonkCd.get(r.id) || 0) > G.time) return; // (a beam or a shotgun doesn't bonk them ten times at once)
     this.bonkCd.set(r.id, G.time + 0.35);
     const k = new V3(s.vel.x, 0, s.vel.z).normalize();
     const d = G.ff ? Math.max(1, Math.round(dmg * FF_DMG)) : 0;
     Net.relay({ t: 'bonk', to: r.id, d: [U.r2(k.x), U.r2(k.z)], by: G.name, dmg: d });
-    if (d) { UI.toast(`FRIENDLY FIRE! You shot ${r.name} (-${d})`, 'bad', 1.4); FX.text(r.center.clone().setY(r.center.y + 0.9), String(d), '#ff6b6b', 40); }
-    else UI.toast(`${U.pick(LINES.bonk)} You zapped ${r.name}!`, 'purple', 1.4);
-    Sound.play('bonk');
+    if (d) { UI.toast(`FRIENDLY FIRE! You shot ${r.name}${head ? ' in the head' : ''} (-${d})`, 'bad', 1.4); FX.text(r.center.clone().setY(r.center.y + 0.9), head ? d + '!' : String(d), head ? '#ff3b3b' : '#ff6b6b', head ? 52 : 40); }
+    else UI.toast(`${U.pick(LINES.bonk)} You zapped ${r.name}${head ? ' right on the helmet' : ''}!`, 'purple', 1.4);
+    Sound.play(head ? 'headshot' : 'bonk');
+    UI.hitmark(head);
     FX.burst(r.center, s.color || '#ffffff', 8, 4);
   },
   clear() { for (let i = this.list.length - 1; i >= 0; i--) this.remove(i); },
 };
+
+// a hit of yours landed: the number over it (red, bigger and with HEADSHOT over it for a headshot), a hit sound (a
+// helmet "ping" for a headshot) and the hitmarker round your crosshair (red for a headshot). Critters, mini
+// bosses, bosses and minions all show it (see their hit functions); size / color: the number's
+function hitFeedback(pos, dmg, head, size = 40, color = '#ffffff') {
+  FX.text(pos.clone().setY(pos.y + 0.6), head ? dmg + '!' : String(dmg), head ? '#ff3b3b' : color, head ? Math.round(size * 1.3) : size);
+  if (head) FX.text(pos.clone().setY(pos.y + 1.25), 'HEADSHOT', '#ff3b3b', 30);
+  Sound.play(head ? 'headshot' : 'hit');
+  UI.hitmark(head);
+}
 
 /* ---------------- little particle effects ---------------- */
 const _fxGeo = new THREE.IcosahedronGeometry(0.1, 1);

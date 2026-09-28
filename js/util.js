@@ -66,6 +66,26 @@ const U = {
     const qx = fx + dx * t, qy = fy + dy * t, qz = fz + dz * t;
     return qx * qx + qy * qy + qz * qz <= r * r;
   },
+  // where along the segment p0 -> p1 (0-1) it first goes into the sphere at c of radius r (0 if it starts
+  // inside), or -1 if it misses
+  segEnter(p0, p1, c, r) {
+    const dx = p1.x - p0.x, dy = p1.y - p0.y, dz = p1.z - p0.z;
+    const fx = p0.x - c.x, fy = p0.y - c.y, fz = p0.z - c.z;
+    const a = dx * dx + dy * dy + dz * dz, b = 2 * (fx * dx + fy * dy + fz * dz), k = fx * fx + fy * fy + fz * fz - r * r;
+    if (k <= 0) return 0;
+    if (a < 1e-12) return -1;
+    const disc = b * b - 4 * a * k;
+    if (disc < 0) return -1;
+    const t = (-b - Math.sqrt(disc)) / (2 * a);
+    return t >= 0 && t <= 1 ? t : -1;
+  },
+  // a shot from p0 to p1 into a target with a body (bc, br) and a head (hc, hr): -1 if it misses both, 0 if it
+  // hits the body, 1 if it's a headshot (into the head, and not through a lot of body first)
+  bodyOrHead(p0, p1, bc, br, hc, hr) {
+    const tb = U.segEnter(p0, p1, bc, br), th = hc ? U.segEnter(p0, p1, hc, hr) : -1;
+    if (th < 0) return tb < 0 ? -1 : 0;
+    return tb < 0 || (th - tb) * p0.distanceTo(p1) < 0.5 ? 1 : 0;
+  },
   // squared distance from point p to a player's body (vertical segment from feet+0.3 to feet+1.7)
   bodyDist2(p, feet) {
     const y = U.clamp(p.y, feet.y + 0.3, feet.y + 1.7);

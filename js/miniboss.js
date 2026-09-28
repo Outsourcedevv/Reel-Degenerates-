@@ -666,24 +666,22 @@ const MiniBoss = {
   },
 
   /* ---------- zapping it ---------- */
+  // its head (a critter's head, only much bigger), for headshots
+  headAt(b) { return critterHead(b.m, b.m.root.position, b.rry, b.def.s); },
   hitTest(p0, p1, skip) {
     const b = this.b;
     if (!b || b.rise > 0 || (skip && skip.has('mb'))) return null;
-    const c = this.center(b, G.worlds[G.planet]);
-    return U.segSphere(p0, p1, c, this.radius(b)) ? { k: 'mini', key: 'mb', ctr: c } : null;
+    const c = this.center(b, G.worlds[G.planet]), hd = this.headAt(b), k = U.bodyOrHead(p0, p1, c, this.radius(b), hd.p, hd.r);
+    return k >= 0 ? { k: 'mini', key: 'mb', ctr: c, head: k === 1 } : null;
   },
-  // my shot hit it
-  hit(dmg, pos, fx, quiet) {
+  // my shot hit it (head: a headshot)
+  hit(dmg, pos, fx, quiet, head) {
     const b = this.b;
     if (!b) return;
     b.flash = quiet ? Math.max(b.flash, 0.3) : 1;
     if (G.player.safeT > 0) { G.player.safeT = 0; UI.toast('You started it! Mean critters (and mini bosses) can get you now.', 'bad', 2.4); }
     FX.burst(pos, b.def.color, quiet ? 2 : 4, 3);
-    if (!quiet) {
-      FX.text(pos.clone().setY(pos.y + 0.8), String(dmg), '#ffffff', 44);
-      Sound.play('hit');
-      const x = UI.el.crosshair; x.classList.remove('hit'); void x.offsetWidth; x.classList.add('hit');
-    }
+    if (!quiet) hitFeedback(pos.clone().setY(pos.y + 0.2), dmg, head, 44);
     if (Net.isHost) this.damage(dmg, Net.myId, fx);
     else { Net.toHost({ t: 'hitmb', id: b.id, dmg, fx }); b.hp = Math.max(1, b.hp - dmg); }
   },
