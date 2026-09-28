@@ -87,6 +87,12 @@ Known documented systems include:
 
 ## Current Task
 
+### Planet scenery and satellite visibility (2026-09-28)
+
+- Based on latest v1.12 work through `2583d94`. `buildRock` and lava rock cores now use closed, weathered geometry with three shared material tones; batching retains the shading. Rock random consumption and collision radii are unchanged.
+- Scrap satellite dishes used a front-sided open hemisphere, making the reflector disappear when looking into it. Its dedicated material now renders both sides; added rim, receiver and pedestal detail. Global culling remains enabled.
+- `tests/planet-props.html` checks reflector rays from both sides, finite geometry, collision sizes and seeded placement compatibility. Headless Edge also reproduced the original missing interior and booted/rendered all eight planets without page errors. Browser QA only; no packaged desktop build or multiplayer session run for this change.
+
 ### v1.12: hotbar, keybinds, ragdolls, boss deaths, water, Esc (2026-09-27)
 
 - **Hotbar** (`js/loadout.js`): 5 slots (`SAVE.slots`, save format v4; old saves get one built by `Loadout.fromOld`). Items are `'gun:<lvl>'`, `'vac'`, `'drill'`, `'peel'`. A slot key takes out that slot only (`LocalPlayer.selectSlot`); each gun's held model is built once and cached (`gunVM`), each keeps its own ammo (`setGun`). Shops have a Loadout tab (`Shop.loadoutHtml`). Lost gear keeps its slot; graves store `slots` and `Loadout.restore` puts it back.
