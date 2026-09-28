@@ -267,12 +267,13 @@ hold it up in your hand, and your crew sees you hugging it to your belly), and i
 back later. You can also move a critter between your backpack and your hotbar yourself (press `I`: **To hotbar** /
 **To backpack**). Shops buy the ones in your hotbar too, and if you die they drop into your grave with your
 backpack. Each kill pops up what you got: **Killed Trash Rat $78**, and under it what made it worth that (`3x Large`,
-`2x 360`, `1.25x Point Blank`...). Its body lies there with its price floating over it until you bag it. How many critters are about depends on the world's difficulty. When you join a game, land on a planet
+`2x 360`, `1.25x Point Blank`...). Its body lies there with its price floating faintly over it until you bag it. How many critters are about depends on the world's difficulty. When you join a game, land on a planet
 or respawn, they leave you alone for a bit (watch the **SAFE** timer), unless you shoot one first. Their colors and
-an outline keep them from blending into the ground. They come in all sizes, from Tiny (half the price) to TITANIC (10x): the bigger they are, the more they're worth,
-but the rarer they are (and the harder they hit). About 1 in 12 is bigger than normal:
+an outline keep them from blending into the ground. They come in all sizes, from Tiny (half the price) to TITANIC (10x),
+and everything goes up together: a 10x one is worth 10x as much, is 10x as big, has 10x the health and bites 10x as
+hard (a Tiny one is half of everything). The bigger they are, the rarer. About 1 in 12 is bigger than normal:
 
-| Size | Worth | Chance |
+| Size | Worth, size, health, bite | Chance |
 | --- | --- | --- |
 | Tiny / Small | 0.5x / 0.75x | 16% / 28% |
 | Normal | 1x | 47.6% |

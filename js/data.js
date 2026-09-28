@@ -490,23 +490,26 @@ const CRITTERS = {
     { id: 'hound', name: 'Royal Hound', icon: 'paw', mood: 'mean', w: 16, hp: 255, speed: 5.4, dmg: 20, v: 570, spit: { c: '#ff6a1f', what: 'fire', n: 3, fan: 0.35 }, desc: 'The Emperor\'s guard dog. Three eyes, zero chill. Breathes three fireballs at a time.' },
   ],
 };
-/* how big a critter is. Bigger ones are rarer, tougher, bite harder and are worth a lot more. */
-// v: what it's worth (x the normal price) · w: how often (out of 100): the bigger ones are rarer and rarer, all the
-// way up to 10x. (New sizes go on the END: saves remember a critter's size by where it is in this list.)
+/* how big a critter is. Bigger ones are rarer, and everything about them goes up together: a 10x one is worth 10x as
+   much, is 10x as big, has 10x the health and bites 10x as hard. */
+// v: what it's worth, how big it is (s), how much health it has (hp) and how hard it hits (dmg), all x the normal
+// one · spd: how fast it goes · w: how often (out of 100): the bigger ones are rarer and rarer, all the way up to 10x.
+// (New sizes go on the END: saves remember a critter's size by where it is in this list.)
 const SIZES = [
-  { k: 'tiny',     name: 'Tiny',     s: 0.6,  hp: 0.5,  v: 0.5,  dmg: 0.6,  spd: 1.15, w: 16 },
-  { k: 'small',    name: 'Small',    s: 0.8,  hp: 0.75, v: 0.75, dmg: 0.8,  spd: 1.07, w: 28 },
-  { k: 'normal',   name: '',         s: 1,    hp: 1,    v: 1,    dmg: 1,    spd: 1,    w: 47.64 },
-  { k: 'big',      name: 'Big',      s: 1.35, hp: 1.8,  v: 2,    dmg: 1.3,  spd: 0.95, w: 4 },
-  { k: 'huge',     name: 'Huge',     s: 1.8,  hp: 3,    v: 4,    dmg: 1.6,  spd: 0.88, w: 1 },
-  { k: 'giant',    name: 'GIANT',    s: 2.5,  hp: 5,    v: 9,    dmg: 2,    spd: 0.8,  w: 0.1 },
-  { k: 'large',    name: 'Large',    s: 1.55, hp: 2.3,  v: 3,    dmg: 1.45, spd: 0.92, w: 1.8 },
-  { k: 'hefty',    name: 'Hefty',    s: 1.95, hp: 3.5,  v: 5,    dmg: 1.7,  spd: 0.86, w: 0.6 },
-  { k: 'massive',  name: 'Massive',  s: 2.1,  hp: 3.9,  v: 6,    dmg: 1.8,  spd: 0.84, w: 0.4 },
-  { k: 'enormous', name: 'Enormous', s: 2.2,  hp: 4.3,  v: 7,    dmg: 1.85, spd: 0.83, w: 0.25 },
-  { k: 'colossal', name: 'COLOSSAL', s: 2.35, hp: 4.7,  v: 8,    dmg: 1.9,  spd: 0.82, w: 0.15 },
-  { k: 'titan',    name: 'TITANIC',  s: 2.7,  hp: 5.5,  v: 10,   dmg: 2.1,  spd: 0.78, w: 0.06 },
+  { k: 'tiny',     name: 'Tiny',     v: 0.5,  spd: 1.15, w: 16 },
+  { k: 'small',    name: 'Small',    v: 0.75, spd: 1.07, w: 28 },
+  { k: 'normal',   name: '',         v: 1,    spd: 1,    w: 47.64 },
+  { k: 'big',      name: 'Big',      v: 2,    spd: 0.95, w: 4 },
+  { k: 'huge',     name: 'Huge',     v: 4,    spd: 0.88, w: 1 },
+  { k: 'giant',    name: 'GIANT',    v: 9,    spd: 0.8,  w: 0.1 },
+  { k: 'large',    name: 'Large',    v: 3,    spd: 0.92, w: 1.8 },
+  { k: 'hefty',    name: 'Hefty',    v: 5,    spd: 0.86, w: 0.6 },
+  { k: 'massive',  name: 'Massive',  v: 6,    spd: 0.84, w: 0.4 },
+  { k: 'enormous', name: 'Enormous', v: 7,    spd: 0.83, w: 0.25 },
+  { k: 'colossal', name: 'COLOSSAL', v: 8,    spd: 0.82, w: 0.15 },
+  { k: 'titan',    name: 'TITANIC',  v: 10,   spd: 0.78, w: 0.06 },
 ];
+for (const z of SIZES) Object.assign(z, { s: z.v, hp: z.v, dmg: z.v });
 const SIZE_NORMAL = 2;
 // the backpack id for a critter of some size (normal-sized ones keep their plain id)
 const critKey = (id, sz, gold) => (gold ? 'g_' : '') + id + (sz === SIZE_NORMAL ? '' : ':' + SIZES[sz].k);

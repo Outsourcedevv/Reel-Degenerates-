@@ -108,9 +108,9 @@ const Critters = {
     for (let tries = 0; tries < 20; tries++) {
       const a = Math.random() * Math.PI * 2, r = U.rand(14, PLANET_R - 6);
       const x = Math.cos(a) * r, z = Math.sin(a) * r;
-      if (!w.walkable(x, z, 0.8)) continue;
-      const k = U.weighted(kinds.map((d, i) => [i, d.w || 20]));
       const sz = U.weighted(SIZES.map((s, i) => [i, s.w]));
+      if (!w.walkable(x, z, Math.max(0.8, 0.3 * SIZES[sz].s))) continue; // (the big ones need room)
+      const k = U.weighted(kinds.map((d, i) => [i, d.w || 20]));
       const g = Math.random() < GOLD_CHANCE ? 1 : 0;
       const c = this.add(this.nextId++, k, g, x, z, Math.random() * 6, sz);
       c.hp = c.max = kinds[k].hp * SIZES[sz].hp * (g ? 2 : 1) * (DIFFS[G.diff] || DIFFS.easy).crit;
@@ -618,11 +618,17 @@ const Critters = {
   priceTag(b, w = G.worlds[b.p]) {
     if (b.tag || !b.entry || !w) return;
     const r = cargoRes(b.entry);
-    b.tag = textSprite(U.bucks(r.v), { size: 44, color: '#ffd23f', bg: 'rgba(20,16,4,.6)', stroke: 'rgba(0,0,0,.6)', scale: 0.008 });
+    b.tag = textSprite(U.bucks(r.v), { size: 40, color: '#ffe38a', stroke: 'rgba(0,0,0,.55)', scale: 0.005 });
     w.dyn.add(b.tag);
     this.placeTag(b);
   },
-  placeTag(b) { if (b.tag) b.tag.position.set(b.pos.x, b.pos.y + 0.5 * b.s + 0.75 + Math.sin(b.t * 2.4) * 0.05, b.pos.z); },
+  // (low-key: see-through, and it fades out as you walk away)
+  placeTag(b) {
+    if (!b.tag) return;
+    b.tag.position.set(b.pos.x, b.pos.y + 0.5 * b.s + 0.5, b.pos.z);
+    const d = G.camera.position.distanceTo(b.tag.position);
+    b.tag.material.opacity = 0.7 * U.clamp((26 - d) / 10, 0, 1);
+  },
   // a handful of its outermost points (from its real shape): what touches the ground as it tumbles
   hull(b, hc) {
     const root = b.m.root, pts = [], dirs = [];
@@ -774,11 +780,17 @@ const Critters = {
     for (const b of this.bodies.values()) {
       if (!b.mine || !b.rest || b.taken || b.p !== G.planet) continue;
       const dx = b.pos.x - from.x, dz = b.pos.z - from.z, d = Math.hypot(dx, dz);
-      if (d > reach + 0.3 * b.s || Math.abs(b.pos.y - from.y) > 2.4) continue;
+      if ((d > reach + 0.3 * b.s && this.edgeDist(b, from) > reach) || Math.abs(b.pos.y - from.y) > 2.4 + 0.5 * b.s) continue; // (a big one: from its edge, and its middle is up high)
       const dot = d > 0.6 ? (dx * dir.x + dz * dir.z) / (d * Math.hypot(dir.x, dir.z) + 1e-6) : 1;
       if (dot < 0.25) continue;
       if (d < bd) { bd = d; best = b; }
     }
+    return best;
+  },
+  // how far you are (sideways) from the nearest bit of it (see hull)
+  edgeDist(b, from) {
+    let best = Math.hypot(b.pos.x - from.x, b.pos.z - from.z);
+    for (const h of b.hull) { _bv.copy(h).applyQuaternion(b.q).add(b.pos); best = Math.min(best, Math.hypot(_bv.x - from.x, _bv.z - from.z)); }
     return best;
   },
   // for the Grabby Vac: one of yours along where you're pointing it
@@ -787,7 +799,7 @@ const Critters = {
     for (const b of this.bodies.values()) {
       if (!b.mine || !b.rest || b.taken || b.p !== G.planet) continue;
       const dx = b.x - cp.x, dy = b.y - cp.y, dz = b.z - cp.z, d = Math.hypot(dx, dy, dz);
-      if (d > range + 1.5) continue;
+      if (d > range + 1.5 + 0.5 * b.s) continue;
       const dot = (dx * dir.x + dy * dir.y + dz * dir.z) / d;
       if (dot < minDot) continue;
       const sc = d * (2 - dot);
