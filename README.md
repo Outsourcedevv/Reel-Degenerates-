@@ -235,6 +235,7 @@ Every planet sells a different gun, and each one shoots differently:
 | Jackpot Blaster | Luckstar | every shot is a slot pull: x2, 777s, the odd JACKPOT |
 | Cryo Beam | Frostbyte | hold to freeze things |
 | Wisp Caller | Spookulon | ghost wisps that drift after whatever is nearest your crosshair (they hit softer than the guns you aim) |
+| Phantom Longshot | Spookulon ($14,500) | a sniper: one spectral round straight to the crosshair (220 damage, no travel time), 5 rounds, slow. Hold right-click to scope in (dead on; from the hip it wanders a bit) |
 | Storm Caller | Nimbus-9 | lightning that jumps from target to target (and stuns critters) |
 | Same-Day Launcher | Gigopolis | exploding parcels; shoot the ground under you mid-jump to rocket-jump |
 | Pizza Cutter | Zorblax Prime | spinning cutters that slice through everything and come back |

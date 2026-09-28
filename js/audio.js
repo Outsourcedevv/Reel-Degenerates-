@@ -166,6 +166,7 @@ const Sound = {
       case 'wisp': T(900 + Math.random() * 200, 0.12, { type: 'sine', slide: 1500, vol: 0.05, vib: 20 }); break;
       case 'squirt': N(0.14, { ftype: 'bandpass', freq: 2600, slide: 1200, vol: 0.12, q: 2.5 }); T(520, 0.06, { type: 'sine', slide: 900, vol: 0.04 }); break;
       case 'drip': T(1200 + Math.random() * 300, 0.07, { type: 'sine', slide: 500, vol: 0.05 }); break;
+      case 'snipe': T(2200, 0.18, { type: 'sawtooth', slide: 180, vol: 0.09, filter: 2600 }); N(0.35, { freq: 900, slide: 200, vol: 0.22 }); T(90, 0.3, { type: 'triangle', slide: 40, vol: 0.14 }); break;
       case 'thunder': N(0.7, { freq: 2400, slide: 120, vol: 0.32 }); T(60, 0.6, { type: 'sawtooth', slide: 30, vol: 0.12, filter: 400 }); break;
       case 'rocket': N(0.3, { freq: 1200, slide: 300, vol: 0.2 }); T(140, 0.2, { type: 'sawtooth', slide: 70, vol: 0.08, filter: 800 }); break;
       case 'explode': N(0.8, { freq: 900, slide: 60, vol: 0.42 }); T(65, 0.5, { slide: 28, vol: 0.3 }); break;

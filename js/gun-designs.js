@@ -88,6 +88,16 @@ function pizza(){group=new T.Group();group.name='Pizza Cutter';grip(-.18,'#96382
  for(const s of [-1,1]){cyl('Red axle hub',.046,.021,C.red,[.28,.1,s*.029],'z');cyl('Hub bolt',.017,.012,C.brass,[.28,.1,s*.045],'z',.017,6);box('Axle bracket',[.162,.034,.016],C.steel,[.208,.103,s*.051]);for(let i=0;i<6;i++){const a=i*Math.PI/3;ball('Blade recess '+i,.012,C.dark,[.28+Math.cos(a)*.106,.1+Math.sin(a)*.106,s*.014],[1,1,.12]);}}
  const arc=new T.TorusGeometry(.205,.019,4,20,Math.PI*.8);mesh('Upper red blade guard',arc,C.red,[.28,.1,0],[0,0,.1*Math.PI]);box('Grease shield',[.065,.086,.19],C.red,[.068,.107,0]);for(const s of [-1,1]){plate('Pizza badge',[[-.241,.086],[-.176,.086],[-.209,.011]],.006,C.yellow,s*.08);for(const [x,y]of[[-.217,.062],[-.202,.041],[-.196,.07]])ball('Pepperoni badge dot',.006,C.red,[x,y,s*.086],[1,1,.2]);}
  box('Pizza trigger',[.018,.047,.028],C.cream,[-.015,-.066,0],[0,0,-.27]);return group;}
+function sniper(){group=new T.Group();group.name='Phantom Longshot';grip(-.24,'#2c2436');
+ box('Bone stock',[.26,.1,.08],'#e9e0c8',[-.46,.005,0],[0,0,.06],.015);box('Stock cheek rest',[.14,.03,.085],'#cfc5aa',[-.44,.07,0]);box('Stock butt plate',[.03,.12,.09],C.dark,[-.595,-.005,0],[0,0,.06]);
+ box('Gothic receiver',[.36,.12,.12],'#2c2436',[-.16,.03,0],[],.015);box('Receiver brass trim',[.32,.02,.125],C.brass,[-.16,.09,0]);
+ cyl('Barrel shroud',.042,.24,'#2c2436',[.13,.05,0]);cyl('Long barrel',.027,.5,'#3a3446',[.45,.05,0]);for(let i=0;i<3;i++)ring('Ecto band '+i,.034,.008,'#7dff8a',[.3+i*.13,.05,0],'x',{emissive:'#2a8a3a'});
+ cyl('Muzzle brake',.04,.07,C.steel,[.72,.05,0]);for(const s of [-1,1])box('Brake port '+s,[.03,.012,.005],C.dark,[.72,.05,s*.041]);cyl('Spectral muzzle',.02,.002,'#7dff8a',[.756,.05,0],'x',.02,12,{emissive:'#2a8a3a'});
+ cyl('Scope tube',.03,.32,'#1d1a24',[.02,.175,0]);cyl('Scope front bell',.046,.07,'#1d1a24',[.21,.175,0],'x',.032);cyl('Scope lens',.041,.003,'#7dff8a',[.246,.175,0],'x',.041,14,{emissive:'#2a8a3a'});cyl('Scope eyepiece',.037,.05,'#1d1a24',[-.16,.175,0],'x',.03);
+ for(const x of [-.07,.1]){box('Scope mount',[.028,.06,.034],C.brass,[x,.115,0]);ring('Scope ring',.034,.007,C.brass,[x,.175,0]);}
+ box('Ecto cell',[.09,.05,.07],'#7dff8a',[-.27,.115,0],[],.01);box('Ecto cell cap',[.02,.056,.074],C.brass,[-.225,.115,0]);
+ for(const s of [-1,1]){ball('Skull emblem',.026,'#e9e0c8',[-.12,.035,s*.063],[1,1.1,.35]);for(const z of [-.01,.01])ball('Skull eye',.006,'#1d1a24',[-.113,.042+z*0,s*.069+z*s*0],[1,1,.4]);}
+ box('Bone trigger',[.014,.05,.025],'#e9e0c8',[-.12,-.072,0],[0,0,-.3]);box('Support foregrip',[.13,.05,.075],'#2c2436',[.13,-.015,0],[],.01);return group;}
 
 // [builder, design grip-center X, muzzle X, muzzle Y, optional support X/Y/radius/width]
 const specs = {
@@ -101,6 +111,7 @@ const specs = {
   chain: [storm, -.29, .49, .06, [-.02, .031, .08, .09]],
   rocket: [launcher, -.31, .48, .075, [.184, -.098, .048, .046]],
   cutter: [pizza, -.27, .28, .1, [.012, .046, .028, .036]],
+  sniper: [sniper, -.33, .76, .05, [.13, -.015, .045, .045]],
 };
 // the bits that move on their own when it reloads (see GunReload in reloads.js): name: [which parts, design
 // pivot x, y, z, each (keep every piece apart, to move them one at a time)]
@@ -114,6 +125,7 @@ const moving = {
   homing: { ghost: [/^(Captured ghost|Ghost tail|Ghost eye)/, .048, .16] },
   chain: { mag: [/^(Yellow battery|Battery terminals|Warning badge)/, -.203, .14] },
   rocket: { mag: [/^(Loaded parcel|Parcel tape)/, .398, .075] },
+  sniper: { mag: [/^(Ecto cell)/, -.25, .115] },
 };
 function build(type) {
   const spec = specs[type] || specs.squirt, scale = .65;

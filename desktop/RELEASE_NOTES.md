@@ -12,6 +12,8 @@
 - **Mini boss prizes.** Mini bosses turn up a bit more often (after 15 critters, 4% a kill) and drop prizes when they
   pop: a trophy that sells for a lot, Goo Grenades, and the first time, a special item that's yours for keeps: jump
   higher, sell for more, reload faster, heal faster, hit harder, run faster, or take less damage.
+- **New gun: the Phantom Longshot** (Spookulon, $14,500). A haunted sniper rifle: one spectral round straight to
+  your crosshair for 220 damage, no travel time. Hold right-click to scope in.
 - **The Duel Pit on Luckstar.** Wager a crewmate, each pick a gun you own, and fight it out in the arena. Friendly:
   going down costs you nothing but the bet. Winner takes the wager.
 - **Keybinds.** Change any key (or mouse button) on the new Keybinds screen, in the pause menu or on the title

@@ -17,6 +17,7 @@ function gunChips(z) {
     case 'homing': return ['HOMING', `${z.dmg} DMG`, rate, `${z.mag} WISPS`];
     case 'chain': return ['CHAIN LIGHTNING', `${z.dmg} DMG`, `JUMPS ${z.jumps}x`, 'STUNS CRITTERS'];
     case 'rocket': return ['ROCKETS', `${z.dmg} SPLASH DMG`, 'ROCKET JUMPS', `${z.mag} PARCELS`];
+    case 'sniper': return ['SNIPER', `${z.dmg} DMG`, 'RIGHT-CLICK: SCOPE', `${z.mag} ROUNDS`];
     default: return ['BLASTER', `${z.dmg} DMG`, rate, mag, rl];
   }
 }

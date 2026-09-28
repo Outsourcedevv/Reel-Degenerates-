@@ -123,6 +123,7 @@ const RECOIL = {
   chain: { up: 0.038, side: 0.01, stay: 0.25, back: 0.14, rot: 0.3, sh: 0.12 }, // Storm Caller
   rocket: { up: 0.065, side: 0.012, stay: 0.25, back: 0.22, rot: 0.42, sh: 0.15 }, // Same-Day Launcher
   cutter: { up: 0.024, side: 0.008, stay: 0.2, back: 0.1, rot: 0.2 }, // Pizza Cutter
+  sniper: { up: 0.09, side: 0.01, stay: 0.2, back: 0.2, rot: 0.35, sh: 0.1 }, // Phantom Longshot
 };
 class LocalPlayer {
   constructor() {
@@ -322,7 +323,7 @@ class LocalPlayer {
     const cfg = PLANETS[G.planet];
     const canAct = G.locked && !G.panel && !G.chatting;
     // --- look
-    const s = 0.0022 * G.settings.sens;
+    const s = 0.0022 * G.settings.sens * (1 - 0.65 * (this.scopeK || 0)); // (scoped in: finer aim)
     if (G.locked && !G.panel) {
       this.yaw -= Input.dx * s;
       this.pitch = U.clamp(this.pitch - Input.dy * s, -1.5, 1.5);
@@ -474,7 +475,7 @@ class LocalPlayer {
     if (this.using && this.emoteT > 0) this.stopEmote();
     if (!busy) this.useTool(dt);
     else if (this.vacTarget || this.drillTarget) this.releaseTargets();
-    if (!busy && Input.hit('nade')) this.throwNade();
+    if (!busy && Input.hit('nade') && !this.scoped()) this.throwNade(); // (with the Longshot out, right-click scopes in instead)
     // --- interaction prompt
     this.updateDown(dt);
     this.updateRespawn(dt, canAct);
@@ -933,6 +934,9 @@ class LocalPlayer {
       net.r = roll.k; color = roll.color;
       Shots.fire('zap', o, d, true, { dmg: z.dmg, color, flags, roll });
       Sound.play(roll.k === 'dud' ? 'fizz' : 'coin'); this.kick('jackpot', roll.k === 'jp' ? 2 : roll.k === 'dud' ? 0.5 : 1);
+    } else if (z.type === 'sniper') { // one spectral round, straight down the crosshair (no travel time)
+      net.e = v3r(this.snipe(z, o, flags));
+      Sound.play('snipe'); this.kick('sniper', this.scopeK > 0.5 ? 0.6 : 1);
     } else if (z.type === 'squirt') { // a little arc of water. It does try.
       Shots.fire('zap', o, d, true, { dmg: z.dmg, color, flags, water: true });
       Sound.play('squirt'); this.kick('squirt');
@@ -1026,6 +1030,24 @@ class LocalPlayer {
     Sound.play('beam');
     this.kick('beam');
     if (Math.random() < 0.6) FX.burst(end, '#bff6ff', 1, 2);
+  }
+  // Phantom Longshot: follow the crosshair out (from the hip it wanders a bit) until something's in the way. Where it ended
+  scoped() { return this.tool === 'zap' && gunDef(SAVE.zap).type === 'sniper'; }
+  snipe(z, o, flags) {
+    const cam = this.rayStart(), dir = this.camDir(new V3()), w = this.world();
+    const sp = (z.spread || 0) * (1 - this.scopeK); // (scoped in: dead on)
+    if (sp > 0) { dir.x += (Math.random() - 0.5) * 2 * sp; dir.y += (Math.random() - 0.5) * 2 * sp; dir.z += (Math.random() - 0.5) * 2 * sp; dir.normalize(); }
+    const a = cam.clone(), b = new V3(), end = cam.clone().addScaledVector(dir, z.range);
+    let hit = null;
+    for (let d = 0.8; d <= z.range; d += 0.8) {
+      b.copy(cam).addScaledVector(dir, d);
+      hit = Shots.test(a, b, null);
+      if (hit || (w && (b.y <= w.surfaceAt(b.x, b.z) || (w.solidAt && w.solidAt(b))))) { end.copy(b); break; }
+      a.copy(b);
+    }
+    if (hit) Shots.land({ flags, vel: dir, color: z.color }, hit, end.clone(), z.dmg, null);
+    Shots.tracer(o, end, z.color);
+    return end;
   }
   // Storm Caller: a bolt of lightning down the crosshair, then it jumps to whatever's close (weaker each jump)
   chainZap(z, o, flags) {
@@ -1175,7 +1197,12 @@ class LocalPlayer {
     this.kickP = U.damp(this.kickP, 0, 9, dt); this.kickY = U.damp(this.kickY, 0, 9, dt);
     cam.rotation.set(U.clamp(this.pitch + sx + this.kickP + wk * wk * 0.9, -1.55, 1.55), yaw + sy + this.kickY, this.dead ? Math.min(this.deadT * 0.6, 0.3) * (1 - this.tpK) : wk * wk * 0.5, 'YXZ');
     // sprinting widens the view a little
-    const fov = 72 + this.sprintK * 7;
+    // (the Longshot's scope: hold right-click. Not while reloading, not in menus)
+    const scope = this.scoped() && Input.down('nade') && G.locked && !G.panel && !this.dead && this.reloadT <= 0 && !Duel.holding();
+    this.scopeK = U.damp(this.scopeK || 0, scope ? 1 : 0, 16, dt);
+    if (this.scopeK < 0.01) this.scopeK = 0;
+    document.body.classList.toggle('scoped', this.scopeK > 0.6);
+    const fov = U.lerp(72 + this.sprintK * 7, gunDef(SAVE.zap).zoom || 22, this.scopeK);
     if (Math.abs(cam.fov - fov) > 0.05) { cam.fov = fov; cam.updateProjectionMatrix(); }
     // viewmodel: lags behind the mouse, bobs with steps, dips on landing, drops out of view when swapping tools
     const k = Math.min(1, dt * 60);
@@ -1185,7 +1212,7 @@ class LocalPlayer {
     // (picking a friend up takes both hands: what you're holding goes down out of the way)
     this.reviveK = U.damp(this.reviveK || 0, this.reviveT > 0 ? 1 : 0, 10, dt);
     const sw = Math.max(this.swapT * this.swapT, this.reviveK, wk), run = this.sprintK; // (and while you get up off the ground)
-    this.vm.visible = !this.dead && !this.ghost && this.tpK < 0.5;
+    this.vm.visible = !this.dead && !this.ghost && this.tpK < 0.5 && (this.scopeK || 0) < 0.6; // (looking down the scope: no gun in the way)
     this.vm.position.set(
       Math.cos(this.walkT) * (0.012 + run * 0.02) + this.swayX * 0.5,
       Math.abs(Math.sin(this.walkT)) * (0.012 + run * 0.02) + (this.onGround ? 0 : 0.02) - sw * 0.3 - this.landK * 0.05 - this.swayY * 0.4 - run * 0.03,
@@ -1535,6 +1562,7 @@ const Shots = {
     const o = new V3(...m.o);
     if (m.k === 'beam') { if (m.e) this.beamFx(o, new V3(...m.e), m.c || '#9fe3ff'); return; }
     if (m.k === 'chain') { if (m.pts) this.lightning(m.pts.map((p) => new V3(...p)), m.c || '#b8d8ff'); return; }
+    if (m.k === 'sniper') { if (m.e) { this.tracer(o, new V3(...m.e), m.c); Sound.play('snipe'); } return; }
     if (m.k === 'stomp') { FX.ring(o, '#ffffff', STOMP.r); FX.burst(o, '#e8f0f8', 12, 5); Sound.play('stomp'); return; }
     const d = new V3(...m.d), def = ZAPPERS.find((z) => z.type === m.k);
     if (m.k === 'spread' && def) this.spread(o, d, m.s || 1, def, false, null);
@@ -1545,6 +1573,15 @@ const Shots = {
     else if (m.k === 'rocket') this.fire('rocket', o, d, false, { radius: def ? def.radius : 3.6 });
     else if (m.k === 'jackpot') { const roll = JACKPOT_ROLLS.find((x) => x.k === m.r) || JACKPOT_ROLLS[0]; this.fire('zap', o, d, false, { color: roll.color, roll }); }
     else this.fire('zap', o, d, false, { color: m.c });
+  },
+  // the Longshot's round: a streak of ghost light that hangs in the air a moment
+  tracer(a, b, color) {
+    const mesh = new THREE.Mesh(_beamGeo, beamMat(color || '#7dff8a'));
+    aimBeam(mesh, a, b);
+    mesh.scale.x *= 0.5; mesh.scale.z *= 0.5;
+    G.scene.add(mesh);
+    this.list.push({ kind: 'beam', mesh, t: 0, life: 0.35 });
+    FX.burst(b, color || '#7dff8a', 6, 3);
   },
   // a flicker of somebody's freeze beam
   beamFx(a, b, color) {

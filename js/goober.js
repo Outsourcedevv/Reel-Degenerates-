@@ -16,7 +16,7 @@
 // how hard each gun knocks him about when it goes off
 const GOOB_KICK = { squirt: 0.3, bolt: 0.55, homing: 0.5, jackpot: 0.7, lob: 0.9, cutter: 0.8, beam: 0.14, chain: 1.3, spread: 1.6, rocket: 2.1 };
 // guns he needs both hands for (one-handed, the other hand goes on his hip)
-const GOOB_TWO_HANDED = new Set(['spread', 'lob', 'beam', 'chain', 'rocket']);
+const GOOB_TWO_HANDED = new Set(['spread', 'lob', 'beam', 'chain', 'rocket', 'sniper']);
 // what he gets up to when he's been standing about (seconds each)
 const GOOB_FIDGETS = { scratch: 2.4, pick: 2.8, yawn: 2.6, drum: 2.4, look: 2.2, tap: 2.8, wobble: 1.8 };
 // emotes (G): [seconds, name]
