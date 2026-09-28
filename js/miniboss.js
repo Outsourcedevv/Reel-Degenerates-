@@ -297,6 +297,7 @@ const MiniBoss = {
   clear() { this.remove(); this.hud(0); },
 
   update(dt) {
+    this.updateLoot(dt);
     if (this.planet !== G.planet) { this.clear(); this.planet = G.planet; }
     const b = this.b;
     if (b) {
@@ -721,8 +722,13 @@ const MiniBoss = {
     FX.ring(new V3(b.rx, gy + 0.2, b.rz), def.color, 7); FX.ring(new V3(b.rx, gy + 0.3, b.rz), '#ffffff', 10);
     for (let i = 0; i < 14; i++) this.glow().puff(c.clone().add(new V3(U.rand(-2, 2), U.rand(-1.5, 2.5), U.rand(-2, 2))), new THREE.Color(def.color), 3, 0.9);
     for (const o of [b.m.tag, b.m.aura, b.m.tele]) if (o) o.visible = false;
-    const a = Math.random() * Math.PI * 2;
-    Critters.makeBody({ id: 0, k: -1, sz: 2, g: 0, m: b.m, rx: b.rx, rz: b.rz, rry: b.rry }, { v: [Math.cos(a) * 1.5, 10, Math.sin(a) * 1.5], w: [Math.sin(a) * 4.5, U.rand(-1.5, 1.5), -Math.cos(a) * 4.5], f: 0 }, null, { s: def.s, pop: 2.4, color: def.color });
+    const a = Math.random() * Math.PI * 2, mine = G.mode === 'planet' && !G.player.dead;
+    const body = Critters.makeBody({ id: 0, k: -1, sz: 2, g: 0, m: b.m, rx: b.rx, rz: b.rz, rry: b.rry }, { v: [Math.cos(a) * 1.5, 10, Math.sin(a) * 1.5], w: [Math.sin(a) * 4.5, U.rand(-1.5, 1.5), -Math.cos(a) * 4.5], f: 0 }, null, { s: def.s, pop: 2.4, color: def.color });
+    // (its prizes burst out of it when it pops: see dropLoot)
+    if (mine) {
+      this.pendingLoot = { pid: b.pid || PLANETS[G.planet].id, p: G.planet };
+      if (body) body.onPop = (c) => { const pl = this.pendingLoot; this.pendingLoot = null; if (pl) this.dropLoot(c, pl.pid); };
+    }
     this.b = null; // (its model lives on for a moment, as the body)
     Hazards.clear();
     this.hud(0);
@@ -736,5 +742,85 @@ const MiniBoss = {
     G.shake = Math.max(G.shake, 0.7 * Hazards.near(c));
     Sound.play('explode'); Sound.play('victory');
     UI.bigTitle('MINI BOSS DOWN!', `${def.name} is done for. +${U.bucks(pay)} for everyone here!`, '#7dff8a', 3.4);
+  },
+
+  /* ---------- its prizes (see PERKS): everyone who was there gets their own ----------
+     They burst out of it when it pops, land with a beam of light over them, and after a moment fly over to you.
+     (Leave the planet first and they're yours anyway.) */
+  loot: [], pendingLoot: null,
+  lootItems(pid) {
+    const out = [{ k: 'trophy', key: 'mbt_' + pid }], perk = perkOf(pid);
+    if (perk && !hasPerk(perk)) out.push({ k: 'perk', id: perk }); // (its special item, the first time)
+    out.push({ k: 'nades', n: 3 });
+    return out;
+  },
+  dropLoot(pos, pid) {
+    const w = G.worlds[G.planet];
+    if (!w) return;
+    const items = this.lootItems(pid);
+    items.forEach((it, i) => {
+      const f = ITEM_MODELS[it.k === 'perk' ? 'perk:' + it.id : it.k === 'trophy' ? 'res:' + it.key : 'nades'];
+      const col = it.k === 'perk' ? '#7dffea' : it.k === 'trophy' ? '#ffd23f' : '#7dff8a', g = new THREE.Group();
+      const m = f ? mergeLocal(f()) : new THREE.Group();
+      m.scale.setScalar(it.k === 'perk' ? 1.7 : 1.3);
+      m.traverse((o) => { if (o.isMesh) o.castShadow = false; });
+      const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 7, 12, 1, true),
+        new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+      beam.position.y = 3.5;
+      g.add(m, beam);
+      w.dyn.add(g);
+      const a = (i / items.length) * Math.PI * 2 + Math.random() * 0.5, sp = U.rand(3, 5);
+      this.loot.push({ it, g, m, beam, col, p: G.planet, pos: pos.clone(), vel: new V3(Math.cos(a) * sp, U.rand(7, 9), Math.sin(a) * sp), t: 0, lt: -1 });
+    });
+    Sound.play('rare');
+  },
+  updateLoot(dt) {
+    const pl = this.pendingLoot;
+    if (pl && (pl.p !== G.planet || G.mode !== 'planet')) { this.pendingLoot = null; for (const it of this.lootItems(pl.pid)) this.give(it); } // (gone before it popped)
+    const me = G.player;
+    for (const l of [...this.loot]) {
+      if (l.p !== G.planet || G.mode !== 'planet') { this.grab(l); continue; } // (you left: it's yours anyway)
+      l.t += dt;
+      if (l.lt < 0) { // (flying out)
+        l.vel.y -= 20 * dt;
+        l.pos.addScaledVector(l.vel, dt);
+        const gy = hzFloor(G.worlds[l.p], l.pos.x, l.pos.z);
+        if (l.pos.y <= gy + 0.35 && l.vel.y < 0) { l.pos.y = gy + 0.35; l.lt = 0; FX.burst(l.pos, l.col, 8, 3); }
+      } else {
+        l.lt += dt;
+        if (l.lt > 1.4 && !me.dead && !me.down) { // (then it comes to you)
+          const to = me.pos.clone().setY(me.pos.y + 1).sub(l.pos), d = to.length();
+          if (d < 0.9) { this.grab(l); continue; }
+          if (d < 80) l.pos.addScaledVector(to.normalize(), Math.min(d, (5 + l.lt * 9) * dt));
+        }
+      }
+      l.g.position.copy(l.pos);
+      l.m.rotation.y += dt * 2.2;
+      l.m.position.y = Math.sin(l.t * 3) * 0.1;
+      l.beam.material.opacity = 0.22 + 0.1 * Math.sin(l.t * 5);
+    }
+  },
+  grab(l) {
+    this.loot.splice(this.loot.indexOf(l), 1);
+    if (l.g.parent) l.g.parent.remove(l.g);
+    disposeObj(l.g);
+    if (G.player && G.mode === 'planet') FX.burst(G.player.pos.clone().setY(G.player.pos.y + 1), l.col, 12, 4);
+    this.give(l.it);
+  },
+  give(it) {
+    if (it.k === 'trophy') { SAVE.cargo.push(it.key); UI.pickup('+ ' + RES[it.key].name, '#ffd23f', 'res:' + it.key); Sound.play('pickup'); } // (it squeezes into a full backpack too)
+    else if (it.k === 'nades') { SAVE.nades += it.n; UI.pickup(`+ Goo Grenades x${it.n}`, '#7dff8a', 'nades'); Sound.play('pickup'); }
+    else if (it.k === 'perk' && !hasPerk(it.id)) {
+      (SAVE.perks || (SAVE.perks = [])).push(it.id);
+      const k = PERKS[it.id];
+      UI.bigTitle(k.name.toUpperCase() + '!', `${k.desc} It's yours for keeps (see the Loadout tab at any shop).`, '#7dffea', 4.5);
+      UI.pickup('+ ' + k.name, '#7dffea', 'perk:' + it.id);
+      Sound.play('jackpot');
+      const html = `<b>${U.esc(G.name)}</b> got the <b>${U.esc(k.name)}</b>!`;
+      UI.feed(html, 'good');
+      if (Net.online) Net.relay({ t: 'ann', html, cls: 'good' });
+    }
+    persist();
+    UI.hud();
   },
 };

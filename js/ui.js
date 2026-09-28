@@ -178,7 +178,7 @@ const UI = {
   // battery counter, bottom right, while the zapper is out
   ammo(p) {
     const a = this.el.ammo;
-    const show = p.tool === 'zap' && !p.dead && !p.ghost && (G.mode === 'planet' || G.mode === 'boss');
+    const show = p.tool === 'zap' && !p.dead && !p.ghost && (G.mode === 'planet' || G.mode === 'boss' || G.mode === 'duel');
     a.classList.toggle('hidden', !show);
     if (!show) return;
     const z = gunDef(SAVE.zap), mag = z.mag, rel = p.reloadT > 0;

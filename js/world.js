@@ -255,21 +255,22 @@ function setAtmosphere(cfg, bossTint) {
   G.scene.fog.near = cfg.fog[1];
   G.scene.fog.far = cfg.fog[2];
   G.renderer.setClearColor(fogCol);
-  const dim = G.mode === 'boss' && ARENA_SKIN[cfg.id] ? ARENA_SKIN[cfg.id].light || 1 : 1;
+  const arena = G.mode === 'boss' || G.mode === 'duel'; // (in the arena, not on the planet)
+  const dim = arena && ARENA_SKIN[cfg.id] ? ARENA_SKIN[cfg.id].light || 1 : 1;
   G.sun.color.set(cfg.sun[0]);
   G.sun.intensity = cfg.sun[1] * dim;
   G.hemi.color.set(cfg.hemi[0]);
   G.hemi.groundColor.set(cfg.hemi[1]);
   G.hemi.intensity = cfg.hemi[2] * dim;
   G.liquid.set(cfg.liquid);
-  G.liquid.setWorld(G.mode === 'boss' ? null : G.worlds[PLANETS.indexOf(cfg)]); // (where its shore is, for the foam)
+  G.liquid.setWorld(arena ? null : G.worlds[PLANETS.indexOf(cfg)]); // (where its shore is, for the foam)
   // how much things glow (bloom) depends on how bright the place is: bright planets bloom a lot less,
   // or their pastel ground and sunlit mushrooms turn into white glare
   const mood = cfg.mood || (cfg.stars > 0.5 ? 'night' : 'day');
   // critters get an edge that stands out: a dark outline on bright planets, a pale glow on dark ones
   const cr = HI_U.crit;
   if (mood === 'night') { cr.uRim.value.set(cfg.critEdge || '#ffffff'); cr.uRimK.value = 0.5; } else { cr.uRim.value.setRGB(-1, -1, -1); cr.uRimK.value = 0.62; }
-  Post.setMood(bossTint || G.mode === 'boss' ? (mood === 'night' ? 'boss' : 'bossDay') : cfg.stars >= 1 && !(cfg.bodies || []).length ? 'space' : mood);
+  Post.setMood(bossTint || arena ? (mood === 'night' ? 'boss' : 'bossDay') : cfg.stars >= 1 && !(cfg.bodies || []).length ? 'space' : mood);
 }
 
 /* ---------------- liquid sea (water / goo / gold / lava) ----------------
@@ -732,6 +733,7 @@ class PlanetWorld {
   build_luck() {
     const rng = this.rng;
     this.buildCasino();
+    this.buildDuelPit(DUEL.spot.x, DUEL.spot.z);
     // decor around the rest of the island
     this.jokeSign(-12, 10, (() => { const g = new THREE.Group(); mk(BOX(0.2, 2.2, 0.2), '#555', g, 0, 1.1, 0); const s = signMesh(['POSTER'], 1.6, 1.0, { bg: '#ff3df0', color: '#fff' }); s.position.set(0, 2.2, 0.12); g.add(s); return g; })());
     this.scatter(26, 14, 84, 1.5, (x, z) => { this.place(buildNeonPalm(rng), x, z, 0, null, 0.3); this.circle(x, z, 0.4); });
@@ -741,6 +743,33 @@ class PlanetWorld {
     this.scatter(14, 12, 82, 1, (x, z) => this.addNode('chips', x, this.gh(x, z) - 0.02, z));
     const C = CASINO_HALL, fy = this.h(C.x, C.z);
     for (const [lx, lz] of [[-2.5, 0.8], [5, -1.6], [9.5, 2.2], [-5.6, -2.4], [3.2, -10.6], [-8.5, 5.4]]) this.addNode('chips', C.x + lx, fy + 0.03, C.z + lz);
+  }
+  // the Duel Pit: a roped-off ring with a referee. Talk to him to wager a crewmate (see Duel)
+  buildDuelPit(x, z) {
+    const g = new THREE.Group(), R = 2.6, GOLD = '#ffd23f';
+    mk(CYL(R + 0.3, R + 0.4, 0.3, 24), '#2a1450', g, 0, 0.15, 0);
+    mk(CYL(R, R, 0.04, 24), '#b3122e', g, 0, 0.32, 0);
+    tf(mk(TOR(R, 0.05, 5, 32), GOLD, g, 0, 0.33, 0), Math.PI / 2);
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2, px = Math.cos(a) * R, pz = Math.sin(a) * R;
+      mk(CYL(0.07, 0.08, 1.3, 6), GOLD, g, px, 0.95, pz);
+      mk(SPH(0.11, 6, 5), i % 2 ? '#ff3df0' : '#3df0ff', g, px, 1.65, pz, { emissive: i % 2 ? '#ff3df0' : '#3df0ff' });
+      if (i !== 2) { // (a gap on the side facing the pad, to walk in)
+        const b = ((i + 1) / 8) * Math.PI * 2, mx = (px + Math.cos(b) * R) / 2, mz = (pz + Math.sin(b) * R) / 2;
+        for (const y of [0.8, 1.25]) tf(mk(BOX(2 * R * Math.sin(Math.PI / 8), 0.05, 0.05), '#ff3df0', g, mx, y, mz, { emissive: '#8a1070' }), 0, -(a + b) / 2 + Math.PI / 2, 0);
+      }
+      this.circle(x + px, z + pz, 0.18);
+    }
+    const sign = grp(g, 0, 0, -R - 0.6);
+    mk(BOX(0.16, 3.4, 0.16), '#3b3f4a', sign, -1.5, 1.7, 0);
+    mk(BOX(0.16, 3.4, 0.16), '#3b3f4a', sign, 1.5, 1.7, 0);
+    const sm = signMesh(['DUEL PIT', 'WAGER A FRIEND · WINNER TAKES IT'], 3.4, 1.3, { bg: '#1a0a30', colors: ['#ff3df0', '#ffd23f'], border: GOLD, glow: true });
+    sm.position.set(0, 3.2, 0.1); sign.add(sm);
+    this.box(x, z - R - 0.6, 3.4, 0.3);
+    this.place(g, x, z, 0, null, R);
+    const ref = buildAlien({ vest: '#f4f4f4', shades: true });
+    this.npc(ref, x + 1.6, z - 1.2, -Math.PI / 4, 'Referee Rex', 2.5);
+    this.interact(x, z, 3.6, 'Duel Pit: wager a crewmate', () => Duel.openBooth());
   }
   // The Luckstar Casino: one big hall with every game inside. The front door faces the landing pad.
   // Everything is laid out in the hall's own coordinates (lx, lz), with the door on the +x side.

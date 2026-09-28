@@ -5,9 +5,15 @@
   in your locker: swap things in, take anything off, or swap two slots on any shop's new **Loadout** tab. New guns
   go straight onto your hotbar if there's room. Die and your gear's slots wait for it; pick your stuff up and it all
   goes back where it was.
-- **Esc does what you'd expect.** It closes shops and menus and drops you straight back into the game, and on the
-  pause menu it's the same as Resume. (If the browser won't grab the mouse right away, you're back in anyway: your
-  next click grabs it.)
+- **Esc does what you'd expect.** It closes shops and menus and drops you straight back into the game (no pause menu),
+  and on the pause menu it's the same as Resume. If the mouse can't be grabbed again right away, "Click to look
+  around" comes up: the keys work, the mouse doesn't turn you until you click (no more getting stuck spinning at the
+  edge of the screen), and that click doesn't shoot.
+- **Mini boss prizes.** Mini bosses turn up a bit more often (after 15 critters, 4% a kill) and drop prizes when they
+  pop: a trophy that sells for a lot, Goo Grenades, and the first time, a special item that's yours for keeps: jump
+  higher, sell for more, reload faster, heal faster, hit harder, run faster, or take less damage.
+- **The Duel Pit on Luckstar.** Wager a crewmate, each pick a gun you own, and fight it out in the arena. Friendly:
+  going down costs you nothing but the bet. Winner takes the wager.
 - **Keybinds.** Change any key (or mouse button) on the new Keybinds screen, in the pause menu or on the title
   screen. Every hint in the game shows your keys.
 - **Zapped critters go flying.** They tumble, bounce and land in a heap with their legs in the air (seeing stars).

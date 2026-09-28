@@ -436,6 +436,7 @@ const SAVE_DEFAULT = {
   summons: {}, pity: {}, heat: 0, // boss summoning items held, tries since the last drop, pizza warmth
   fun: {}, // your best and your medal on each planet's fun thing: { rings: { best, medal }, ... } (see fun.js)
   minis: {}, // mini bosses on each planet: { gloop: { k: critters zapped toward the next one, n: how many went down } }
+  perks: [], // the special items mini bosses dropped for you (see PERKS)
   graves: [], // where you died and dropped your stuff: [{gid, p, x, y, z, items, slots}] (see Drops.graveDrop)
   bodies: [], // critters you zapped and haven't picked up yet, lying where they landed (see Critters.saveBodies)
   stats: { collected: 0, gambled: 0, won: 0, lost: 0, deaths: 0, jackpots: 0, bossWins: 0 },

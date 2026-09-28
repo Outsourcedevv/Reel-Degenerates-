@@ -134,15 +134,18 @@ const Activities = {
   onNode(m) { if (Array.isArray(m.l)) this.setLoot(m.p, m.id, m.l); this.setNode(m.p, m.id, !m.on); },
 
   cargoValue() { return SAVE.cargo.reduce((s, id) => s + cargoRes(id).v, 0); },
+  // what a shop pays for something worth v (Loaded Dice: 25% more)
+  pays(v) { return Math.round(v * (hasPerk('dice') ? 1.25 : 1)); },
   // sell every one of one kind of thing
   sellType(id) {
     const n = SAVE.cargo.filter((x) => x === id).length;
     if (!n) return 0;
     SAVE.cargo = SAVE.cargo.filter((x) => x !== id);
-    addBucks(cargoRes(id).v * n);
+    const v = this.pays(cargoRes(id).v * n);
+    addBucks(v);
     Sound.play('cash');
     UI.hud();
-    return cargoRes(id).v * n;
+    return v;
   },
   // what the critters you're carrying in your hotbar are worth (see Loadout)
   heldValue() { return Loadout.critters().reduce((s, [, e]) => s + cargoRes(e).v, 0); },
@@ -151,15 +154,16 @@ const Activities = {
     const c = Loadout.crit(Loadout.slots()[i]);
     if (!c) return 0;
     Loadout.dropCrit(i);
-    addBucks(cargoRes(c).v);
+    const v = this.pays(cargoRes(c).v);
+    addBucks(v);
     Sound.play('cash');
     G.player.refreshGear();
     UI.hud();
-    return cargoRes(c).v;
+    return v;
   },
   // your whole backpack, and any critters in your hotbar
   sellAll() {
-    const held = Loadout.critters(), v = this.cargoValue() + this.heldValue(), n = SAVE.cargo.length + held.length;
+    const held = Loadout.critters(), v = this.pays(this.cargoValue() + this.heldValue()), n = SAVE.cargo.length + held.length;
     if (!n) return 0;
     SAVE.cargo = [];
     for (const [i] of held) Loadout.dropCrit(i);

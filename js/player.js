@@ -16,7 +16,7 @@ const Input = {
     });
     addEventListener('keyup', (e) => { this.keys[normKey(e.code)] = false; });
     addEventListener('mousedown', (e) => {
-      if (!G.locked) return;
+      if (!G.locked || Input.loose()) return; // (the click that grabs the mouse doesn't also shoot)
       const c = 'Mouse' + e.button;
       if (e.button > 0) e.preventDefault(); // (no scrolling with the middle button)
       if (!this.keys[c]) this.pressed[c] = true;
@@ -27,7 +27,7 @@ const Input = {
       if (G.started && (e.button === 3 || e.button === 4)) e.preventDefault(); // (the side buttons go "back" in a browser: not mid-game)
     });
     addEventListener('mousemove', (e) => {
-      if (!G.locked) return;
+      if (!G.locked || Input.loose()) return;
       if (Math.abs(e.movementX) > 400 || Math.abs(e.movementY) > 400) return; // browser glitch spikes
       this.dx += e.movementX; this.dy += e.movementY;
     });
@@ -36,6 +36,8 @@ const Input = {
     addEventListener('auxclick', (e) => { if (G.started) e.preventDefault(); });
     addEventListener('blur', () => { this.keys = {}; });
   },
+  // playing, but the mouse isn't grabbed yet (see Game.lockFailed): it doesn't turn you or shoot till you click
+  loose() { return typeof Game !== 'undefined' && Game.soft && !document.pointerLockElement; },
   // a raw key (Escape, Enter: the ones that aren't anybody's keybind)
   tap(code) { return !!this.pressed[code]; },
   // is the key for this action held down / was it pressed this frame?
@@ -153,7 +155,7 @@ class LocalPlayer {
     this.mags = {}; // (how full each of your other guns was when you put it away)
     this.refreshGear();
   }
-  world() { return G.mode === 'boss' ? G.arena : G.world; }
+  world() { return G.mode === 'boss' || G.mode === 'duel' ? G.arena : G.world; }
 
   // what you own changed (you bought something, died, got your stuff back): your hands match it again, still
   // holding what you had out if you can (the vac is rebuilt if it's a Turbo Vac now)
@@ -233,6 +235,18 @@ class LocalPlayer {
     if (!quiet && !it) UI.toast(`Slot ${i + 1} is empty. Fill it on any shop's Loadout tab.`, '', 1.8);
     UI.hud();
   }
+  // a duel: you hold the one gun you picked (see Duel.choose). Your hotbar comes back after (refreshGear).
+  duelArm(g) {
+    this.setGun(g);
+    this.tool = 'zap'; this.shown = 'gun:' + g;
+    this.vmZap.visible = true;
+    this.vmVac.visible = this.vmDrill.visible = this.vmPeel.visible = false;
+    this.holdCrit(null);
+    this.releaseTargets();
+    this.refill();
+    this.swapT = 1; Sound.play('reload');
+    UI.hud();
+  }
   // take out the first thing on your hotbar of this kind ('zap': a gun). false: there isn't one
   takeOut(tool, quiet) {
     const i = Loadout.findTool(tool);
@@ -243,10 +257,10 @@ class LocalPlayer {
     const z = gunDef(SAVE.zap);
     if (this.tool !== 'zap' || this.reloadT > 0 || this.ammo >= z.mag || this.reviveT > 0) return; // (not while you pick a friend up)
     if (z.type === 'cutter') return; // (pizza cutters don't reload: they come back)
-    this.reloadT = this.reloadDur = z.rl;
+    this.reloadT = this.reloadDur = z.rl * (hasPerk('mitts') ? 0.65 : 1); // (Yeti Mitts: faster)
     this.reloadMsg = U.pick(LINES.reload);
     if (!GunReload.has(z.type)) Sound.play('reload'); // (the others make their own noises as they go)
-    this.act('reload', z.rl);
+    this.act('reload', this.reloadDur);
   }
   // a critter you're carrying (from your hotbar, see Loadout): you hold it out in front of you, belly up
   // (entry: its backpack entry, or null to put it away)
@@ -308,17 +322,18 @@ class LocalPlayer {
     while (this.yawLog.length && G.time - this.yawLog[0][0] > 2.2) this.yawLog.shift();
     // --- your hotbar: each slot's key takes out what's in that slot; the wheel flips through the full ones
     if (canAct) {
-      for (let i = 0; i < HOTBAR; i++) if (Input.hit('slot' + (i + 1))) this.selectSlot(i);
+      const duel = G.mode === 'duel'; // (in a duel you've got the one gun you picked, see Duel.choose)
+      for (let i = 0; i < HOTBAR && !duel; i++) if (Input.hit('slot' + (i + 1))) this.selectSlot(i);
       if (Input.hit('reload')) this.startReload();
       if (Input.hit('emote')) this.emote();
-      if (Input.wheel) {
+      if (Input.wheel && !duel) {
         const dir = Input.wheel > 0 ? 1 : -1;
         for (let k = 1; k < HOTBAR; k++) { const j = (this.slot + dir * k + HOTBAR) % HOTBAR; if (Loadout.at(j)) { this.selectSlot(j); break; } }
       }
     }
     // --- movement
     let mx = 0, mz = 0;
-    const frozen = this.dead;
+    const frozen = this.dead || Duel.holding(); // (a duel: nobody moves until FIGHT!)
     if (canAct && !frozen) {
       if (Input.down('forward')) mz += 1;
       if (Input.down('back')) mz -= 1;
@@ -329,7 +344,7 @@ class LocalPlayer {
     // (goo or a snowball a critter threw at you slows you down for a bit; boss fights set slowK themselves)
     if (this.slowT > 0) this.slowT -= dt;
     if (G.mode === 'planet') this.slowK = this.slowT > 0 ? 0.55 : 1;
-    const speed = (sprint ? 8.6 * (SAVE.skates ? 1.35 : 1) : 5.6) * (this.ghost ? 1.3 : 1) * this.slowK * (this.wadeK || 1); // (Duct-Tape Skates: faster sprinting; wading: slower)
+    const speed = (sprint ? 8.6 * (SAVE.skates ? 1.35 : 1) : 5.6) * (this.ghost ? 1.3 : 1) * this.slowK * (this.wadeK || 1) * (hasPerk('wheels') ? 1.2 : 1); // (Duct-Tape Skates: faster sprinting; wading: slower; Scooter Wheels: faster)
     const sy = Math.sin(this.yaw), cy = Math.cos(this.yaw);
     let tx = (-sy * mz + cy * mx), tz = (-cy * mz - sy * mx);
     const len = Math.hypot(tx, tz);
@@ -354,11 +369,11 @@ class LocalPlayer {
       this.vel.x = this.dashDir.x * DASH.speed * k; this.vel.z = this.dashDir.z * DASH.speed * k;
       if (this.vel.y < 0) this.vel.y = 0;
     }
-    // --- jumping (way higher with Spring-Heeled Jacks, double jump with Bounce Boots)
-    const sprung = SAVE.springs;
+    // --- jumping (way higher with Spring-Heeled Jacks, double jump with Bounce Boots, 35% higher with the Goo Gland)
+    const sprung = SAVE.springs, jk = hasPerk('goo') ? Math.sqrt(1.35) : 1;
     if (canAct && !frozen && Input.hit('jump')) {
-      if (this.onGround) { this.vel.y = sprung ? 10.2 : 7.4; this.onGround = false; this.jumps = 1; Sound.play(sprung ? 'spring' : 'jump'); }
-      else if (SAVE.boots && this.jumps < 2 && !this.stomping) { this.vel.y = sprung ? 9.2 : 7.0; this.jumps = 2; Sound.play('boing'); FX.burst(this.pos, '#ff9ad5', 8, 3); this.act('flip'); }
+      if (this.onGround) { this.vel.y = (sprung ? 10.2 : 7.4) * jk; this.onGround = false; this.jumps = 1; Sound.play(sprung ? 'spring' : 'jump'); }
+      else if (SAVE.boots && this.jumps < 2 && !this.stomping) { this.vel.y = (sprung ? 9.2 : 7.0) * jk; this.jumps = 2; Sound.play('boing'); FX.burst(this.pos, '#ff9ad5', 8, 3); this.act('flip'); }
     }
     // --- Yeti Stompers: C in the air slams you into the ground
     if (canAct && !frozen && SAVE.stomp && Input.hit('stomp') && !this.onGround && this.airH > 1.2 && !this.stomping) {
@@ -441,7 +456,7 @@ class LocalPlayer {
     if (wheel) { wheel.visible = this.ammo > 0; wheel.rotation.x += dt * 3; }
     if ((G.mode === 'boss' || G.mode === 'planet') && !this.dead && !this.ghost) {
       this.regenT -= dt;
-      if (this.regenT <= 0 && this.hp < 100) this.hp = Math.min(100, this.hp + (G.mode === 'boss' ? 6 : 12) * dt);
+      if (this.regenT <= 0 && this.hp < 100) this.hp = Math.min(100, this.hp + (G.mode === 'boss' ? 6 : 12) * (hasPerk('bone') ? 2 : 1) * dt); // (Funny Bone: twice as fast)
     }
     UI.planetHp(this.hp);
     // --- picking a friend up: it takes both hands, so no shooting, reloading or throwing while you do
@@ -504,7 +519,7 @@ class LocalPlayer {
     this.landK = 1;
     Sound.play('stomp');
     if (G.mode === 'boss' && G.boss) G.boss.explosion(p, STOMP.r, STOMP.dmg);
-    else if (G.mode === 'planet') Shots.blast(p, STOMP.r, STOMP.dmg, this.shotFlags(false), 'shock');
+    else if (G.mode === 'planet' || G.mode === 'duel') Shots.blast(p, STOMP.r, STOMP.dmg, this.shotFlags(false), 'shock');
     Net.relay({ t: 'shoot', k: 'stomp', o: v3r(p) }); // (friends see the shockwave)
   }
   // updrafts carry you up while you're in them; jump pads throw you up onto the roof next to them
@@ -548,7 +563,7 @@ class LocalPlayer {
       if (this.gearSnd <= 0) { this.gearSnd = 0.11; Sound.play('jet'); }
       if (Math.random() < 0.7) FX.burst(this.pos.clone().setY(this.pos.y + 0.3), U.pick(['#ffb23e', '#ff6a1f', '#fff36b']), 1, 2);
     } else if (this.gliding && this.gearSnd <= 0) { this.gearSnd = 0.5; Sound.play('glide'); }
-    UI.fuel(this.fuel / JET.fuel, SAVE.jetpack && !this.dead && (G.mode === 'planet' || G.mode === 'boss') && (this.jetting || this.fuel < JET.fuel - 0.01));
+    UI.fuel(this.fuel / JET.fuel, SAVE.jetpack && !this.dead && (G.mode === 'planet' || G.mode === 'boss' || G.mode === 'duel') && (this.jetting || this.fuel < JET.fuel - 0.01));
   }
 
   // critter bites (and friendly fire) on a planet; boss fights have their own damage rules.
@@ -557,6 +572,7 @@ class LocalPlayer {
     if (this.inv > 0 || this.dead) return;
     d = Math.round(d * (raw ? 1 : Game.dmgMul()));
     if (SAVE.armor) d = Math.round(d * 0.7);
+    if (hasPerk('collar')) d = Math.round(d * 0.75);
     this.hp -= d; this.inv = 0.5; this.regenT = 4;
     const dx = this.pos.x - fx, dz = this.pos.z - fz, l = Math.hypot(dx, dz) || 1;
     this.vel.x += (dx / l) * 6; this.vel.z += (dz / l) * 6; this.vel.y = Math.max(this.vel.y, 3.5); this.onGround = false;
@@ -751,6 +767,7 @@ class LocalPlayer {
   letGo(r) { if (r) Net.relay({ t: 'rvp', to: r.id, by: G.name, p: 0 }); this.helpSend = 0; }
 
   useTool(dt) {
+    if (Duel.holding()) return; // (not before FIGHT!, and not after it's over)
     const t = this.tool;
     if (!t) { if (Input.hit('fire') && G.mode === 'planet') UI.toast('Your hands are empty! Pick a hotbar slot with something in it.', '', 1.6); return; }
     if (t === 'crit') { // (you're carrying a critter about: sell it at a shop, or put it in your backpack)
@@ -1062,7 +1079,7 @@ class LocalPlayer {
     return m >= Math.PI * 2 * 0.92;
   }
   throwNade() {
-    if (G.mode !== 'boss') { UI.toast(SAVE.nades ? 'Save your grenades for boss fights!' : 'No grenades. Chef Snorbo sells them on Gloop.', '', 1.8); return; }
+    if (G.mode !== 'boss') { UI.toast(G.mode === 'duel' ? 'Guns only in a duel!' : SAVE.nades ? 'Save your grenades for boss fights!' : 'No grenades. Chef Snorbo sells them on Gloop.', '', 1.8); return; }
     if (SAVE.nades <= 0) { UI.toast('Out of Goo Grenades!', 'bad', 1.5); Sound.play('error'); return; }
     if (this.nadeCd > 0) return;
     this.nadeCd = 0.7;
@@ -1269,6 +1286,7 @@ class LocalPlayer {
       t: TOOLS.indexOf(this.tool), cr: this.tool === 'crit' && this.critEntry ? this.critEntry.split('*')[0] : undefined, h: SAVE.hat, c: G.color, lk: G.look, n: G.name, m: G.mode, p: G.planet,
       hp: Math.round(this.hp), g: this.ghost ? 1 : 0, d: this.dead ? 1 : 0, dn: this.down ? 1 : 0, $: SAVE.bucks, zp: SAVE.zap,
       u: this.using ? 1 : 0, pt: U.r2(this.pitch), an: this.an, ac: this.ac, // (what your goober is up to, see RemotePlayer)
+      du: Duel.cur ? Duel.cur.id : undefined, // (which duel you're in: only the two of you see each other there)
       // your movement gear and what's happening to you: jet pack, glider cape, ground pound, flung, sliding, picking someone up
       mv: (this.jetting ? 1 : 0) | (this.gliding ? 2 : 0) | (this.stomping ? 4 : 0) | (this.launchT > 0 && !this.onGround ? 8 : 0) | (this.sliding ? 16 : 0) | (this.reviveT > 0 ? 32 : 0),
       sf: this.safeT > 0 ? 1 : 0, // (the host's critters leave you alone while you're new here)
@@ -1352,7 +1370,8 @@ class RemotePlayer {
   }
   update(dt) {
     const s = this.s;
-    this.visible = s.m === G.mode && s.p === G.planet && G.mode !== 'menu' && G.mode !== 'space'; // in space everyone is inside the ship
+    this.visible = s.m === G.mode && s.p === G.planet && G.mode !== 'menu' && G.mode !== 'space' // in space everyone is inside the ship
+      && (s.m !== 'duel' || (!!Duel.cur && s.du === Duel.cur.id)); // (a duel: just the one you're fighting)
     this.m.root.visible = this.visible;
     if (!this.visible) { this.snapNext = true; return; }
     // aim a little ahead of the last update using their velocity (updates arrive ~15 times a second)
@@ -1384,7 +1403,7 @@ class RemotePlayer {
       from: this.lift > 0 || (s.d && G.time < (this.liftHold || 0)) ? G.player.pos : null, // (you've got them)
       // (lying there, a ragdoll: tumbling however it goes in your game, but always over where their game says
       // their body is)
-      world: G.mode === 'boss' ? G.arena : G.world, grav: PLANETS[G.planet].grav, v0: this.tvel, pin: this.pos,
+      world: G.mode === 'boss' || G.mode === 'duel' ? G.arena : G.world, grav: PLANETS[G.planet].grav, v0: this.tvel, pin: this.pos,
       thud: this.pos.distanceTo(G.player.pos) < 30,
     });
     this.center.set(this.pos.x, this.pos.y + 1.0, this.pos.z);
@@ -1672,7 +1691,7 @@ const Shots = {
       if (ch) return { k: 'critter', c: ch.c, ctr: ch.ctr, key: 'c' + ch.c.id, head: ch.head };
       const mb = MiniBoss.hitTest(p0, p1, skip);
       if (mb) return mb;
-    } else return null;
+    } else if (G.mode !== 'duel' || !Duel.fighting()) return null; // (a duel: just the one you're fighting, see below)
     // friends: always a (harmless) bonk on planets; in boss fights only with friendly fire on
     for (const r of G.remotes.values()) {
       if (!r.visible || r.s.g || r.s.dn || (skip && skip.has('f' + r.id))) continue;
@@ -1685,6 +1704,7 @@ const Shots = {
   // in the head (t.head, see test): a headshot, for more damage (see HEADSHOT)
   land(s, t, pos, dmg, fx, quiet) {
     const head = !!t.head;
+    if (hasPerk('storm')) dmg = Math.round(dmg * 1.2); // (Storm Core)
     if (head) dmg = Math.round(dmg * (t.k === 'boss' ? HEADSHOT.boss : HEADSHOT.mult));
     if (t.k === 'boss') G.boss.localHit(dmg, pos, quiet, head);
     else if (t.k === 'minion') G.boss.hitMinion(t.m, dmg, quiet);
@@ -1708,6 +1728,7 @@ const Shots = {
   // a splash (goo, lucky blasts): every critter and minion in it, the boss once, and friends if
   // friendly fire is on (skip: whatever the shot already hit directly)
   blast(pos, radius, dmg, flags, fx, skip) {
+    if (hasPerk('storm')) dmg = Math.round(dmg * 1.2); // (Storm Core)
     if (G.mode === 'boss' && G.boss) G.boss.explosion(pos, radius, dmg, skip === 'boss');
     else if (G.mode === 'planet') {
       const w = G.worlds[G.planet];
@@ -1720,7 +1741,7 @@ const Shots = {
       if (Fun.targets.length) Fun.blast(pos, radius);
       MiniBoss.blast(pos, radius, dmg, fx, skip);
     }
-    if (G.ff) for (const r of G.remotes.values()) {
+    if (G.ff || (G.mode === 'duel' && Duel.fighting())) for (const r of G.remotes.values()) {
       if (!r.visible || r.s.g || r.s.dn || skip === 'f' + r.id || r.center.distanceTo(pos) > radius + 0.6) continue;
       this.bonkFriend(r, { vel: r.center.clone().sub(pos), color: '#ff5fb8' }, dmg);
     }
@@ -1728,9 +1749,17 @@ const Shots = {
   // my shot hit a friend: a harmless BONK, or real damage when the host turned on friendly fire (head: right
   // on the helmet)
   bonkFriend(r, s, dmg, head) {
+    const k = new V3(s.vel.x, 0, s.vel.z).normalize();
+    if (G.mode === 'duel') { // (a duel: every hit counts, for full damage)
+      if (!Duel.fighting()) return;
+      const d = Math.max(1, Math.round(dmg));
+      Net.relay({ t: 'bonk', to: r.id, d: [U.r2(k.x), U.r2(k.z)], by: G.name, dmg: d, du: Duel.cur.id });
+      hitFeedback(r.center, d, head, 40);
+      FX.burst(r.center, s.color || '#ffffff', 6, 4);
+      return;
+    }
     if ((this.bonkCd.get(r.id) || 0) > G.time) return; // (a beam or a shotgun doesn't bonk them ten times at once)
     this.bonkCd.set(r.id, G.time + 0.35);
-    const k = new V3(s.vel.x, 0, s.vel.z).normalize();
     const d = G.ff ? Math.max(1, Math.round(dmg * FF_DMG)) : 0;
     Net.relay({ t: 'bonk', to: r.id, d: [U.r2(k.x), U.r2(k.z)], by: G.name, dmg: d });
     if (d) { UI.toast(`FRIENDLY FIRE! You shot ${r.name}${head ? ' in the head' : ''} (-${d})`, 'bad', 1.4); FX.text(r.center.clone().setY(r.center.y + 0.9), head ? d + '!' : String(d), head ? '#ff3b3b' : '#ff6b6b', head ? 52 : 40); }
