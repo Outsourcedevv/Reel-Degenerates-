@@ -860,18 +860,19 @@ const Critters = {
     const maxed = mult > STYLE_MAX;
     mult = Math.min(STYLE_MAX, Math.round(mult * 100) / 100);
     const key = critKey(def.id, c.sz, !!c.g), entry = mult > 1 ? `${key}*${mult}` : key, worth = cargoRes(entry).v, z = SIZES[c.sz];
-    // what you got: KILLED Rust Crab $22, and under it what made it worth that (its size, golden, each style bonus)
+    // what you got: KILLED Rust Crab, what its body's worth when you sell it (no money yet: you have to bag it and
+    // sell it), and under that what made it worth that (its size, golden, each style bonus)
     const lines = [];
     if (z.v > 1) lines.push([z.v, z.name, 'size']);
     if (c.g) lines.push([8, 'Golden', 'gold']);
     for (const st of styles) lines.push([STYLE[st].m, STYLE[st].name, '']);
     if (maxed) lines.push([STYLE_MAX, 'style bonus capped at', 'max']);
     UI.killed(def.name, worth, lines);
-    FX.text(pos.clone().setY(pos.y + 1.5), U.bucks(worth), '#ffd23f', 44);
+    // (no coin sounds: nothing's been paid yet)
     if (styles.length) {
-      Sound.play(mult >= 3 ? 'jackpot' : 'win');
+      Sound.play(mult >= 3 ? 'rare' : 'ding');
       SAVE.stats.style = (SAVE.stats.style || 0) + 1;
-    } else Sound.play(c.g || z.v >= 4 ? 'rare' : 'coin');
+    } else if (c.g || z.v >= 4) Sound.play('rare');
     SAVE.stats.critters = (SAVE.stats.critters || 0) + 1;
     if (b) { b.mine = true; b.entry = entry; }
     if (!this.pickTip) { this.pickTip = true; UI.toast('Walk over to it and press {use} to bag it (or vacuum it up)!', '', 3); }

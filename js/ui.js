@@ -104,6 +104,12 @@ const UI = {
     this._subT = setTimeout(() => s.classList.add('hidden'), dur * 1000);
   },
 
+  // the whole screen flashes white for a moment
+  flash() {
+    const f = U.$('flash');
+    if (!f) return;
+    f.classList.remove('on'); void f.offsetWidth; f.classList.add('on');
+  },
   bigTitle(t, s = '', color = '#fff', dur = 3) {
     const b = this.el.bigtitle;
     b.querySelector('.t').textContent = t;
@@ -238,13 +244,14 @@ const UI = {
     Game.updatePause();
   },
 
-  // you killed something: KILLED <what> <what it's worth>, and under that what made it worth that. lines:
-  // [[x, what, kind]] (kind: 'size', 'gold', 'max', or a style bonus)
+  // you killed something: KILLED <what>, a tag with what its body will sell for (it's not money yet: you bag it
+  // and sell it), and under that what made it worth that. lines: [[x, what, kind]] (kind: 'size', 'gold', 'max',
+  // or a style bonus)
   killed(name, worth, lines) {
     const el = this.el.killmsg;
     if (!el) return;
     const x = (m) => Math.round(m * 100) / 100 + 'x';
-    el.innerHTML = `<div class="k">Killed ${U.esc(name)} <b>${U.bucks(worth)}</b></div>` +
+    el.innerHTML = `<div class="k">Killed ${U.esc(name)}</div><div class="w">${icon('bag')}Worth <b>${U.bucks(worth)}</b> · bag it, sell it at a shop</div>` +
       lines.map(([m, what, kind]) => kind === 'max' ? `<div class="l max">${U.esc(what)} <i>${x(m)}</i></div>` : `<div class="l ${kind}"><i>${x(m)}</i> ${U.esc(what)}</div>`).join('');
     el.classList.remove('on');
     void el.offsetWidth; // (so it pops up again for the next one)

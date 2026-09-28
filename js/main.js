@@ -879,6 +879,8 @@ const Game = {
       else if (p.tool !== 'zap') h = Loadout.findTool('zap') >= 0 ? this.slotTip('zap', 'take out a gun!') : 'No gun on your hotbar! Dodge, and throw Goo Grenades ({nade})';
       else h = `${this.gunHint()} · {nade}: Goo Grenade (${SAVE.nades}) · {jump}: jump the rings!`;
       if (h && G.boss && G.boss.id === 'zorblax' && SAVE.peel) h += ' · ' + this.slotTip('peel', 'the Pizza Peel catches pizza!');
+      const ex = G.boss && G.boss.exit; // (you won: the way home)
+      if (ex && !p.ghost) h = `You won! Walk into the beam of light to go back to ${PLANETS[G.planet].name} (it takes you in ${Math.max(0, Math.ceil(ex.left))}s)`;
     } else if (G.mode === 'planet') {
       const act = PLANETS[G.planet].activity;
       const inCasino = act === 'casino' && G.world.inCasino(p.pos);

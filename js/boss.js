@@ -20,6 +20,9 @@ const BOSS_TALK = { every: [22, 34], gap: 14, attack: 0.35 };
 // like a top, puffing up bigger and bigger... and goes POP (confetti, coins, its head and hands flying off).
 // The fight ends `end` seconds in.
 const BOSS_DIE = { stun: 0.9, spin: 1.5, end: 4.2 };
+// after a win, the way home: a beam of light in the middle of the arena. Walk into it (r: how close) and you're
+// beamed back to the planet; wait: seconds until it takes you anyway
+const BOSS_EXIT = { r: 1.4, wait: 30, delay: 1.2, color: '#7dffea' };
 const CONFETTI = ['#ff4b6e', '#ffd23f', '#3aa7ff', '#46d98a', '#b77dff', '#ffffff'];
 // its last words
 const BOSS_LAST = {
@@ -1204,6 +1207,7 @@ class BossFight {
     }
     this.updateHazards(dt);
     this.updateMinions(dt);
+    this.updateExit(dt);
     this.glow.update(dt, G.camera);
     this.updateLocal(dt);
     this.threatHud(dt);
@@ -2107,7 +2111,6 @@ class BossFight {
     UI.threatHud(null);
     const b = this.def;
     const first = !SAVE.beaten.includes(this.id);
-    let html;
     if (won) {
       const reward = first ? b.reward : Math.round(b.reward * 0.5);
       addBucks(reward);
@@ -2116,28 +2119,79 @@ class BossFight {
       SAVE.stats.bossWins++;
       persist();
       Sound.play('victory');
-      const nextIdx = G.planet + 1;
-      const unlock = nextIdx < PLANETS.length ? `<p class="center" style="font-size:18px">New planet unlocked: <b>${U.esc(PLANETS[nextIdx].name)}</b>! Fly there from your ship.</p>` : '';
-      html = `<h2 class="ph center" style="color:#1e9b3a;padding:0">VICTORY!</h2>
-        <p class="center psub">${U.esc(b.win)}</p>
-        <div class="bigmsg win">+${U.bucks(reward)}</div>${unlock}`;
-    } else {
-      const bill = Math.min(1000, Math.round(SAVE.bucks * 0.1));
-      addBucks(-bill);
-      Sound.play('lose');
-      html = `<h2 class="ph center" style="color:#c8281b;padding:0">DEFEAT</h2>
-        <p class="center psub">${U.esc(b.name)} wins this time. The pizza gets colder.</p>
-        <div class="bigmsg lose">Space hospital bill: -${U.bucks(bill)}</div>
-        <p class="center">For a rematch you'll need another <b>${U.esc(SUMMONS[this.id].name)}</b>.</p>
-        <p class="center muted">Tip: every attack winds up first and shows up on the floor. Watch for the name under the health bar, jump the rings and spinning beams, and get out of the red!</p>`;
+      // no menu: VICTORY on screen, then a beam of light appears to take you home (see openExit)
+      const me = this.me();
+      if (me.down) me.revive(null); // (everybody gets up to see it)
+      UI.bigTitle('VICTORY!', `+${U.bucks(reward)} · ${b.win}`, '#7dff8a', 5);
+      const next = first && PLANETS[G.planet + 1];
+      if (next) setTimeout(() => { if (G.boss === this) UI.toast(`New planet unlocked: ${next.name}! Fly there from your ship.`, 'good', 5); }, 2600);
+      setTimeout(() => { if (G.boss === this) this.openExit(); }, BOSS_EXIT.delay * 1000);
+      return;
     }
+    const bill = Math.min(1000, Math.round(SAVE.bucks * 0.1));
+    addBucks(-bill);
+    Sound.play('lose');
+    const html = `<h2 class="ph center" style="color:#c8281b;padding:0">DEFEAT</h2>
+      <p class="center psub">${U.esc(b.name)} wins this time. The pizza gets colder.</p>
+      <div class="bigmsg lose">Space hospital bill: -${U.bucks(bill)}</div>
+      <p class="center">For a rematch you'll need another <b>${U.esc(SUMMONS[this.id].name)}</b>.</p>
+      <p class="center muted">Tip: every attack winds up first and shows up on the floor. Watch for the name under the health bar, jump the rings and spinning beams, and get out of the red!</p>`;
     setTimeout(() => {
       if (document.pointerLockElement) document.exitPointerLock();
       UI.openPanel(html + '<div class="center" style="margin-top:12px"><button class="btn big" data-act="back" style="max-width:320px">Back to the planet ▶</button></div>',
-        (act) => { if (act === 'back') UI.closePanel(); }, null, () => Game.endBoss(won && this.id === 'zorblax'));
-    }, won ? 1700 : 1200);
+        (act) => { if (act === 'back') UI.closePanel(); }, null, () => Game.endBoss(false));
+    }, 1200);
+  }
+  // the beam home, in the middle of the arena (with the planet's name on it)
+  openExit() {
+    const col = new THREE.Color(BOSS_EXIT.color), g = new THREE.Group();
+    const glow = (r, op) => new THREE.Mesh(new THREE.CylinderGeometry(r, r, 60, 32, 1, true),
+      new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: op, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false }));
+    const beam = glow(BOSS_EXIT.r * 0.85, 0.22), core = glow(BOSS_EXIT.r * 0.3, 0.45);
+    beam.position.y = core.position.y = 30;
+    const ring = new THREE.Mesh(new THREE.RingGeometry(BOSS_EXIT.r * 0.85, BOSS_EXIT.r * 1.25, 48),
+      new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.85, depthWrite: false, side: THREE.DoubleSide }));
+    ring.rotation.x = -PI / 2; ring.position.y = 0.06;
+    const tag = textSprite(`BACK TO ${PLANETS[G.planet].name.toUpperCase()}`, { size: 44, color: '#ffffff', bg: 'rgba(10,60,60,.7)', scale: 0.011 });
+    tag.position.y = 3.4;
+    g.add(beam, core, ring, tag);
+    g.position.set(0, DECK_Y, 0);
+    G.scene.add(g);
+    this.exit = { g, beam, core, ring, tag, t: 0, left: BOSS_EXIT.wait, sparkT: 0 };
+    FX.ring(new V3(0, DECK_Y + 0.2, 0), BOSS_EXIT.color, 6);
+    Sound.play('summon');
+    UI.bossBar(false);
+  }
+  updateExit(dt) {
+    const e = this.exit;
+    if (!e) return;
+    e.t += dt; e.left -= dt;
+    const grow = U.clamp(e.t / 0.6, 0, 1); // (it shoots down out of the sky)
+    e.beam.scale.set(grow, 1, grow); e.core.scale.set(grow, 1, grow);
+    e.beam.material.opacity = 0.18 + 0.07 * Math.sin(e.t * 5);
+    e.ring.rotation.z += dt * 1.5; e.ring.scale.setScalar(1 + 0.08 * Math.sin(e.t * 4));
+    e.tag.position.y = 3.4 + Math.sin(e.t * 2) * 0.12;
+    e.sparkT -= dt;
+    if (e.sparkT <= 0) { // (sparkles floating up it)
+      e.sparkT = 0.07;
+      const a = Math.random() * PI * 2, r = Math.random() * BOSS_EXIT.r * 0.8;
+      FX.burst(new V3(Math.cos(a) * r, DECK_Y + U.rand(0.2, 3), Math.sin(a) * r), Math.random() < 0.5 ? '#ffffff' : BOSS_EXIT.color, 1, 1.5);
+    }
+    if (e.going) return;
+    const p = this.me(), inside = Math.hypot(p.pos.x - e.g.position.x, p.pos.z - e.g.position.z) < BOSS_EXIT.r && !p.dead && !p.down;
+    if (inside || e.left <= 0) this.beamUp();
+  }
+  // into the light: a flash, and you're back on the planet (the last boss: the ending)
+  beamUp() {
+    const e = this.exit, p = this.me();
+    e.going = true;
+    Sound.play('warp');
+    FX.burst(p.pos.clone().setY(p.pos.y + 1), BOSS_EXIT.color, 30, 8);
+    UI.flash();
+    setTimeout(() => { if (G.boss === this) Game.endBoss(this.id === 'zorblax'); }, 350);
   }
   dispose() {
+    if (this.exit) { G.scene.remove(this.exit.g); disposeObj(this.exit.g); this.exit = null; }
     for (const d of this.debris || []) dropObj(d.o);
     this.debris = null;
     for (const h of this.allHazards()) this.removeHazard(h);

@@ -283,7 +283,12 @@ kbd {
   pointer-events: none; white-space: nowrap; color: #fff; text-shadow: 0 2px 8px rgba(0,0,0,.9), 0 0 2px #000;
 }
 #killmsg .k { font-size: 28px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; }
-#killmsg .k b { color: #ffd23f; margin-left: 12px; }
+#killmsg .w {
+  display: inline-flex; align-items: center; gap: 6px; margin: 4px 0 3px; padding: 3px 10px; border-radius: 6px;
+  background: rgba(10,14,24,.55); border: 1px solid rgba(255,255,255,.25); font-size: 14px; letter-spacing: 1px; color: #d8dde8;
+}
+#killmsg .w b { color: #fff; }
+#killmsg .w svg { width: 15px; height: 15px; opacity: .8; }
 #killmsg .l { font-size: 17px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: #7dffea; margin-top: 2px; }
 #killmsg .l i { font-style: normal; color: #fff; }
 #killmsg .l.size { color: #7dff8a; }

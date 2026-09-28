@@ -192,8 +192,10 @@ Every attack is telegraphed, so you can read the fight:
 
 Bosses only pipe up now and then (a line every half a minute or so). Beat one and it goes out with a bang: stunned
 stiff with sparks popping off it, then it spins up off the floor puffing up bigger and bigger until it goes POP in a
-shower of confetti and coins, its head and hands bouncing across the arena. Mini bosses go flying end over end, land
-on their backs with their legs in the air, and a moment later go pop too.
+shower of confetti and coins, its head and hands bouncing across the arena. **VICTORY!** comes up with your reward
+(anyone who was down gets back up), and a beam of light comes down in the middle of the arena: walk into it to go back
+to the planet (it takes you after 30 seconds anyway). No menu to click through. Mini bosses go flying end over end,
+land on their backs with their legs in the air, and a moment later go pop too.
 
 Each boss has its own set of attacks. Some of the nastier ones:
 
@@ -262,8 +264,9 @@ Only the one who zapped it can pick it up. If your backpack is full you carry it
 hold it up in your hand, and your crew sees you hugging it to your belly), and if your hotbar is full too it just waits there for you, even if you fly off and come
 back later. You can also move a critter between your backpack and your hotbar yourself (press `I`: **To hotbar** /
 **To backpack**). Shops buy the ones in your hotbar too, and if you die they drop into your grave with your
-backpack. Each kill pops up what you got: **Killed Trash Rat $78**, and under it what made it worth that (`3x Large`,
-`2x 360`, `1.25x Point Blank`...). How many critters are about depends on the world's difficulty. When you join a game, land on a planet
+backpack. Each kill pops up what you got: **Killed Trash Rat**, a tag with what its body will sell for (**Worth $78**:
+it isn't money until you bag it and sell it), and under it what made it worth that (`3x Large`, `2x 360`,
+`1.25x Point Blank`...). How many critters are about depends on the world's difficulty. When you join a game, land on a planet
 or respawn, they leave you alone for a bit (watch the **SAFE** timer), unless you shoot one first. Their colors and
 an outline keep them from blending into the ground. They come in all sizes, from Tiny (half the price) to TITANIC (10x): the bigger they are, the more they're worth,
 but the rarer they are (and the harder they hit). About 1 in 12 is bigger than normal:
