@@ -266,9 +266,8 @@ Only the one who zapped it can pick it up. If your backpack is full you carry it
 hold it up in your hand, and your crew sees you hugging it to your belly), and if your hotbar is full too it just waits there for you, even if you fly off and come
 back later. You can also move a critter between your backpack and your hotbar yourself (press `I`: **To hotbar** /
 **To backpack**). Shops buy the ones in your hotbar too, and if you die they drop into your grave with your
-backpack. Each kill pops up what you got: **Killed Trash Rat**, a tag with what its body will sell for (**Worth $78**:
-it isn't money until you bag it and sell it), and under it what made it worth that (`3x Large`, `2x 360`,
-`1.25x Point Blank`...). How many critters are about depends on the world's difficulty. When you join a game, land on a planet
+backpack. Each kill pops up what you got: **Killed Trash Rat $78**, and under it what made it worth that (`3x Large`,
+`2x 360`, `1.25x Point Blank`...). Its body lies there with its price floating over it until you bag it. How many critters are about depends on the world's difficulty. When you join a game, land on a planet
 or respawn, they leave you alone for a bit (watch the **SAFE** timer), unless you shoot one first. Their colors and
 an outline keep them from blending into the ground. They come in all sizes, from Tiny (half the price) to TITANIC (10x): the bigger they are, the more they're worth,
 but the rarer they are (and the harder they hit). About 1 in 12 is bigger than normal:

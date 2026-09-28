@@ -39,10 +39,9 @@
 - **Headshots and hitmarkers.** Shots to the head do double damage (1.5x on bosses) with a red HEADSHOT number and
   a helmet "ping", and finishing a critter with one is a new HEADSHOT style kill (1.5x). Every hit you land flashes a
   hitmarker round your crosshair, red for a headshot. Shots now go exactly where your crosshair is, however close.
-- **Kill pop-ups.** Zap a critter and you see what you got: **KILLED TRASH RAT**, a tag with what its body will
-  sell for (**Worth $78**: bag it and sell it at a shop), and under it what made it worth that: `3x Large`,
-  `2x 360`, `1.25x Point Blank`, `8x Golden`... (Style bonuses still stack up to 5x.) No coin sounds or floating
-  money: you haven't been paid yet.
+- **Kill pop-ups.** Zap a critter and you see what you got: **KILLED TRASH RAT $78**, and under it what made it
+  worth that: `3x Large`, `2x 360`, `1.25x Point Blank`, `8x Golden`... (Style bonuses still stack up to 5x.)
+- **Price tags.** A critter you zapped lies there with what it's worth floating over it, until you bag it.
 - **No more menu after beating a boss.** VICTORY comes up with your reward, and a beam of light comes down in the
   middle of the arena: walk into it to go back to the planet (or wait 30 seconds). Anyone who was down gets up.
 - **No more menu after losing one either.** Everything goes black, and you wake up on the planet you came from,
