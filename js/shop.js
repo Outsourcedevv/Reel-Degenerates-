@@ -47,7 +47,14 @@ const Shop = {
         r.owned = SAVE.cargoLvl >= it.lvl;
         if (SAVE.cargoLvl > it.lvl) r.ownedMsg = 'YOURS IS BIGGER';
         break;
-      case 'vac': r.icon = 'vac'; r.chips = [`${VAC[1].range}m REACH`, `${VAC[1].speed}x SPEED`]; r.owned = SAVE.vacLvl >= 1; break;
+      case 'vac': {
+        const level = it.lvl || 1;
+        r.name = it.name || (level === 2 ? 'Spooky Vacuum' : 'Turbo Vac');
+        r.icon = 'vac'; r.chips = [`${VAC[level].range}m REACH`, `${VAC[level].speed}x SPEED`];
+        r.owned = SAVE.vacLvl >= level;
+        if (SAVE.vacLvl > level) r.ownedMsg = 'YOURS IS BETTER';
+        break;
+      }
       case 'boots': r.icon = 'boots'; r.chips = ['DOUBLE JUMP']; r.owned = SAVE.boots; break;
       case 'skates': r.icon = 'boots'; r.chips = ['SPRINT +35%']; r.owned = SAVE.skates; break;
       case 'dash': r.icon = 'boots'; r.chips = ['Q: DASH', 'WORKS IN THE AIR']; r.owned = SAVE.dash; break;
@@ -71,7 +78,8 @@ const Shop = {
   gearChips(it) {
     const g = Loadout.gun(it);
     if (g != null) return gunChips(gunDef(g)).slice(0, 2);
-    return { vac: [SAVE.vacLvl > 0 ? 'TURBO' : 'VACUUMS STUFF', `${VAC[SAVE.vacLvl > 0 ? 1 : 0].range}m REACH`], drill: ['MINES CRYSTALS'], peel: ['CATCHES METEORS'] }[it] || [];
+    const level = Math.min(VAC.length - 1, Math.max(0, SAVE.vacLvl || 0));
+    return { vac: [level === 2 ? 'SPOOKY' : level === 1 ? 'TURBO' : 'VACUUMS STUFF', `${VAC[level].range}m REACH`], drill: ['MINES CRYSTALS'], peel: ['CATCHES METEORS'] }[it] || [];
   },
   // your hotbar and your locker: put anything in any slot, take anything off (sel: the slot you clicked)
   sel: null,
@@ -149,7 +157,7 @@ const Shop = {
       }
       case 'summon': Summons.earn(it.b); break;
       case 'cargo': SAVE.cargoLvl = Math.max(SAVE.cargoLvl, it.lvl); UI.toast(`Backpack upgraded: ${CARGO[SAVE.cargoLvl]} slots!`, 'good', 2.5); break;
-      case 'vac': SAVE.vacLvl = 1; G.player.refreshGear(); break;
+      case 'vac': SAVE.vacLvl = Math.max(SAVE.vacLvl, it.lvl || 1); G.player.refreshGear(); this.gotGear('vac'); break;
       case 'boots': SAVE.boots = true; UI.toast('Double jump unlocked! Press {jump} twice.', 'good', 3); break;
       case 'skates': SAVE.skates = true; UI.toast('Duct-Tape Skates on! Hold {sprint} to really go.', 'good', 3); break;
       case 'dash': SAVE.dash = true; UI.toast('Getaway Sneakers! Press {dash} to dash (once in the air, too).', 'good', 3.5); break;

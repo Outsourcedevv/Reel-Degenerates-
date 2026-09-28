@@ -322,8 +322,9 @@ class GooberAnim {
       T.nx += (-pitch * 0.5 - T.nx * 0.5) * w;
       return;
     }
-    if (tool === 'crit') { // carrying a critter: both forearms out under it, like a tray (see carryCritter)
-      goobSet(T, [['rax', -0.25 - lean], ['re', -1.35], ['raz', -0.2], ['lax', -0.25 - lean], ['le', -1.35], ['laz', -0.2]], w);
+    if (tool === 'crit') { // carrying a critter: both forearms out under it, like a tray, or a big one held up over his head (see carryCritter)
+      if (st.carry >= CARRY_BIG) { goobSet(T, [['rax', -2.85 - lean], ['re', -0.35], ['raz', -0.12], ['lax', -2.85 - lean], ['le', -0.35], ['laz', -0.12]], w); T.sq -= 0.04 * w; }
+      else goobSet(T, [['rax', -0.25 - lean], ['re', -1.35], ['raz', -0.2], ['lax', -0.25 - lean], ['le', -1.35], ['laz', -0.2]], w);
       return;
     }
     if (use && tool === 'vac') { // hanging on while it sucks: leaning back, legs braced, shaking all over

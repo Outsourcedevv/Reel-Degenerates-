@@ -1315,15 +1315,17 @@ function buildCritter(kind, gold) {
   return m;
 }
 // a critter someone's carrying about (from their hotbar, see Loadout): belly up with its legs in the air, about r
-// across (a bit more for the big ones), sitting in the middle of its group. Returns {g, size} (size: its box)
+// across for a normal one, sitting in the middle of its group. Returns {g, size, k} (size: its box; k: how much
+// bigger it is than a normal one. The big ones really are bigger: a TITANIC one about 3.5x, see CARRY_K)
+const CARRY_K = 0.55; // (sizes grow by s^this in your arms: all the way to 10x wouldn't fit on the screen)
 function buildCarriedCritter(entry, r) {
-  const { id, sz, gold } = critOf(entry), m = buildCritter(id, gold), g = new THREE.Group();
-  m.root.scale.setScalar(r * (0.85 + 0.15 * Math.sqrt(SIZES[sz].s)) / (m.hit || 0.45));
+  const { id, sz, gold } = critOf(entry), m = buildCritter(id, gold), g = new THREE.Group(), k = Math.pow(SIZES[sz].s, CARRY_K);
+  m.root.scale.setScalar(r * k / (m.hit || 0.45));
   m.root.rotation.set(0.35, 2.3, PI - 0.25);
   const box = new THREE.Box3().setFromObject(m.root), size = box.getSize(new V3());
   m.root.position.sub(box.getCenter(new V3()));
   g.add(m.root);
-  return { g, size };
+  return { g, size, k };
 }
 // a mini boss: a huge version of one of the planet's critters, with a crown, a glow on the ground under it
 // and its name over its head (so you know it's not just a GIANT one)
@@ -1715,6 +1717,7 @@ function flashTex() {
 }
 // turbo: the upgraded Turbo Vac (red, racing stripe, fins, a hotter glow)
 function buildVacVM(turbo) {
+  if (turbo === 'spooky' || turbo === 2) return buildSpookyVacVM();
   const g = new THREE.Group();
   g.name = turbo ? 'Turbo cyclone vacuum' : 'Grabby cyclone vacuum';
   tf(mk(CYL(0.1, 0.1, 0.34, 8), turbo ? '#e0341f' : '#ffd23f', g, 0.02, -0.02, 0.05), PI / 2);
@@ -1738,6 +1741,41 @@ function buildVacVM(turbo) {
   for (let i = 0; i < 4; i++) mk(BOX(.022, .012, .022), '#7dffea', g, .14, .005, -.01 + i * .035, { emissive: '#26736b' });
   for (const z of [-.03, .03, .09]) mk(BOX(.015, .09, .018), '#384653', g, -.086, -.02, z);
   tf(mk(TOR(.065, .018, 5, 12), '#384653', g, .02, -.13, -.005), 0, PI / 2);
+  g.userData = { muzzle, noz, glow };
+  return mergeLocal(g, [muzzle, noz, glow]);
+}
+// Spooky Vacuum: a portable ectoplasm trap. Same grip and intake anchors as
+// the other vacuums, so suction effects and held-tool animation remain aligned.
+function buildSpookyVacVM() {
+  const g = new THREE.Group(); g.name = 'Spooky Vacuum';
+  const shell = '#453450', metal = '#b3a0c2', dark = '#25232f', ecto = '#a6ffb1';
+  tf(mk(BOX(.08, .18, .1), dark, g, .02, -.15, .1), .2);
+  mk(BOX(.21, .18, .31), shell, g, .02, -.01, .035);
+  for (const z of [-.105, .175]) mk(BOX(.235, .205, .035), metal, g, .02, -.01, z);
+  const chamber = grp(g, .02, .18, .045);
+  mk(CYL(.09, .09, .25, 14), '#c9fae4', chamber, 0, 0, 0, { transparent: true, opacity: .26, depthWrite: false });
+  for (const y of [-.14, .14]) mk(CYL(.108, .108, .035, 12), metal, chamber, 0, y, 0);
+  // A tiny captured ghost is visible through the green containment jar.
+  tf(mk(SPH(.055, 10, 7), ecto, chamber, 0, .025, 0, { emissive: '#327c48' }), 0, 0, 0, 1, 1.25, 1);
+  mk(CONE(.05, .09, 7), ecto, chamber, 0, -.055, 0, { emissive: '#327c48' }).rotation.z = PI;
+  for (const x of [-.02, .02]) mk(SPH(.012, 6, 4), dark, chamber, x, .04, -.052);
+  for (const side of [-1, 1]) mk(BOX(.018, .25, .018), shell, chamber, side * .09, 0, .025);
+  tf(mk(CYL(.055, .065, .32, 10), dark, g, .02, 0, -.28), PI / 2);
+  for (const z of [-.17, -.24, -.31, -.38]) mk(TOR(.06, .012, 5, 12), metal, g, .02, 0, z);
+  const noz = tf(mk(CYL(.15, .06, .19, 12), shell, g, .02, 0, -.5), PI / 2);
+  mk(TOR(.15, .018, 5, 16), metal, g, .02, 0, -.6);
+  const glow = tf(mk(CYL(.127, .127, .012, 12), ecto, g, .02, 0, -.607, { emissive: '#397f45' }), PI / 2);
+  // Toothlike intake guards and a rune on each side of the trap.
+  for (const a of [0, PI / 2, PI, PI * 1.5]) {
+    const tooth = mk(CONE(.019, .05, 5), '#e1d5bd', g, .02 + Math.cos(a) * .128, Math.sin(a) * .128, -.62);
+    tooth.rotation.z = a + PI / 2;
+  }
+  for (const side of [-1, 1]) {
+    const rune = grp(g, .135 * side + .02, 0, .035);
+    mk(BOX(.009, .08, .014), ecto, rune, 0, 0, 0, { emissive: '#397f45' });
+    mk(BOX(.009, .014, .07), ecto, rune, 0, .013, 0, { emissive: '#397f45' });
+  }
+  const muzzle = grp(g, .02, 0, -.65);
   g.userData = { muzzle, noz, glow };
   return mergeLocal(g, [muzzle, noz, glow]);
 }
