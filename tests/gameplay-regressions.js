@@ -52,6 +52,12 @@ function runGameplayRegressions() {
     a.traverse(o => { if (o.isMesh && !Array.from(o.geometry.attributes.position.array).every(Number.isFinite)) throw Error('Invalid tool geometry'); });
     disposeObj(a); disposeObj(b);
   }
+  const ship = buildShip(true), shipNames = [];
+  ship.traverse(o => { if (o.name) shipNames.push(o.name); if (o.isMesh && !Array.from(o.geometry.attributes.position.array).every(Number.isFinite)) throw Error('Invalid ship geometry'); });
+  check(ship.userData.shipDetails && ship.userData.shipDetails.boardable, 'Ship keeps boardable detail metadata');
+  for (const name of ['ship-cockpit-frame', 'ship-engine-left', 'ship-engine-right', 'ship-dorsal-fin', 'ship-ramp-handrail']) check(shipNames.includes(name), name + ' is present');
+  check(ship.children.length >= 70, 'Ship has the upgraded courier detail pass');
+  disposeObj(ship);
   for (const theme of ['count', 'stormy', 'chad']) {
     const fake = Object.create(BossFight.prototype);
     fake.processions = []; fake.rpos = new V3(); fake.canHurt = () => true;

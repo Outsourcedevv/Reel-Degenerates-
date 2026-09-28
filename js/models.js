@@ -809,6 +809,7 @@ function buildSnail(color) {
 function buildShip(boardable = false) {
   const g = new THREE.Group();
   const white = '#f4f1ea', red = '#ff5a36', grey = '#6d7480';
+  const navy = '#273342', steel = '#c9ced6', cyan = '#7dffea', amber = '#ffb03a';
   if (!boardable) tf(mk(CYL(1.8, 2.1, 7, 10), white, g, 0, 2.7, 0), PI / 2);
   else {
     // Axial hull sections leave a real aperture at the starboard ramp.
@@ -841,10 +842,57 @@ function buildShip(boardable = false) {
     tf(mk(BOX(0.05, 0.72, 0.86), '#c9ced6', g, s * (ap + 0.01) * 0.809, 2.7 + (ap + 0.01) * 0.588, z), 0, 0, s * 0.628);
     tf(mk(BOX(0.05, 0.6, 0.74), '#22384f', g, s * (ap + 0.035) * 0.809, 2.7 + (ap + 0.035) * 0.588, z, { emissive: '#0a1422' }), 0, 0, s * 0.628);
   }
-  for (const s of [-1, 1]) {
-    tf(mk(CYL(0.6, 0.8, 1.2, 8), grey, g, s * 1.0, 2.2, -4.0), PI / 2);
-    tf(mk(CYL(0.55, 0.55, 0.05, 8), '#ffb03a', g, s * 1.0, 2.2, -4.62, { emissive: '#ff6a00' }), PI / 2);
+  // The ship reads as a little courier now: armored ribs, a framed cockpit,
+  // twin nacelles and colored navigation lights give the silhouette a clear
+  // front/back direction even when it is parked on a dark planet.
+  for (const z of [-2.85, 0.15, 2.95]) {
+    const rib = tf(mk(TOR(1.88, .045, 8, 24), steel, g, 0, 2.7, z), PI / 2);
+    rib.name = 'ship-hull-rib';
   }
+  mk(BOX(.5, .12, 4.2), navy, g, 0, 4.58, -.15);
+  for (const z of [-1.8, -.9, 0, .9, 1.8]) mk(BOX(.62, .035, .08), cyan, g, 0, 4.66, z, { emissive: '#1b7869' });
+  const canopyFrame = tf(mk(TOR(1.15, .075, 8, 24), navy, g, 0, 3.82, 2.4), 0);
+  canopyFrame.name = 'ship-cockpit-frame';
+  for (const x of [-.72, .72]) {
+    const strut = mk(BOX(.09, .62, .1), steel, g, x, 4.05, 2.39);
+    strut.rotation.z = x * .18;
+  }
+  for (const s of [-1, 1]) {
+    const nac = grp(g, s * 1.05, 2.34, -4.03);
+    nac.name = s < 0 ? 'ship-engine-left' : 'ship-engine-right';
+    tf(mk(CYL(.67, .78, 1.65, 12), navy, nac, 0, 0, 0), PI / 2);
+    tf(mk(TOR(.68, .065, 8, 20), steel, nac, 0, 0, -.72), PI / 2);
+    tf(mk(CYL(.42, .45, .12, 12), '#171d26', nac, 0, 0, -.86), PI / 2);
+    tf(mk(TOR(.29, .075, 8, 18), amber, nac, 0, 0, -.94), PI / 2);
+    tf(mk(CYL(.23, .23, .035, 12), '#ff6a00', nac, 0, 0, -.98, { emissive: '#aa4400' }), PI / 2);
+    mk(BOX(.22, .34, 1.55), grey, g, s * .78, 2.62, -3.55);
+  }
+  // A dorsal fin and tail strakes make the nose readable from above while the
+  // starboard side remains open for the walk-in ramp.
+  const fin = mk(CONE(.46, 1.15, 5), red, g, 0, 4.82, -1.72);
+  fin.name = 'ship-dorsal-fin';
+  for (const s of [-1, 1]) {
+    const strake = mk(BOX(.12, .72, 1.45), red, g, s * 1.94, 2.82, -2.28);
+    strake.rotation.z = -s * .28;
+  }
+  for (const [x, col] of [[-2.14, '#ff4b4b'], [2.14, '#63ff9a']]) mk(SPH(.095, 8, 6), col, g, x, 2.73, -1.2, { emissive: col === '#ff4b4b' ? '#7a1010' : '#15783d' });
+  if (boardable) {
+    // Thin hazard bars and handrails sell the opening without narrowing the
+    // collision path through the hatch.
+    for (const z of [-1.02, 1.42]) {
+      const bar = mk(BOX(.12, 1.85, .1), amber, g, 1.93, 2.72, z);
+      bar.name = 'ship-hatch-frame';
+    }
+    for (const z of [-.84, .84]) {
+      const rail = mk(BOX(Math.hypot(4.6, 2.3), .07, .07), steel, g, 3.9, 1.28, z);
+      rail.rotation.z = -Math.atan2(2.3, 4.6);
+      rail.name = 'ship-ramp-handrail';
+      const strip = mk(BOX(Math.hypot(4.6, 2.3) * .78, .025, .035), cyan, g, 3.9, 1.2, z, { emissive: '#1b7869' });
+      strip.rotation.z = -Math.atan2(2.3, 4.6);
+    }
+    for (const z of [-.52, .52]) mk(BOX(.08, .035, .62), amber, g, 1.86, 1.95, z);
+  }
+  g.userData.shipDetails = { canopy: canopyFrame, fin, boardable };
   for (const [x, z] of [[-1.6, 2.4], [1.6, 2.4], [-1.6, -2.6], [1.6, -2.6]]) {
     tf(mk(BOX(0.18, 1.6, 0.18), grey, g, x * 1.08, 0.8, z), 0, 0, x > 0 ? 0.25 : -0.25);
     mk(CYL(0.35, 0.4, 0.14, 8), grey, g, x * 1.25, 0.07, z);
