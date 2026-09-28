@@ -426,7 +426,7 @@ const Game = {
     const ffb = U.$('s-ff');
     ffb.textContent = G.ff ? 'Turn off' : 'Turn on';
     ffb.classList.toggle('hidden', !Net.isHost);
-    U.$('ff-note').textContent = Net.isHost ? (G.online ? 'Zaps hurt your crew when this is on.' : 'Only matters when friends join.') : 'The captain (host) decides.';
+    U.$('ff-note').textContent = Net.isHost ? (G.online ? 'Zaps hurt your crew (75% damage) when this is on.' : 'Only matters when friends join.') : 'The captain (host) decides.';
   },
 
   setupChat() {

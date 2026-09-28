@@ -84,7 +84,7 @@ them is still standing. If the whole crew is down at once, the boss wins. You ke
    differently, see above.)
 6. Press `I` to send money to a friend (Crew & Money tab) or drop things from your backpack. Dropped stuff lands
    in a crate anyone can pick up by walking over it.
-7. Friendly fire is off by default (zaps just bonk your friends). The host can turn it on in the pause menu.
+7. Friendly fire is off by default (zaps just bonk your friends). The host can turn it on in the pause menu, and then your shots hit friends for 75% of their damage.
 
 Each friend needs to open the game too. The easiest way is to put it online for free with GitHub Pages:
 **Settings > Pages > Deploy from a branch > `main` / `(root)` > Save**. After a minute it's live at

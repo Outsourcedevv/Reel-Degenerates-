@@ -68,6 +68,8 @@ const RESPAWN_HOLD = 1.2; // seconds of holding the fire button to get back up a
 // wading in liquid: how much it slows you (per metre deep, never below `min`), and how deep the sea can get
 // before it washes you back to shore
 const WADE = { slow: 0.55, min: 0.5, deep: 1.25 };
+// friendly fire (when the host turns it on): how much of a shot's damage a friend takes
+const FF_DMG = 0.75;
 // how long critters leave you alone after you join the game, land on a planet, or get back up after dying
 const GRACE = { join: 20, land: 15, respawn: 10 };
 
@@ -1611,7 +1613,7 @@ const Shots = {
     if ((this.bonkCd.get(r.id) || 0) > G.time) return; // (a beam or a shotgun doesn't bonk them ten times at once)
     this.bonkCd.set(r.id, G.time + 0.35);
     const k = new V3(s.vel.x, 0, s.vel.z).normalize();
-    const d = G.ff ? Math.max(1, Math.round(dmg * 0.5)) : 0;
+    const d = G.ff ? Math.max(1, Math.round(dmg * FF_DMG)) : 0;
     Net.relay({ t: 'bonk', to: r.id, d: [U.r2(k.x), U.r2(k.z)], by: G.name, dmg: d });
     if (d) { UI.toast(`FRIENDLY FIRE! You shot ${r.name} (-${d})`, 'bad', 1.4); FX.text(r.center.clone().setY(r.center.y + 0.9), String(d), '#ff6b6b', 40); }
     else UI.toast(`${U.pick(LINES.bonk)} You zapped ${r.name}!`, 'purple', 1.4);

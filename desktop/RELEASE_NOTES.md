@@ -23,6 +23,7 @@
 - **More critters on harder worlds.** Easy has fewer about (and they're slow to come back), Hard has more, and
   Hardcore is crawling with them.
 - **More room.** The planets are further apart in space, and Nimbus-9's outer islands sit a bit further out.
+- **Friendly fire hits harder.** With it on, your shots hit your crew for 75% of their damage (it was half).
 - **No more third person.** The `V` camera and its pause-menu setting are gone. (Emotes still swing the camera round
   so you can watch your goober dance.)
 
