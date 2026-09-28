@@ -90,7 +90,7 @@ class GooberAnim {
 
   // st: what he's doing. vx, vy, vz: how fast he's going (world), yaw / pitch: where he's looking, ground,
   // tool ('zap', 'vac', 'drill', 'peel' or none), gun (its type), use (vacuuming, drilling, beaming), jet,
-  // glide, stomp, launch (flung by a jump pad or a rocket), slide (on ice), revive (picking a friend up),
+  // glide, stomp, launch (flung by a jump pad or a rocket), slide (on ice), revive (picking a friend up; reviveK: how far),
   // down, dead, lift (a friend picking him up, 0-1), sit ('pilot' / 'pass'), calm (no fidgets). Lying there
   // he goes limp if he has somewhere to lie: world (a PlanetWorld or the Arena), grav, v0 (how fast he was going when it
   // got him), pin (keep his body over there), thud (make a noise hitting the ground)
@@ -131,7 +131,7 @@ class GooberAnim {
     if (st.launch && !st.ground && !lying) this.tumble += dt * 7;
     else this.tumble = U.damp(this.tumble, Math.round(this.tumble / (PI * 2)) * PI * 2, 9, dt);
     X.bx += this.tumble;
-    if (!lying && !st.sit) this.toolPose(T, X, st, dt, spd);
+    if (!lying && !st.sit && !st.revive) this.toolPose(T, X, st, dt, spd); // (both hands full picking a friend up)
     // --- one-off moves, then an emote (which takes over)
     for (let i = this.acts.length - 1; i >= 0; i--) {
       const a = this.acts[i];
@@ -225,10 +225,15 @@ class GooberAnim {
       T.lax = T.rax = 0; T.laz = T.raz = 0.7; X.lax -= (t * 11) % (PI * 2); X.rax -= (t * 11 + PI) % (PI * 2);
       X.bz += 0.14 * Math.sin(t * 6); T.sx -= 0.1; T.yell = 0.7; T.eye = 1.3;
     }
-    // picking a friend up: down on one knee, pumping away
+    // picking a friend up: bent right over to grab them (lifting with his legs), straightening up as they come
+    // up, arms out in front holding them, straining (heave... heave...)
     if (st.revive) {
-      goobSet(T, [['ltx', -1.35], ['lk', 1.45], ['rtx', 0.35], ['rk', 1.75], ['rf', 0.6], ['sx', 0.55], ['lax', -1.2], ['rax', -1.2], ['laz', -0.25], ['raz', -0.25], ['le', -0.2], ['re', -0.2], ['nx', 0.35]], 1);
-      T.by -= 0.42; X.lax += 0.28 * Math.sin(t * 11); X.rax += 0.28 * Math.sin(t * 11); X.sx += 0.08 * Math.sin(t * 11);
+      const d = 1 - goobEase(U.clamp(st.reviveK || 0, 0, 1) * 1.2);
+      goobSet(T, [['sx', 0.2 + 0.75 * d], ['ltx', -0.2 - 0.6 * d], ['rtx', 0.25 - 0.3 * d], ['lk', 0.3 + 0.9 * d], ['rk', 0.2 + 0.8 * d], ['lf', 0.2 * d], ['rf', 0.3 * d],
+        ['lax', -1.35 + 0.25 * d], ['rax', -1.35 + 0.25 * d], ['laz', 0.12], ['raz', 0.12], ['le', -0.65 + 0.3 * d], ['re', -0.65 + 0.3 * d], ['nx', 0.1 + 0.3 * d]], 1);
+      T.by -= 0.28 * d;
+      X.sx -= 0.05 * Math.sin(t * 7); X.by += 0.01 * Math.sin(t * 7);
+      T.yell = Math.max(T.yell, 0.35); T.squint = Math.max(T.squint, 0.6);
     }
   }
 
@@ -429,7 +434,7 @@ class GoobRagdoll {
     const spin = 2.4 + Math.min(h, 10) * 0.3;
     this.w = new V3(dz * spin + U.rand(-0.5, 0.5), U.rand(-1.6, 1.6), -dx * spin + U.rand(-0.5, 0.5));
     this.v.y = Math.max(this.v.y, 1.6); // (knocked off his feet)
-    this.acc = 0; this.still = 0; this.asleep = false; this.hit = 0; this.pumpT = 0; this.k = 1; this.leaving = false;
+    this.acc = 0; this.still = 0; this.asleep = false; this.hit = 0; this.liftK = 0; this.t = 0; this.k = 1; this.leaving = false;
     this.limbs = [];
     for (const d of RAG_LIMBS) {
       for (const s of [1, -1]) {
@@ -453,23 +458,54 @@ class GoobRagdoll {
   down(out) { return out.set(0, -1, 0).applyQuaternion(_rq.copy(this.q).invert()); }
   wake() { this.asleep = false; this.still = 0; }
 
-  // st: world (what he's lying on), grav, lift (a friend picking him up), pin (keep his body over this spot:
-  // someone else's goober, whose own game says where they are)
+  // st: world (what he's lying on), grav, lift (a friend picking him up, 0-1), from (where that friend is
+  // standing, if we know), pin (keep his body over this spot: someone else's goober, whose own game says where
+  // they are)
   update(dt, st) {
     this.hit = 0;
-    if (st.lift > 0) { // a friend picking him up: he gets jostled about with every pump
-      this.pumpT -= dt;
-      if (this.pumpT <= 0) {
-        this.pumpT = 0.57; this.wake();
-        this.v.y += 1.2; this.w.x += U.rand(-0.8, 0.8); this.w.z += U.rand(-0.8, 0.8);
-        for (const L of this.limbs) { L.o1.y -= 0.01; L.o2.y -= 0.018; }
-      }
+    // (a friend's grip: it tightens as they pick him up, and lets go at once)
+    const lift = st.lift > 0 ? st.lift : 0;
+    if (!lift && this.liftK > 0.08) { // (dropped: he topples over as he goes, any old way)
+      const a = Math.random() * Math.PI * 2, k = 2 + 3 * this.liftK;
+      this.w.set(Math.cos(a) * k, U.rand(-1, 1), Math.sin(a) * k); this.v.x += Math.sin(a) * 0.6; this.v.z -= Math.cos(a) * 0.6;
+      this.liftK = 0;
     }
+    this.liftK = U.damp(this.liftK || 0, lift, 6, dt);
+    this.from = lift > 0 ? st.from || null : null;
     this.acc = Math.min(this.acc + Math.min(dt, 0.1), RAG.h * 12);
     while (this.acc >= RAG.h) { this.acc -= RAG.h; this.step(RAG.h, st.world, st.grav || 20, st.pin); }
   }
+  // a friend picking him up: they grab him and haul him up off the ground, limp as ever (his arms and legs
+  // dangle, his head lolls), onto his feet in front of them. L: how far along (0-1). If they let go he flops
+  // back down.
+  hoist(h, w, g, L) {
+    const c = this.c, v = this.v, wv = this.w;
+    this.asleep = false; this.still = 0;
+    const hold = goobEase(Math.min(1, L * 4)), sit = goobEase(Math.min(1, L * 1.6)), rise = goobEase((L - 0.12) / 0.88);
+    // up: his weight in their hands, and up to standing height (knees still a bit wobbly)
+    const ty = w.ground(c.x, c.z, c.y) + 0.25 + (GOOB.belly - 0.45) * rise + 0.025 * Math.sin(this.t * 7) * sit * (1 - rise);
+    v.y += (g + 70 * (ty - c.y) - 12 * v.y) * hold * h;
+    // along: pulled over in front of whoever's got him (or just held where he is)
+    if (this.from) {
+      const dx = c.x - this.from.x, dz = c.z - this.from.z, d = Math.hypot(dx, dz) || 1;
+      const tx = this.from.x + (dx / d) * 1.05, tz = this.from.z + (dz / d) * 1.05;
+      v.x += (18 * (tx - c.x) - 8 * v.x) * hold * h; v.z += (18 * (tz - c.z) - 8 * v.z) * hold * h;
+    } else { const k = Math.exp(-6 * hold * h); v.x *= k; v.z *= k; }
+    // and turned: sitting up first, then upright, facing whoever's got him
+    const u = _rv.set(0, 1, 0).applyQuaternion(this.q), ax = _rv2.set(-u.z, 0, u.x); // (u x up)
+    const s = ax.length(), ang = Math.atan2(s, u.y);
+    _rv3.set(0, 0, 0);
+    if (s > 1e-4) _rv3.copy(ax).multiplyScalar((ang / s) * 7 * sit);
+    if (this.from && rise > 0.3) { // (the way he faces: toward them)
+      const f = _rv.set(0, 0, 1).applyQuaternion(this.q), want = Math.atan2(this.from.x - c.x, this.from.z - c.z);
+      _rv3.y += U.angDiff(Math.atan2(f.x, f.z), want) * 4 * rise;
+    }
+    wv.lerp(_rv3, 1 - Math.exp(-12 * sit * h));
+  }
   step(h, w, g, pin) {
     const c = this.c, v = this.v, wv = this.w;
+    this.t = (this.t || 0) + h;
+    if (this.liftK > 0.01) this.hoist(h, w, g, this.liftK);
     if (!this.asleep) {
       v.y -= g * h;
       // sideways, unless something's in the way: a wall, a rock, the edge of the island (or the deck)
@@ -487,7 +523,10 @@ class GoobRagdoll {
       const fl = w.ground(c.x, c.z, c.y); // (never through the floor)
       if (!(c.y > fl - 2)) { c.y = fl + 0.4; v.set(0, 0, 0); wv.set(0, 0, 0); }
     }
-    if (pin) { const k = 1 - Math.exp(-8 * h); c.x += (pin.x - c.x) * k; c.z += (pin.z - c.z) * k; }
+    if (pin) { // (not while you're the one holding him: you know where he is)
+      const k = (1 - Math.exp(-8 * h)) * (this.from ? 1 - goobEase(Math.min(1, this.liftK * 4)) : 1);
+      c.x += (pin.x - c.x) * k; c.z += (pin.z - c.z) * k;
+    }
     this.limbStep(h, w, g);
   }
   // the balls of his body against the ground: they stop him going through it, bounce him (a bit, off a hard

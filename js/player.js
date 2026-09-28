@@ -664,8 +664,9 @@ class LocalPlayer {
     Sound.play('reloaded');
     if (by) UI.toast(`${by} picked you up! Back on your feet.`, 'good', 2.5);
   }
-  // a friend is lifting you up (they're holding E next to you)
-  helped(by, p) { this.helpT = G.time; this.helpBy = by; this.helpP = p; }
+  // a friend is lifting you up (they're holding E next to you, standing at x, z)
+  helped(by, p, x, z) { this.helpT = p > 0 ? G.time : 0; this.helpBy = by; this.helpP = p; this.helpFrom = x != null ? { x, z } : null; }
+  isHelped() { return !!this.helpT && G.time - this.helpT < 0.6; }
   // walk up to a downed friend (lying there limp, see GoobRagdoll) and hold E (use) for REVIVE_TIME seconds to
   // pick them up. It takes both hands: no shooting, reloading or throwing meanwhile (see update). Their
   // bleed-out timer pauses while you do. true: there's someone down to pick up right here
@@ -679,7 +680,10 @@ class LocalPlayer {
       }
     }
     for (const r of G.remotes.values()) if (r !== best) r.lift = 0;
-    if (best !== this.reviveWho) { if (this.reviveT > 0) UI.action(null); this.reviveWho = best; this.reviveT = 0; } // (someone else: start over)
+    if (best !== this.reviveWho) { // (someone else: start over)
+      if (this.reviveT > 0) { UI.action(null); this.letGo(this.reviveWho); }
+      this.reviveWho = best; this.reviveT = 0;
+    }
     if (!best) return false;
     UI.prompt(`Hold to pick up ${best.name} (takes ${REVIVE_TIME}s)`);
     if (Input.down('use')) {
@@ -688,18 +692,20 @@ class LocalPlayer {
       best.lift = this.reviveT / REVIVE_TIME;
       UI.action(best.lift, `PICKING UP ${best.name.toUpperCase()}... ${Math.max(0, REVIVE_TIME - this.reviveT).toFixed(1)}s`);
       this.helpSend = (this.helpSend || 0) - dt;
-      if (this.helpSend <= 0) { this.helpSend = 0.25; Net.relay({ t: 'rvp', to: best.id, by: G.name, p: U.r2(best.lift) }); }
+      if (this.helpSend <= 0) { this.helpSend = 0.25; Net.relay({ t: 'rvp', to: best.id, by: G.name, p: U.r2(best.lift), x: U.r2(this.pos.x), z: U.r2(this.pos.z) }); }
       if (this.reviveT >= REVIVE_TIME) {
-        this.reviveT = 0; best.lift = 0; UI.action(null);
+        this.reviveT = 0; best.lift = 0; best.liftHold = G.time + 1.2; UI.action(null); // (still holding them while their game catches up)
         Net.relay({ t: 'revive', to: best.id, by: G.name });
         const html = `<b>${U.esc(G.name)}</b> picked <b>${U.esc(best.name)}</b> back up!`;
         UI.feed(html, 'good');
         Net.relay({ t: 'ann', html, cls: 'good' });
         Sound.play('pickup');
       }
-    } else if (this.reviveT > 0) { this.reviveT = 0; best.lift = 0; UI.action(null); }
+    } else if (this.reviveT > 0) { this.reviveT = 0; best.lift = 0; UI.action(null); this.letGo(best); }
     return true;
   }
+  // you let go of a friend you were picking up (they flop back down, in everyone's game)
+  letGo(r) { if (r) Net.relay({ t: 'rvp', to: r.id, by: G.name, p: 0 }); this.helpSend = 0; }
 
   useTool(dt) {
     const t = this.tool;
@@ -1155,8 +1161,8 @@ class LocalPlayer {
     this.gbAnim.update(dt, {
       vx: this.vel.x + this.ext.x, vy: this.onGround ? 0 : this.vel.y, vz: this.vel.z + this.ext.z, yaw: this.gbYaw, pitch: this.pitch, ground: this.onGround,
       tool: this.tool, gun: gunDef(SAVE.zap).type, use: this.using, jet: this.jetting, glide: this.gliding, stomp: this.stomping,
-      launch: this.launchT > 0 && !this.onGround, slide: this.sliding, revive: this.reviveT > 0,
-      down: this.down, dead: this.dead && !this.down, lift: this.helpT && G.time - this.helpT < 0.6 ? this.helpP : 0,
+      launch: this.launchT > 0 && !this.onGround, slide: this.sliding, revive: this.reviveT > 0, reviveK: this.reviveT / REVIVE_TIME,
+      down: this.down, dead: this.dead && !this.down, lift: this.isHelped() ? this.helpP : 0, from: this.isHelped() ? this.helpFrom : null,
       world: this.world(), grav: PLANETS[G.planet].grav, v0: this.vel.clone().add(this.ext), thud: true,
     });
     // you're wherever your body ended up (so that's where you get back up, and where your crew sees you)
@@ -1200,6 +1206,8 @@ class LocalPlayer {
       // your movement gear and what's happening to you: jet pack, glider cape, ground pound, flung, sliding, picking someone up
       mv: (this.jetting ? 1 : 0) | (this.gliding ? 2 : 0) | (this.stomping ? 4 : 0) | (this.launchT > 0 && !this.onGround ? 8 : 0) | (this.sliding ? 16 : 0) | (this.reviveT > 0 ? 32 : 0),
       sf: this.safeT > 0 ? 1 : 0, // (the host's critters leave you alone while you're new here)
+      // (someone picking you up: how far along, so everyone sees you coming up; you picking someone up: the same)
+      lf: this.down && this.isHelped() ? U.r2(this.helpP) : 0, rv: this.reviveT > 0 ? U.r2(this.reviveT / REVIVE_TIME) : 0,
     };
   }
 }
@@ -1302,8 +1310,9 @@ class RemotePlayer {
     this.anim.update(dt, {
       vx: this.vel.x, vy: s.og ? 0 : s.vy || 0, vz: this.vel.z, yaw: this.yaw, pitch: s.pt || 0, ground: !!s.og,
       tool: TOOLS[s.t], gun: gunDef(this.zl).type, use: !!s.u,
-      jet: !!(mv & 1), glide: !!(mv & 2), stomp: !!(mv & 4), launch: !!(mv & 8), slide: !!(mv & 16), revive: !!(mv & 32),
-      down: !!s.dn, dead: !!s.d && !s.dn, lift: this.lift,
+      jet: !!(mv & 1), glide: !!(mv & 2), stomp: !!(mv & 4), launch: !!(mv & 8), slide: !!(mv & 16), revive: !!(mv & 32), reviveK: s.rv || 0,
+      down: !!s.dn, dead: !!s.d && !s.dn, lift: Math.max(this.lift, s.lf || 0, s.d && G.time < (this.liftHold || 0) ? 1 : 0),
+      from: this.lift > 0 || (s.d && G.time < (this.liftHold || 0)) ? G.player.pos : null, // (you've got them)
       // (lying there, a ragdoll: tumbling however it goes in your game, but always over where their game says
       // their body is)
       world: G.mode === 'boss' ? G.arena : G.world, grav: PLANETS[G.planet].grav, v0: this.tvel, pin: this.pos,

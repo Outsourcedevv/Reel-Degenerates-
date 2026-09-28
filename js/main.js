@@ -599,7 +599,7 @@ const Game = {
     N.on('pst', (m, from) => { if (G.boss && m.out) G.boss.out.add(from); });
     N.on('leave', (m) => this.removeRemote(m.id));
     N.on('revive', (m) => { if (m.to === Net.myId) G.player.revive(m.by); });
-    N.on('rvp', (m) => { if (m.to === Net.myId && G.player.down) G.player.helped(m.by, m.p); });
+    N.on('rvp', (m) => { if (m.to === Net.myId && G.player.down) G.player.helped(m.by, m.p, m.x, m.z); });
     N.on('wipe', () => { if (!Net.isHost) this.permaDeath(null, true); });
     // the ship: who sits where (host), and the pilot asking to land
     N.on('board', (m, from) => { if (Net.isHost) Flight.onBoard(from); });

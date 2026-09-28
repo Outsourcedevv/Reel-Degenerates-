@@ -26,8 +26,9 @@
 - **Ragdolls.** Go down (or get knocked out) and your goober goes limp: thrown by whatever got him, he tumbles,
   bounces and flops to a stop, arms and legs everywhere, and the camera backs out so you can watch. Your crew sees
   it too.
-- **Picking a friend up takes 5 seconds**, and both hands: you can't shoot, reload or throw while you do it (your
-  gun goes down out of the way). Let go and you have to start over.
+- **Picking a friend up takes 5 seconds**, and you really pick them up: you bend down, grab them and haul their
+  floppy body up onto its feet in front of you (everyone sees it). It takes both hands, so you can't shoot, reload
+  or throw meanwhile. Let go and they flop back down, and you have to start over.
 - **Reload animations.** Every gun reloads its own way, with your other hand doing the work: batteries flicked out
   and slammed in, tanks and canisters chucked, shells thumbed in and the pump racked, a parcel shoved down the tube,
   the Zapper smacked until its cells light up, the Jackpot's lever yanked (the reels spin), a new ghost waved into

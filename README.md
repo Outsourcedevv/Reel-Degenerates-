@@ -81,8 +81,9 @@ them is still standing. If the whole crew is down at once, the boss wins. You ke
 4. The crew works together: summoning items and the pizza reheating count for everyone, and anyone holding a
    summoning item can start a boss fight. Everyone on the planet who has a gun gets pulled in.
 5. When you'd die with friends around, you go **down** instead: you flop to the ground as a ragdoll. A friend walks
-   up to your body and holds `E` for 5 seconds to pick you back up. That takes both hands, so they can't shoot,
-   reload or throw while they do it. On Easy and Hard you bleed out after 25 seconds and it counts as a normal death. On Hardcore you stay down
+   up to your body and holds `E` for 5 seconds to pick you back up: they grab you and haul you up off the ground,
+   limp as a noodle, onto your feet in front of them (if they let go, you flop back down). That takes both hands,
+   so they can't shoot, reload or throw while they do it. On Easy and Hard you bleed out after 25 seconds and it counts as a normal death. On Hardcore you stay down
    until someone revives you, but if **everyone** is down at once, the world is deleted. (Boss fights work a bit
    differently, see above.)
 6. Press `I` to send money to a friend (Crew & Money tab) or drop things from your backpack. Dropped stuff lands
