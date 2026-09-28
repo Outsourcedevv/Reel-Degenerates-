@@ -51,6 +51,14 @@ const Game = {
     this.setupMenu();
     this.setupPause();
     this.setupChat();
+    // Close panels during the actual key event, before pause handling or the
+    // next frame can reuse Escape. A direct gesture can reacquire pointer lock.
+    addEventListener('keydown', (e) => {
+      if (e.code !== 'Escape' || !G.panel || Keys.capturing || document.getElementById('ending')) return;
+      e.preventDefault(); e.stopImmediatePropagation();
+      Input.keys.Escape = true; Input.pressed = {}; Input.dx = Input.dy = 0;
+      if (!e.repeat) UI.closePanel();
+    }, true);
     this.setupNet();
     addEventListener('resize', () => {
       G.camera.aspect = innerWidth / innerHeight;
@@ -60,8 +68,8 @@ const Game = {
       G.player.layoutVM();
     });
     document.addEventListener('pointerlockchange', () => {
-      if (document.pointerLockElement === G.renderer.domElement) { this.everLocked = true; this.wantLock = false; this.setSoft(false); G.locked = true; }
-      else { this.unlockedAt = performance.now(); if (!this.soft) G.locked = false; }
+      if (document.pointerLockElement === G.renderer.domElement) { this.everLocked = true; this.wantLock = false; this.fallback = false; this.setSoft(false); G.locked = true; }
+      else { this.unlockedAt = performance.now(); if (!this.soft && !this.wantLock) G.locked = false; }
       this.updatePause();
     });
     // the browser wouldn't grab the mouse (some never do: fall back to free-mouse look)
@@ -349,7 +357,10 @@ const Game = {
 
   lock() {
     if (!G.started || G.panel) return;
-    if (this.fallback) { G.locked = true; this.updatePause(); return; }
+    Input.dx = Input.dy = 0;
+    Input.mx = innerWidth / 2; Input.my = innerHeight / 2;
+    // Keep the pause menu hidden during the asynchronous lock request.
+    G.locked = true; this.updatePause();
     this.wantLock = true;
     try {
       const p = G.renderer.domElement.requestPointerLock();
@@ -602,7 +613,7 @@ const Game = {
     N.on('rvp', (m) => { if (m.to === Net.myId && G.player.down) G.player.helped(m.by, m.p, m.x, m.z); });
     N.on('wipe', () => { if (!Net.isHost) this.permaDeath(null, true); });
     // the ship: who sits where (host), and the pilot asking to land
-    N.on('board', (m, from) => { if (Net.isHost) Flight.onBoard(from); });
+    N.on('board', (m, from) => { if (Net.isHost) Flight.onBoard(from, m.want); });
     N.on('unboard', (m, from) => { if (Net.isHost) Flight.onUnboard(from); });
     N.on('seat', (m, from) => { if (Net.isHost) Flight.onSeatReq(m, from); });
     N.on('landreq', (m, from) => { if (Net.isHost && Flight.crew[from] === 'pilot' && PLANETS[m.p]) this.arrive(m.p); });

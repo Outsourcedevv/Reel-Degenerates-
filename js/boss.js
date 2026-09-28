@@ -240,6 +240,7 @@ class BossFight {
     this.projs = []; this.rings = []; this.slams = []; this.lanes = [];
     this.sweeps = []; this.zones = []; this.pulls = []; this.boomers = []; this.tracks = []; this.paths = [];
     this.minions = new Map();
+    this.processions = [];
     this.out = new Set();
     this.flash = 0;
     this.reel = null;
@@ -415,7 +416,9 @@ class BossFight {
       ai.atkT -= dt;
       if (this.phase === 2) ai.comp = Math.max(MIN_COMP[this.id] || 0.8, ai.comp - dt * 0.01);
       if (ai.atkT <= 0 && !ai.mv && ai.busy <= 0 && this.targets().length) {
-        const cd = this['attack_' + this.id]();
+        ai.attackCount = (ai.attackCount || 0) + 1;
+        const precision = ['count', 'stormy', 'chad'].includes(this.id) && ai.attackCount % 4 === 0;
+        const cd = precision ? this.attackProcession() : this['attack_' + this.id]();
         ai.atkT = cd < 0 ? 99 : (cd || 2.4) * ai.comp * U.rand(0.85, 1.15); // (a wind-up sets it when the attack goes off)
       }
       ai.tauntT -= dt;
@@ -532,6 +535,23 @@ class BossFight {
   }
 
   /* ----- attacks per boss (return a cooldown, or -1 while a wind-up is on its way) ----- */
+  // Tall moving coffins, storm conductors or server racks. The entire formation
+  // crosses the arena: dodge sideways into its marked empty aisle, not over it.
+  attackProcession() {
+    const tg = this.randTarget();
+    if (!tg) return 3;
+    const angle = Math.random() * TAU, c = Math.cos(angle), s = Math.sin(angle);
+    const lateral = tg.p.x * c - tg.p.z * s;
+    const gap = U.clamp(lateral + (Math.random() < .5 ? -5 : 5), -ARENA_R * .5, ARENA_R * .5);
+    const name = { count: 'Funeral Procession', stormy: 'Lightning Conductors', chad: 'Server Migration' }[this.id];
+    return this.windup(name + ' — find the glowing aisle', 'summon', .7, () => {
+      const attack = { k: 'procession', angle, gap, half: this.phase === 2 ? 1.8 : 2.2, w: 2.8, speed: 8, d: 26, h: 18, theme: this.id };
+      this.fire(attack);
+      const duration = attack.w + (ARENA_R + 3) * 2 / attack.speed + .5;
+      this.ai.busy = duration;
+      return duration + 2;
+    });
+  }
   pickAtk(list) { return U.weighted(list.filter((e) => e[1] > 0)); }
   attack_gary() {
     const p2 = this.phase === 2;
@@ -1082,6 +1102,7 @@ class BossFight {
   /* ================= everyone ================= */
   exec(a) {
     switch (a.k) {
+      case 'procession': this.processions.push({ s: a, t: 0, g: null, hit: false }); break;
       case 'proj':
         for (const s of a.l) this.projs.push({ s, t: -(s.w || 0), pos: new V3(...s.p), vel: new V3(...s.v), mesh: null, tele: null });
         if (a.l.length) Sound.play('throw');
@@ -1151,8 +1172,9 @@ class BossFight {
     if (this.m.lid) this.m.lid.visible = true;
     this.hidden = false;
     this.pz = null;
+    this.processions = [];
   }
-  allHazards() { return [...this.projs, ...this.rings, ...this.slams, ...this.lanes, ...this.sweeps, ...this.zones, ...this.pulls, ...this.boomers, ...this.tracks, ...this.paths]; }
+  allHazards() { return [...this.projs, ...this.rings, ...this.slams, ...this.lanes, ...this.sweeps, ...this.zones, ...this.pulls, ...this.boomers, ...this.tracks, ...this.paths, ...this.processions]; }
   canHurt() { const p = this.me(); return this.st === 'fight' && this.inFight(Net.myId) && !p.dead && !p.ghost && p.inv <= 0; }
 
   // a wind-up just started (everyone): pose, glow, and say what's coming
@@ -1466,6 +1488,7 @@ class BossFight {
     this.updBoomers(dt, me);
     this.updTracks(dt, me);
     this.updPaths(dt);
+    this.updProcessions(dt, me);
     // body contact
     if (this.contact > 0 && !this.hidden && this.canHurt()) {
       const d = Math.hypot(me.pos.x - this.rpos.x, me.pos.z - this.rpos.z);
@@ -1599,6 +1622,42 @@ class BossFight {
         if (this.canHurt() && Math.hypot(me.pos.x - s.c[0], me.pos.z - s.c[1]) < s.r && me.pos.y < DECK_Y + 2.2) this.hurt(s.d, 'slam', false, this.rpos);
       }
       if (sl.t > s.w + 0.25) { this.removeHazard(sl); this.slams.splice(i, 1); }
+    }
+  }
+  updProcessions(dt, me) {
+    for (let i = this.processions.length - 1; i >= 0; i--) {
+      const a = this.processions[i], s = a.s, extent = ARENA_R + 3;
+      const old = -extent + Math.max(0, a.t - s.w) * s.speed;
+      a.t += dt;
+      const z = -extent + Math.max(0, a.t - s.w) * s.speed;
+      if (!a.g) {
+        a.g = grp(G.scene); a.g.rotation.y = s.angle;
+        const guide = mk(BOX(s.half * 2, .035, extent * 2), '#7dffea', a.g, s.gap, DECK_Y + .045, 0, { emissive: '#237a68' });
+        const convoy = grp(a.g); a.g.userData.convoy = convoy;
+        const color = { count: '#5b334c', stormy: '#536883', chad: '#303947' }[s.theme];
+        for (const [lo, hi] of [[-extent, s.gap - s.half], [s.gap + s.half, extent]]) {
+          const n = Math.ceil((hi - lo) / 1.7), width = (hi - lo) / n;
+          for (let j = 0; j < n; j++) {
+            const x = lo + width * (j + .5);
+            mk(BOX(width, s.h, 1), color, convoy, x, DECK_Y + s.h / 2, 0);
+            for (let y = 1; y < s.h; y += 2.5) {
+              if (s.theme === 'count') {
+                mk(BOX(width * .55, .13, .04), '#bca17d', convoy, x, DECK_Y + y, .52);
+                mk(BOX(.12, 1, .04), '#bca17d', convoy, x, DECK_Y + y, .52);
+              } else mk(BOX(width * .72, .12, .05), s.theme === 'stormy' ? '#b9eaff' : '#7dffea', convoy, x, DECK_Y + y, .52, { emissive: '#267e8a' });
+            }
+          }
+        }
+        mergeLocal(convoy);
+      }
+      a.g.userData.convoy.position.z = z;
+      const c = Math.cos(s.angle), sn = Math.sin(s.angle);
+      const x = me.pos.x * c - me.pos.z * sn, pz = me.pos.x * sn + me.pos.z * c;
+      const inGap = Math.abs(x - s.gap) <= s.half - .35;
+      if (a.t >= s.w && !a.hit && this.canHurt() && !inGap && pz >= old - .85 && pz <= z + .85 && me.pos.y < DECK_Y + s.h) {
+        a.hit = true; this.hurt(s.d, 'procession', false, this.rpos);
+      }
+      if (z > extent + 1) { this.removeHazard(a); this.processions.splice(i, 1); }
     }
   }
   updLanes(dt, me) {

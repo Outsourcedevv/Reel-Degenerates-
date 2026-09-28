@@ -87,6 +87,16 @@ Known documented systems include:
 
 ## Current Task
 
+### Gameplay fixes, walk-in ship and handheld tools (2026-09-28)
+
+- Based on `d2cc93e`, preserving the latest carried-critters, boss exit and defeat changes. Critter chase leashes now require returning halfway home before reacquiring; alert effects have a per-critter five-second cooldown, also covering client snapshots.
+- Escape closes panels in a capture-phase key handler and consumes the press before pause handling. Pointer lock is requested in that event, pending locks hide pause, and temporary failures retry on click; free-cursor fallback supports edge turning instead of a limited turning arc.
+- Parked `buildShip(true)` has an open hatch, a traversable ramp, cabin floor/ceiling and pilot/passenger seating interactions inside. Flight still uses the existing seated cockpit. `board` messages optionally include `want`; standing up places the player in the cabin to walk out. Walking freely during flight is not implemented.
+- Count Carbula, Stormy and Chad use a tall moving formation every fourth attack: coffins, lightning conductors or server racks. A mint aisle marks the safe lateral position; jumping cannot clear the 18-unit formation. Host-generated `procession` events use existing boss attack networking, local swept hit checks, batching and hazard cleanup. Early bosses and gambling systems are unchanged.
+- Spookulon's maze has a local timer-controlled gate and start button. Ending a run closes the gate and returns the player outside; entering without a run also returns them to the start. The chest lid is double-sided.
+- Grabby/Turbo Vac, Laser Drill and Pizza Peel retain their attachment/animation contracts and use richer procedural models. Static details are batched; intake, bit and peel board remain independent. User selected handheld tools first, not every prop/character.
+- `tests/gameplay-regressions.js` exposes `runGameplayRegressions()` for a fresh test world. Headless Edge verifies alerts, actual ramp movement both directions, seating, maze lifecycle, tool attachments, boss gap/height/rotation/cleanup, shop Escape and fallback turning. Live multiplayer and packaged Electron have not been tested.
+
 ### Planet scenery and satellite visibility (2026-09-28)
 
 - Based on latest v1.12 work through `2583d94`. `buildRock` and lava rock cores now use closed, weathered geometry with three shared material tones; batching retains the shading. Rock random consumption and collision radii are unchanged.

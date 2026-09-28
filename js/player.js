@@ -27,7 +27,8 @@ const Input = {
       if (G.started && (e.button === 3 || e.button === 4)) e.preventDefault(); // (the side buttons go "back" in a browser: not mid-game)
     });
     addEventListener('mousemove', (e) => {
-      if (!G.locked) return;
+      this.mx = e.clientX; this.my = e.clientY;
+      if (!G.locked || G.panel) return;
       if (Math.abs(e.movementX) > 400 || Math.abs(e.movementY) > 400) return; // browser glitch spikes
       this.dx += e.movementX; this.dy += e.movementY;
     });
@@ -43,7 +44,15 @@ const Input = {
   hit(a) { return !!this.pressed[Keys.map[a]]; },
   // forget this action's key is held, until it's pressed again (dying mid-shot doesn't also respawn you)
   release(a) { this.keys[Keys.map[a]] = false; },
-  endFrame() { this.pressed = {}; this.dx = this.dy = 0; this.wheel = 0; },
+  endFrame() {
+    this.pressed = {}; this.dx = this.dy = 0; this.wheel = 0;
+    // Restricted browsers can refuse lock after Escape. Edge panning lets you
+    // keep turning, rather than stopping when the free cursor reaches the edge.
+    if (G.locked && !G.panel && !document.pointerLockElement && (Game.soft || Game.fallback)) {
+      this.dx = this.mx < 24 ? -8 : this.mx > innerWidth - 24 ? 8 : 0;
+      this.dy = this.my < 24 ? -5 : this.my > innerHeight - 24 ? 5 : 0;
+    }
+  },
 };
 
 const WAKE_TIME = 2.6; // (seconds to get up after blacking out, see LocalPlayer.wake)

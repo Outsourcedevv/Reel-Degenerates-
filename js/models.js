@@ -806,18 +806,37 @@ function buildSnail(color) {
 }
 
 /* ---------------- the ship ---------------- */
-function buildShip() {
+function buildShip(boardable = false) {
   const g = new THREE.Group();
   const white = '#f4f1ea', red = '#ff5a36', grey = '#6d7480';
-  tf(mk(CYL(1.8, 2.1, 7, 10), white, g, 0, 2.7, 0), PI / 2);
+  if (!boardable) tf(mk(CYL(1.8, 2.1, 7, 10), white, g, 0, 2.7, 0), PI / 2);
+  else {
+    // Axial hull sections leave a real aperture at the starboard ramp.
+    for (const [z0, z1, arcs] of [[-3.5, -1, [[0, PI * 2]]], [-1, 1.4, [[0, 1.35], [2.5, PI * 2]]], [1.4, 3.5, [[0, PI * 2]]]]) {
+      for (const [a, b] of arcs) tf(mk(new THREE.CylinderGeometry(1.95, 1.95, z1 - z0, 20, 1, true, a, b - a), white, g, 0, 2.7, (z0 + z1) / 2, { side: THREE.DoubleSide }), PI / 2);
+    }
+    mk(BOX(3.2, .12, 5.9), '#303746', g, 0, 2.24, .3);
+    mk(BOX(.6, .02, 5.5), '#b8372b', g, 0, 2.31, .3);
+    for (const [x, z] of [[0, 2.3], [-.95, -.9], [-.95, -2]]) {
+      mk(BOX(.6, .45, .6), '#343a47', g, x, 2.53, z);
+      mk(BOX(.7, .15, .65), '#b8372b', g, x, 2.83, z);
+      mk(BOX(.7, 1.05, .16), '#b8372b', g, x, 3.37, z - .38);
+      mk(BOX(.48, .26, .18), '#e6e1dc', g, x, 4, z - .38);
+    }
+    mk(BOX(2.3, .55, .5), '#303746', g, 0, 3.05, 3.15);
+    for (const x of [-.65, .65]) mk(BOX(.48, .25, .025), '#7dffea', g, x, 3.25, 2.88, { emissive: '#1b7869' });
+    const label = signMesh(['WALK IN · TAKE A SEAT'], 2.5, .35, { bg: '#303746', color: '#7dffea', double: true });
+    label.position.set(1.7, 4.3, .2); label.rotation.y = PI / 2; g.add(label);
+  }
   tf(mk(CONE(1.8, 2.8, 10), red, g, 0, 2.7, 4.9), PI / 2);
-  tf(mk(CYL(1.86, 1.9, 0.6, 10), red, g, 0, 2.7, 1.2), PI / 2);
-  tf(mk(CYL(1.9, 2.0, 0.6, 10), red, g, 0, 2.7, -2.2), PI / 2);
-  tf(mk(SPH(1.1, 10, 8), M('#7fd8ff', { transparent: true, opacity: 0.65 }), g, 0, 4.0, 2.4), 0, 0, 0, 1, 0.7, 1.4);
+  if (!boardable) tf(mk(CYL(1.86, 1.9, 0.6, 10), red, g, 0, 2.7, 1.2), PI / 2);
+  tf(mk(boardable ? new THREE.CylinderGeometry(1.97, 1.97, .6, 20, 1, true) : CYL(1.9, 2.0, 0.6, 10), red, g, 0, 2.7, -2.2), PI / 2);
+  tf(mk(boardable ? HEMI(1.1, 16, 8) : SPH(1.1, 10, 8), M('#7fd8ff', { transparent: true, opacity: boardable ? .25 : .65, depthWrite: false, side: THREE.DoubleSide }), g, 0, boardable ? 3.8 : 4.0, 2.4), 0, 0, 0, 1, 0.7, 1.4);
   for (const s of [-1, 1]) tf(mk(BOX(0.22, 2.2, 2.2), red, g, s * 2.1, 2.3, -2.8), 0, 0, -s * 0.55);
   mk(BOX(0.22, 2.0, 2.2), red, g, 0, 4.6, -2.8);
   // cabin windows down both sides, on the hull's upper side panels (one by every row of seats inside)
   for (const s of [-1, 1]) for (const z of [0.48, -0.55, -1.5]) {
+    if (boardable && s === 1 && z > -1) continue;
     const ap = (1.95 - (z * 0.3) / 7) * Math.cos(PI / 10); // (how far out the panel is here: the hull narrows to the front)
     tf(mk(BOX(0.05, 0.72, 0.86), '#c9ced6', g, s * (ap + 0.01) * 0.809, 2.7 + (ap + 0.01) * 0.588, z), 0, 0, s * 0.628);
     tf(mk(BOX(0.05, 0.6, 0.74), '#22384f', g, s * (ap + 0.035) * 0.809, 2.7 + (ap + 0.035) * 0.588, z, { emissive: '#0a1422' }), 0, 0, s * 0.628);
@@ -830,9 +849,9 @@ function buildShip() {
     tf(mk(BOX(0.18, 1.6, 0.18), grey, g, x * 1.08, 0.8, z), 0, 0, x > 0 ? 0.25 : -0.25);
     mk(CYL(0.35, 0.4, 0.14, 8), grey, g, x * 1.25, 0.07, z);
   }
-  mk(BOX(0.12, 1.8, 1.4), '#3b3f4a', g, 2.06, 2.4, 0.2);
-  const ramp = mk(BOX(2.6, 0.12, 1.5), '#9aa3ad', g, 3.1, 0.85, 0.2);
-  ramp.rotation.z = -0.62;
+  if (!boardable) mk(BOX(0.12, 1.8, 1.4), '#3b3f4a', g, 2.06, 2.4, 0.2);
+  const ramp = mk(BOX(boardable ? Math.hypot(4.6, 2.3) : 2.6, 0.12, boardable ? 2 : 1.5), '#9aa3ad', g, boardable ? 3.9 : 3.1, boardable ? 1.09 : .85, .2);
+  ramp.rotation.z = boardable ? -Math.atan2(2.3, 4.6) : -.62;
   // pizza topper
   mk(BOX(0.4, 0.3, 0.4), grey, g, 0, 4.8, -0.4);
   const top = grp(g, 0, 5.4, -0.4);
@@ -1697,6 +1716,7 @@ function flashTex() {
 // turbo: the upgraded Turbo Vac (red, racing stripe, fins, a hotter glow)
 function buildVacVM(turbo) {
   const g = new THREE.Group();
+  g.name = turbo ? 'Turbo cyclone vacuum' : 'Grabby cyclone vacuum';
   tf(mk(CYL(0.1, 0.1, 0.34, 8), turbo ? '#e0341f' : '#ffd23f', g, 0.02, -0.02, 0.05), PI / 2);
   if (turbo) {
     tf(mk(CYL(0.102, 0.102, 0.06, 8), '#ffffff', g, 0.02, -0.02, 0.05), PI / 2);
@@ -1708,22 +1728,45 @@ function buildVacVM(turbo) {
   const glow = mk(CYL(0.11, 0.11, 0.02, 8), turbo ? '#7dfff0' : '#7dff8a', g, 0.02, 0, -0.61, { emissive: turbo ? '#1a8a8a' : '#1a8a2a' });
   glow.rotation.x = PI / 2;
   const muzzle = grp(g, 0.02, 0, -0.65);
+  // Cyclone collector, reinforced cuffs, intake ribs and a readable charge gauge.
+  mk(CYL(.095, .075, .19, 12), '#bce8e5', g, .02, .16, .04, { transparent: true, opacity: .7, depthWrite: false });
+  mk(CYL(.06, .06, .16, 10), turbo ? '#ff8457' : '#7dff8a', g, .02, .16, .04, { emissive: '#235c38' });
+  for (const y of [.06, .26]) mk(CYL(.106, .106, .025, 12), '#384653', g, .02, y, .04);
+  for (const z of [-.16, -.27, -.38]) tf(mk(TOR(.06, .016, 5, 12), '#384653', g, .02, 0, z), 0);
+  tf(mk(TOR(turbo ? .15 : .13, .018, 5, 16), turbo ? '#ffb34f' : '#e9f0dc', g, .02, 0, -.6), 0);
+  mk(BOX(.018, .085, .16), '#24333c', g, .13, .005, .04);
+  for (let i = 0; i < 4; i++) mk(BOX(.022, .012, .022), '#7dffea', g, .14, .005, -.01 + i * .035, { emissive: '#26736b' });
+  for (const z of [-.03, .03, .09]) mk(BOX(.015, .09, .018), '#384653', g, -.086, -.02, z);
+  tf(mk(TOR(.065, .018, 5, 12), '#384653', g, .02, -.13, -.005), 0, PI / 2);
   g.userData = { muzzle, noz, glow };
-  return g;
+  return mergeLocal(g, [muzzle, noz, glow]);
 }
 function buildDrillVM() {
   const g = new THREE.Group();
+  g.name = 'Laser drill — survey rig';
   tf(mk(BOX(0.09, 0.2, 0.11), '#3b3f4a', g, 0, -0.12, 0.08), 0.25);
   mk(BOX(0.16, 0.16, 0.3), '#9fe3ff', g, 0, 0.02, 0);
   const bit = grp(g, 0, 0.02, -0.18);
   tf(mk(CONE(0.08, 0.34, 6), '#c9d2da', bit, 0, 0, -0.17), -PI / 2);
   const tip = mk(SPH(0.03, 5, 4), '#7dffff', bit, 0, 0, -0.35, { emissive: '#00aaff' });
   const muzzle = grp(g, 0, 0.02, -0.55);
+  tf(mk(CYL(.11, .11, .1, 12), '#33434f', g, 0, .02, -.13), PI / 2);
+  for (let i = 0; i < 4; i++) tf(mk(TOR(.075 - i * .014, .013, 5, 12), '#566879', bit, 0, 0, -.04 - i * .065), 0, .2);
+  for (const side of [-1, 1]) {
+    mk(BOX(.03, .19, .24), '#edf4f5', g, side * .1, .02, .015);
+    for (let i = 0; i < 4; i++) mk(BOX(.04, .11, .016), '#33434f', g, side * .12, .02, -.06 + i * .045);
+    mk(BOX(.035, .03, .21), '#ffb34f', g, side * .1, -.085, .01);
+  }
+  mk(BOX(.085, .035, .15), '#33434f', g, 0, .125, .015);
+  mk(BOX(.06, .01, .1), '#7dffff', g, 0, .147, .015, { emissive: '#15778a' });
+  tf(mk(CYL(.065, .065, .14, 10), '#ffb34f', g, 0, -.17, -.06), PI / 2);
   g.userData = { bit, tip, muzzle };
-  return g;
+  mergeLocal(bit, [tip]);
+  return mergeLocal(g, [bit, muzzle]);
 }
 function buildPeelVM() {
   const g = new THREE.Group();
+  g.name = 'Pizza peel — delivery edition';
   tf(mk(BOX(0.07, 0.18, 0.09), '#3b3f4a', g, 0, -0.1, 0.1), 0.3);
   tf(mk(CYL(0.025, 0.03, 0.34, 6), '#8a5a2b', g, 0, -0.01, -0.05), PI / 2);
   const board = grp(g, 0, 0, -0.36);
@@ -1732,8 +1775,15 @@ function buildPeelVM() {
   // a sad little pepperoni someone left on it
   mk(CYL(0.035, 0.035, 0.012, 8), '#c8321e', board, 0.07, 0.015, -0.04);
   const muzzle = grp(g, 0, 0, -0.5);
+  tf(mk(TOR(.2, .012, 5, 20), '#dde5e7', board, 0, .005, 0), PI / 2);
+  for (const x of [-.11, -.055, 0, .055, .11]) mk(BOX(.009, .003, .23), '#a97445', board, x, .012, 0);
+  mk(BOX(.11, .01, .14), '#dde5e7', board, 0, .016, .17);
+  for (const x of [-.035, .035]) mk(CYL(.011, .011, .015, 6), '#596772', board, x, .027, .17);
+  for (const z of [-.14, -.09, -.04, .01]) tf(mk(TOR(.03, .008, 4, 10), '#c44532', g, 0, -.01, z), 0);
+  tf(mk(TOR(.04, .01, 5, 12), '#dde5e7', g, 0, -.04, .15), PI / 2);
   g.userData = { board, muzzle };
-  return g;
+  mergeLocal(board);
+  return mergeLocal(g, [board, muzzle]);
 }
 
 /* ---------------- first-person hands (your suit's gloves and sleeves) ---------------- */
