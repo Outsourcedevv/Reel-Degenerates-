@@ -898,8 +898,15 @@ function buildDish() {
   const g = new THREE.Group();
   mk(CYL(0.25, 0.4, 2.4, 6), '#9aa3ad', g, 0, 1.2, 0);
   const d = grp(g, 0, 2.6, 0); d.rotation.x = -0.7;
-  tf(mk(new THREE.SphereGeometry(1.6, 12, 6, 0, PI * 2, PI / 2, PI / 2), '#e6e1dc', d, 0, 1.2, 0), 0, 0, 0, 1, 0.4, 1);
+  // An open reflector must render its concave inside as well as its back.
+  // Keep this on its own material so other pale props still cull normally.
+  const bowl = tf(mk(new THREE.SphereGeometry(1.6, 24, 10, 0, PI * 2, PI / 2, PI / 2), '#e6e1dc', d, 0, 1.2, 0, { side: THREE.DoubleSide }), 0, 0, 0, 1, 0.4, 1);
+  bowl.name = 'satellite-reflector';
+  tf(mk(TOR(1.6, 0.055, 5, 24), '#9aa3ad', d, 0, 1.2, 0), PI / 2);
+  mk(CYL(0.3, 0.4, 0.25, 8), '#697684', d, 0, 0.52, 0);
   mk(CYL(0.05, 0.05, 1.4, 4), '#555555', d, 0, 1.3, 0);
+  mk(CYL(0.15, 0.11, 0.25, 8), '#ffba58', d, 0, 2.05, 0);
+  mk(CYL(0.5, 0.58, 0.18, 8), '#697684', g, 0, 0.09, 0);
   return g;
 }
 function buildCrashedRocket() {
@@ -1017,16 +1024,46 @@ function buildSpire(rng) {
 function buildLavaRock(rng) {
   const g = new THREE.Group();
   const r = 0.8 + rng() * 1.6;
-  tf(mk(DOD(r), '#3a2a3a', g, 0, r * 0.35, 0), 0, rng() * 6, 0, 1, 0.7, 1);
+  const core = buildWeatheredStone(r, '#3a2a3a', r * 9, 0.7);
+  core.rotation.y = rng() * 6; g.add(core);
   // glowing cracks, kept inside the rock so nothing hangs in the air
   for (let i = 0; i < 3; i++) tf(mk(BOX(0.14, 0.14, r * 0.95), '#ff6a1f', g, (rng() - 0.5) * r * 0.5, r * 0.35 + (rng() - 0.5) * r * 0.3, (rng() - 0.5) * r * 0.5, { emissive: '#ff3a00' }), (rng() - 0.5) * 0.6, rng() * 3, 0);
   g.userData.r = r * 0.85;
   return g;
 }
+// Closed, chipped silhouettes with coherent vertices and three shared stone tones.
+// Face buckets survive mergeStatic (which does not copy vertex colors).
+function buildWeatheredStone(r, color, seed, height) {
+  const g = new THREE.Group(), source = new THREE.IcosahedronGeometry(1, 1);
+  const p = source.attributes.position, faces = [[], [], []];
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+    const chip = 0.86 + 0.1 * Math.sin(x * 5 + seed) * Math.cos(z * 4 - y * 3 + seed);
+    p.setXYZ(i, x * r * chip, Math.max(-0.08, (y * chip + 0.8) * r * height), z * r * chip * 0.92);
+  }
+  for (let i = 0; i < p.count; i += 3) {
+    const y = (p.getY(i) + p.getY(i + 1) + p.getY(i + 2)) / (3 * r * height);
+    const tone = y < 0.42 ? 0 : (Math.sin(i * 1.7 + seed) > 0.45 ? 2 : 1);
+    for (let j = i; j < i + 3; j++) faces[tone].push(p.getX(j), p.getY(j), p.getZ(j));
+  }
+  source.dispose();
+  const base = new THREE.Color(color);
+  const colors = [base.clone().multiplyScalar(0.72), base, base.clone().lerp(new THREE.Color('#fff1dc'), 0.16)];
+  faces.forEach((positions, i) => {
+    if (!positions.length) return;
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geo.computeVertexNormals();
+    mk(geo, '#' + colors[i].getHexString(), g, 0, 0, 0);
+  });
+  return g;
+}
 function buildRock(rng, color) {
   const r = 0.5 + rng() * 1.4;
-  const g = new THREE.Group();
-  tf(mk(DOD(r), color || '#8a8a8a', g, 0, r * 0.3, 0), rng() * 3, rng() * 3, 0, 1, 0.6 + rng() * 0.4, 1);
+  // Consume the same random values as before: existing world layouts stay stable.
+  const seed = rng() * 3, turn = rng() * 3, height = 0.6 + rng() * 0.4;
+  const g = buildWeatheredStone(r, color || '#8a8a8a', seed, height);
+  g.rotation.y = turn;
   g.userData.r = r * 0.8;
   return g;
 }
