@@ -55,19 +55,23 @@ const Input = {
   },
 };
 
+const CARRY_BIG = 1.8; // (a critter this much bigger than normal in your arms (Huge and up) goes over your head)
 const WAKE_TIME = 2.6; // (seconds to get up after blacking out, see LocalPlayer.wake)
 const TOOLS = ['zap', 'vac', 'drill', 'peel', 'crit']; // (the kinds of thing you can hold: every gun is a 'zap', every critter a 'crit'. See Loadout)
 // a goober carrying a critter (yours seen from outside, or a friend's): he hugs it to his belly, belly up, his
-// arms under it (see GooberAnim.toolPose). who keeps {critKey, critObj}; m: his model; key: the critter's
-// backpack key, or null (nothing); show: false while his arms are busy (dancing, flopping about as a ragdoll)
+// arms under it, or a big one (CARRY_BIG) he holds up over his head (see GooberAnim.toolPose). who keeps
+// {critKey, critObj, critK}; m: his model; key: the critter's backpack key, or null (nothing); show: false while
+// his arms are busy (dancing, flopping about as a ragdoll)
 function carryCritter(who, m, key, show = true) {
   if (who.critObj) who.critObj.visible = show;
   if (who.critKey === key) { if (who.critObj && who.critObj.parent !== m.spine) m.spine.add(who.critObj); return; } // (a new goober: same critter)
   if (who.critObj) { if (who.critObj.parent) who.critObj.parent.remove(who.critObj); disposeObj(who.critObj); who.critObj = null; }
-  who.critKey = key;
+  who.critKey = key; who.critK = 0; who.critTop = 0;
   if (!key) return;
-  const { g, size } = buildCarriedCritter(key, 0.2); // (in the goober's own units, see GOOB.s)
-  g.position.set(0, 0.06 + size.y / 2, 0.17 + size.z / 2); // (on his forearms, just in front of his belly)
+  const { g, size, k } = buildCarriedCritter(key, 0.2); // (in the goober's own units, see GOOB.s)
+  who.critK = k;
+  if (k >= CARRY_BIG) { g.position.set(0, 0.84 + size.y / 2, 0.1); who.critTop = (GOOB.waist + 0.84 + size.y) * GOOB.s; } // (up on his hands, over his head)
+  else g.position.set(0, 0.06 + size.y / 2, 0.17 + size.z / 2); // (on his forearms, just in front of his belly)
   m.spine.add(g);
   g.visible = show;
   who.critObj = g;
@@ -163,11 +167,11 @@ class LocalPlayer {
   // what you own changed (you bought something, died, got your stuff back): your hands match it again, still
   // holding what you had out if you can (the vac is rebuilt if it's a Turbo Vac now)
   refreshGear() {
-    const turbo = SAVE.vacLvl > 0;
-    if (!this.vmVac || this.vmVac.userData.turbo !== turbo) {
+    const vacLevel = Math.min(2, Math.max(0, SAVE.vacLvl || 0));
+    if (!this.vmVac || this.vmVac.userData.vacLevel !== vacLevel) {
       if (this.vmVac) { this.vm.remove(this.vmVac); disposeObj(this.vmVac); }
-      this.vmVac = buildVacVM(turbo);
-      this.vmVac.userData.turbo = turbo;
+      this.vmVac = buildVacVM(vacLevel === 2 ? 2 : vacLevel === 1);
+      this.vmVac.userData.vacLevel = vacLevel;
       addHands(this.vmVac, 'vac', this.cuffMat, this.sleeveMat);
       this.vm.add(this.vmVac);
       this.prepVM(this.vmVac);
@@ -260,10 +264,11 @@ class LocalPlayer {
     if (this.vmCrit) { this.vm.remove(this.vmCrit); disposeObj(this.vmCrit); this.vmCrit = null; }
     this.critEntry = entry;
     if (!entry) return;
-    const { g, size } = buildCarriedCritter(entry, 0.15); // (sitting right in the middle of your palm)
-    g.add(buildSupportHand(this.cuffMat, size.y / 2, U.clamp(size.x / 2, 0.04, 0.13), this.sleeveMat)); // (your hand under it)
+    const { g, size, k } = buildCarriedCritter(entry, 0.15); // (sitting right in the middle of your palm)
+    g.add(buildSupportHand(this.cuffMat, size.y / 2, U.clamp(size.x / 2, 0.04, 0.3), this.sleeveMat)); // (your hand under it)
     g.scale.setScalar(0.62); // (like everything else you hold, see layoutVM)
-    g.userData.base = new V3(0.1, -0.13, -0.5);
+    // (a big one is held lower and further out, more in the middle: it's big, but you can still see past it)
+    g.userData.base = new V3(0.1 - 0.035 * (k - 1), -0.13 - 0.06 * (k - 1), -0.5 - 0.1 * (k - 1));
     g.position.copy(g.userData.base);
     g.traverse((o) => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } });
     this.vm.add(g);
@@ -443,10 +448,7 @@ class LocalPlayer {
     if (bf) bf.visible = this.flashT > 0 && this.tpK > 0.5;
     const wheel = this.vmZap.userData.wheel; // (the pizza cutter sitting in the gun, while you have one in hand)
     if (wheel) { wheel.visible = this.ammo > 0; wheel.rotation.x += dt * 3; }
-    if ((G.mode === 'boss' || G.mode === 'planet') && !this.dead && !this.ghost) {
-      this.regenT -= dt;
-      if (this.regenT <= 0 && this.hp < 100) this.hp = Math.min(100, this.hp + (G.mode === 'boss' ? 6 : 12) * dt);
-    }
+    this.regenerate(dt);
     UI.planetHp(this.hp);
     // --- picking a friend up: it takes both hands, so no shooting, reloading or throwing while you do
     const nearDown = this.checkRevive(dt, canAct);
@@ -465,6 +467,15 @@ class LocalPlayer {
     this.updateCamera(dt, hs);
     this.bodyTick(dt);
     UI.ammo(this);
+  }
+
+  regenerate(dt) {
+    if ((G.mode !== 'boss' && G.mode !== 'planet') || this.dead || this.ghost) return;
+    const wait = Math.max(0, this.regenT);
+    this.regenT = Math.max(0, this.regenT - dt);
+    const active = Math.max(0, dt - wait);
+    const rate = (DIFFS[G.diff] || DIFFS.easy).regen[G.mode];
+    if (this.hp < 100) this.hp = Math.min(100, this.hp + rate * active);
   }
 
   // in the liquid (a pond, the edge of the sea): it slows you down and splashes about. Too far out and the sea
@@ -775,7 +786,7 @@ class LocalPlayer {
       if (!Input.down('fire')) { if (this.vacTarget) this.releaseTargets(); this.vmVac.userData.noz.rotation.z = 0; return; }
       Sound.play('vac');
       this.vmVac.userData.noz.rotation.z = Math.sin(G.time * 40) * 0.05;
-      const tier = VAC[SAVE.vacLvl];
+      const tier = VAC[Math.min(VAC.length - 1, Math.max(0, SAVE.vacLvl || 0))];
       if (!this.vacTarget || this.vacTarget.taken) {
         this.vacT = 0;
         this.vacTarget = this.findNode(w, VAC_KINDS, tier.range, 0.88) || (G.mode === 'planet' ? Critters.findBody(this.rayStart(), this.camDir(new V3()), tier.range, 0.88) : null);
@@ -1192,14 +1203,14 @@ class LocalPlayer {
   // your goober (seen while you emote): built the first time it's needed, and again when your colors, look or
   // vac change. It carries every tool, showing the one you're holding.
   body() {
-    const key = G.color + '|' + G.look + '|' + (SAVE.vacLvl > 0);
+    const key = G.color + '|' + G.look + '|' + Math.min(2, SAVE.vacLvl || 0);
     if (!this.gb || this.gbKey !== key) {
       const c = this.gbCarry && this.gbCarry.critObj;
       if (c && c.parent) c.parent.remove(c); // (the critter you're carrying goes in the new goober's hand, see bodyTick)
       if (this.gb) { G.scene.remove(this.gb.root); disposeObj(this.gb.root); }
       this.gb = buildAstronaut({ color: G.color, look: G.look, hat: SAVE.hat });
       this.gbKey = key; this.gbAnim = new GooberAnim(this.gb); this.gbYaw = this.yaw; this.gbZap = null;
-      this.gbTools = [null, buildVacVM(SAVE.vacLvl > 0), buildDrillVM(), buildPeelVM()];
+      this.gbTools = [null, buildVacVM(SAVE.vacLvl === 2 ? 2 : SAVE.vacLvl > 0), buildDrillVM(), buildPeelVM()];
       this.gbTools.forEach((t, i) => t && gripTool(this.gb.hand, t, TOOLS[i]));
       G.scene.add(this.gb.root);
     }
@@ -1230,7 +1241,7 @@ class LocalPlayer {
     carryCritter(this.gbCarry || (this.gbCarry = {}), m, this.tool === 'crit' ? this.critEntry : null, !this.gbAnim.emo && !this.down && !this.dead);
     this.gbAnim.update(dt, {
       vx: this.vel.x + this.ext.x, vy: this.onGround ? 0 : this.vel.y, vz: this.vel.z + this.ext.z, yaw: this.gbYaw, pitch: this.pitch, ground: this.onGround,
-      tool: this.tool, gun: gunDef(SAVE.zap).type, use: this.using, jet: this.jetting, glide: this.gliding, stomp: this.stomping,
+      tool: this.tool, gun: gunDef(SAVE.zap).type, carry: (this.gbCarry && this.gbCarry.critK) || 0, use: this.using, jet: this.jetting, glide: this.gliding, stomp: this.stomping,
       launch: this.launchT > 0 && !this.onGround, slide: this.sliding, revive: this.reviveT > 0, reviveK: this.reviveT / REVIVE_TIME,
       down: this.down, dead: this.dead && !this.down, lift: this.isHelped() ? this.helpP : 0, from: this.isHelped() ? this.helpFrom : null,
       world: this.world(), grav: PLANETS[G.planet].grav, v0: this.vel.clone().add(this.ext), thud: true,
@@ -1270,7 +1281,7 @@ class LocalPlayer {
       x: U.r2(this.pos.x), y: U.r2(this.pos.y), z: U.r2(this.pos.z), yw: U.r2(this.yaw),
       vx: Math.round(this.vel.x * 10) / 10, vy: Math.round(this.vel.y * 10) / 10, vz: Math.round(this.vel.z * 10) / 10,
       og: this.onGround ? 1 : 0, st: Flight.on ? (Flight.seat === 'pilot' ? 1 : 2) : 0,
-      t: TOOLS.indexOf(this.tool), cr: this.tool === 'crit' && this.critEntry ? this.critEntry.split('*')[0] : undefined, h: SAVE.hat, c: G.color, lk: G.look, n: G.name, m: G.mode, p: G.planet,
+      t: TOOLS.indexOf(this.tool), cr: this.tool === 'crit' && this.critEntry ? this.critEntry.split('*')[0] : undefined, h: SAVE.hat, c: G.color, lk: G.look, n: G.name, m: G.mode, p: G.planet, vl: SAVE.vacLvl,
       hp: Math.round(this.hp), g: this.ghost ? 1 : 0, d: this.dead ? 1 : 0, dn: this.down ? 1 : 0, $: SAVE.bucks, zp: SAVE.zap,
       u: this.using ? 1 : 0, pt: U.r2(this.pitch), an: this.an, ac: this.ac, // (what your goober is up to, see RemotePlayer)
       // your movement gear and what's happening to you: jet pack, glider cape, ground pound, flung, sliding, picking someone up
@@ -1298,7 +1309,8 @@ class RemotePlayer {
     this.ghostTag.visible = false;
     this.m.root.add(this.ghostTag);
     this.zl = s.zp == null ? -1 : s.zp; // their gun (so you see the one they really have out)
-    this.tools = [buildZapperVM(this.zl), buildVacVM(), buildDrillVM(), buildPeelVM()];
+    this.vacLevel = s.vl || 0;
+    this.tools = [buildZapperVM(this.zl), buildVacVM(this.vacLevel === 2 ? 2 : this.vacLevel > 0), buildDrillVM(), buildPeelVM()];
     this.tools.forEach((t, i) => gripTool(this.m.hand, t, TOOLS[i]));
     this.pos = new V3(s.x, s.y, s.z); this.tpos = this.pos.clone();
     this.tvel = new V3(); this.vel = new V3(); this.rcvT = G.time; this.lift = 0;
@@ -1334,6 +1346,12 @@ class RemotePlayer {
     if (!prev || prev.m !== s.m || prev.p !== s.p || this.pos.distanceTo(this.tpos) > 3) { this.snapNext = true; this.anim.rag = null; } // (not getting up from over there)
     if (s.c !== this.color || (s.lk || '') !== this.look) this.rebuild(s);
     if (s.h !== this.m.hatId) setHat(this.m, s.h);
+    const vl = s.vl || 0;
+    if (vl !== this.vacLevel) {
+      this.vacLevel = vl;
+      this.m.hand.remove(this.tools[1]); disposeObj(this.tools[1]);
+      this.tools[1] = gripTool(this.m.hand, buildVacVM(vl === 2 ? 2 : vl > 0), 'vac');
+    }
     const zl = s.zp == null ? -1 : s.zp;
     if (zl !== this.zl) { // they switched guns (or bought one)
       this.zl = zl;
@@ -1372,6 +1390,7 @@ class RemotePlayer {
     r.root.rotation.y = this.yaw + Math.PI;
     this.tools.forEach((t, i) => (t.visible = i === s.t));
     carryCritter(this, r, TOOLS[s.t] === 'crit' && typeof s.cr === 'string' && RES[s.cr] ? s.cr : null, !this.anim.emo && !s.dn && !s.d);
+    this.tag.position.y = this.critObj && this.critObj.visible && this.critTop ? Math.max(2.75, this.critTop + 0.35) : 2.75; // (their name over what they're holding up)
     r.pose.visible = !ghost;
     this.ghostTag.visible = ghost;
     if (!this.downTag) { this.downTag = textSprite('REVIVE ME', { size: 44, color: '#ffffff', bg: 'rgba(200,30,30,.8)', scale: 0.0075, depthTest: false, order: 20 }); this.downTag.position.y = 1.6; r.root.add(this.downTag); }
@@ -1381,7 +1400,7 @@ class RemotePlayer {
     this.vel.x = U.damp(this.vel.x, this.tvel.x, 10, dt); this.vel.z = U.damp(this.vel.z, this.tvel.z, 10, dt);
     this.anim.update(dt, {
       vx: this.vel.x, vy: s.og ? 0 : s.vy || 0, vz: this.vel.z, yaw: this.yaw, pitch: s.pt || 0, ground: !!s.og,
-      tool: TOOLS[s.t], gun: gunDef(this.zl).type, use: !!s.u,
+      tool: TOOLS[s.t], gun: gunDef(this.zl).type, use: !!s.u, carry: this.critK || 0,
       jet: !!(mv & 1), glide: !!(mv & 2), stomp: !!(mv & 4), launch: !!(mv & 8), slide: !!(mv & 16), revive: !!(mv & 32), reviveK: s.rv || 0,
       down: !!s.dn, dead: !!s.d && !s.dn, lift: Math.max(this.lift, s.lf || 0, s.d && G.time < (this.liftHold || 0) ? 1 : 0),
       from: this.lift > 0 || (s.d && G.time < (this.liftHold || 0)) ? G.player.pos : null, // (you've got them)

@@ -33,6 +33,11 @@ difficulty:
 | Hard | Everything hits twice as hard. Critters have 1.75x the health, and there are more of them (up to 24, back quicker). Mini bosses learn a new attack (and pay 1.5x). |
 | Hardcore | Everything hits 3.5x as hard and critters have 2.5x the health, and they're everywhere (up to 32, back fast). Mini bosses learn two new attacks (and pay 2x). Solo, if you die, the world is deleted. With friends, you go down and can be revived, but if the whole crew is down at once, the world is deleted. |
 
+Health regenerates after the existing post-damage delay: **10 HP/s on Easy, 6 on Hard, and 3 on Hardcore**.
+During boss fights those rates are halved (5, 3, and 1.5 HP/s). Dead or ghost players do not regenerate.
+
+Spookulon’s shop sells the **Spooky Vacuum** for $6,500. It reaches 12m, sucks at 2.4x speed, and replaces the Turbo Vac with a haunted ectoplasm trap containing a tiny ghost.
+
  Each world is its own save, like
 Minecraft worlds. When you join a friend, your stuff in their world is saved too, so it's still there next time.
 Hats are the exception: once you own a hat, it's yours in every world (and when you visit friends).
@@ -263,17 +268,18 @@ E-Scooters charge from way off. Shoot a mean one and it comes for you, and its f
 on its own timer, so a pack is dangerous. Zap them and sell them at the shop: a zapped critter goes flying, bounces
 and lands in a heap (legs in the air, seeing stars), and you walk over and press `E` to bag it (or vacuum it up).
 Only the one who zapped it can pick it up. If your backpack is full you carry it in a free hotbar slot instead (you
-hold it up in your hand, and your crew sees you hugging it to your belly), and if your hotbar is full too it just waits there for you, even if you fly off and come
+hold it up in your hand, and your crew sees you hugging it to your belly, or holding a Huge-or-bigger one up over
+your head; the bigger it is, the bigger it looks in your arms), and if your hotbar is full too it just waits there for you, even if you fly off and come
 back later. You can also move a critter between your backpack and your hotbar yourself (press `I`: **To hotbar** /
 **To backpack**). Shops buy the ones in your hotbar too, and if you die they drop into your grave with your
-backpack. Each kill pops up what you got: **Killed Trash Rat**, a tag with what its body will sell for (**Worth $78**:
-it isn't money until you bag it and sell it), and under it what made it worth that (`3x Large`, `2x 360`,
-`1.25x Point Blank`...). How many critters are about depends on the world's difficulty. When you join a game, land on a planet
+backpack. Each kill pops up what you got: **Killed Trash Rat $78**, and under it what made it worth that (`3x Large`,
+`2x 360`, `1.25x Point Blank`...). Its body lies there with its price floating faintly over it until you bag it. How many critters are about depends on the world's difficulty. When you join a game, land on a planet
 or respawn, they leave you alone for a bit (watch the **SAFE** timer), unless you shoot one first. Their colors and
-an outline keep them from blending into the ground. They come in all sizes, from Tiny (half the price) to TITANIC (10x): the bigger they are, the more they're worth,
-but the rarer they are (and the harder they hit). About 1 in 12 is bigger than normal:
+an outline keep them from blending into the ground. They come in all sizes, from Tiny (half the price) to TITANIC (10x),
+and everything goes up together: a 10x one is worth 10x as much, is 10x as big, has 10x the health and bites 10x as
+hard (a Tiny one is half of everything). The bigger they are, the rarer. About 1 in 12 is bigger than normal:
 
-| Size | Worth | Chance |
+| Size | Worth, size, health, bite | Chance |
 | --- | --- | --- |
 | Tiny / Small | 0.5x / 0.75x | 16% / 28% |
 | Normal | 1x | 47.6% |

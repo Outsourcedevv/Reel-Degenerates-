@@ -108,9 +108,9 @@ const Critters = {
     for (let tries = 0; tries < 20; tries++) {
       const a = Math.random() * Math.PI * 2, r = U.rand(14, PLANET_R - 6);
       const x = Math.cos(a) * r, z = Math.sin(a) * r;
-      if (!w.walkable(x, z, 0.8)) continue;
-      const k = U.weighted(kinds.map((d, i) => [i, d.w || 20]));
       const sz = U.weighted(SIZES.map((s, i) => [i, s.w]));
+      if (!w.walkable(x, z, Math.max(0.8, 0.3 * SIZES[sz].s))) continue; // (the big ones need room)
+      const k = U.weighted(kinds.map((d, i) => [i, d.w || 20]));
       const g = Math.random() < GOLD_CHANCE ? 1 : 0;
       const c = this.add(this.nextId++, k, g, x, z, Math.random() * 6, sz);
       c.hp = c.max = kinds[k].hp * SIZES[sz].hp * (g ? 2 : 1) * (DIFFS[G.diff] || DIFFS.easy).crit;
@@ -612,6 +612,7 @@ const Critters = {
     if (saved) { // (lying where you left it)
       b.pos.set(saved.x, saved.y, saved.z); b.q.set(saved.q[0], saved.q[1], saved.q[2], saved.q[3]);
       b.rest = true; b.mine = true; b.entry = saved.e; b.stars = null;
+      this.priceTag(b, w);
     } else {
       const f = m && Array.isArray(m.v) ? m : this.fling(c, m && m.by);
       b.vel.set(f.v[0], f.v[1], f.v[2]); b.w.set(f.w[0], f.w[1], f.w[2]); b.flip = f.f || 0;
@@ -621,6 +622,21 @@ const Critters = {
     holder.position.copy(b.pos); holder.quaternion.copy(b.q);
     this.bodies.set(b.key, b);
     return b;
+  },
+  // yours: what it'll sell for, floating over it until you bag it (see updateBodies)
+  priceTag(b, w = G.worlds[b.p]) {
+    if (b.tag || !b.entry || !w) return;
+    const r = cargoRes(b.entry);
+    b.tag = textSprite(U.bucks(r.v), { size: 40, color: '#ffe38a', stroke: 'rgba(0,0,0,.55)', scale: 0.005 });
+    w.dyn.add(b.tag);
+    this.placeTag(b);
+  },
+  // (low-key: see-through, and it fades out as you walk away)
+  placeTag(b) {
+    if (!b.tag) return;
+    b.tag.position.set(b.pos.x, b.pos.y + 0.5 * b.s + 0.5, b.pos.z);
+    const d = G.camera.position.distanceTo(b.tag.position);
+    b.tag.material.opacity = 0.7 * U.clamp((26 - d) / 10, 0, 1);
   },
   // a handful of its outermost points (from its real shape): what touches the ground as it tumbles
   hull(b, hc) {
@@ -662,11 +678,12 @@ const Critters = {
         if (G.time - b.born > BODY.keep + 3) this.dropBody(b.key);
         continue;
       }
-      if (b.p !== G.planet || b.grab) continue; // (another planet's, or in the Grabby Vac)
+      if (b.p !== G.planet || b.grab) { if (b.tag) b.tag.visible = false; continue; } // (another planet's, or in the Grabby Vac)
       // (lying still a long way off: not drawn, like pickups, see NODE_VIEW)
-      if (b.rest && G.player) { const far = (b.pos.x - G.player.pos.x) ** 2 + (b.pos.z - G.player.pos.z) ** 2 > NODE_VIEW * NODE_VIEW; b.holder.visible = !far; if (far) continue; }
+      if (b.rest && G.player) { const far = (b.pos.x - G.player.pos.x) ** 2 + (b.pos.z - G.player.pos.z) ** 2 > NODE_VIEW * NODE_VIEW; b.holder.visible = !far; if (b.tag) b.tag.visible = !far; if (far) continue; }
       if (!b.rest) this.tumble(b, w, dt);
       this.flop(b, dt);
+      this.placeTag(b);
       if (b.pop != null && b.rest && (b.popT = (b.popT || 0) + dt) > b.pop) this.popBody(b);
     }
   },
@@ -762,7 +779,7 @@ const Critters = {
   dropBody(key) {
     const b = this.bodies.get(key);
     if (!b) return;
-    for (const o of [b.holder, b.stars]) if (o) { if (o.parent) o.parent.remove(o); disposeObj(o); }
+    for (const o of [b.holder, b.stars, b.tag]) if (o) { if (o.parent) o.parent.remove(o); disposeObj(o); }
     this.bodies.delete(key);
     if (b.mine) this.saveBodies();
   },
@@ -772,11 +789,17 @@ const Critters = {
     for (const b of this.bodies.values()) {
       if (!b.mine || !b.rest || b.taken || b.p !== G.planet) continue;
       const dx = b.pos.x - from.x, dz = b.pos.z - from.z, d = Math.hypot(dx, dz);
-      if (d > reach + 0.3 * b.s || Math.abs(b.pos.y - from.y) > 2.4) continue;
+      if ((d > reach + 0.3 * b.s && this.edgeDist(b, from) > reach) || Math.abs(b.pos.y - from.y) > 2.4 + 0.5 * b.s) continue; // (a big one: from its edge, and its middle is up high)
       const dot = d > 0.6 ? (dx * dir.x + dz * dir.z) / (d * Math.hypot(dir.x, dir.z) + 1e-6) : 1;
       if (dot < 0.25) continue;
       if (d < bd) { bd = d; best = b; }
     }
+    return best;
+  },
+  // how far you are (sideways) from the nearest bit of it (see hull)
+  edgeDist(b, from) {
+    let best = Math.hypot(b.pos.x - from.x, b.pos.z - from.z);
+    for (const h of b.hull) { _bv.copy(h).applyQuaternion(b.q).add(b.pos); best = Math.min(best, Math.hypot(_bv.x - from.x, _bv.z - from.z)); }
     return best;
   },
   // for the Grabby Vac: one of yours along where you're pointing it
@@ -785,7 +808,7 @@ const Critters = {
     for (const b of this.bodies.values()) {
       if (!b.mine || !b.rest || b.taken || b.p !== G.planet) continue;
       const dx = b.x - cp.x, dy = b.y - cp.y, dz = b.z - cp.z, d = Math.hypot(dx, dy, dz);
-      if (d > range + 1.5) continue;
+      if (d > range + 1.5 + 0.5 * b.s) continue;
       const dot = (dx * dir.x + dy * dir.y + dz * dir.z) / d;
       if (dot < minDot) continue;
       const sc = d * (2 - dot);
@@ -869,21 +892,20 @@ const Critters = {
     const maxed = mult > STYLE_MAX;
     mult = Math.min(STYLE_MAX, Math.round(mult * 100) / 100);
     const key = critKey(def.id, c.sz, !!c.g), entry = mult > 1 ? `${key}*${mult}` : key, worth = cargoRes(entry).v, z = SIZES[c.sz];
-    // what you got: KILLED Rust Crab, what its body's worth when you sell it (no money yet: you have to bag it and
-    // sell it), and under that what made it worth that (its size, golden, each style bonus)
+    // what you got: KILLED Rust Crab $22, and under it what made it worth that (its size, golden, each style bonus)
     const lines = [];
     if (z.v > 1) lines.push([z.v, z.name, 'size']);
     if (c.g) lines.push([8, 'Golden', 'gold']);
     for (const st of styles) lines.push([STYLE[st].m, STYLE[st].name, '']);
     if (maxed) lines.push([STYLE_MAX, 'style bonus capped at', 'max']);
     UI.killed(def.name, worth, lines);
-    // (no coin sounds: nothing's been paid yet)
+    FX.text(pos.clone().setY(pos.y + 1.5), U.bucks(worth), '#ffd23f', 44);
     if (styles.length) {
-      Sound.play(mult >= 3 ? 'rare' : 'ding');
+      Sound.play(mult >= 3 ? 'jackpot' : 'win');
       SAVE.stats.style = (SAVE.stats.style || 0) + 1;
-    } else if (c.g || z.v >= 4) Sound.play('rare');
+    } else Sound.play(c.g || z.v >= 4 ? 'rare' : 'coin');
     SAVE.stats.critters = (SAVE.stats.critters || 0) + 1;
-    if (b) { b.mine = true; b.entry = entry; }
+    if (b) { b.mine = true; b.entry = entry; this.priceTag(b); }
     if (!this.pickTip) { this.pickTip = true; UI.toast('Walk over to it and press {use} to bag it (or vacuum it up)!', '', 3); }
     else if (SAVE.cargo.length >= CARGO[SAVE.cargoLvl] && G.time - (this.fullTipT || -99) > 20) { this.fullTipT = G.time; UI.toast('Backpack full: it\'ll wait right there until you\'ve sold some stuff.', 'bad', 2.6); }
     persist();

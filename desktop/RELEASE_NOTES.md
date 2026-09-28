@@ -39,19 +39,20 @@
 - **Headshots and hitmarkers.** Shots to the head do double damage (1.5x on bosses) with a red HEADSHOT number and
   a helmet "ping", and finishing a critter with one is a new HEADSHOT style kill (1.5x). Every hit you land flashes a
   hitmarker round your crosshair, red for a headshot. Shots now go exactly where your crosshair is, however close.
-- **Kill pop-ups.** Zap a critter and you see what you got: **KILLED TRASH RAT**, a tag with what its body will
-  sell for (**Worth $78**: bag it and sell it at a shop), and under it what made it worth that: `3x Large`,
-  `2x 360`, `1.25x Point Blank`, `8x Golden`... (Style bonuses still stack up to 5x.) No coin sounds or floating
-  money: you haven't been paid yet.
+- **Kill pop-ups.** Zap a critter and you see what you got: **KILLED TRASH RAT $78**, and under it what made it
+  worth that: `3x Large`, `2x 360`, `1.25x Point Blank`, `8x Golden`... (Style bonuses still stack up to 5x.)
+- **Price tags.** A critter you zapped lies there with what it's worth floating faintly over it, until you bag it.
 - **No more menu after beating a boss.** VICTORY comes up with your reward, and a beam of light comes down in the
   middle of the arena: walk into it to go back to the planet (or wait 30 seconds). Anyone who was down gets up.
 - **No more menu after losing one either.** Everything goes black, and you wake up on the planet you came from,
   blinking and getting up off the ground (with a space hospital bill, as before).
 - **Bigger critters, much rarer.** Critters now come in ten sizes worth more than normal, from Big (2x) through
   Large, Huge, Hefty, Massive, Enormous, COLOSSAL and GIANT up to TITANIC (10x). Anything bigger than normal is much
-  rarer now (about 1 in 12, and a TITANIC one is 1 in 1,700).
+  rarer now (about 1 in 12, and a TITANIC one is 1 in 1,700). And they really are that big: a critter's size,
+  health and bite all match what it's worth, so a 10x one is 10x as big, 10x as tough and bites 10x as hard.
 - **Carry critters in your hotbar.** Backpack full? A critter you pick up goes in a free hotbar slot and you hold it
-  up in your hand (your crew sees you carrying it in front of you, belly up). You can move them between your backpack and hotbar yourself too (press `I`), shops buy them from
+  up in your hand (your crew sees you carrying it in front of you, belly up, or a Huge-or-bigger one over your
+  head). The bigger it is, the bigger it looks in your hands, and the hint says what you're carrying. You can move them between your backpack and hotbar yourself too (press `I`), shops buy them from
   either, and they drop into your grave with your backpack if you die.
 - **The ship coasts.** When the pilot moves to the back seat mid-flight, the ship keeps going instead of stopping
   dead in the air, until someone takes the controls again.

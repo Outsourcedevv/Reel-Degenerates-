@@ -260,7 +260,11 @@ const JACKPOT_ROLLS = [
   { k: 'jp',  w: 1,  mult: 14, color: '#ff3df0', text: 'JACKPOT!! x14', blast: [4, 6] },
 ];
 const CARGO = [10, 20, 35, 60, 90];
-const VAC = [{ range: 7, speed: 1 }, { range: 9.5, speed: 1.9 }];
+const VAC = [
+  { range: 7, speed: 1 },
+  { range: 9.5, speed: 1.9 },
+  { range: 12, speed: 2.4 },
+];
 const NADE_DMG = 90;
 
 const HATS = {
@@ -326,6 +330,7 @@ const SHOPS = {
     greet: ['Welcome to the Boo-tique! Everything here is 100% haunted, 0% refundable.', 'I\'d shake your hand, but, you know. Ghost.', 'The graveyard\'s lovely this time of year. Every year. Forever.'],
     items: [
       { kind: 'zap', lvl: 5, price: 11000, desc: 'Spits out little ghost wisps that drift after whatever is nearest your crosshair. They\'re not very bright, so point them roughly at something.' },
+      { kind: 'vac', lvl: 2, price: 6500, name: 'Spooky Vacuum', desc: 'A haunted ectoplasm trap. Reaches farther and sucks faster, with a ghost safely sealed inside.' },
       { kind: 'springs', price: 6500, name: 'Spring-Heeled Jacks', desc: 'Boots with actual bedsprings bolted on. You jump WAY higher. (Makes Bounce Boots bouncier too.)' },
       { kind: 'nades', price: 180, name: 'Goo Grenades x5', desc: 'Still sticky. Now slightly haunted.' },
       { kind: 'cargo', lvl: 4, price: 9000, name: 'Coffin Backpack', desc: 'Holds 90 things. Roomy. Pre-owned. Do not ask by whom.' },
@@ -490,23 +495,26 @@ const CRITTERS = {
     { id: 'hound', name: 'Royal Hound', icon: 'paw', mood: 'mean', w: 16, hp: 255, speed: 5.4, dmg: 20, v: 570, spit: { c: '#ff6a1f', what: 'fire', n: 3, fan: 0.35 }, desc: 'The Emperor\'s guard dog. Three eyes, zero chill. Breathes three fireballs at a time.' },
   ],
 };
-/* how big a critter is. Bigger ones are rarer, tougher, bite harder and are worth a lot more. */
-// v: what it's worth (x the normal price) · w: how often (out of 100): the bigger ones are rarer and rarer, all the
-// way up to 10x. (New sizes go on the END: saves remember a critter's size by where it is in this list.)
+/* how big a critter is. Bigger ones are rarer, and everything about them goes up together: a 10x one is worth 10x as
+   much, is 10x as big, has 10x the health and bites 10x as hard. */
+// v: what it's worth, how big it is (s), how much health it has (hp) and how hard it hits (dmg), all x the normal
+// one · spd: how fast it goes · w: how often (out of 100): the bigger ones are rarer and rarer, all the way up to 10x.
+// (New sizes go on the END: saves remember a critter's size by where it is in this list.)
 const SIZES = [
-  { k: 'tiny',     name: 'Tiny',     s: 0.6,  hp: 0.5,  v: 0.5,  dmg: 0.6,  spd: 1.15, w: 16 },
-  { k: 'small',    name: 'Small',    s: 0.8,  hp: 0.75, v: 0.75, dmg: 0.8,  spd: 1.07, w: 28 },
-  { k: 'normal',   name: '',         s: 1,    hp: 1,    v: 1,    dmg: 1,    spd: 1,    w: 47.64 },
-  { k: 'big',      name: 'Big',      s: 1.35, hp: 1.8,  v: 2,    dmg: 1.3,  spd: 0.95, w: 4 },
-  { k: 'huge',     name: 'Huge',     s: 1.8,  hp: 3,    v: 4,    dmg: 1.6,  spd: 0.88, w: 1 },
-  { k: 'giant',    name: 'GIANT',    s: 2.5,  hp: 5,    v: 9,    dmg: 2,    spd: 0.8,  w: 0.1 },
-  { k: 'large',    name: 'Large',    s: 1.55, hp: 2.3,  v: 3,    dmg: 1.45, spd: 0.92, w: 1.8 },
-  { k: 'hefty',    name: 'Hefty',    s: 1.95, hp: 3.5,  v: 5,    dmg: 1.7,  spd: 0.86, w: 0.6 },
-  { k: 'massive',  name: 'Massive',  s: 2.1,  hp: 3.9,  v: 6,    dmg: 1.8,  spd: 0.84, w: 0.4 },
-  { k: 'enormous', name: 'Enormous', s: 2.2,  hp: 4.3,  v: 7,    dmg: 1.85, spd: 0.83, w: 0.25 },
-  { k: 'colossal', name: 'COLOSSAL', s: 2.35, hp: 4.7,  v: 8,    dmg: 1.9,  spd: 0.82, w: 0.15 },
-  { k: 'titan',    name: 'TITANIC',  s: 2.7,  hp: 5.5,  v: 10,   dmg: 2.1,  spd: 0.78, w: 0.06 },
+  { k: 'tiny',     name: 'Tiny',     v: 0.5,  spd: 1.15, w: 16 },
+  { k: 'small',    name: 'Small',    v: 0.75, spd: 1.07, w: 28 },
+  { k: 'normal',   name: '',         v: 1,    spd: 1,    w: 47.64 },
+  { k: 'big',      name: 'Big',      v: 2,    spd: 0.95, w: 4 },
+  { k: 'huge',     name: 'Huge',     v: 4,    spd: 0.88, w: 1 },
+  { k: 'giant',    name: 'GIANT',    v: 9,    spd: 0.8,  w: 0.1 },
+  { k: 'large',    name: 'Large',    v: 3,    spd: 0.92, w: 1.8 },
+  { k: 'hefty',    name: 'Hefty',    v: 5,    spd: 0.86, w: 0.6 },
+  { k: 'massive',  name: 'Massive',  v: 6,    spd: 0.84, w: 0.4 },
+  { k: 'enormous', name: 'Enormous', v: 7,    spd: 0.83, w: 0.25 },
+  { k: 'colossal', name: 'COLOSSAL', v: 8,    spd: 0.82, w: 0.15 },
+  { k: 'titan',    name: 'TITANIC',  v: 10,   spd: 0.78, w: 0.06 },
 ];
+for (const z of SIZES) Object.assign(z, { s: z.v, hp: z.v, dmg: z.v });
 const SIZE_NORMAL = 2;
 // the backpack id for a critter of some size (normal-sized ones keep their plain id)
 const critKey = (id, sz, gold) => (gold ? 'g_' : '') + id + (sz === SIZE_NORMAL ? '' : ':' + SIZES[sz].k);
@@ -616,9 +624,9 @@ const STYLE_MAX = 5; // stacked style bonuses never pay more than this in total
 // dmg: how hard enemies hit · crit: how tough critters are · crits: how many critters are about on a planet at
 // once · spawn: seconds between new critters turning up [while there are less than half that many, after that]
 const DIFFS = {
-  easy: { name: 'Easy', dmg: 1, crit: 1, crits: 14, spawn: [0.7, 6.5], revive: 10, desc: 'Enemies hit normally, and there are fewer critters about. Die on a planet and you just get back up. Boss fights: one life, but friends can pick you up (or you get up after 10s).' },
-  hard: { name: 'Hard', dmg: 2, crit: 1.75, crits: 24, spawn: [0.3, 3], revive: 15, desc: 'Everything hits twice as hard, critters are much tougher, there are more of them and they come back faster. Mini bosses have a new attack. Boss fights: one life, friends can pick you up (or you get up after 15s).' },
-  hardcore: { name: 'Hardcore', dmg: 3.5, crit: 2.5, crits: 32, spawn: [0.2, 1.6], revive: 20, perma: true, desc: 'Everything hits WAY harder, critters are tanks and they\'re everywhere, mini bosses have two new attacks, and if you die, you die for good. The world is deleted. With friends in a boss fight you get back up after 20s, if one of them is still standing.' },
+  easy: { name: 'Easy', regen: { planet: 10, boss: 5 }, dmg: 1, crit: 1, crits: 14, spawn: [0.7, 6.5], revive: 10, desc: 'Enemies hit normally, and there are fewer critters about. Die on a planet and you just get back up. Boss fights: one life, but friends can pick you up (or you get up after 10s).' },
+  hard: { name: 'Hard', regen: { planet: 6, boss: 3 }, dmg: 2, crit: 1.75, crits: 24, spawn: [0.3, 3], revive: 15, desc: 'Everything hits twice as hard, critters are much tougher, there are more of them and they come back faster. Mini bosses have a new attack. Boss fights: one life, friends can pick you up (or you get up after 15s).' },
+  hardcore: { name: 'Hardcore', regen: { planet: 3, boss: 1.5 }, dmg: 3.5, crit: 2.5, crits: 32, spawn: [0.2, 1.6], revive: 20, perma: true, desc: 'Everything hits WAY harder, critters are tanks and they\'re everywhere, mini bosses have two new attacks, and if you die, you die for good. The world is deleted. With friends in a boss fight you get back up after 20s, if one of them is still standing.' },
 };
 
 const SUMMONS = {
