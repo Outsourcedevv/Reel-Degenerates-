@@ -96,6 +96,22 @@ const Sound = {
       case 'pickup': T(880, 0.07, { type: 'triangle', vol: 0.12 }); T(1320, 0.12, { type: 'triangle', vol: 0.12, delay: 0.06 }); break;
       case 'reload': T(420, 0.05, { type: 'square', vol: 0.06 }); N(0.06, { ftype: 'bandpass', freq: 2500, vol: 0.1, delay: 0.06 }); T(300, 0.06, { type: 'square', vol: 0.05, delay: 0.14 }); break;
       case 'reloaded': T(660, 0.05, { type: 'square', vol: 0.06 }); T(990, 0.09, { type: 'square', vol: 0.06, delay: 0.05 }); break;
+      // reloading, gun by gun (see GunReload): mags out and in, pumps, shells, caps, levers, parcels
+      case 'magout': T(1250, 0.03, { type: 'square', vol: 0.05 }); N(0.09, { ftype: 'bandpass', freq: 2800, slide: 1400, vol: 0.09, q: 2, delay: 0.02 }); break;
+      case 'magin': T(170, 0.07, { type: 'square', slide: 90, vol: 0.12, filter: 1400 }); N(0.05, { ftype: 'highpass', freq: 2500, vol: 0.12 }); T(950, 0.04, { type: 'square', vol: 0.05, delay: 0.05 }); break;
+      case 'tap': T(420, 0.04, { type: 'triangle', vol: 0.08 }); N(0.03, { freq: 2200, vol: 0.05 }); break;
+      case 'slap': N(0.07, { freq: 1700, vol: 0.24 }); T(170, 0.06, { slide: 90, vol: 0.12 }); break;
+      case 'charge': T(300, 0.3, { type: 'sawtooth', slide: 1300, vol: 0.04, filter: 2200 }); T(700, 0.25, { type: 'sine', slide: 2200, vol: 0.04, delay: 0.04 }); break;
+      case 'shell': T(760, 0.03, { type: 'square', vol: 0.05 }); N(0.05, { ftype: 'bandpass', freq: 3600, vol: 0.08, q: 2 }); break;
+      case 'pump': N(0.08, { ftype: 'bandpass', freq: 1300, vol: 0.2, q: 2 }); T(210, 0.05, { type: 'square', vol: 0.08 }); break;
+      case 'pumpin': N(0.08, { ftype: 'bandpass', freq: 1900, vol: 0.2, q: 2 }); T(300, 0.05, { type: 'square', vol: 0.08 }); T(1100, 0.04, { type: 'square', vol: 0.04, delay: 0.05 }); break;
+      case 'unscrew': T(1500, 0.05, { type: 'triangle', slide: 1900, vol: 0.035 }); N(0.05, { ftype: 'highpass', freq: 4000, vol: 0.03 }); break;
+      case 'pop': T(480, 0.08, { type: 'sine', slide: 1500, vol: 0.13 }); N(0.04, { ftype: 'highpass', freq: 3000, vol: 0.06 }); break;
+      case 'lever': for (let i = 0; i < 6; i++) T(1300 + i * 40, 0.02, { type: 'square', vol: 0.035, delay: i * 0.04 }); N(0.25, { ftype: 'bandpass', freq: 800, vol: 0.05 }); break;
+      case 'spin': for (let i = 0; i < 12; i++) T(1700, 0.015, { type: 'square', vol: 0.025, delay: i * 0.035 }); break;
+      case 'hiss': N(0.4, { ftype: 'highpass', freq: 4200, vol: 0.11, attack: 0.02 }); break;
+      case 'rustle': N(0.22, { ftype: 'bandpass', freq: 2600, vol: 0.08, q: 0.6 }); N(0.15, { ftype: 'bandpass', freq: 1800, vol: 0.06, q: 0.6, delay: 0.12 }); break;
+      case 'thunk': T(110, 0.14, { slide: 60, vol: 0.22 }); N(0.08, { freq: 900, vol: 0.12 }); break;
       case 'summon':
         T(110, 2.2, { type: 'sawtooth', slide: 55, vol: 0.18, filter: 700, vib: 4 });
         T(220, 2.0, { type: 'triangle', slide: 110, vol: 0.08, vib: 6 });

@@ -28,6 +28,13 @@
   it too.
 - **Picking a friend up takes 5 seconds**, and both hands: you can't shoot, reload or throw while you do it (your
   gun goes down out of the way). Let go and you have to start over.
+- **Reload animations.** Every gun reloads its own way, with your other hand doing the work: batteries flicked out
+  and slammed in, tanks and canisters chucked, shells thumbed in and the pump racked, a parcel shoved down the tube,
+  the Zapper smacked until its cells light up, the Jackpot's lever yanked (the reels spin), a new ghost waved into
+  the lantern, the Squirt Pistol's bottle refilled. The Squirt Pistol's water and the Zapper's cells show how much
+  is left.
+- **Fixed: a gun you took out for the first time could sit right in your face** (huge, in the middle of the screen)
+  until the window was resized.
 - **Friendly fire hits harder.** With it on, your shots hit your crew for 75% of their damage (it was half).
 - **No more third person.** The `V` camera and its pause-menu setting are gone. (Emotes still swing the camera round
   so you can watch your goober dance.)

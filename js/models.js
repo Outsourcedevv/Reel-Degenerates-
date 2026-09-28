@@ -1784,6 +1784,10 @@ function addHands(vm, kind, cuff, sleeve) {
     hands.support.position.set(s[0], s[1], s[2]);
     hands.support.userData.home = hands.support.position.clone();
     vm.add(hands.support);
+  } else if (vm.userData.parts) { // (a one-handed gun: your other hand only comes up to reload it, see GunReload)
+    hands.free = buildSupportHand(cuff, 0.03, 0.035, sleeve);
+    hands.free.visible = false;
+    vm.add(hands.free);
   }
   vm.userData.hands = hands;
   return hands;

@@ -102,6 +102,19 @@ const specs = {
   rocket: [launcher, -.31, .48, .075, [.184, -.098, .048, .046]],
   cutter: [pizza, -.27, .28, .1, [.012, .046, .028, .036]],
 };
+// the bits that move on their own when it reloads (see GunReload in reloads.js): name: [which parts, design
+// pivot x, y, z, each (keep every piece apart, to move them one at a time)]
+const moving = {
+  bolt: { cells: [/^Cyan charge cell/, -.04, .065, 0, true] },
+  spread: { pump: [/^(Wooden pump|Pump groove)/, .25, -.063] },
+  lob: { mag: [/^(Transparent goo reservoir|Magenta reservoir liquid|Tank yellow rim|Tank cap|Goo bubble)/, .022, .322] },
+  squirt: { cap: [/^(Bottle screw cap|Cap knurl)/, -.115, .288], water: [/^Water inside bottle/, -.115, .127] },
+  jackpot: { lever: [/^(Pull handle|Red pull knob)/, -.2, .1, .176], reels: [/^Reel symbol/, -.075, .065, 0, true] },
+  beam: { mag: [/^(Coolant canister|Coolant cap)/, -.13, .214] },
+  homing: { ghost: [/^(Captured ghost|Ghost tail|Ghost eye)/, .048, .16] },
+  chain: { mag: [/^(Yellow battery|Battery terminals|Warning badge)/, -.203, .14] },
+  rocket: { mag: [/^(Loaded parcel|Parcel tape)/, .398, .075] },
+};
 function build(type) {
   const spec = specs[type] || specs.squirt, scale = .65;
   const point = (x, y, z = 0) => new V3(z * scale, y * scale + .017, .08 - scale * (x - spec[1]));
@@ -113,10 +126,20 @@ function build(type) {
   design.updateMatrixWorld(true);
   let wheel = null;
   if (type === 'cutter') { wheel = new T.Group(); wheel.name = 'Animated cutter wheel'; wheel.position.copy(point(.28, .1)); root.add(wheel); }
+  const mv = moving[type] || {}, parts = {};
+  for (const [k, [, x, y, z, each]] of Object.entries(mv)) {
+    const g = new T.Group(); g.name = k; g.position.copy(point(x, y, z)); g.userData.each = !!each;
+    root.add(g); parts[k] = g;
+  }
   for (const part of [...design.children]) {
     part.geometry.applyMatrix4(part.matrixWorld);
     part.position.set(0, 0, 0); part.rotation.set(0, 0, 0); part.scale.setScalar(1);
-    if (wheel && /^(Steel cutter wheel|Recessed blade face|Polished cutting edge|Red axle hub|Hub bolt|Blade recess)/.test(part.name)) {
+    const k = Object.keys(mv).find((n) => mv[n][0].test(part.name));
+    if (k) {
+      const g = parts[k];
+      part.geometry.translate(-g.position.x, -g.position.y, -g.position.z);
+      g.add(part);
+    } else if (wheel && /^(Steel cutter wheel|Recessed blade face|Polished cutting edge|Red axle hub|Hub bolt|Blade recess)/.test(part.name)) {
       part.geometry.translate(-wheel.position.x, -wheel.position.y, -wheel.position.z);
       wheel.add(part);
     } else root.add(part);
@@ -124,9 +147,10 @@ function build(type) {
   const muzzle = new T.Group(); muzzle.name = 'Muzzle'; muzzle.position.copy(point(spec[2], spec[3])); root.add(muzzle);
   const handSpec = { grip: HAND_SPEC.zap.grip };
   if (spec[4]) { const [x, y, radius, width] = spec[4]; handSpec.support = [...point(x, y).toArray(), radius * scale, width * scale]; }
-  root.userData = { tip: null, muzzle, wheel, handSpec };
-  mergeLocal(root, wheel ? [wheel] : []);
+  root.userData = { tip: null, muzzle, wheel, handSpec, parts };
+  mergeLocal(root, [wheel, ...Object.values(parts)].filter(Boolean));
   if (wheel) mergeLocal(wheel);
+  for (const g of Object.values(parts)) { if (!g.userData.each) mergeLocal(g); g.userData.home = g.position.clone(); }
   return root;
 }
 return { build };

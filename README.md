@@ -227,6 +227,12 @@ hands on the bigger guns). Guns kick when they fire: your view jumps up and sett
 pull down a bit between shots. The Scattergun and the Same-Day Launcher kick hardest. The Pew Pew Zapper and the
 Wisp Caller barely move.
 
+Every gun reloads its own way: you flick the Storm Caller's battery out and slam a fresh one in, chuck the Goo
+Lobber's tank and the Cryo Beam's coolant canister, thumb two shells into the Scattergun and rack the pump, shove a
+new parcel down the Launcher's tube, smack the Pew Pew Zapper until its cells light up (then twirl it), yank the
+Jackpot Blaster's lever (the reels spin), wave a new ghost into the Wisp Caller's lantern, and unscrew the Squirt
+Pistol's cap to refill the bottle. The bottle's water and the Zapper's cells show how much is left.
+
 Movement gear you can pick up along the way (you keep it when you die):
 
 | Gear | Where | What it does |

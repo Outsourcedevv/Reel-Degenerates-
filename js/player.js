@@ -156,8 +156,8 @@ class LocalPlayer {
       vm = buildZapperVM(l);
       addHands(vm, gunDef(l).type, this.cuffMat, this.sleeveMat);
       this.vm.add(vm);
+      this.vmGuns.set(l, vm); // (first: laying out your hands, below, goes through vmGuns)
       this.prepVM(vm);
-      this.vmGuns.set(l, vm);
     }
     return vm;
   }
@@ -221,8 +221,8 @@ class LocalPlayer {
     if (z.type === 'cutter') return; // (pizza cutters don't reload: they come back)
     this.reloadT = this.reloadDur = z.rl;
     this.reloadMsg = U.pick(LINES.reload);
-    Sound.play('reload');
-    this.act('reload');
+    if (!GunReload.has(z.type)) Sound.play('reload'); // (the others make their own noises as they go)
+    this.act('reload', z.rl);
   }
   // keep held tools in the lower-right corner on any screen shape
   layoutVM() {
@@ -383,14 +383,9 @@ class LocalPlayer {
       this.reloadT -= dt;
       if (this.reloadT <= 0) { this.refill(); Sound.play('reloaded'); }
     }
-    // reload animation: dip the zapper, tip it down and give the battery a wiggle
-    const rk = this.reloadT > 0 ? Math.sin((1 - this.reloadT / this.reloadDur) * Math.PI) : 0;
-    this.vmZap.rotation.set(-rk * 0.55, 0, rk * 0.28);
-    const vb = this.vmZap.userData.base;
-    if (vb) this.vmZap.position.set(vb.x - rk * 0.03, vb.y - rk * 0.05, vb.z);
-    // (on a two-handed gun, the other hand lets go and slides back to swap the battery)
-    const sup = this.vmZap.userData.hands && this.vmZap.userData.hands.support;
-    if (sup) sup.position.set(sup.userData.home.x - rk * 0.05, sup.userData.home.y - rk * 0.06, sup.userData.home.z + rk * 0.16);
+    // reloading: every gun its own way (see GunReload). The rest of the time, some show how full they are.
+    const gd = gunDef(this.gunL);
+    GunReload.pose(this.vmZap, gd.type, this.reloadT > 0 ? U.clamp(1 - this.reloadT / this.reloadDur, 0, 1) : -1, this.ammo / gd.mag, this.reloadDur, G.time);
     const hs = Math.hypot(this.vel.x, this.vel.z);
     if (this.onGround && hs > 0.5) this.walkT += dt * hs * 1.25;
     this.sprintK = U.damp(this.sprintK, sprint && hs > 6.5 && this.onGround ? 1 : 0, 6, dt);

@@ -79,6 +79,7 @@ class GooberAnim {
     if (!d) return;
     if (n !== 'land') this.acts = this.acts.filter((a) => a.n !== n);
     const a = { n, t: 0, d, k: typeof k === 'number' ? k : 1, v: 0 };
+    if (n === 'reload' && +k > 0) a.d = Math.min(+k, 3); // (as long as that gun takes)
     if (n === 'hurt') { a.v = k === 'back' ? 1 : Math.random() < 0.2 ? 2 : 0; this.head.v -= 12; this.headZ.v += U.rand(-8, 8); this.noseS.v += 26; this.earS.v += 20; }
     if (n === 'land') { this.head.v += 5 * a.k; this.noseS.v += 16 * a.k; this.earS.v += 14 * a.k; }
     if (n === 'die') this.emo = null;
@@ -625,7 +626,7 @@ const GOOB_MOVES = {
     }
   },
   reload(T, X, a) { // fiddling with the battery, then a good smack
-    const t = a.t, w = goobHold(t, a.d, 0.15, 0.2), s = goobPulse(t - 0.58, 0.18);
+    const t = a.t, w = goobHold(t, a.d, 0.15, 0.2), s = goobPulse(t - a.d * 0.64, 0.18);
     goobSet(T, [['rax', -0.75], ['re', -1.5], ['raz', 0.15], ['lax', -0.95], ['laz', -0.55], ['le', -1.35]], w);
     X.rax += 0.1 * Math.sin(t * 31) * w; T.nx += 0.4 * w; T.py -= 0.4 * w;
     X.lax -= 0.45 * s; X.le += 0.4 * s;
