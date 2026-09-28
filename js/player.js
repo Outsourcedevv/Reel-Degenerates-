@@ -27,7 +27,8 @@ const Input = {
       if (G.started && (e.button === 3 || e.button === 4)) e.preventDefault(); // (the side buttons go "back" in a browser: not mid-game)
     });
     addEventListener('mousemove', (e) => {
-      if (!G.locked || Input.loose()) return;
+      this.mx = e.clientX; this.my = e.clientY;
+      if (!G.locked || G.panel || Input.loose()) return;
       if (Math.abs(e.movementX) > 400 || Math.abs(e.movementY) > 400) return; // browser glitch spikes
       this.dx += e.movementX; this.dy += e.movementY;
     });
@@ -45,7 +46,16 @@ const Input = {
   hit(a) { return !!this.pressed[Keys.map[a]]; },
   // forget this action's key is held, until it's pressed again (dying mid-shot doesn't also respawn you)
   release(a) { this.keys[Keys.map[a]] = false; },
-  endFrame() { this.pressed = {}; this.dx = this.dy = 0; this.wheel = 0; },
+  endFrame() {
+    this.pressed = {}; this.dx = this.dy = 0; this.wheel = 0;
+    // A browser that never grabs the mouse (free-mouse look, see Game.enableFallback): edge panning lets you keep
+    // turning when the cursor reaches the edge. (Not while waiting for a click after Esc (Game.soft): there the
+    // mouse doesn't turn you at all, or a cursor left at the edge spins you round and round.)
+    if (G.locked && !G.panel && !document.pointerLockElement && Game.fallback && !Game.soft) {
+      this.dx = this.mx < 24 ? -8 : this.mx > innerWidth - 24 ? 8 : 0;
+      this.dy = this.my < 24 ? -5 : this.my > innerHeight - 24 ? 5 : 0;
+    }
+  },
 };
 
 const CARRY_BIG = 1.8; // (a critter this much bigger than normal in your arms (Huge and up) goes over your head)
@@ -160,11 +170,11 @@ class LocalPlayer {
   // what you own changed (you bought something, died, got your stuff back): your hands match it again, still
   // holding what you had out if you can (the vac is rebuilt if it's a Turbo Vac now)
   refreshGear() {
-    const turbo = SAVE.vacLvl > 0;
-    if (!this.vmVac || this.vmVac.userData.turbo !== turbo) {
+    const vacLevel = Math.min(2, Math.max(0, SAVE.vacLvl || 0));
+    if (!this.vmVac || this.vmVac.userData.vacLevel !== vacLevel) {
       if (this.vmVac) { this.vm.remove(this.vmVac); disposeObj(this.vmVac); }
-      this.vmVac = buildVacVM(turbo);
-      this.vmVac.userData.turbo = turbo;
+      this.vmVac = buildVacVM(vacLevel === 2 ? 2 : vacLevel === 1);
+      this.vmVac.userData.vacLevel = vacLevel;
       addHands(this.vmVac, 'vac', this.cuffMat, this.sleeveMat);
       this.vm.add(this.vmVac);
       this.prepVM(this.vmVac);
@@ -454,10 +464,7 @@ class LocalPlayer {
     if (bf) bf.visible = this.flashT > 0 && this.tpK > 0.5;
     const wheel = this.vmZap.userData.wheel; // (the pizza cutter sitting in the gun, while you have one in hand)
     if (wheel) { wheel.visible = this.ammo > 0; wheel.rotation.x += dt * 3; }
-    if ((G.mode === 'boss' || G.mode === 'planet') && !this.dead && !this.ghost) {
-      this.regenT -= dt;
-      if (this.regenT <= 0 && this.hp < 100) this.hp = Math.min(100, this.hp + (G.mode === 'boss' ? 6 : 12) * (hasPerk('bone') ? 1.3 : 1) * dt); // (Funny Bone: 30% faster)
-    }
+    this.regenerate(dt);
     UI.planetHp(this.hp);
     // --- picking a friend up: it takes both hands, so no shooting, reloading or throwing while you do
     const nearDown = this.checkRevive(dt, canAct);
@@ -476,6 +483,15 @@ class LocalPlayer {
     this.updateCamera(dt, hs);
     this.bodyTick(dt);
     UI.ammo(this);
+  }
+
+  regenerate(dt) {
+    if ((G.mode !== 'boss' && G.mode !== 'planet') || this.dead || this.ghost) return;
+    const wait = Math.max(0, this.regenT);
+    this.regenT = Math.max(0, this.regenT - dt);
+    const active = Math.max(0, dt - wait);
+    const rate = (DIFFS[G.diff] || DIFFS.easy).regen[G.mode] * (hasPerk('bone') ? 1.3 : 1); // (Funny Bone: 30% faster)
+    if (this.hp < 100) this.hp = Math.min(100, this.hp + rate * active);
   }
 
   // in the liquid (a pond, the edge of the sea): it slows you down and splashes about. Too far out and the sea
@@ -788,7 +804,7 @@ class LocalPlayer {
       if (!Input.down('fire')) { if (this.vacTarget) this.releaseTargets(); this.vmVac.userData.noz.rotation.z = 0; return; }
       Sound.play('vac');
       this.vmVac.userData.noz.rotation.z = Math.sin(G.time * 40) * 0.05;
-      const tier = VAC[SAVE.vacLvl];
+      const tier = VAC[Math.min(VAC.length - 1, Math.max(0, SAVE.vacLvl || 0))];
       if (!this.vacTarget || this.vacTarget.taken) {
         this.vacT = 0;
         this.vacTarget = this.findNode(w, VAC_KINDS, tier.range, 0.88) || (G.mode === 'planet' ? Critters.findBody(this.rayStart(), this.camDir(new V3()), tier.range, 0.88) : null);
@@ -1205,14 +1221,14 @@ class LocalPlayer {
   // your goober (seen while you emote): built the first time it's needed, and again when your colors, look or
   // vac change. It carries every tool, showing the one you're holding.
   body() {
-    const key = G.color + '|' + G.look + '|' + (SAVE.vacLvl > 0);
+    const key = G.color + '|' + G.look + '|' + Math.min(2, SAVE.vacLvl || 0);
     if (!this.gb || this.gbKey !== key) {
       const c = this.gbCarry && this.gbCarry.critObj;
       if (c && c.parent) c.parent.remove(c); // (the critter you're carrying goes in the new goober's hand, see bodyTick)
       if (this.gb) { G.scene.remove(this.gb.root); disposeObj(this.gb.root); }
       this.gb = buildAstronaut({ color: G.color, look: G.look, hat: SAVE.hat });
       this.gbKey = key; this.gbAnim = new GooberAnim(this.gb); this.gbYaw = this.yaw; this.gbZap = null;
-      this.gbTools = [null, buildVacVM(SAVE.vacLvl > 0), buildDrillVM(), buildPeelVM()];
+      this.gbTools = [null, buildVacVM(SAVE.vacLvl === 2 ? 2 : SAVE.vacLvl > 0), buildDrillVM(), buildPeelVM()];
       this.gbTools.forEach((t, i) => t && gripTool(this.gb.hand, t, TOOLS[i]));
       G.scene.add(this.gb.root);
     }
@@ -1283,7 +1299,7 @@ class LocalPlayer {
       x: U.r2(this.pos.x), y: U.r2(this.pos.y), z: U.r2(this.pos.z), yw: U.r2(this.yaw),
       vx: Math.round(this.vel.x * 10) / 10, vy: Math.round(this.vel.y * 10) / 10, vz: Math.round(this.vel.z * 10) / 10,
       og: this.onGround ? 1 : 0, st: Flight.on ? (Flight.seat === 'pilot' ? 1 : 2) : 0,
-      t: TOOLS.indexOf(this.tool), cr: this.tool === 'crit' && this.critEntry ? this.critEntry.split('*')[0] : undefined, h: SAVE.hat, c: G.color, lk: G.look, n: G.name, m: G.mode, p: G.planet,
+      t: TOOLS.indexOf(this.tool), cr: this.tool === 'crit' && this.critEntry ? this.critEntry.split('*')[0] : undefined, h: SAVE.hat, c: G.color, lk: G.look, n: G.name, m: G.mode, p: G.planet, vl: SAVE.vacLvl,
       hp: Math.round(this.hp), g: this.ghost ? 1 : 0, d: this.dead ? 1 : 0, dn: this.down ? 1 : 0, $: SAVE.bucks, zp: SAVE.zap,
       u: this.using ? 1 : 0, pt: U.r2(this.pitch), an: this.an, ac: this.ac, // (what your goober is up to, see RemotePlayer)
       du: Duel.cur ? Duel.cur.id : undefined, // (which duel you're in: only the two of you see each other there)
@@ -1312,7 +1328,8 @@ class RemotePlayer {
     this.ghostTag.visible = false;
     this.m.root.add(this.ghostTag);
     this.zl = s.zp == null ? -1 : s.zp; // their gun (so you see the one they really have out)
-    this.tools = [buildZapperVM(this.zl), buildVacVM(), buildDrillVM(), buildPeelVM()];
+    this.vacLevel = s.vl || 0;
+    this.tools = [buildZapperVM(this.zl), buildVacVM(this.vacLevel === 2 ? 2 : this.vacLevel > 0), buildDrillVM(), buildPeelVM()];
     this.tools.forEach((t, i) => gripTool(this.m.hand, t, TOOLS[i]));
     this.pos = new V3(s.x, s.y, s.z); this.tpos = this.pos.clone();
     this.tvel = new V3(); this.vel = new V3(); this.rcvT = G.time; this.lift = 0;
@@ -1348,6 +1365,12 @@ class RemotePlayer {
     if (!prev || prev.m !== s.m || prev.p !== s.p || this.pos.distanceTo(this.tpos) > 3) { this.snapNext = true; this.anim.rag = null; } // (not getting up from over there)
     if (s.c !== this.color || (s.lk || '') !== this.look) this.rebuild(s);
     if (s.h !== this.m.hatId) setHat(this.m, s.h);
+    const vl = s.vl || 0;
+    if (vl !== this.vacLevel) {
+      this.vacLevel = vl;
+      this.m.hand.remove(this.tools[1]); disposeObj(this.tools[1]);
+      this.tools[1] = gripTool(this.m.hand, buildVacVM(vl === 2 ? 2 : vl > 0), 'vac');
+    }
     const zl = s.zp == null ? -1 : s.zp;
     if (zl !== this.zl) { // they switched guns (or bought one)
       this.zl = zl;

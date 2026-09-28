@@ -260,7 +260,11 @@ const JACKPOT_ROLLS = [
   { k: 'jp',  w: 1,  mult: 14, color: '#ff3df0', text: 'JACKPOT!! x14', blast: [4, 6] },
 ];
 const CARGO = [10, 20, 35, 60, 90];
-const VAC = [{ range: 7, speed: 1 }, { range: 9.5, speed: 1.9 }];
+const VAC = [
+  { range: 7, speed: 1 },
+  { range: 9.5, speed: 1.9 },
+  { range: 12, speed: 2.4 },
+];
 const NADE_DMG = 90;
 
 const HATS = {
@@ -326,6 +330,7 @@ const SHOPS = {
     greet: ['Welcome to the Boo-tique! Everything here is 100% haunted, 0% refundable.', 'I\'d shake your hand, but, you know. Ghost.', 'The graveyard\'s lovely this time of year. Every year. Forever.'],
     items: [
       { kind: 'zap', lvl: 5, price: 11000, desc: 'Spits out little ghost wisps that drift after whatever is nearest your crosshair. They\'re not very bright, so point them roughly at something.' },
+      { kind: 'vac', lvl: 2, price: 6500, name: 'Spooky Vacuum', desc: 'A haunted ectoplasm trap. Reaches farther and sucks faster, with a ghost safely sealed inside.' },
       { kind: 'springs', price: 6500, name: 'Spring-Heeled Jacks', desc: 'Boots with actual bedsprings bolted on. You jump WAY higher. (Makes Bounce Boots bouncier too.)' },
       { kind: 'nades', price: 180, name: 'Goo Grenades x5', desc: 'Still sticky. Now slightly haunted.' },
       { kind: 'cargo', lvl: 4, price: 9000, name: 'Coffin Backpack', desc: 'Holds 90 things. Roomy. Pre-owned. Do not ask by whom.' },
@@ -637,9 +642,9 @@ const STYLE_MAX = 5; // stacked style bonuses never pay more than this in total
 // dmg: how hard enemies hit · crit: how tough critters are · crits: how many critters are about on a planet at
 // once · spawn: seconds between new critters turning up [while there are less than half that many, after that]
 const DIFFS = {
-  easy: { name: 'Easy', dmg: 1, crit: 1, crits: 14, spawn: [0.7, 6.5], revive: 10, desc: 'Enemies hit normally, and there are fewer critters about. Die on a planet and you just get back up. Boss fights: one life, but friends can pick you up (or you get up after 10s).' },
-  hard: { name: 'Hard', dmg: 2, crit: 1.75, crits: 24, spawn: [0.3, 3], revive: 15, desc: 'Everything hits twice as hard, critters are much tougher, there are more of them and they come back faster. Mini bosses have a new attack. Boss fights: one life, friends can pick you up (or you get up after 15s).' },
-  hardcore: { name: 'Hardcore', dmg: 3.5, crit: 2.5, crits: 32, spawn: [0.2, 1.6], revive: 20, perma: true, desc: 'Everything hits WAY harder, critters are tanks and they\'re everywhere, mini bosses have two new attacks, and if you die, you die for good. The world is deleted. With friends in a boss fight you get back up after 20s, if one of them is still standing.' },
+  easy: { name: 'Easy', regen: { planet: 10, boss: 5 }, dmg: 1, crit: 1, crits: 14, spawn: [0.7, 6.5], revive: 10, desc: 'Enemies hit normally, and there are fewer critters about. Die on a planet and you just get back up. Boss fights: one life, but friends can pick you up (or you get up after 10s).' },
+  hard: { name: 'Hard', regen: { planet: 6, boss: 3 }, dmg: 2, crit: 1.75, crits: 24, spawn: [0.3, 3], revive: 15, desc: 'Everything hits twice as hard, critters are much tougher, there are more of them and they come back faster. Mini bosses have a new attack. Boss fights: one life, friends can pick you up (or you get up after 15s).' },
+  hardcore: { name: 'Hardcore', regen: { planet: 3, boss: 1.5 }, dmg: 3.5, crit: 2.5, crits: 32, spawn: [0.2, 1.6], revive: 20, perma: true, desc: 'Everything hits WAY harder, critters are tanks and they\'re everywhere, mini bosses have two new attacks, and if you die, you die for good. The world is deleted. With friends in a boss fight you get back up after 20s, if one of them is still standing.' },
 };
 
 const SUMMONS = {

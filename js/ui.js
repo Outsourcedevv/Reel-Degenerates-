@@ -232,6 +232,8 @@ const UI = {
     this.onClose = onClose || null;
     this.el.panel.classList.remove('hidden');
     G.panel = true;
+    Game.wantLock = false;
+    Input.keys = {}; Input.pressed = {}; Input.dx = Input.dy = 0;
     if (document.pointerLockElement) document.exitPointerLock();
     if (typeof Game !== 'undefined' && Game.soft) { Game.setSoft(false); G.locked = false; } // (closing it grabs the mouse again)
     if (typeof Game !== 'undefined') Game.updatePause(); // the panel goes on top of the pause menu, never behind it

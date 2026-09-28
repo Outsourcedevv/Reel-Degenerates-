@@ -174,6 +174,13 @@ const Critters = {
   target(c, ps) {
     if (c.angryT > 0 && c.foe) { const q = ps.find((o) => o.id === c.foe); if (q) return q; }
     const home = Math.hypot(c.x - c.hx, c.z - c.hz);
+    // Once leashed, return well inside home before acquiring again. Otherwise
+    // a single step over/back across the boundary repeatedly flashes an alert.
+    if (home >= HUNT.leash) c.returning = true;
+    if (c.returning) {
+      if (home > HUNT.leash * 0.5) { c.tx = c.hx; c.tz = c.hz; c.wt = 1; return null; }
+      c.returning = false;
+    }
     let best = null, bd = c.foe ? HUNT.giveUp : HUNT.sight;
     if (home < HUNT.leash) {
       for (const q of ps) {
@@ -234,8 +241,10 @@ const Critters = {
   },
   // it spotted someone: a red "!" over its head (and a growl, if it's you it's after and it's close)
   alert(c) {
+    if (c.alertAt != null && c.t - c.alertAt < 5) return;
     const w = G.worlds[G.planet];
     if (!w) return;
+    c.alertAt = c.t;
     const s = SIZES[c.sz].s, at = new V3(c.rx, w.gh(c.rx, c.rz) + (c.m.hit * 2 + 0.6) * s, c.rz);
     FX.text(at, '!', '#ff4b4b', 64);
     if (!(c.tossCd > 0)) c.tossCd = U.rand(0.2, 0.7); // (biters that throw open with a throw, from where they spotted you)

@@ -40,14 +40,14 @@ const Loadout = {
     const g = this.gun(it), c = this.crit(it);
     if (c) return cargoRes(c).name;
     if (g != null) return gunDef(g).name;
-    return { vac: SAVE.vacLvl > 0 ? 'Turbo Grabby Vac' : 'Grabby Vac', drill: 'Laser Drill', peel: 'Pizza Peel' }[it] || '';
+    return { vac: SAVE.vacLvl === 2 ? 'Spooky Vacuum' : SAVE.vacLvl > 0 ? 'Turbo Grabby Vac' : 'Grabby Vac', drill: 'Laser Drill', peel: 'Pizza Peel' }[it] || '';
   },
   short(it) {
     const g = this.gun(it), c = this.crit(it);
     if (c) return (RES[c.split('*')[0]] || cargoRes(c)).name; // (without the style bonus on the end)
-    return g != null ? gunDef(g).short : { vac: 'Grabby Vac', drill: 'Laser Drill', peel: 'Pizza Peel' }[it] || '';
+    return g != null ? gunDef(g).short : { vac: SAVE.vacLvl === 2 ? 'Spooky Vacuum' : 'Grabby Vac', drill: 'Laser Drill', peel: 'Pizza Peel' }[it] || '';
   },
-  pic(it) { const g = this.gun(it), c = this.crit(it); return c ? Thumbs.cargoKey(c) : g != null ? 'zap:' + g : it === 'vac' ? 'vac:' + (SAVE.vacLvl > 0 ? 1 : 0) : it; },
+  pic(it) { const g = this.gun(it), c = this.crit(it); return c ? Thumbs.cargoKey(c) : g != null ? 'zap:' + g : it === 'vac' ? 'vac:' + SAVE.vacLvl : it; },
   icon(it) { return this.gun(it) != null ? 'gun' : this.crit(it) ? 'paw' : it; },
   // the critters riding on your hotbar: [[slot, entry]]
   critters() { const out = []; this.slots().forEach((it, i) => { const c = this.crit(it); if (c) out.push([i, c]); }); return out; },

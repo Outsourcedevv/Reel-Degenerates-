@@ -610,14 +610,20 @@ class PlanetWorld {
     mk(CYL(FLY.padR, FLY.padR, 0.1, 40), '#3b3f4a', this.stat, 0, this.h(0, 0) + 0.02, 0);
     tf(mk(TOR(FLY.padR - 0.5, 0.18, 4, 48), '#ffd23f', this.stat, 0, this.h(0, 0) + 0.09, 0), Math.PI / 2);
     for (const a of [0, 1, 2, 3]) tf(mk(BOX(0.35, 0.05, 2.2), '#ffd23f', this.stat, Math.sin(a * Math.PI / 2) * 8, this.h(0, 0) + 0.09, Math.cos(a * Math.PI / 2) * 8), 0, a * Math.PI / 2, 0);
-    const ship = (this.parked = buildShip());
+    const ship = (this.parked = buildShip(true));
     ship.userData.dynamic = true;
     this.place(ship, 0, 0, 0);
-    // solid all the way round: hull (nose to engines, landing legs included) and the boarding ramp,
-    // so nobody ends up wedged under the ship
-    this.box(0, 0.6, 4.7, 12.4);
-    this.box(3.15, 0.2, 2.4, 1.7);
-    this.interact(5.2, 0.2, 2.8, () => Flight.boardLabel(), () => Flight.board());
+    // Hull walls leave the ramp aperture open; the underbody blocks walking
+    // underneath the cabin while allowing players on its raised floor through.
+    this.box(0, .3, 3.3, 5.9, ship.position.y + CABIN.floor - .71);
+    this.box(-1.8, .2, .3, 6.6);
+    this.box(1.8, -2.25, .3, 2.5);
+    this.box(1.8, 2.45, .3, 2.1);
+    this.box(0, -3.55, 3.9, .3);
+    this.box(0, 4.7, 3.9, 2.4);
+    const seatY = ship.position.y + CABIN.floor + 1.2;
+    this.interact(0, 2.3, 1.3, () => Flight.boardLabel('pilot'), () => Flight.board('pilot'), seatY);
+    this.interact(-.95, -1.5, 1.3, () => Flight.boardLabel('pass'), () => Flight.board('pass'), seatY);
     const shopCfg = SHOPS[this.cfg.shop];
     const counter = buildCounter(shopCfg.color);
     this.place(counter, 14.2, -6, Math.PI / 2);
@@ -1348,6 +1354,12 @@ class PlanetWorld {
   }
   ground(x, z, y) {
     let g = this.gh(x, z);
+    if (this.parked && this.parked.visible) {
+      const base = this.parked.position.y;
+      const floor = Math.abs(x) < 1.65 && z > -2.7 && z < 3.5 ? base + CABIN.floor :
+        x >= 1.6 && x <= 6.2 && Math.abs(z - .2) < 1 ? base + CABIN.floor * (6.2 - x) / 4.6 : -Infinity;
+      if (y >= floor - .7) g = Math.max(g, floor);
+    }
     for (const c of this.caps) { const t = this.capAt(c, x, z); if (y >= t - 0.7) g = Math.max(g, t); }
     for (const p of this.plats) if (x > p.x0 && x < p.x1 && z > p.z0 && z < p.z1 && y >= p.top - 0.7) g = Math.max(g, p.top);
     return g;
@@ -1355,6 +1367,11 @@ class PlanetWorld {
   // the lowest mushroom cap over the head of someone standing at y (Infinity: open sky)
   ceiling(x, z, y) {
     let c0 = Infinity;
+    if (this.parked && this.parked.visible && Math.abs(x) < 1.4 && z > -2.7 && z < 3.5) {
+      const base = this.parked.position.y;
+      if (y >= base + CABIN.floor - .3 && y < base + 4.5)
+        c0 = base + Math.max(CABIN.floor + 1.85, 2.7 + Math.sqrt(1.95 * 1.95 - x * x));
+    }
     for (const c of this.caps) {
       if (c.bot == null || y + 1.8 > c.bot + 0.05) continue;
       const dx = x - c.x, dz = z - c.z;

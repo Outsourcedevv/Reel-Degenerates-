@@ -87,6 +87,23 @@ Known documented systems include:
 
 ## Current Task
 
+### Spooky Vacuum and difficulty-scaled healing (2026-09-28)
+
+- The Spooky Vacuum is now tier 2 of `VAC` (12m reach, 2.4x suction), sold only by the Spookulon shop for $6,500. Buying it raises `SAVE.vacLvl`, puts `vac` on the loadout, refreshes the held model and thumbnail, and sends `vl` in multiplayer state so remote players see the correct vacuum.
+- Its model is a purple ectoplasm trap with a green containment jar, captured ghost, rune lights and tooth-lined intake. `buildVacVM(2)` and `buildSpookyVacVM()` share the existing muzzle/nozzle/glow attachment contract and static batching.
+- Regeneration is now 10/6/3 HP/s on Easy/Hard/Hardcore and half those rates in boss fights, after the existing damage delay. The previous request for healing changes remains included.
+- `tests/healing-and-spooky.js` checks rates, delays, caps, dead/ghost/in-flight exclusions, model geometry/attachments, Spookolon shop purchase/equip and thumbnail rendering.
+
+### Gameplay fixes, walk-in ship and handheld tools (2026-09-28)
+
+- Based on `d2cc93e`, preserving the latest carried-critters, boss exit and defeat changes. Critter chase leashes now require returning halfway home before reacquiring; alert effects have a per-critter five-second cooldown, also covering client snapshots.
+- Escape closes panels in a capture-phase key handler and consumes the press before pause handling. Pointer lock is requested in that event, pending locks hide pause, and temporary failures retry on click; free-cursor fallback supports edge turning instead of a limited turning arc.
+- Parked `buildShip(true)` has an open hatch, a traversable ramp, cabin floor/ceiling and pilot/passenger seating interactions inside. Flight still uses the existing seated cockpit. `board` messages optionally include `want`; standing up places the player in the cabin to walk out. Walking freely during flight is not implemented.
+- Count Carbula, Stormy and Chad use a tall moving formation every fourth attack: coffins, lightning conductors or server racks. A mint aisle marks the safe lateral position; jumping cannot clear the 18-unit formation. Host-generated `procession` events use existing boss attack networking, local swept hit checks, batching and hazard cleanup. Early bosses and gambling systems are unchanged.
+- Spookulon's maze has a local timer-controlled gate and start button. Ending a run closes the gate and returns the player outside; entering without a run also returns them to the start. The chest lid is double-sided.
+- Grabby/Turbo Vac, Laser Drill and Pizza Peel retain their attachment/animation contracts and use richer procedural models. Static details are batched; intake, bit and peel board remain independent. User selected handheld tools first, not every prop/character.
+- `tests/gameplay-regressions.js` exposes `runGameplayRegressions()` for a fresh test world. Headless Edge verifies alerts, actual ramp movement both directions, seating, maze lifecycle, tool attachments, boss gap/height/rotation/cleanup, shop Escape and fallback turning. Live multiplayer and packaged Electron have not been tested.
+
 ### Planet scenery and satellite visibility (2026-09-28)
 
 - Based on latest v1.12 work through `2583d94`. `buildRock` and lava rock cores now use closed, weathered geometry with three shared material tones; batching retains the shading. Rock random consumption and collision radii are unchanged.
