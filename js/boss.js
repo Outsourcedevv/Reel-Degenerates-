@@ -2128,19 +2128,18 @@ class BossFight {
       setTimeout(() => { if (G.boss === this) this.openExit(); }, BOSS_EXIT.delay * 1000);
       return;
     }
+    if (Game.permaDead) return; // (Hardcore: the world's gone, see Game.permaDeath)
+    // no menu: everything goes black... and you wake up back on the planet, with a hospital bill
     const bill = Math.min(1000, Math.round(SAVE.bucks * 0.1));
     addBucks(-bill);
     Sound.play('lose');
-    const html = `<h2 class="ph center" style="color:#c8281b;padding:0">DEFEAT</h2>
-      <p class="center psub">${U.esc(b.name)} wins this time. The pizza gets colder.</p>
-      <div class="bigmsg lose">Space hospital bill: -${U.bucks(bill)}</div>
-      <p class="center">For a rematch you'll need another <b>${U.esc(SUMMONS[this.id].name)}</b>.</p>
-      <p class="center muted">Tip: every attack winds up first and shows up on the floor. Watch for the name under the health bar, jump the rings and spinning beams, and get out of the red!</p>`;
     setTimeout(() => {
-      if (document.pointerLockElement) document.exitPointerLock();
-      UI.openPanel(html + '<div class="center" style="margin-top:12px"><button class="btn big" data-act="back" style="max-width:320px">Back to the planet ▶</button></div>',
-        (act) => { if (act === 'back') UI.closePanel(); }, null, () => Game.endBoss(false));
-    }, 1200);
+      if (G.boss !== this) return;
+      UI.blackout(`${b.name} wins this time...`, () => { if (!G.boss || G.boss === this) { Game.endBoss(false); G.player.wake(); } }, () => {
+        UI.toast(`You wake up back on ${PLANETS[G.planet].name}. Space hospital bill: -${U.bucks(bill)}.`, 'bad', 5);
+        UI.toast(`For a rematch you'll need another ${SUMMONS[this.id].name}.`, '', 5);
+      });
+    }, 800);
   }
   // the beam home, in the middle of the arena (with the planet's name on it)
   openExit() {

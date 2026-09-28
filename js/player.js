@@ -46,6 +46,7 @@ const Input = {
   endFrame() { this.pressed = {}; this.dx = this.dy = 0; this.wheel = 0; },
 };
 
+const WAKE_TIME = 2.6; // (seconds to get up after blacking out, see LocalPlayer.wake)
 const TOOLS = ['zap', 'vac', 'drill', 'peel', 'crit']; // (the kinds of thing you can hold: every gun is a 'zap', every critter a 'crit'. See Loadout)
 // a goober carrying a critter (yours seen from outside, or a friend's): he hugs it to his belly, belly up, his
 // arms under it (see GooberAnim.toolPose). who keeps {critKey, critObj}; m: his model; key: the critter's
@@ -624,6 +625,8 @@ class LocalPlayer {
     if (n) UI.toast(`Back at the ship. Your stuff is where you fell: follow the beam of light${n > 1 ? 's' : ''}.`, '', 4.5);
   }
   // a clean slate (starting a world, a boss fight starting or ending): alive, standing, nothing pending
+  // you blacked out (lost a boss fight) and came to on the planet: you get up off the ground (see updateCamera)
+  wake() { this.wakeT = WAKE_TIME; }
   resetLife() {
     this.dead = false; this.down = false; this.ghost = false; this.hp = 100; this.inv = 0;
     this.waitRespawn = null; this.onBleedOut = null;
@@ -1099,6 +1102,9 @@ class LocalPlayer {
     const bob = this.onGround ? Math.sin(this.walkT * 2) * 0.05 * U.clamp(hs / 6, 0, 1) : 0;
     let eye = 1.65 + bob - this.landK * 0.22;
     if (this.dead) { this.deadT += dt; eye = U.lerp(1.65, 0.45, U.clamp(this.deadT * 2, 0, 1)); }
+    // waking up (see wake): from lying on the ground, head tipped over, up onto your feet
+    const wk = this.wakeT > 0 ? U.clamp(this.wakeT / WAKE_TIME, 0, 1) : 0;
+    if (wk > 0) { this.wakeT -= dt; const e = wk * wk * (3 - 2 * wk); eye = U.lerp(eye, 0.4, e); }
     cam.position.set(this.pos.x, this.pos.y + eye, this.pos.z);
     // down or knocked out, you're a ragdoll: you start off looking out of your helmet as you go flying, then the
     // camera backs out so you can watch yourself lying there (the mouse turns it round you)
@@ -1129,7 +1135,7 @@ class LocalPlayer {
     const sh = Math.min(1, G.shake) ** 2 * 0.03, t = this.shakeT;
     const sx = (Math.sin(t * 1.31) + 0.5 * Math.sin(t * 2.97)) * sh, sy = (Math.cos(t * 1.73) + 0.5 * Math.sin(t * 3.71)) * sh;
     this.kickP = U.damp(this.kickP, 0, 9, dt); this.kickY = U.damp(this.kickY, 0, 9, dt);
-    cam.rotation.set(U.clamp(this.pitch + sx + this.kickP, -1.55, 1.55), yaw + sy + this.kickY, this.dead ? Math.min(this.deadT * 0.6, 0.3) * (1 - this.tpK) : 0, 'YXZ');
+    cam.rotation.set(U.clamp(this.pitch + sx + this.kickP + wk * wk * 0.9, -1.55, 1.55), yaw + sy + this.kickY, this.dead ? Math.min(this.deadT * 0.6, 0.3) * (1 - this.tpK) : wk * wk * 0.5, 'YXZ');
     // sprinting widens the view a little
     const fov = 72 + this.sprintK * 7;
     if (Math.abs(cam.fov - fov) > 0.05) { cam.fov = fov; cam.updateProjectionMatrix(); }
@@ -1140,7 +1146,7 @@ class LocalPlayer {
     this.lastYaw = this.yaw; this.lastPitch = this.pitch;
     // (picking a friend up takes both hands: what you're holding goes down out of the way)
     this.reviveK = U.damp(this.reviveK || 0, this.reviveT > 0 ? 1 : 0, 10, dt);
-    const sw = Math.max(this.swapT * this.swapT, this.reviveK), run = this.sprintK;
+    const sw = Math.max(this.swapT * this.swapT, this.reviveK, wk), run = this.sprintK; // (and while you get up off the ground)
     this.vm.visible = !this.dead && !this.ghost && this.tpK < 0.5;
     this.vm.position.set(
       Math.cos(this.walkT) * (0.012 + run * 0.02) + this.swayX * 0.5,

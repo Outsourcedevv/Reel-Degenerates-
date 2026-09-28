@@ -422,6 +422,23 @@ kbd {
 #flash { position: fixed; inset: 0; background: #fff; opacity: 0; pointer-events: none; z-index: 65; }
 #flash.on { animation: flash 1.2s ease-out; }
 @keyframes flash { from { opacity: 1; } to { opacity: 0; } }
+/* losing a boss fight: everything goes black (a line of text in the dark), then your eyes blink open */
+#blackout { position: fixed; inset: 0; pointer-events: none; z-index: 60; display: none; }
+#blackout.on { display: block; }
+#blackout .fade { position: absolute; inset: 0; background: #000; opacity: 0; transition: opacity 1.6s ease-in; }
+#blackout.dark .fade { opacity: 1; }
+#blackout .msg { position: absolute; left: 0; right: 0; top: 48%; text-align: center; font-family: var(--font-h); font-size: 22px;
+  letter-spacing: 3px; color: #8a8f9c; opacity: 0; transition: opacity 1.2s ease-in 0.9s; }
+#blackout.dark .msg { opacity: 1; }
+#blackout .lid { position: absolute; left: -5%; right: -5%; height: 52%; background: #000; display: none; }
+#blackout .lid.top { top: 0; border-radius: 0 0 50% 50% / 0 0 35% 35%; }
+#blackout .lid.bot { bottom: 0; border-radius: 50% 50% 0 0 / 35% 35% 0 0; }
+#blackout.wake .fade, #blackout.wake .msg { opacity: 0; transition: none; }
+#blackout.wake .lid { display: block; }
+#blackout.wake .lid.top { animation: lidTop 2s ease-in-out forwards; }
+#blackout.wake .lid.bot { animation: lidBot 2s ease-in-out forwards; }
+@keyframes lidTop { 0%, 12% { transform: translateY(0); } 30% { transform: translateY(-35%); } 42% { transform: translateY(-4%); } 62% { transform: translateY(-60%); } 72% { transform: translateY(-48%); } 100% { transform: translateY(-105%); } }
+@keyframes lidBot { 0%, 12% { transform: translateY(0); } 30% { transform: translateY(35%); } 42% { transform: translateY(4%); } 62% { transform: translateY(60%); } 72% { transform: translateY(48%); } 100% { transform: translateY(105%); } }
 
 /* ---------- flight HUD ---------- */
 #hud.flying #hotbar, #hud.flying #crosshair, #hud.flying #hitmark, #hud.flying #ammo, #hud.flying #prompt, #hud.flying #actbar, #hud.flying #phud,

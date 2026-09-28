@@ -45,6 +45,8 @@
   money: you haven't been paid yet.
 - **No more menu after beating a boss.** VICTORY comes up with your reward, and a beam of light comes down in the
   middle of the arena: walk into it to go back to the planet (or wait 30 seconds). Anyone who was down gets up.
+- **No more menu after losing one either.** Everything goes black, and you wake up on the planet you came from,
+  blinking and getting up off the ground (with a space hospital bill, as before).
 - **Bigger critters, much rarer.** Critters now come in ten sizes worth more than normal, from Big (2x) through
   Large, Huge, Hefty, Massive, Enormous, COLOSSAL and GIANT up to TITANIC (10x). Anything bigger than normal is much
   rarer now (about 1 in 12, and a TITANIC one is 1 in 1,700).

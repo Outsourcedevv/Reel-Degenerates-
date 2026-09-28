@@ -104,6 +104,19 @@ const UI = {
     this._subT = setTimeout(() => s.classList.add('hidden'), dur * 1000);
   },
 
+  // everything goes black (text: a line in the dark), mid() happens while it is, then your eyes blink open
+  // (see #blackout) and after() once you can see again
+  blackout(text, mid, after) {
+    const b = U.$('blackout');
+    b.querySelector('.msg').textContent = text;
+    b.className = 'on'; void b.offsetWidth; b.classList.add('dark');
+    clearTimeout(this._boT);
+    this._boT = setTimeout(() => {
+      if (mid) mid();
+      b.classList.add('wake');
+      this._boT = setTimeout(() => { b.className = ''; if (after) after(); }, 2000);
+    }, 2800);
+  },
   // the whole screen flashes white for a moment
   flash() {
     const f = U.$('flash');
