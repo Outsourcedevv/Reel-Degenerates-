@@ -309,7 +309,7 @@ class GooberAnim {
     const t = this.t, tool = st.tool, gun = tool === 'zap', use = !!st.use;
     this.fireT += dt;
     const run = U.clamp((spd - 6.2) / 3, 0, 1);
-    const want = !tool || this.emo ? 0 : gun ? (this.fireT < 1.6 || use ? 1 : 0.55) * (1 - 0.8 * run) : use ? 1 : 0.6 * (1 - 0.7 * run);
+    const want = !tool || this.emo ? 0 : gun ? (this.fireT < 1.6 || use ? 1 : 0.55) * (1 - 0.8 * run) : tool === 'crit' || use ? 1 : 0.6 * (1 - 0.7 * run);
     this.aimW = U.damp(this.aimW, want, this.fireT < 0.1 ? 30 : 7, dt);
     const w = this.aimW;
     if (w < 0.01) return;
@@ -320,6 +320,10 @@ class GooberAnim {
       if (GOOB_TWO_HANDED.has(st.gun)) goobSet(T, [['lax', -1.25 - pitch * 0.9 - lean], ['laz', -0.55], ['le', -0.8]], w);
       else if (spd < 1.5) goobSet(T, [['lax', 0.35], ['laz', 0.6], ['le', -1.9]], w * (1 - U.clamp(spd, 0, 1))); // (the other hand on his hip)
       T.nx += (-pitch * 0.5 - T.nx * 0.5) * w;
+      return;
+    }
+    if (tool === 'crit') { // carrying a critter: both forearms out under it, like a tray (see carryCritter)
+      goobSet(T, [['rax', -0.25 - lean], ['re', -1.35], ['raz', -0.2], ['lax', -0.25 - lean], ['le', -1.35], ['laz', -0.2]], w);
       return;
     }
     if (use && tool === 'vac') { // hanging on while it sucks: leaning back, legs braced, shaking all over

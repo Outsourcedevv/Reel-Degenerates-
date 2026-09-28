@@ -1295,6 +1295,17 @@ function buildCritter(kind, gold) {
   mergeLocal(m.body, keep);
   return m;
 }
+// a critter someone's carrying about (from their hotbar, see Loadout): belly up with its legs in the air, about r
+// across (a bit more for the big ones), sitting in the middle of its group. Returns {g, size} (size: its box)
+function buildCarriedCritter(entry, r) {
+  const { id, sz, gold } = critOf(entry), m = buildCritter(id, gold), g = new THREE.Group();
+  m.root.scale.setScalar(r * (0.85 + 0.15 * Math.sqrt(SIZES[sz].s)) / (m.hit || 0.45));
+  m.root.rotation.set(0.35, 2.3, PI - 0.25);
+  const box = new THREE.Box3().setFromObject(m.root), size = box.getSize(new V3());
+  m.root.position.sub(box.getCenter(new V3()));
+  g.add(m.root);
+  return { g, size };
+}
 // a mini boss: a huge version of one of the planet's critters, with a crown, a glow on the ground under it
 // and its name over its head (so you know it's not just a GIANT one)
 function buildMiniBoss(def) {

@@ -510,6 +510,12 @@ const SIZES = [
 const SIZE_NORMAL = 2;
 // the backpack id for a critter of some size (normal-sized ones keep their plain id)
 const critKey = (id, sz, gold) => (gold ? 'g_' : '') + id + (sz === SIZE_NORMAL ? '' : ':' + SIZES[sz].k);
+// the other way round: which critter a backpack entry ('g_rat:huge*5') is: {id, sz, gold}
+const critOf = (entry) => {
+  const key = String(entry).split('*')[0], gold = key.startsWith('g_'), [id, k] = (gold ? key.slice(2) : key).split(':');
+  const sz = k ? SIZES.findIndex((z) => z.k === k) : SIZE_NORMAL;
+  return { id, sz: sz < 0 ? SIZE_NORMAL : sz, gold };
+};
 // every critter, in every size, golden or not, is also something you can carry and sell
 for (const list of Object.values(CRITTERS)) {
   for (const c of list) {

@@ -46,7 +46,22 @@ const Input = {
   endFrame() { this.pressed = {}; this.dx = this.dy = 0; this.wheel = 0; },
 };
 
-const TOOLS = ['zap', 'vac', 'drill', 'peel']; // (the kinds of thing you can hold: every gun is a 'zap'. See Loadout)
+const TOOLS = ['zap', 'vac', 'drill', 'peel', 'crit']; // (the kinds of thing you can hold: every gun is a 'zap', every critter a 'crit'. See Loadout)
+// a goober carrying a critter (yours seen from outside, or a friend's): he hugs it to his belly, belly up, his
+// arms under it (see GooberAnim.toolPose). who keeps {critKey, critObj}; m: his model; key: the critter's
+// backpack key, or null (nothing); show: false while his arms are busy (dancing, flopping about as a ragdoll)
+function carryCritter(who, m, key, show = true) {
+  if (who.critObj) who.critObj.visible = show;
+  if (who.critKey === key) { if (who.critObj && who.critObj.parent !== m.spine) m.spine.add(who.critObj); return; } // (a new goober: same critter)
+  if (who.critObj) { if (who.critObj.parent) who.critObj.parent.remove(who.critObj); disposeObj(who.critObj); who.critObj = null; }
+  who.critKey = key;
+  if (!key) return;
+  const { g, size } = buildCarriedCritter(key, 0.2); // (in the goober's own units, see GOOB.s)
+  g.position.set(0, 0.06 + size.y / 2, 0.17 + size.z / 2); // (on his forearms, just in front of his belly)
+  m.spine.add(g);
+  g.visible = show;
+  who.critObj = g;
+}
 // what the Grabby Vac can suck up, and how many seconds each takes (a Turbo Vac is twice as fast). Ghosts fight back.
 const VAC_TIME = { scrap: 0.8, ghost: 0.8, berry: 0.45, bigberry: 0.7, pearl: 0.5, bigpearl: 0.8, chips: 0.5, snow: 0.9, litter: 0.6, crust: 0.7 };
 const VAC_KINDS = Object.keys(VAC_TIME);
@@ -235,14 +250,7 @@ class LocalPlayer {
     if (this.vmCrit) { this.vm.remove(this.vmCrit); disposeObj(this.vmCrit); this.vmCrit = null; }
     this.critEntry = entry;
     if (!entry) return;
-    const key = entry.split('*')[0], gold = key.startsWith('g_'), [id, szk] = key.replace(/^g_/, '').split(':');
-    const sz = szk ? SIZES.findIndex((z) => z.k === szk) : SIZE_NORMAL;
-    const m = buildCritter(id, gold), g = new THREE.Group(), r = 0.15 * (0.85 + 0.15 * Math.sqrt((SIZES[sz] || SIZES[SIZE_NORMAL]).s));
-    m.root.scale.setScalar(r / (m.hit || 0.45));
-    m.root.rotation.set(0.35, 2.3, Math.PI - 0.25); // (belly up, legs in the air)
-    const box = new THREE.Box3().setFromObject(m.root), size = box.getSize(new V3());
-    m.root.position.sub(box.getCenter(new V3())); // (sitting right in the middle of your palm)
-    g.add(m.root);
+    const { g, size } = buildCarriedCritter(entry, 0.15); // (sitting right in the middle of your palm)
     g.add(buildSupportHand(this.cuffMat, size.y / 2, U.clamp(size.x / 2, 0.04, 0.13), this.sleeveMat)); // (your hand under it)
     g.scale.setScalar(0.62); // (like everything else you hold, see layoutVM)
     g.userData.base = new V3(0.1, -0.13, -0.5);
@@ -1171,6 +1179,8 @@ class LocalPlayer {
   body() {
     const key = G.color + '|' + G.look + '|' + (SAVE.vacLvl > 0);
     if (!this.gb || this.gbKey !== key) {
+      const c = this.gbCarry && this.gbCarry.critObj;
+      if (c && c.parent) c.parent.remove(c); // (the critter you're carrying goes in the new goober's hand, see bodyTick)
       if (this.gb) { G.scene.remove(this.gb.root); disposeObj(this.gb.root); }
       this.gb = buildAstronaut({ color: G.color, look: G.look, hat: SAVE.hat });
       this.gbKey = key; this.gbAnim = new GooberAnim(this.gb); this.gbYaw = this.yaw; this.gbZap = null;
@@ -1202,6 +1212,7 @@ class LocalPlayer {
     m.root.position.copy(this.pos);
     m.root.rotation.y = this.gbYaw + PI;
     this.gbTools.forEach((t, i) => (t.visible = i === ti));
+    carryCritter(this.gbCarry || (this.gbCarry = {}), m, this.tool === 'crit' ? this.critEntry : null, !this.gbAnim.emo && !this.down && !this.dead);
     this.gbAnim.update(dt, {
       vx: this.vel.x + this.ext.x, vy: this.onGround ? 0 : this.vel.y, vz: this.vel.z + this.ext.z, yaw: this.gbYaw, pitch: this.pitch, ground: this.onGround,
       tool: this.tool, gun: gunDef(SAVE.zap).type, use: this.using, jet: this.jetting, glide: this.gliding, stomp: this.stomping,
@@ -1244,7 +1255,7 @@ class LocalPlayer {
       x: U.r2(this.pos.x), y: U.r2(this.pos.y), z: U.r2(this.pos.z), yw: U.r2(this.yaw),
       vx: Math.round(this.vel.x * 10) / 10, vy: Math.round(this.vel.y * 10) / 10, vz: Math.round(this.vel.z * 10) / 10,
       og: this.onGround ? 1 : 0, st: Flight.on ? (Flight.seat === 'pilot' ? 1 : 2) : 0,
-      t: TOOLS.indexOf(this.tool), h: SAVE.hat, c: G.color, lk: G.look, n: G.name, m: G.mode, p: G.planet,
+      t: TOOLS.indexOf(this.tool), cr: this.tool === 'crit' && this.critEntry ? this.critEntry.split('*')[0] : undefined, h: SAVE.hat, c: G.color, lk: G.look, n: G.name, m: G.mode, p: G.planet,
       hp: Math.round(this.hp), g: this.ghost ? 1 : 0, d: this.dead ? 1 : 0, dn: this.down ? 1 : 0, $: SAVE.bucks, zp: SAVE.zap,
       u: this.using ? 1 : 0, pt: U.r2(this.pitch), an: this.an, ac: this.ac, // (what your goober is up to, see RemotePlayer)
       // your movement gear and what's happening to you: jet pack, glider cape, ground pound, flung, sliding, picking someone up
@@ -1289,6 +1300,7 @@ class RemotePlayer {
     this.color = s.c; this.look = s.lk || '';
     for (const o of [this.tag, this.ghostTag, this.downTag]) if (o) this.m.root.add(o);
     this.tools.forEach((t) => this.m.hand.add(t));
+    if (this.critObj) this.m.spine.add(this.critObj);
     this.m.root.position.copy(old.root.position);
     this.m.root.rotation.copy(old.root.rotation);
     this.m.root.visible = old.root.visible;
@@ -1344,6 +1356,7 @@ class RemotePlayer {
     r.root.position.copy(this.pos);
     r.root.rotation.y = this.yaw + Math.PI;
     this.tools.forEach((t, i) => (t.visible = i === s.t));
+    carryCritter(this, r, TOOLS[s.t] === 'crit' && typeof s.cr === 'string' && RES[s.cr] ? s.cr : null, !this.anim.emo && !s.dn && !s.d);
     r.pose.visible = !ghost;
     this.ghostTag.visible = ghost;
     if (!this.downTag) { this.downTag = textSprite('REVIVE ME', { size: 44, color: '#ffffff', bg: 'rgba(200,30,30,.8)', scale: 0.0075, depthTest: false, order: 20 }); this.downTag.position.y = 1.6; r.root.add(this.downTag); }
