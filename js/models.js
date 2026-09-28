@@ -814,7 +814,13 @@ function buildShip(boardable = false) {
   else {
     // Axial hull sections leave a real aperture at the starboard ramp.
     for (const [z0, z1, arcs] of [[-3.5, -1, [[0, PI * 2]]], [-1, 1.4, [[0, 1.35], [2.5, PI * 2]]], [1.4, 3.5, [[0, PI * 2]]]]) {
-      for (const [a, b] of arcs) tf(mk(new THREE.CylinderGeometry(1.95, 1.95, z1 - z0, 20, 1, true, a, b - a), white, g, 0, 2.7, (z0 + z1) / 2, { side: THREE.DoubleSide }), PI / 2);
+      for (const [a, b] of arcs) {
+        // Keep the hatch as the one intentional opening, but cap every
+        // section so viewing the ship from below or behind never exposes a
+        // paper-thin shell with an accidental hole at a segment seam.
+        const geo = new THREE.CylinderGeometry(1.95, 1.95, z1 - z0, 20, 1, false, a, b - a);
+        tf(mk(geo, white, g, 0, 2.7, (z0 + z1) / 2, { side: THREE.DoubleSide }), PI / 2);
+      }
     }
     mk(BOX(3.2, .12, 5.9), '#303746', g, 0, 2.24, .3);
     mk(BOX(.6, .02, 5.5), '#b8372b', g, 0, 2.31, .3);
