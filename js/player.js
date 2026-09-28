@@ -208,6 +208,7 @@ class LocalPlayer {
     this.vmVac.visible = t === 'vac';
     this.vmDrill.visible = t === 'drill';
     this.vmPeel.visible = t === 'peel';
+    this.holdCrit(t === 'crit' ? Loadout.crit(it) : null);
     this.releaseTargets();
     if (!quiet && !it) UI.toast(`Slot ${i + 1} is empty. Fill it on any shop's Loadout tab.`, '', 1.8);
     UI.hud();
@@ -226,6 +227,29 @@ class LocalPlayer {
     this.reloadMsg = U.pick(LINES.reload);
     if (!GunReload.has(z.type)) Sound.play('reload'); // (the others make their own noises as they go)
     this.act('reload', z.rl);
+  }
+  // a critter you're carrying (from your hotbar, see Loadout): you hold it out in front of you, belly up
+  // (entry: its backpack entry, or null to put it away)
+  holdCrit(entry) {
+    if (this.critEntry === entry) { if (this.vmCrit) this.vmCrit.visible = !!entry; return; }
+    if (this.vmCrit) { this.vm.remove(this.vmCrit); disposeObj(this.vmCrit); this.vmCrit = null; }
+    this.critEntry = entry;
+    if (!entry) return;
+    const key = entry.split('*')[0], gold = key.startsWith('g_'), [id, szk] = key.replace(/^g_/, '').split(':');
+    const sz = szk ? SIZES.findIndex((z) => z.k === szk) : SIZE_NORMAL;
+    const m = buildCritter(id, gold), g = new THREE.Group(), r = 0.15 * (0.85 + 0.15 * Math.sqrt((SIZES[sz] || SIZES[SIZE_NORMAL]).s));
+    m.root.scale.setScalar(r / (m.hit || 0.45));
+    m.root.rotation.set(0.35, 2.3, Math.PI - 0.25); // (belly up, legs in the air)
+    const box = new THREE.Box3().setFromObject(m.root), size = box.getSize(new V3());
+    m.root.position.sub(box.getCenter(new V3())); // (sitting right in the middle of your palm)
+    g.add(m.root);
+    g.add(buildSupportHand(this.cuffMat, size.y / 2, U.clamp(size.x / 2, 0.04, 0.13), this.sleeveMat)); // (your hand under it)
+    g.scale.setScalar(0.62); // (like everything else you hold, see layoutVM)
+    g.userData.base = new V3(0.1, -0.13, -0.5);
+    g.position.copy(g.userData.base);
+    g.traverse((o) => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } });
+    this.vm.add(g);
+    this.vmCrit = g;
   }
   // keep held tools in the lower-right corner on any screen shape
   layoutVM() {
@@ -713,6 +737,10 @@ class LocalPlayer {
   useTool(dt) {
     const t = this.tool;
     if (!t) { if (Input.hit('fire') && G.mode === 'planet') UI.toast('Your hands are empty! Pick a hotbar slot with something in it.', '', 1.6); return; }
+    if (t === 'crit') { // (you're carrying a critter about: sell it at a shop, or put it in your backpack)
+      if (Input.hit('fire')) { UI.toast('You\'re carrying it! Sell it at any shop, or put it in your backpack ({bag}).', '', 2); this.critK = 1; Sound.play('boing'); }
+      return;
+    }
     if (t === 'zap') {
       if (Input.down('fire') && this.cd <= 0) this.fireZap();
       return;
@@ -739,7 +767,7 @@ class LocalPlayer {
       if (!n) return;
       const d = Math.hypot(n.x - this.pos.x, n.z - this.pos.z);
       if (d > tier.range + 1.5) { this.releaseTargets(); return; }
-      if (SAVE.cargo.length >= CARGO[SAVE.cargoLvl]) { UI.toast(U.pick(LINES.cargoFull), 'bad', 1.6); this.releaseTargets(); Input.release('fire'); return; }
+      if (SAVE.cargo.length >= CARGO[SAVE.cargoLvl] && !(n.kind === 'body' && Loadout.free() >= 0)) { UI.toast(U.pick(LINES.cargoFull), 'bad', 1.6); this.releaseTargets(); Input.release('fire'); return; } // (a critter can ride in the hotbar)
       if (n.kind === 'ghost') { if (this.suckGhost(n, tier, dt)) return; }
       else this.vacT += dt * tier.speed;
       const k = U.clamp(this.vacT / (VAC_TIME[n.kind] || 0.8), 0, 1);
@@ -1047,8 +1075,9 @@ class LocalPlayer {
     // a critter you zapped, lying there: pick it up (when it's closer than anything else you could use)
     const body = Critters.nearBody(this.pos, dir);
     if (body && (!best || Math.hypot(body.pos.x - this.pos.x, body.pos.z - this.pos.z) < bd)) {
-      const full = SAVE.cargo.length >= CARGO[SAVE.cargoLvl], r = cargoRes(body.entry || '');
-      UI.prompt(full ? `Backpack full! (${r.name} waits here till you've sold some stuff)` : `Pick up ${r.name} (${U.bucks(r.v)})`);
+      const full = SAVE.cargo.length >= CARGO[SAVE.cargoLvl], slot = full ? Loadout.free() : -1, r = cargoRes(body.entry || '');
+      UI.prompt(!full ? `Pick up ${r.name} (${U.bucks(r.v)})` : slot >= 0 ? `Pick up ${r.name} (${U.bucks(r.v)}): backpack full, it goes in hotbar slot ${slot + 1}`
+        : `Backpack and hotbar full! (${r.name} waits here till you've sold some stuff)`);
       if (Input.hit('use')) Critters.pickBody(body);
       return;
     }
@@ -1111,6 +1140,12 @@ class LocalPlayer {
       this.recoil);
     this.recoilRot = U.damp(this.recoilRot, 0, 11, dt); this.recoilRoll = U.damp(this.recoilRoll, 0, 10, dt);
     this.vm.rotation.set(this.recoilRot - sw * 0.9 + run * 0.25 - this.swayY, this.swayX * 1.2 + run * 0.3, -this.swayX * 0.8 + this.recoilRoll);
+    if (this.vmCrit && this.vmCrit.visible) { // (a critter you're carrying: it sways about, and wobbles when you poke it)
+      this.critK = U.damp(this.critK || 0, 0, 5, dt);
+      const c = this.vmCrit, b = c.userData.base, t = G.time, k = this.critK;
+      c.position.set(b.x, b.y + Math.sin(t * 2.1) * 0.006 + k * 0.03, b.z + k * 0.05);
+      c.rotation.set(Math.sin(t * 1.6) * 0.06 + Math.sin(t * 38) * k * 0.25, Math.sin(t * 1.1) * 0.08, Math.sin(t * 1.3) * 0.05 + Math.sin(t * 31) * k * 0.2);
+    }
     if (this.cuffCol !== G.color) { this.cuffCol = G.color; this.cuffMat.color.set(G.color || '#ff7a3d'); }
     if (this.sleeveLook !== G.look) { this.sleeveLook = G.look; this.sleeveMat.color.set(lookColor(G.look, 'body')); }
   }

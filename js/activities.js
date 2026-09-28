@@ -144,12 +144,28 @@ const Activities = {
     UI.hud();
     return cargoRes(id).v * n;
   },
+  // what the critters you're carrying in your hotbar are worth (see Loadout)
+  heldValue() { return Loadout.critters().reduce((s, [, e]) => s + cargoRes(e).v, 0); },
+  // sell the critter in hotbar slot i
+  sellSlot(i) {
+    const c = Loadout.crit(Loadout.slots()[i]);
+    if (!c) return 0;
+    Loadout.dropCrit(i);
+    addBucks(cargoRes(c).v);
+    Sound.play('cash');
+    G.player.refreshGear();
+    UI.hud();
+    return cargoRes(c).v;
+  },
+  // your whole backpack, and any critters in your hotbar
   sellAll() {
-    const v = this.cargoValue(), n = SAVE.cargo.length;
+    const held = Loadout.critters(), v = this.cargoValue() + this.heldValue(), n = SAVE.cargo.length + held.length;
     if (!n) return 0;
     SAVE.cargo = [];
+    for (const [i] of held) Loadout.dropCrit(i);
     addBucks(v);
     Sound.play('cash');
+    if (held.length) G.player.refreshGear();
     UI.hud();
     return v;
   },
@@ -471,7 +487,10 @@ const Drops = {
       if (SAVE.nades > 0) items.push('gear:nades:' + SAVE.nades);
     }
     items.push(...SAVE.cargo);
+    const crits = Loadout.critters(); // (critters riding in your hotbar drop with your backpack)
+    items.push(...crits.map(([, e]) => e));
     if (!items.length) return null;
+    for (const [i] of crits) Loadout.dropCrit(i);
     const slots = Loadout.slots().slice(); // (so it all goes back where it was)
     if (!insured) { SAVE.zap = -1; SAVE.guns = []; SAVE.drill = false; SAVE.peel = false; SAVE.nades = 0; Loadout.afterDeath(); }
     SAVE.cargo = [];
@@ -500,14 +519,16 @@ const Drops = {
     if (name) UI.pickup('+ ' + name, '#7dff8a', pic);
   },
   // me: take these backpack entries out and drop them in front of me
-  drop(entries) {
+  // (slot: it's the critter you're carrying in that hotbar slot, not something from your backpack)
+  drop(entries, slot = -1) {
     const p = G.player;
-    if (!entries.length || G.mode !== 'planet') return;
+    if (!entries.length || G.mode !== 'planet') { if (entries.length) UI.toast('You can only drop stuff on a planet.', 'bad', 1.8); return; }
     const f = p.camDir(new V3()); f.y = 0;
     if (f.lengthSq() < 1e-6) f.set(0, 0, -1);
     f.normalize();
     const x = p.pos.x + f.x * 1.4, z = p.pos.z + f.z * 1.4;
-    for (const e of entries) { const i = SAVE.cargo.indexOf(e); if (i >= 0) SAVE.cargo.splice(i, 1); }
+    if (slot >= 0) { Loadout.dropCrit(slot); p.refreshGear(); }
+    else for (const e of entries) { const i = SAVE.cargo.indexOf(e); if (i >= 0) SAVE.cargo.splice(i, 1); }
     persist();
     UI.hud();
     Net.toHost({ t: 'dropreq', items: entries, x: U.r2(x), y: U.r2(p.pos.y), z: U.r2(z), p: G.planet, n: G.name });

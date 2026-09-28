@@ -39,6 +39,16 @@
 - **Headshots and hitmarkers.** Shots to the head do double damage (1.5x on bosses) with a red HEADSHOT number and
   a helmet "ping", and finishing a critter with one is a new HEADSHOT style kill (1.5x). Every hit you land flashes a
   hitmarker round your crosshair, red for a headshot. Shots now go exactly where your crosshair is, however close.
+- **Kill pop-ups.** Zap a critter and you see what you got: **KILLED TRASH RAT $78**, and under it what made it
+  worth that: `3x Large`, `2x 360`, `1.25x Point Blank`, `8x Golden`... (Style bonuses still stack up to 5x.)
+- **Bigger critters, much rarer.** Critters now come in ten sizes worth more than normal, from Big (2x) through
+  Large, Huge, Hefty, Massive, Enormous, COLOSSAL and GIANT up to TITANIC (10x). Anything bigger than normal is much
+  rarer now (about 1 in 12, and a TITANIC one is 1 in 1,700).
+- **Carry critters in your hotbar.** Backpack full? A critter you pick up goes in a free hotbar slot and you hold it
+  up in your hand. You can move them between your backpack and hotbar yourself too (press `I`), shops buy them from
+  either, and they drop into your grave with your backpack if you die.
+- **The ship coasts.** When the pilot moves to the back seat mid-flight, the ship keeps going instead of stopping
+  dead in the air, until someone takes the controls again.
 - **Friendly fire hits harder.** With it on, your shots hit your crew for 75% of their damage (it was half).
 - **No more third person.** The `V` camera and its pause-menu setting are gone. (Emotes still swing the camera round
   so you can watch your goober dance.)

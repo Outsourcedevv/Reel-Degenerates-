@@ -11,29 +11,65 @@
    that thing (you died and it's lying in your grave), and
    it's back in the same slot when you pick your stuff up.
    Things: 'gun:-1' (the Squirt Pistol), 'gun:0'... (ZAPPERS),
-   'vac', 'drill', 'peel'.
+   'vac', 'drill', 'peel', and critters you zapped: 'crit:' and
+   the backpack entry (see cargoRes). A critter rides in a slot
+   when your backpack's full, or when you put it there (the
+   backpack screen): you carry it about until you sell it.
    ========================================================= */
 const HOTBAR = 5;
 const Loadout = {
   gun(it) { const m = /^gun:(-?\d+)$/.exec(it || ''); return m ? Number(m[1]) : null; },
-  // what kind of tool it is (every gun is 'zap')
-  tool(it) { return this.gun(it) != null ? 'zap' : it === 'vac' || it === 'drill' || it === 'peel' ? it : null; },
-  valid(it) { const g = this.gun(it); return g != null ? g === -1 || !!ZAPPERS[g] : it === 'vac' || it === 'drill' || it === 'peel'; },
-  // do you have it right now?
+  // the critter in it (its backpack entry), or null
+  crit(it) { return typeof it === 'string' && it.startsWith('crit:') ? it.slice(5) : null; },
+  // what kind of tool it is (every gun is 'zap', every critter 'crit')
+  tool(it) { return this.gun(it) != null ? 'zap' : this.crit(it) ? 'crit' : it === 'vac' || it === 'drill' || it === 'peel' ? it : null; },
+  valid(it) {
+    const g = this.gun(it), c = this.crit(it);
+    if (c) return !!cargoRes(c).crit;
+    return g != null ? g === -1 || !!ZAPPERS[g] : it === 'vac' || it === 'drill' || it === 'peel';
+  },
+  // do you have it right now? (a critter: as long as it's in a slot)
   owned(it) {
     if (!this.valid(it)) return false;
+    if (this.crit(it)) return this.slots().includes(it);
     const g = this.gun(it);
     if (g != null) return g === -1 || SAVE.guns.includes(g);
     return it === 'vac' || (it === 'drill' && !!SAVE.drill) || (it === 'peel' && !!SAVE.peel);
   },
   name(it) {
-    const g = this.gun(it);
+    const g = this.gun(it), c = this.crit(it);
+    if (c) return cargoRes(c).name;
     if (g != null) return gunDef(g).name;
     return { vac: SAVE.vacLvl > 0 ? 'Turbo Grabby Vac' : 'Grabby Vac', drill: 'Laser Drill', peel: 'Pizza Peel' }[it] || '';
   },
-  short(it) { const g = this.gun(it); return g != null ? gunDef(g).short : { vac: 'Grabby Vac', drill: 'Laser Drill', peel: 'Pizza Peel' }[it] || ''; },
-  pic(it) { const g = this.gun(it); return g != null ? 'zap:' + g : it === 'vac' ? 'vac:' + (SAVE.vacLvl > 0 ? 1 : 0) : it; },
-  icon(it) { return this.gun(it) != null ? 'gun' : it; },
+  short(it) {
+    const g = this.gun(it), c = this.crit(it);
+    if (c) return (RES[c.split('*')[0]] || cargoRes(c)).name; // (without the style bonus on the end)
+    return g != null ? gunDef(g).short : { vac: 'Grabby Vac', drill: 'Laser Drill', peel: 'Pizza Peel' }[it] || '';
+  },
+  pic(it) { const g = this.gun(it), c = this.crit(it); return c ? Thumbs.cargoKey(c) : g != null ? 'zap:' + g : it === 'vac' ? 'vac:' + (SAVE.vacLvl > 0 ? 1 : 0) : it; },
+  icon(it) { return this.gun(it) != null ? 'gun' : this.crit(it) ? 'paw' : it; },
+  // the critters riding on your hotbar: [[slot, entry]]
+  critters() { const out = []; this.slots().forEach((it, i) => { const c = this.crit(it); if (c) out.push([i, c]); }); return out; },
+  // put a critter (a backpack entry) in a free slot: the slot, or -1 (no room)
+  holdCrit(entry, at = -1) {
+    const s = this.slots(), i = at >= 0 && (!s[at] || !this.owned(s[at])) ? at : this.free();
+    if (i < 0) return -1;
+    s[i] = 'crit:' + entry;
+    persist();
+    return i;
+  },
+  // take the critter out of slot i (it's gone from your hotbar: sold, dropped, or back in your backpack)
+  dropCrit(i) { const s = this.slots(); if (this.crit(s[i])) { s[i] = null; persist(); } },
+  // put the critter in slot i back in your backpack (false: there's no room in there)
+  stowCrit(i) {
+    const c = this.crit(this.slots()[i]);
+    if (!c) return true;
+    if (SAVE.cargo.length >= CARGO[SAVE.cargoLvl]) return false;
+    SAVE.cargo.push(c);
+    this.dropCrit(i);
+    return true;
+  },
   // everything you own, guns first (weakest to best), then the tools
   all() {
     const l = ['gun:-1', ...SAVE.guns.filter((g) => ZAPPERS[g]).sort((a, b) => a - b).map((g) => 'gun:' + g), 'vac'];

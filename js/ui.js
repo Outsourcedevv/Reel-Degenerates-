@@ -10,7 +10,7 @@ const UI = {
   init() {
     ['hud', 'bucks', 'pizza', 'goal', 'ammo', 'cargo', 'nades', 'roomcode', 'planetname', 'crosshair', 'prompt', 'hint', 'actbar',
       'bossbar', 'phud', 'feed', 'chat', 'chatinput', 'toasts', 'subtitle', 'bigtitle', 'pickups', 'hurt', 'plist',
-      'spectate', 'deathscreen', 'panel', 'panel-inner', 'flyhud', 'gig', 'funhud', 'fuel', 'bosscall', 'threats', 'safe', 'guide', 'hotbar', 'hitmark'].forEach((id) => (this.el[id] = U.$(id)));
+      'spectate', 'deathscreen', 'panel', 'panel-inner', 'flyhud', 'gig', 'funhud', 'fuel', 'bosscall', 'threats', 'safe', 'guide', 'hotbar', 'hitmark', 'killmsg'].forEach((id) => (this.el[id] = U.$(id)));
     this.el['panel-inner'].addEventListener('click', (e) => {
       const b = e.target.closest('[data-act]');
       if (!b || b.disabled) return;
@@ -238,6 +238,18 @@ const UI = {
     Game.updatePause();
   },
 
+  // you killed something: KILLED <what> <what it's worth>, and under that what made it worth that. lines:
+  // [[x, what, kind]] (kind: 'size', 'gold', 'max', or a style bonus)
+  killed(name, worth, lines) {
+    const el = this.el.killmsg;
+    if (!el) return;
+    const x = (m) => Math.round(m * 100) / 100 + 'x';
+    el.innerHTML = `<div class="k">Killed ${U.esc(name)} <b>${U.bucks(worth)}</b></div>` +
+      lines.map(([m, what, kind]) => kind === 'max' ? `<div class="l max">${U.esc(what)} <i>${x(m)}</i></div>` : `<div class="l ${kind}"><i>${x(m)}</i> ${U.esc(what)}</div>`).join('');
+    el.classList.remove('on');
+    void el.offsetWidth; // (so it pops up again for the next one)
+    el.classList.add('on');
+  },
   // a shot of yours landed: the hitmarker round the crosshair flashes (red for a headshot)
   hitmark(head) {
     const h = this.el.hitmark;
@@ -457,18 +469,27 @@ const UI = {
         .map(([t, ic, lab]) => `<button class="stab ${this.bagTab === t ? 'on' : ''}" data-act="tab" data-t="${t}">${icon(ic)}${lab}</button>`).join('');
       let body;
       if (this.bagTab === 'bag') {
-        const counts = {};
+        const counts = {}, hotFree = Loadout.free() >= 0;
         for (const id of SAVE.cargo) counts[id] = (counts[id] || 0) + 1;
         const rows = Object.keys(counts).sort((a, b) => cargoRes(b).v * counts[b] - cargoRes(a).v * counts[a]).map((id) => {
           const r = cargoRes(id);
           return `<div class="srow bagrow ${r.rare ? 'rare' : ''}"><div class="ic">${Thumbs.img(Thumbs.cargoKey(id), '', r.icon)}</div>
             <div class="info"><b>${U.esc(r.name)}</b><small>${U.esc(r.desc)}</small></div>
             <div class="qty">x${counts[id]}</div><div class="each">${U.bucks(r.v)} each</div>
-            <div class="drops"><button class="btn small" data-act="drop1" data-id="${U.esc(id)}">Drop 1</button>${counts[id] > 1 ? `<button class="btn small" data-act="dropall" data-id="${U.esc(id)}">Drop all</button>` : ''}</div></div>`;
+            <div class="drops">${r.crit ? `<button class="btn small" data-act="tohot" data-id="${U.esc(id)}" ${hotFree ? '' : 'disabled title="Your hotbar is full"'}>To hotbar</button>` : ''}<button class="btn small" data-act="drop1" data-id="${U.esc(id)}">Drop 1</button>${counts[id] > 1 ? `<button class="btn small" data-act="dropall" data-id="${U.esc(id)}">Drop all</button>` : ''}</div></div>`;
         }).join('');
-        body = SAVE.cargo.length
-          ? `<p class="psub">Worth <b>${U.bucks(value)}</b> at any shop. Dropped stuff lands in front of you in a crate anyone can pick up (walk over it).</p><div class="srows">${rows}</div>`
-          : `<div class="empty"><div>${Thumbs.img('cargo:' + SAVE.cargoLvl, '', 'bag')}</div>Your backpack is empty.</div>`;
+        // critters you're carrying in your hotbar (see Loadout): back in the backpack, or drop them
+        const held = Loadout.critters(), full = SAVE.cargo.length >= cap;
+        const hrows = held.map(([i, id]) => {
+          const r = cargoRes(id);
+          return `<div class="srow bagrow ${r.rare ? 'rare' : ''}"><div class="ic">${Thumbs.img(Thumbs.cargoKey(id), '', r.icon)}</div>
+            <div class="info"><b>${U.esc(r.name)}</b><small>Carrying it in hotbar slot ${i + 1}</small></div>
+            <div class="qty">x1</div><div class="each">${U.bucks(r.v)}</div>
+            <div class="drops"><button class="btn small" data-act="tobag" data-i="${i}" ${full ? 'disabled title="Your backpack is full"' : ''}>To backpack</button><button class="btn small" data-act="drophot" data-i="${i}">Drop</button></div></div>`;
+        }).join('');
+        body = (held.length ? `<h5 class="shead">In your hotbar</h5><div class="srows">${hrows}</div><h5 class="shead">In your backpack</h5>` : '') + (SAVE.cargo.length
+          ? `<p class="psub">Worth <b>${U.bucks(value)}</b> at any shop. Dropped stuff lands in front of you in a crate anyone can pick up (walk over it). A critter can ride in your hotbar too (To hotbar).</p><div class="srows">${rows}</div>`
+          : `<div class="empty"><div>${Thumbs.img('cargo:' + SAVE.cargoLvl, '', 'bag')}</div>Your backpack is empty.</div>`);
       } else {
         const crew = [...G.remotes.values()];
         body = !crew.length ? `<div class="empty"><div>${Thumbs.img(Thumbs.crewKey(G.color, SAVE.hat, G.look), '', 'person')}</div>You're flying solo.<br>Host a game and invite friends to share money and loot.</div>`
@@ -484,6 +505,16 @@ const UI = {
       if (act === 'tab') this.bagTab = d.t;
       if (act === 'drop1') Drops.drop([d.id]);
       if (act === 'dropall') Drops.drop(SAVE.cargo.filter((e) => e === d.id));
+      if (act === 'tohot') { // (a critter out of your backpack, into a free hotbar slot)
+        const j = SAVE.cargo.indexOf(d.id), at = j >= 0 ? Loadout.holdCrit(d.id) : -1;
+        if (at >= 0) { SAVE.cargo.splice(j, 1); persist(); G.player.refreshGear(); Sound.play('click'); this.toast(`It's in hotbar slot ${at + 1}: {slot${at + 1}} to hold it.`, '', 2.4); }
+        else if (j >= 0) { this.toast('Your hotbar is full!', 'bad', 2); Sound.play('error'); }
+      }
+      if (act === 'tobag') {
+        if (Loadout.stowCrit(Number(d.i))) { G.player.refreshGear(); Sound.play('click'); }
+        else { this.toast('Your backpack is full!', 'bad', 2); Sound.play('error'); }
+      }
+      if (act === 'drophot') { const c = Loadout.crit(Loadout.slots()[Number(d.i)]); if (c) Drops.drop([c], Number(d.i)); }
       if (act === 'give') Game.giveMoney(d.id, Number(d.a));
       if (act === 'givehalf') Game.giveMoney(d.id, Math.floor(SAVE.bucks / 2));
       this.setPanel(render());

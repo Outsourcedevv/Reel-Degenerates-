@@ -83,7 +83,7 @@ const Shop = {
         <span class="k">${U.esc(Keys.name('slot' + (i + 1)))}</span>
         <div class="ic">${ok || lost ? Thumbs.img(Loadout.pic(it), '', Loadout.icon(it)) : ''}</div>
         <b>${ok ? U.esc(Loadout.name(it)) : lost ? `${U.esc(Loadout.name(it))}<small>in your grave</small>` : 'Empty'}</b>
-        ${ok || lost ? `<button class="lx" data-act="loff" data-i="${i}" title="Take it off">${icon('close')}</button>` : ''}</div>`;
+        ${ok || lost ? `<button class="lx" data-act="loff" data-i="${i}" title="${Loadout.crit(it) ? 'Put it in your backpack' : 'Take it off'}">${icon('close')}</button>` : ''}</div>`;
     };
     const card = (it) => `<div class="card2"><div class="ic">${Thumbs.img(Loadout.pic(it), '', Loadout.icon(it))}</div>
       <div class="info"><h4>${U.esc(Loadout.name(it))}</h4><div class="chips">${this.gearChips(it).map((c) => `<span>${U.esc(c)}</span>`).join('')}</div></div>
@@ -99,12 +99,22 @@ const Shop = {
       else if (this.sel === i) this.sel = null;
       else { Loadout.swap(this.sel, i); this.sel = null; Sound.play('reload'); }
     } else if (act === 'loff') {
-      Loadout.clear(i);
+      if (Loadout.crit(Loadout.slots()[i])) { // (a critter you're carrying: into your backpack, if there's room)
+        if (!Loadout.stowCrit(i)) { UI.toast('Your backpack\'s full! Sell it instead (the Sell tab).', 'bad', 2.8); Sound.play('error'); return; }
+        this.line = 'Into your backpack it goes. It was starting to smell.';
+      } else {
+        Loadout.clear(i);
+        this.line = U.pick(['Into the locker it goes. I\'ll charge you rent on that eventually.', 'Taken off. It\'ll be here. Probably.', 'Your locker. Not a trash can. Well. Kind of.']);
+      }
       if (this.sel === i) this.sel = null;
-      this.line = U.pick(['Into the locker it goes. I\'ll charge you rent on that eventually.', 'Taken off. It\'ll be here. Probably.', 'Your locker. Not a trash can. Well. Kind of.']);
     } else if (act === 'lput') {
       const at = this.sel != null ? this.sel : Loadout.free();
       if (at < 0) { UI.toast('Your hotbar is full! Take something off (the X), or click a slot to swap it out.', 'bad', 2.8); Sound.play('error'); return; }
+      if (Loadout.crit(Loadout.slots()[at]) && !Loadout.stowCrit(at)) { // (the critter in that slot goes in your backpack, or another free slot)
+        const f = Loadout.free();
+        if (f < 0) { UI.toast('There\'s a critter in that slot and your backpack\'s full! Sell it first (the Sell tab).', 'bad', 2.8); Sound.play('error'); return; }
+        Loadout.swap(at, f);
+      }
       Loadout.set(at, d.it);
       this.sel = null;
       Sound.play('reload');
@@ -176,12 +186,13 @@ const Shop = {
     if (!G.panel) {
       this.line = U.pick(cfg.greet);
       this.sel = null;
-      this.tab = SAVE.cargo.length ? 'sell' : ['weapons', 'gear', 'special', 'looks'].find(has);
+      this.tab = SAVE.cargo.length || Loadout.critters().length ? 'sell' : ['weapons', 'gear', 'special', 'looks'].find(has);
     }
     if (tab) this.tab = tab;
     if (this.tab !== 'sell' && !has(this.tab)) this.tab = ['weapons', 'gear', 'special', 'looks'].find(has);
     const cap = CARGO[SAVE.cargoLvl], value = Activities.cargoValue();
-    const tabs = [['weapons', 'gun', 'Weapons'], ['gear', 'boots', 'Gear'], ['special', 'star', 'Special'], ['looks', 'hat', 'Cosmetics'], ['loadout', 'bag', 'Loadout'], ['sell', 'cash', `Sell${SAVE.cargo.length ? ` (${SAVE.cargo.length})` : ''}`]]
+    const held = Loadout.critters(), nsell = SAVE.cargo.length + held.length; // (critters you're carrying in your hotbar sell too)
+    const tabs = [['weapons', 'gun', 'Weapons'], ['gear', 'boots', 'Gear'], ['special', 'star', 'Special'], ['looks', 'hat', 'Cosmetics'], ['loadout', 'bag', 'Loadout'], ['sell', 'cash', `Sell${nsell ? ` (${nsell})` : ''}`]]
       .filter(([t]) => t === 'sell' || has(t))
       .map(([t, ic, lab]) => `<button class="stab ${this.tab === t ? 'on' : ''}" data-act="tab" data-t="${t}">${icon(ic)}${lab}</button>`).join('');
     const card = (it, i) => {
@@ -206,8 +217,16 @@ const Shop = {
           <div class="qty">x${counts[id]}</div><div class="each">${U.bucks(r.v)} each</div>
           <button class="price small" data-act="sell1" data-id="${U.esc(id)}">${U.bucks(r.v * counts[id])}</button></div>`;
       }).join('');
-      body = SAVE.cargo.length
-        ? `<div class="srows">${rows}</div><button class="sellall" data-act="sellall">Sell everything <b>${U.bucks(value)}</b></button>`
+      const hrows = held.map(([i, id]) => {
+        const r = cargoRes(id);
+        return `<div class="srow ${r.rare ? 'rare' : ''}"><div class="ic">${Thumbs.img(Thumbs.cargoKey(id), '', r.icon)}</div>
+          <div class="info"><b>${U.esc(r.name)}</b><small>Hotbar slot ${i + 1}</small></div>
+          <div class="qty">x1</div><div class="each"></div>
+          <button class="price small" data-act="sellslot" data-i="${i}">${U.bucks(r.v)}</button></div>`;
+      }).join('');
+      body = nsell
+        ? (held.length ? `<h5 class="shead">In your hotbar</h5><div class="srows">${hrows}</div>` + (rows ? '<h5 class="shead">In your backpack</h5>' : '') : '') +
+          (rows ? `<div class="srows">${rows}</div>` : '') + `<button class="sellall" data-act="sellall">Sell everything <b>${U.bucks(value + Activities.heldValue())}</b></button>`
         : `<div class="empty"><div>${Thumbs.img('cargo:' + SAVE.cargoLvl, '', 'bag')}</div>Your backpack is empty.<br>Go vacuum, catch or zap something!</div>`;
     } else if (this.tab === 'loadout') {
       body = this.loadoutHtml();
@@ -238,9 +257,9 @@ const Shop = {
     const handler = (act, d) => {
       if (act === 'tab') { this.tab = d.t; }
       if (act === 'buy') this.buy(items[Number(d.i)]);
-      if (act === 'sellall' || act === 'sell1') {
+      if (act === 'sellall' || act === 'sell1' || act === 'sellslot') {
         const knots = shopId === 'zorb' && (act === 'sellall' ? SAVE.cargo.includes('knot') : d.id === 'knot');
-        const v = act === 'sellall' ? Activities.sellAll() : Activities.sellType(d.id);
+        const v = act === 'sellall' ? Activities.sellAll() : act === 'sellslot' ? Activities.sellSlot(Number(d.i)) : Activities.sellType(d.id);
         this.line = v >= 1000 ? 'WOW. That\'s a lot of stuff. Are you okay?' : v >= 200 ? 'Nice haul. Pleasure doing business.' : 'That\'s... it? Okay.';
         if (knots) this.line = 'Are those GARLIC KNOTS? The Emperor has wanted those for three years! ...I\'ll keep them. For quality control.';
         UI.toast(`Sold for ${U.bucks(v)}!`, 'good');

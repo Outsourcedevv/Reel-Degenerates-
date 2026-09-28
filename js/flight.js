@@ -71,6 +71,9 @@ const Flight = {
   seat: null, crew: {}, // crew: { playerId: 'pilot' | 'pass' }, kept by the host
 
   isPilot() { return this.on && this.seat === 'pilot'; },
+  // is my game the one moving the ship? The pilot's is. With nobody in the pilot seat, whoever just left it keeps
+  // the ship going (coasting along with nobody at the controls) instead of it stopping dead in the air
+  driving() { return this.isPilot() || (this.on && this.coast && !this.pilotId()); },
   pilotId() { for (const id in this.crew) if (this.crew[id] === 'pilot') return id; return null; },
   // players in the game who aren't in the ship yet (we don't leave anyone behind)
   missingCrew() { return [...G.remotes.values()].filter((r) => !this.crew[r.id]).map((r) => r.name); },
@@ -129,16 +132,20 @@ const Flight = {
     const was = this.seat;
     this.seat = seat;
     if (seat === 'pilot' && was !== 'pilot') {
-      // take over from wherever the ship is right now
-      this.yaw = this.tyaw; this.pitch = this.tpitch;
+      // take over from wherever the ship is right now (my own game was already moving it if it was coasting)
+      if (!this.coast) {
+        this.yaw = this.tyaw; this.pitch = this.tpitch;
+        if (this.ph === 'atmo') this.vel.set(Math.sin(this.yaw) * (this.speed || 0), this.vel.y, Math.cos(this.yaw) * (this.speed || 0));
+      }
       this.holdAim();
-      if (this.ph === 'atmo') this.vel.set(Math.sin(this.yaw) * (this.speed || 0), this.vel.y, Math.cos(this.yaw) * (this.speed || 0));
       this.sendT = 0; this.landing = false;
       UI.toast('You have the controls! ' + (this.grounded ? '{jump}: lift off' : 'Mouse: steer'), 'good', 2.5);
     } else if (seat === 'pass') {
       this.tpos.copy(this.pos); this.tyaw = this.yaw; this.tpitch = this.pitch;
-      UI.toast('You moved to the back seat. Enjoy the ride!', '', 2);
+      this.coast = was === 'pilot'; // (the ship carries on, with nobody flying it)
+      UI.toast(was === 'pilot' && !this.grounded ? 'You moved to the back seat. Nobody\'s flying: the ship coasts along...' : 'You moved to the back seat. Enjoy the ride!', '', 2.4);
     }
+    if (seat === 'pilot') this.coast = false;
     this.setView(seat === 'pilot' ? 'cockpit' : this.pview);
   },
   // get out of the ship (only while it's parked on the landing pad)
@@ -161,7 +168,7 @@ const Flight = {
   // everyone aboard: sit down in the ship, parked on the pad
   start(from, seat) {
     this.finish();
-    Object.assign(this, { on: true, seat, t: 0, yaw: 0, pitch: 0, bank: 0, speed: 0, grounded: true, turbo: 1, sendT: 0, hitCd: 0, crashCd: 0, auto: false, spaceT: 0, hint: 0, landing: false, lookYaw: 0, lookPitch: 0, inbound: false, signT: -1 });
+    Object.assign(this, { on: true, seat, t: 0, yaw: 0, pitch: 0, bank: 0, speed: 0, grounded: true, turbo: 1, sendT: 0, hitCd: 0, crashCd: 0, auto: false, spaceT: 0, hint: 0, landing: false, lookYaw: 0, lookPitch: 0, inbound: false, signT: -1, coast: false });
     this.holdAim();
     this.wp = this.defaultWaypoint();
     this.pos = new V3(); this.vel = new V3();
@@ -496,9 +503,11 @@ const Flight = {
         } else { this.grounded = false; this.vel.y = 6; this.event({ k: 'liftoff' }); }
       }
     } else {
+      // (nobody at the controls: it coasts, slowing down gently and holding its height)
+      const coasting = !this.isPilot();
       const wantF = key('forward') ? FLY.hover.fwd : key('back') ? -12 : 0;
-      const nf = U.damp(this.vel.dot(f), wantF, 1.1, dt), ns = U.damp(this.vel.dot(side), 0, 3, dt);
-      const wantUp = key('jump') ? FLY.hover.up : key('stomp') ? -FLY.hover.up : -FLY.hover.sink;
+      const nf = U.damp(this.vel.dot(f), wantF, coasting ? 0.25 : 1.1, dt), ns = U.damp(this.vel.dot(side), 0, coasting ? 0.8 : 3, dt);
+      const wantUp = key('jump') ? FLY.hover.up : key('stomp') ? -FLY.hover.up : coasting ? 0 : -FLY.hover.sink;
       this.vel.set(f.x * nf + side.x * ns, U.damp(this.vel.y, wantUp, 2, dt), f.z * nf + side.z * ns);
       this.pos.addScaledVector(this.vel, dt);
       // stay near the landing zone
@@ -662,7 +671,7 @@ const Flight = {
     G.player.vm.visible = false; // no gun in your hand while you're in the ship
     for (const a of this.sitters || []) a.anim.update(dt, { sit: a.seat, ground: true, yaw: 0 });
     const free = G.locked && !G.panel && !G.chatting;
-    const pilot = this.isPilot();
+    const pilot = this.isPilot(), drive = this.driving();
     const can = pilot && free && !this.mapOpen;
     if (free) {
       if (Input.hit('view')) this.cycleView();
@@ -671,19 +680,22 @@ const Flight = {
       // step out, but only while parked on the pad you took off from
       if (Input.hit('use') && this.ph === 'atmo' && this.grounded && this.planet === G.planet && Math.hypot(this.pos.x, this.pos.z) < FLY.padR + 2) { this.exit(); return; }
     }
-    if (pilot) {
+    if (drive) {
       if (this.ph === 'atmo') this.atmo(dt, can); else this.spaceFly(dt, can);
       if (!this.on) return;
+      if (!pilot) { this.tpos.copy(this.pos); this.tyaw = this.yaw; this.tpitch = this.pitch; } // (so when someone takes over, it carries on from here)
       this.sendT -= dt;
       if (this.sendT <= 0 && Net.online) {
         this.sendT = 1 / 15;
         Net.relay({ t: 'fly', ph: this.ph, pl: this.planet, p: [U.r2(this.pos.x), U.r2(this.pos.y), U.r2(this.pos.z)], y: U.r2(this.yaw), x: U.r2(this.pitch), b: U.r2(this.bank), v: Math.round(this.vel.y * 10) / 10, s: Math.round(this.speed || 0), w: this.wp, g: this.grounded ? 1 : 0, tb: U.r2(this.turbo) });
       }
-    } else {
-      // passengers ride along with the pilot's updates (or sit still if nobody is flying)
-      this.pos.lerp(this.tpos, 1 - Math.exp(-10 * dt));
-      this.yaw += U.angDiff(this.yaw, this.tyaw) * Math.min(1, dt * 10);
-      this.pitch = U.damp(this.pitch, this.tpitch, 10, dt);
+    }
+    if (!pilot) {
+      if (!drive) { // passengers ride along with the pilot's updates (or whoever's game is keeping it coasting)
+        this.pos.lerp(this.tpos, 1 - Math.exp(-10 * dt));
+        this.yaw += U.angDiff(this.yaw, this.tyaw) * Math.min(1, dt * 10);
+        this.pitch = U.damp(this.pitch, this.tpitch, 10, dt);
+      }
       if (free && !this.mapOpen) {
         const k = 0.0022 * G.settings.sens;
         this.lookYaw = U.clamp(this.lookYaw - Input.dx * k, -2.6, 2.6);
@@ -755,7 +767,7 @@ const Flight = {
     }
   },
   onSync(m) {
-    if (!this.on || this.isPilot()) return;
+    if (!this.on || this.driving()) return;
     if (m.ph !== this.ph || (m.ph === 'atmo' && m.pl !== this.planet)) {
       if (m.ph === 'space') this.enterSpace(this.planet); else this.enterAtmo(m.pl, !!m.g);
       this.pos.set(m.p[0], m.p[1], m.p[2]);

@@ -886,6 +886,7 @@ const Game = {
       else if (p.tool === 'drill') h = 'Hold {fire} on a big crystal to mine it';
       else if (p.tool === 'peel') h = act === 'meteor' ? 'Stand inside a glowing circle as the meteor comes down to catch it!' : 'The Pizza Peel catches meteors on Zorblax Prime';
       else if (!p.tool) h = `Your hands are empty (hotbar slot ${p.slot + 1}) · {slot1}-{slot5}: take something out`;
+      else if (p.tool === 'crit') h = 'You\'re carrying a critter: sell it at any shop · {bag}: put it in your backpack';
       else { // your gun: what it does, plus the one thing to know about this planet
         const tip = {
           scrap: this.slotTip('vac', 'Grabby Vac for the junk'), berry: 'jump up the mushrooms for berries' + (SAVE.boots ? ' (double jump!)' : ''),

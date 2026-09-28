@@ -785,12 +785,16 @@ const Critters = {
     return best;
   },
   bodyName(b) { const r = cargoRes(b.entry || ''); return r.name; },
-  // bag it (E, or the Grabby Vac got it). Backpack full: it stays right where it is
+  // bag it (E, or the Grabby Vac got it). Backpack full: you carry it in a free hotbar slot (see Loadout),
+  // and if that's full too it stays right where it is
   pickBody(b) {
     if (!b || !b.mine || b.taken) return false;
-    if (SAVE.cargo.length >= CARGO[SAVE.cargoLvl]) { UI.toast('Backpack full! Sell stuff and come back for it: it\'ll wait right here.', 'bad', 2.4); Sound.play('error'); return false; }
+    let slot = -1;
+    if (SAVE.cargo.length >= CARGO[SAVE.cargoLvl]) {
+      slot = Loadout.holdCrit(b.entry);
+      if (slot < 0) { UI.toast('Backpack and hotbar full! Sell stuff and come back for it: it\'ll wait right here.', 'bad', 2.4); Sound.play('error'); return false; }
+    } else SAVE.cargo.push(b.entry);
     b.taken = true;
-    SAVE.cargo.push(b.entry);
     SAVE.stats.collected++;
     const rare = Activities.showLoot([b.entry]);
     const at = b.pos.clone().setY(b.pos.y + 0.4);
@@ -799,7 +803,8 @@ const Critters = {
     Sound.play(rare ? 'rare' : 'pickup');
     if (Net.online) Net.relay({ t: 'cpick', id: b.id, p: b.p });
     this.dropBody(b.key);
-    if (SAVE.cargo.length >= CARGO[SAVE.cargoLvl]) UI.toast('Backpack full! Sell stuff at the shop.', 'bad', 2.2);
+    if (slot >= 0) { G.player.refreshGear(); UI.toast(`Backpack full: you're carrying it in hotbar slot ${slot + 1}. Sell it at any shop.`, '', 2.8); }
+    else if (SAVE.cargo.length >= CARGO[SAVE.cargoLvl]) UI.toast('Backpack full! Sell stuff at the shop.', 'bad', 2.2);
     persist();
     UI.hud();
     return true;
@@ -854,16 +859,21 @@ const Critters = {
     for (const s of styles) mult *= STYLE[s].m;
     const maxed = mult > STYLE_MAX;
     mult = Math.min(STYLE_MAX, Math.round(mult * 100) / 100);
+    const key = critKey(def.id, c.sz, !!c.g), entry = mult > 1 ? `${key}*${mult}` : key, worth = cargoRes(entry).v, z = SIZES[c.sz];
+    // what you got: KILLED Rust Crab $22, and under it what made it worth that (its size, golden, each style bonus)
+    const lines = [];
+    if (z.v > 1) lines.push([z.v, z.name, 'size']);
+    if (c.g) lines.push([8, 'Golden', 'gold']);
+    for (const st of styles) lines.push([STYLE[st].m, STYLE[st].name, '']);
+    if (maxed) lines.push([STYLE_MAX, 'style bonus capped at', 'max']);
+    UI.killed(def.name, worth, lines);
+    FX.text(pos.clone().setY(pos.y + 1.5), U.bucks(worth), '#ffd23f', 44);
     if (styles.length) {
-      FX.text(pos.clone().setY(pos.y + 2.3), styles.map((s) => STYLE[s].name).join(' + '), '#7dffea', 30);
-      FX.text(pos.clone().setY(pos.y + 1.7), `x${mult} STYLE${maxed ? ' (MAX)' : ''}`, '#ffd23f', 44);
-      UI.toast(`STYLE KILL x${mult}${maxed ? ' (max!)' : ''}: ${styles.map((s) => `${STYLE[s].name} x${STYLE[s].m}`).join(' · ')}`, 'gold', 3);
       Sound.play(mult >= 3 ? 'jackpot' : 'win');
       SAVE.stats.style = (SAVE.stats.style || 0) + 1;
-    } else if (c.g || c.sz >= 4) FX.text(pos.clone().setY(pos.y + 1.4), c.g ? 'GOLDEN!' : SIZES[c.sz].name.toUpperCase() + '!', c.g ? '#ffd23f' : '#7dff8a', 50);
+    } else Sound.play(c.g || z.v >= 4 ? 'rare' : 'coin');
     SAVE.stats.critters = (SAVE.stats.critters || 0) + 1;
-    const key = critKey(def.id, c.sz, !!c.g);
-    if (b) { b.mine = true; b.entry = mult > 1 ? `${key}*${mult}` : key; }
+    if (b) { b.mine = true; b.entry = entry; }
     if (!this.pickTip) { this.pickTip = true; UI.toast('Walk over to it and press {use} to bag it (or vacuum it up)!', '', 3); }
     else if (SAVE.cargo.length >= CARGO[SAVE.cargoLvl] && G.time - (this.fullTipT || -99) > 20) { this.fullTipT = G.time; UI.toast('Backpack full: it\'ll wait right there until you\'ve sold some stuff.', 'bad', 2.6); }
     persist();

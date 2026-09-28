@@ -258,11 +258,31 @@ From Luckstar on, the biters throw things too now and then (dice, icicles, bones
 E-Scooters charge from way off. Shoot a mean one and it comes for you, and its friends nearby join in. Each one bites
 on its own timer, so a pack is dangerous. Zap them and sell them at the shop: a zapped critter goes flying, bounces
 and lands in a heap (legs in the air, seeing stars), and you walk over and press `E` to bag it (or vacuum it up).
-Only the one who zapped it can pick it up. If your backpack is full it just waits there for you, even if you fly off
-and come back later. How many critters are about depends on the world's difficulty. When you join a game, land on a planet
+Only the one who zapped it can pick it up. If your backpack is full you carry it in a free hotbar slot instead (you
+hold it up in your hand), and if your hotbar is full too it just waits there for you, even if you fly off and come
+back later. You can also move a critter between your backpack and your hotbar yourself (press `I`: **To hotbar** /
+**To backpack**). Shops buy the ones in your hotbar too, and if you die they drop into your grave with your
+backpack. Each kill pops up what you got: **Killed Trash Rat $78**, and under it what made it worth that (`3x Large`,
+`2x 360`, `1.25x Point Blank`...). How many critters are about depends on the world's difficulty. When you join a game, land on a planet
 or respawn, they leave you alone for a bit (watch the **SAFE** timer), unless you shoot one first. Their colors and
-an outline keep them from blending into the ground. They come in six sizes, from Tiny to GIANT: the bigger they are, the more they're worth,
-but the rarer they are (and the harder they hit). Golden ones are worth a fortune.
+an outline keep them from blending into the ground. They come in all sizes, from Tiny (half the price) to TITANIC (10x): the bigger they are, the more they're worth,
+but the rarer they are (and the harder they hit). About 1 in 12 is bigger than normal:
+
+| Size | Worth | Chance |
+| --- | --- | --- |
+| Tiny / Small | 0.5x / 0.75x | 16% / 28% |
+| Normal | 1x | 47.6% |
+| Big | 2x | 4% |
+| Large | 3x | 1.8% |
+| Huge | 4x | 1% |
+| Hefty | 5x | 0.6% |
+| Massive | 6x | 0.4% |
+| Enormous | 7x | 0.25% |
+| COLOSSAL | 8x | 0.15% |
+| GIANT | 9x | 0.1% |
+| TITANIC | 10x | 0.06% |
+
+Golden ones are worth a fortune (8x).
 
 ### Mini bosses
 
@@ -324,7 +344,9 @@ set the ship down gently (look down through the glass floor in front of your sea
 than 8 m/s and you crash (it costs you a repair fee). Planets you haven't unlocked yet turn you away. Passengers
 ride in the cabin behind the cockpit: big windows by every row, a screen that says where you're going and how long
 it'll take, and a view of the pilot flying. They can look around, and `V` switches between their seat and a view of
-the whole ship from outside.
+the whole ship from outside. If the pilot moves to the back seat mid-flight, the ship doesn't stop dead: it coasts on
+(slowing down gently and holding its height near a planet, keeping its speed in space, where the autopilot can
+still take over) until somebody takes the controls.
 
 ## For tinkerers
 
