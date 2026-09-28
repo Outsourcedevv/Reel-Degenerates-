@@ -79,25 +79,27 @@ const Flight = {
   missingCrew() { return [...G.remotes.values()].filter((r) => !this.crew[r.id]).map((r) => r.name); },
 
   /* ---------------- getting in and out ---------------- */
-  boardLabel() {
+  boardLabel(seat = 'pilot') {
     if (!G.progress.includes('gary')) return 'Ship locked: beat Trashlord Gary first';
     const pid = this.pilotId();
-    return pid ? `Get in the ship (${nameOf(pid)} is in the pilot seat)` : 'Get in the ship (you\'ll be the pilot)';
+    return seat === 'pass' ? 'Sit in a passenger seat' : pid ? `Pilot seat occupied by ${nameOf(pid)}` : 'Sit in the pilot seat';
   },
-  board() {
+  board(seat = 'pilot') {
     if (G.mode !== 'planet' || Game.summoning || G.player.dead) return;
+    if (G.player.pos.y < G.world.parked.position.y + CABIN.floor - .35) return;
+    if (seat === 'pilot' && this.pilotId()) { UI.toast('Pilot seat occupied. Take a passenger seat.'); return; }
     // the S.S. Late Delivery won't start until Gary stops blocking the launch lane
     if (!G.progress.includes('gary')) {
       UI.toast('The ship won\'t start. Trashlord Gary is sitting on the launch lane. Beat him first!', 'bad', 3.5);
       Sound.play('error');
       return;
     }
-    Net.toHost({ t: 'board' });
+    Net.toHost({ t: 'board', want: seat });
   },
   // host: keeps the seating chart
-  onBoard(from) {
+  onBoard(from, want) {
     if (this.crew[from]) return;
-    this.crew[from] = this.pilotId() ? 'pass' : 'pilot';
+    this.crew[from] = want === 'pass' || this.pilotId() ? 'pass' : 'pilot';
     this.sendSeats();
   },
   onUnboard(from) { if (!this.crew[from]) return; delete this.crew[from]; this.sendSeats(); },
@@ -156,7 +158,7 @@ const Flight = {
     G.mode = 'planet';
     const w = G.world;
     w.parked.visible = true;
-    const p = new V3(5.6, 0, 0.2 + U.rand(-1.4, 1.4));
+    const p = new V3(.7, 0, .2);
     p.y = w.ground(p.x, p.z, 50);
     G.player.teleport(p, -Math.PI / 2);
     G.player.updateCamera(0, 0);

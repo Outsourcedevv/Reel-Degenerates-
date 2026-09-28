@@ -45,7 +45,7 @@ const Thumbs = {
     const [k, a, b, c] = key.split(':');
     switch (k) {
       case 'zap': { const z = buildZapperVM(+a); z.remove(z.userData.flash); return { o: z, look: 'tool' }; }
-      case 'vac': return { o: buildVacVM(a === '1'), look: 'tool' };
+      case 'vac': return { o: buildVacVM(a === '2' ? 2 : a === '1'), look: 'tool' };
       case 'drill': return { o: buildDrillVM(), look: 'tool' };
       case 'peel': return { o: buildPeelVM(), look: 'tool' };
       case 'cargo': return { o: buildBackpackItem(+a || 0) };
@@ -148,7 +148,7 @@ const Thumbs = {
   },
   // everything the interface is likely to need
   warmAll() {
-    const keys = ['zap:-1', 'zap:0', 'vac:0', 'drill', 'peel', 'cargo:0', 'nade'];
+    const keys = ['zap:-1', 'zap:0', 'vac:0', 'vac:2', 'drill', 'peel', 'cargo:0', 'nade'];
     for (const s of Object.values(SHOPS)) for (const it of s.items) keys.push(this.shopKey(it));
     for (const id in SHOPS) keys.push('face:' + id);
     for (const k in ITEM_MODELS) if (k.startsWith('res:')) keys.push(k);

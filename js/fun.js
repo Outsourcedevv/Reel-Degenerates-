@@ -479,6 +479,15 @@ const MAZE = {
     sg.position.set(0, H + 0.9, 0); arch.add(sg);
     w.interact(gx + 1.8, gz, 2.6, () => Fun.label(this), () => Fun.start(this));
     f.gate = { x: gx + 1.8, z: gz };
+    // Each player's timed run controls their gate, like the existing maze timer.
+    f.bars = grp(w.dyn, gx, gy, gz);
+    for (let z = -1.2; z <= 1.21; z += 0.4) mk(BOX(0.12, H, 0.09), '#9385ad', f.bars, 0, H / 2, z);
+    for (const y of [0.3, H - 0.3]) mk(BOX(0.16, 0.12, 2.8), '#b9a4ff', f.bars, 0, y, 0);
+    f.gateBlock = { x0: gx - .15, x1: gx + .15, z0: gz - 1.6, z1: gz + 1.6, top: gy + H };
+    w.boxes.push(f.gateBlock);
+    const button = grp(w.stat, gx + 1.5, gy, gz + 1.5);
+    mk(BOX(.35, 1, .35), '#4a4550', button, 0, .5, 0);
+    mk(CYL(.2, .2, .12, 12), '#7dffea', button, 0, 1.06, 0, { emissive: '#237d69' });
     // the treasure in the middle
     const c = cell(M.goal[0], M.goal[1]);
     f.chest = this.chest();
@@ -525,7 +534,7 @@ const MAZE = {
     for (let i = 0; i < 5; i++) tf(mk(CYL(0.11, 0.11, 0.04, 10), '#ffe066', g, -0.35 + i * 0.18, 0.84 + (i % 2) * 0.05, -0.1 + (i % 3) * 0.1, { emissive: '#c99a00' }), 0.5 * (i - 2), 0, 0.3);
     // the lid, thrown open (a half round hinged at the back)
     const lid = grp(g, 0, 0.74, -0.43);
-    tf(mk(new THREE.CylinderGeometry(0.43, 0.43, 1.3, 12, 1, false, 0, Math.PI), '#6b3d1f', lid, 0, 0, 0.43), 0, 0, Math.PI / 2);
+    tf(mk(new THREE.CylinderGeometry(0.43, 0.43, 1.3, 12, 1, false, 0, Math.PI), '#6b3d1f', lid, 0, 0, 0.43, { side: THREE.DoubleSide }), 0, 0, Math.PI / 2);
     for (const s of [-1, 1]) tf(mk(new THREE.TorusGeometry(0.44, 0.04, 4, 12, Math.PI), '#ffd23f', lid, s * 0.42, 0, 0.43, gold), 0, Math.PI / 2, 0);
     lid.rotation.x = -1.9;
     const glow = new THREE.Mesh(new THREE.SphereGeometry(1.1, 12, 8), glowMat('#ffd23f', 0.18));
@@ -536,6 +545,7 @@ const MAZE = {
   },
   begin(r, f) {
     r.scared = new Set();
+    f.bars.visible = false; f.gateBlock.top = -Infinity;
     for (const gh of f.ghosts) { gh.t = -1; gh.m.visible = false; }
     Sound.play('ghost');
     UI.bigTitle('FIND THE TREASURE!', `It's in the middle of the maze. Gold: ${clock(f.medals[2])}`, '#b9a4ff', 2.4);
@@ -564,6 +574,12 @@ const MAZE = {
     UI.fun('HEDGE OF NO RETURN', clock(r.t), 'Find the treasure in the middle', 1 - r.t / f.limit, f.limit - r.t < 15);
   },
   idle(f, dt, r) {
+    // Don't allow jetpacking in before starting, or starting beside the prize.
+    const p = G.player.pos, R = f.R;
+    if (!r && p.x > R.x0 && p.x < R.x1 && p.z > R.z0 && p.z < R.z1) {
+      G.player.teleport(new V3(f.gate.x + 1, f.goal.y, f.gate.z), Math.PI / 2);
+      UI.toast('Press the glowing start button to open the maze and start the clock.');
+    }
     f.chest.userData.glow.material.opacity = 0.12 + 0.08 * Math.sin(G.time * 3);
     for (const gh of f.ghosts) {
       if (gh.t < 0) continue;
@@ -574,7 +590,11 @@ const MAZE = {
       if (k > 2.6) { gh.t = -1; gh.m.visible = false; }
     }
   },
-  end(r, f) {},
+  end(r, f) {
+    f.bars.visible = true; f.gateBlock.top = f.top;
+    if (G.mode === 'planet' && G.world === r.w && !G.player.dead)
+      G.player.teleport(new V3(f.gate.x + 1, f.goal.y, f.gate.z), Math.PI / 2);
+  },
 };
 
 const FUN_DEFS = { gloop: RING_RUN, frost: GALLERY, spook: MAZE };

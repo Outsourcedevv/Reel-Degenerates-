@@ -33,6 +33,11 @@ difficulty:
 | Hard | Everything hits twice as hard. Critters have 1.75x the health, and there are more of them (up to 24, back quicker). Mini bosses learn a new attack (and pay 1.5x). |
 | Hardcore | Everything hits 3.5x as hard and critters have 2.5x the health, and they're everywhere (up to 32, back fast). Mini bosses learn two new attacks (and pay 2x). Solo, if you die, the world is deleted. With friends, you go down and can be revived, but if the whole crew is down at once, the world is deleted. |
 
+Health regenerates after the existing post-damage delay: **10 HP/s on Easy, 6 on Hard, and 3 on Hardcore**.
+During boss fights those rates are halved (5, 3, and 1.5 HP/s). Dead or ghost players do not regenerate.
+
+Spookulon’s shop sells the **Spooky Vacuum** for $6,500. It reaches 12m, sucks at 2.4x speed, and replaces the Turbo Vac with a haunted ectoplasm trap containing a tiny ghost.
+
  Each world is its own save, like
 Minecraft worlds. When you join a friend, your stuff in their world is saved too, so it's still there next time.
 Hats are the exception: once you own a hat, it's yours in every world (and when you visit friends).
