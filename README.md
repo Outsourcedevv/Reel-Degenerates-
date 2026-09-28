@@ -40,8 +40,10 @@ Hats are the exception: once you own a hat, it's yours in every world (and when 
 **Your astronaut** is a Space Goober: tall, lanky and goofy, with a pot belly, noodle arms, big boots and a long egg
 of a head (googly eyes, a droopy nose, big ears) that wobbles about inside its glass bubble. He does everything the
 goofy way: bouncy walking with floppy arms, flat-out sprinting with his mouth wide open, flailing all the way down a
-long fall, a front flip on a double jump, getting knocked off his feet when something bites him, and lying on his back
-kicking like a flipped bug when he's down. The bigger the gun, the harder it kicks him about. Stand still for a bit
+long fall, a front flip on a double jump, and getting knocked off his feet when something bites him. When he's down
+(or knocked out) he goes limp as a ragdoll: thrown by whatever got him, tumbling, bouncing and flopping to a stop
+with his arms and legs wherever they land, and you watch it from outside until you're back up. The bigger the gun,
+the harder it kicks him about. Stand still for a bit
 and he fidgets: he scratches his helmet, tries to pick his nose (the glass is in the way), drums on his belly, yawns.
 Your crew sees all of it. Press `G` for an emote: wave, chicken dance, flex, floss, facepalm and faint, a different
 one each press (the camera swings round in front of him so you can watch, and back into your helmet after).
@@ -65,8 +67,8 @@ up, and it waits for you even if you quit and come back later. With Extra Life I
 Prime) you keep your gear when you die, and only your backpack spills.
 
 Boss fights give you **one life**, whatever the difficulty. Playing solo, if you go down, the boss wins (on
-Hardcore, that's the end of the world). With friends you go down instead: a friend can walk over and hold `E` to
-pick you up, or you get back up by yourself after 10 seconds (15 on Hard, 20 on Hardcore) as long as at least one of
+Hardcore, that's the end of the world). With friends you go down instead: a friend can walk over and hold `E` for 5
+seconds to pick you up, or you get back up by yourself after 10 seconds (15 on Hard, 20 on Hardcore) as long as at least one of
 them is still standing. If the whole crew is down at once, the boss wins. You keep your stuff in boss fights.
 
 ## Play with friends
@@ -78,8 +80,9 @@ them is still standing. If the whole crew is down at once, the boss wins. You ke
    the back, then anyone in the back can take the controls.
 4. The crew works together: summoning items and the pizza reheating count for everyone, and anyone holding a
    summoning item can start a boss fight. Everyone on the planet who has a gun gets pulled in.
-5. When you'd die with friends around, you go **down** instead. A friend walks up and holds `E` to pick you back
-   up. On Easy and Hard you bleed out after 25 seconds and it counts as a normal death. On Hardcore you stay down
+5. When you'd die with friends around, you go **down** instead: you flop to the ground as a ragdoll. A friend walks
+   up to your body and holds `E` for 5 seconds to pick you back up. That takes both hands, so they can't shoot,
+   reload or throw while they do it. On Easy and Hard you bleed out after 25 seconds and it counts as a normal death. On Hardcore you stay down
    until someone revives you, but if **everyone** is down at once, the world is deleted. (Boss fights work a bit
    differently, see above.)
 6. Press `I` to send money to a friend (Crew & Money tab) or drop things from your backpack. Dropped stuff lands
@@ -103,7 +106,7 @@ defaults:
 | `Q` | dash (Getaway Sneakers, from Luckstar) |
 | `C` in the air | ground pound (Yeti Stompers, from Frostbyte) |
 | hold `Space` in the air | glide (Glider Cape, from Nimbus-9) or fly (Jet Pack, from Gigopolis) |
-| `E` | talk, shop, use things, pick up critters you zapped · hold next to a downed friend to pick them up |
+| `E` | talk, shop, use things, pick up critters you zapped · hold next to a downed friend to pick them up (5 seconds) |
 | `1` to `5` / mouse wheel | take out what's in that hotbar slot / flip through your hotbar |
 | Left click | use what you're holding |
 | `R` | reload (infinite batteries, but the battery pack runs out) |

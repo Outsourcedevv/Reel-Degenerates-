@@ -23,6 +23,11 @@
 - **More critters on harder worlds.** Easy has fewer about (and they're slow to come back), Hard has more, and
   Hardcore is crawling with them.
 - **More room.** The planets are further apart in space, and Nimbus-9's outer islands sit a bit further out.
+- **Ragdolls.** Go down (or get knocked out) and your goober goes limp: thrown by whatever got him, he tumbles,
+  bounces and flops to a stop, arms and legs everywhere, and the camera backs out so you can watch. Your crew sees
+  it too.
+- **Picking a friend up takes 5 seconds**, and both hands: you can't shoot, reload or throw while you do it (your
+  gun goes down out of the way). Let go and you have to start over.
 - **Friendly fire hits harder.** With it on, your shots hit your crew for 75% of their damage (it was half).
 - **No more third person.** The `V` camera and its pause-menu setting are gone. (Emotes still swing the camera round
   so you can watch your goober dance.)

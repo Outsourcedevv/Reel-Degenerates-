@@ -70,6 +70,8 @@ const RESPAWN_HOLD = 1.2; // seconds of holding the fire button to get back up a
 const WADE = { slow: 0.55, min: 0.5, deep: 1.25 };
 // friendly fire (when the host turns it on): how much of a shot's damage a friend takes
 const FF_DMG = 0.75;
+// how long you hold E (use) over a downed friend to pick them up (see LocalPlayer.checkRevive)
+const REVIVE_TIME = 5;
 // how long critters leave you alone after you join the game, land on a planet, or get back up after dying
 const GRACE = { join: 20, land: 15, respawn: 10 };
 
@@ -215,7 +217,7 @@ class LocalPlayer {
   }
   startReload() {
     const z = gunDef(SAVE.zap);
-    if (this.tool !== 'zap' || this.reloadT > 0 || this.ammo >= z.mag) return;
+    if (this.tool !== 'zap' || this.reloadT > 0 || this.ammo >= z.mag || this.reviveT > 0) return; // (not while you pick a friend up)
     if (z.type === 'cutter') return; // (pizza cutters don't reload: they come back)
     this.reloadT = this.reloadDur = z.rl;
     this.reloadMsg = U.pick(LINES.reload);
@@ -377,7 +379,7 @@ class LocalPlayer {
     this.recoil = U.damp(this.recoil, 0, 14, dt);
     this.swing = Math.max(0, this.swing - dt * 3.5);
     this.vmPeel.rotation.x = Math.sin(this.swing * Math.PI) * 0.7;
-    if (this.reloadT > 0) {
+    if (this.reloadT > 0 && this.reviveT <= 0) { // (a reload waits while you pick a friend up)
       this.reloadT -= dt;
       if (this.reloadT <= 0) { this.refill(); Sound.play('reloaded'); }
     }
@@ -406,8 +408,10 @@ class LocalPlayer {
       if (this.regenT <= 0 && this.hp < 100) this.hp = Math.min(100, this.hp + (G.mode === 'boss' ? 6 : 12) * dt);
     }
     UI.planetHp(this.hp);
+    // --- picking a friend up: it takes both hands, so no shooting, reloading or throwing while you do
+    const nearDown = this.checkRevive(dt, canAct);
     // --- actions
-    const busy = !canAct || this.dead || this.ghost;
+    const busy = !canAct || this.dead || this.ghost || this.reviveT > 0;
     this.using = !busy && Input.down('fire') && (this.tool === 'vac' || this.tool === 'drill' || (this.tool === 'zap' && this.reloadT <= 0));
     if (this.using && this.emoteT > 0) this.stopEmote();
     if (!busy) this.useTool(dt);
@@ -416,7 +420,7 @@ class LocalPlayer {
     // --- interaction prompt
     this.updateDown(dt);
     this.updateRespawn(dt, canAct);
-    if (!this.checkRevive(dt, canAct)) this.checkInteract(canAct && !this.dead);
+    if (!nearDown) this.checkInteract(canAct && !this.dead);
     // --- camera, and your goober
     this.updateCamera(dt, hs);
     this.bodyTick(dt);
@@ -580,6 +584,7 @@ class LocalPlayer {
   }
   respawn() {
     this.dead = false; this.down = false; this.hp = 100; this.inv = 2;
+    this.dropRag(); this.tpK = 0; // (you're back at the ship, not getting up where you fell)
     this.teleport(Game.spawnPoint(), G.world.spawnYaw);
     this.act('up');
     this.protect(GRACE.respawn);
@@ -592,6 +597,7 @@ class LocalPlayer {
   resetLife() {
     this.dead = false; this.down = false; this.ghost = false; this.hp = 100; this.inv = 0;
     this.waitRespawn = null; this.onBleedOut = null;
+    this.dropRag(); this.tpK = 0; // (straight back into your helmet)
     UI.death(false); UI.show('spectate', false);
   }
 
@@ -608,8 +614,8 @@ class LocalPlayer {
     this.onBleedOut = onBleedOut; this.downCause = cause;
     this.releaseTargets();
     Sound.play('death');
-    UI.bigTitle('YOU\'RE DOWN', `${cause ? cause + ' got you. ' : ''}A friend can pick you up: they walk over and hold {use}.` + (boss ? ` Or you get back up by yourself in ${this.bleedT}s, if one of them is still standing.` : ''), '#ff6b6b', 3.4);
-    const html = `<b>${U.esc(G.name)}</b> is down! Go pick them up (walk over and hold {use}).`;
+    UI.bigTitle('YOU\'RE DOWN', `${cause ? cause + ' got you. ' : ''}A friend can pick you up: they walk over and hold {use} for ${REVIVE_TIME}s.` + (boss ? ` Or you get back up by yourself in ${this.bleedT}s, if one of them is still standing.` : ''), '#ff6b6b', 3.4);
+    const html = `<b>${U.esc(G.name)}</b> is down! Go pick them up (walk over and hold {use} for ${REVIVE_TIME}s).`;
     UI.feed(html, 'bad');
     Net.relay({ t: 'ann', html, cls: 'bad' });
   }
@@ -665,7 +671,9 @@ class LocalPlayer {
   }
   // a friend is lifting you up (they're holding E next to you)
   helped(by, p) { this.helpT = G.time; this.helpBy = by; this.helpP = p; }
-  // walk up to a downed friend and hold E (use) to pick them up (the bleed-out timer pauses while you do)
+  // walk up to a downed friend (lying there limp, see GoobRagdoll) and hold E (use) for REVIVE_TIME seconds to
+  // pick them up. It takes both hands: no shooting, reloading or throwing meanwhile (see update). Their
+  // bleed-out timer pauses while you do. true: there's someone down to pick up right here
   checkRevive(dt, canAct) {
     let best = null, bd = 3.2;
     if (canAct && !this.dead && !this.ghost) {
@@ -676,15 +684,17 @@ class LocalPlayer {
       }
     }
     for (const r of G.remotes.values()) if (r !== best) r.lift = 0;
-    if (!best) { if (this.reviveT > 0) { this.reviveT = 0; UI.action(null); } return false; }
-    UI.prompt(`Hold to pick up ${best.name}`);
+    if (best !== this.reviveWho) { if (this.reviveT > 0) UI.action(null); this.reviveWho = best; this.reviveT = 0; } // (someone else: start over)
+    if (!best) return false;
+    UI.prompt(`Hold to pick up ${best.name} (takes ${REVIVE_TIME}s)`);
     if (Input.down('use')) {
+      if (this.reviveT <= 0) { this.stopEmote(); this.releaseTargets(); } // (you drop what you were doing)
       this.reviveT += dt;
-      best.lift = this.reviveT / 2.5;
-      UI.action(best.lift, `PICKING UP ${best.name.toUpperCase()}...`);
+      best.lift = this.reviveT / REVIVE_TIME;
+      UI.action(best.lift, `PICKING UP ${best.name.toUpperCase()}... ${Math.max(0, REVIVE_TIME - this.reviveT).toFixed(1)}s`);
       this.helpSend = (this.helpSend || 0) - dt;
       if (this.helpSend <= 0) { this.helpSend = 0.25; Net.relay({ t: 'rvp', to: best.id, by: G.name, p: U.r2(best.lift) }); }
-      if (this.reviveT >= 2.5) {
+      if (this.reviveT >= REVIVE_TIME) {
         this.reviveT = 0; best.lift = 0; UI.action(null);
         Net.relay({ t: 'revive', to: best.id, by: G.name });
         const html = `<b>${U.esc(G.name)}</b> picked <b>${U.esc(best.name)}</b> back up!`;
@@ -1043,15 +1053,23 @@ class LocalPlayer {
     let eye = 1.65 + bob - this.landK * 0.22;
     if (this.dead) { this.deadT += dt; eye = U.lerp(1.65, 0.45, U.clamp(this.deadT * 2, 0, 1)); }
     cam.position.set(this.pos.x, this.pos.y + eye, this.pos.z);
+    // down or knocked out, you're a ragdoll: you start off looking out of your helmet as you go flying, then the
+    // camera backs out so you can watch yourself lying there (the mouse turns it round you)
+    const rag = this.dead ? this.rag() : null;
+    if (rag) rag.at(RAG_EYE, cam.position);
     // while you emote the camera swings out round to the front of your goober, so you can see his face (the
     // mouse turns it round him), and back into your helmet when you're done
-    this.tpK = U.damp(this.tpK, this.emoteT > 0 && !this.ghost ? 1 : 0, 6, dt);
+    this.tpK = U.damp(this.tpK, (this.emoteT > 0 || rag) && !this.ghost ? 1 : 0, rag ? 2.5 : 6, dt);
     this.emoteOrbit = U.damp(this.emoteOrbit, this.emoteT > 0 ? PI - 0.5 : 0, 3.2, dt);
     let yaw = this.yaw;
     if (this.tpK > 0.001) {
       yaw += this.emoteOrbit * this.tpK;
-      const side = 0.55 * (1 - this.emoteOrbit / (PI - 0.5)), p = U.clamp(this.pitch, -1.35, 1.35);
-      const piv = new V3(this.pos.x + Math.cos(yaw) * side, this.pos.y + (this.dead ? 0.9 : 1.95), this.pos.z - Math.sin(yaw) * side);
+      const side = rag ? 0 : 0.55 * (1 - this.emoteOrbit / (PI - 0.5)), p = U.clamp(this.pitch, -1.35, 1.35);
+      const want = rag ? rag.c.clone().setY(rag.c.y + 0.6)
+        : new V3(this.pos.x + Math.cos(yaw) * side, this.pos.y + (this.dead ? 0.9 : 1.95), this.pos.z - Math.sin(yaw) * side);
+      // (what it's looking at eases along: getting back up, it rises with you instead of jumping)
+      if (!this.camPiv || this.tpK < 0.02) this.camPiv = want; else this.camPiv.lerp(want, 1 - Math.exp(-10 * dt));
+      const piv = this.camPiv.clone();
       const back = new V3(Math.sin(yaw) * Math.cos(p), -Math.sin(p), Math.cos(yaw) * Math.cos(p));
       const room = this.camRoom(piv, back, 3.4);
       this.tpD = U.damp(this.tpD, room, room < this.tpD ? 30 : 4, dt);
@@ -1073,7 +1091,9 @@ class LocalPlayer {
     this.swayX = U.damp(this.swayX, U.clamp(U.angDiff(this.lastYaw, this.yaw) * 1.6 * k, -0.08, 0.08), 10, dt);
     this.swayY = U.damp(this.swayY, U.clamp((this.pitch - this.lastPitch) * 1.6 * k, -0.08, 0.08), 10, dt);
     this.lastYaw = this.yaw; this.lastPitch = this.pitch;
-    const sw = this.swapT * this.swapT, run = this.sprintK;
+    // (picking a friend up takes both hands: what you're holding goes down out of the way)
+    this.reviveK = U.damp(this.reviveK || 0, this.reviveT > 0 ? 1 : 0, 10, dt);
+    const sw = Math.max(this.swapT * this.swapT, this.reviveK), run = this.sprintK;
     this.vm.visible = !this.dead && !this.ghost && this.tpK < 0.5;
     this.vm.position.set(
       Math.cos(this.walkT) * (0.012 + run * 0.02) + this.swayX * 0.5,
@@ -1123,12 +1143,17 @@ class LocalPlayer {
   }
   hideBody() { if (this.gb) this.gb.root.visible = false; }
   // every frame: your goober does whatever you're doing (see GooberAnim)
+  // (down or knocked out, your goober always is: he's a ragdoll, and the camera is watching him, see updateCamera)
   bodyTick(dt) {
-    if (this.tpK < 0.02 || this.ghost) { this.hideBody(); return; }
+    if (this.ghost || (this.tpK < 0.02 && !this.dead)) { this.hideBody(); this.dropRag(); return; }
+    const fresh = !this.gb || !this.gb.root.visible; // (he's been put away since he last moved)
     const m = this.body(), ti = TOOLS.indexOf(this.tool);
+    if (fresh) for (let i = 0; i < 3; i++) this.gbAnim.update(0.1, { ground: true, yaw: this.gbYaw, calm: true }); // (standing, to go limp from)
     this.gbYaw += U.angDiff(this.gbYaw, this.emoteT > 0 ? this.emoteYaw : this.yaw) * Math.min(1, dt * 14);
     m.root.visible = true;
-    m.pose.visible = this.tpD > 1 || this.dead; // (backed right up against a wall, you'd only see the inside of your helmet)
+    // (backed right up against a wall, or just knocked out and still looking out of your helmet, you'd only see
+    // the inside of it)
+    m.pose.visible = this.dead ? this.tpK > 0.25 : this.tpD > 1;
     m.root.position.copy(this.pos);
     m.root.rotation.y = this.gbYaw + PI;
     this.gbTools.forEach((t, i) => (t.visible = i === ti));
@@ -1137,11 +1162,19 @@ class LocalPlayer {
       tool: this.tool, gun: gunDef(SAVE.zap).type, use: this.using, jet: this.jetting, glide: this.gliding, stomp: this.stomping,
       launch: this.launchT > 0 && !this.onGround, slide: this.sliding, revive: this.reviveT > 0,
       down: this.down, dead: this.dead && !this.down, lift: this.helpT && G.time - this.helpT < 0.6 ? this.helpP : 0,
+      world: this.world(), grav: PLANETS[G.planet].grav, v0: this.vel.clone().add(this.ext), thud: true,
     });
+    // you're wherever your body ended up (so that's where you get back up, and where your crew sees you)
+    const rag = this.rag();
+    if (rag) { this.pos.x = rag.c.x; this.pos.z = rag.c.z; this.vel.x = rag.v.x; this.vel.z = rag.v.z; }
   }
+  // your goober's ragdoll, while you're lying there (null: you're not, or you're getting back up)
+  rag() { const r = this.gbAnim && this.gbAnim.rag; return r && !r.leaving ? r : null; }
+  // (you respawned somewhere else, or everything starts over: no getting up from where you were lying)
+  dropRag() { if (this.gbAnim) this.gbAnim.rag = null; }
   // G: goof off. Every press is the next emote, and the camera swings round so you can see it
   emote() {
-    if (this.dead || this.ghost || !this.onGround) return;
+    if (this.dead || this.ghost || !this.onGround || this.reviveT > 0) return;
     const names = Object.keys(GOOB_EMOTES);
     this.emoteI = this.emoteI == null ? 0 : (this.emoteI + 1) % names.length;
     const n = names[this.emoteI];
@@ -1224,7 +1257,7 @@ class RemotePlayer {
     this.rcvT = G.time;
     // teleports (landing, respawning, starting a boss fight, changing planets) snap straight there
     // instead of sliding across the map, so everyone sees each other where they really are
-    if (!prev || prev.m !== s.m || prev.p !== s.p || this.pos.distanceTo(this.tpos) > 3) this.snapNext = true;
+    if (!prev || prev.m !== s.m || prev.p !== s.p || this.pos.distanceTo(this.tpos) > 3) { this.snapNext = true; this.anim.rag = null; } // (not getting up from over there)
     if (s.c !== this.color || (s.lk || '') !== this.look) this.rebuild(s);
     if (s.h !== this.m.hatId) setHat(this.m, s.h);
     const zl = s.zp == null ? -1 : s.zp;
@@ -1276,6 +1309,10 @@ class RemotePlayer {
       tool: TOOLS[s.t], gun: gunDef(this.zl).type, use: !!s.u,
       jet: !!(mv & 1), glide: !!(mv & 2), stomp: !!(mv & 4), launch: !!(mv & 8), slide: !!(mv & 16), revive: !!(mv & 32),
       down: !!s.dn, dead: !!s.d && !s.dn, lift: this.lift,
+      // (lying there, a ragdoll: tumbling however it goes in your game, but always over where their game says
+      // their body is)
+      world: G.mode === 'boss' ? G.arena : G.world, grav: PLANETS[G.planet].grav, v0: this.tvel, pin: this.pos,
+      thud: this.pos.distanceTo(G.player.pos) < 30,
     });
     this.center.set(this.pos.x, this.pos.y + 1.0, this.pos.z);
     if (mv & 1 && !ghost && Math.random() < 0.6) FX.burst(this.pos.clone().setY(this.pos.y + 0.4), U.pick(['#ffb23e', '#ff6a1f', '#fff36b']), 1, 2); // (jet pack flames)

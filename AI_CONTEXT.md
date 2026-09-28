@@ -95,7 +95,8 @@ Known documented systems include:
 - **Boss deaths** (`BossFight.deathAnim`/`pop`, `BOSS_DIE`), fewer boss lines (`BOSS_TALK`, `BossFight.say`).
 - **Water** (`Liquid` in `js/world.js`): shader ripples + shore foam from a per-planet depth texture; ponds are at most `LAKE_D` deep and `blocked()` no longer walls off water; the player wades (`LocalPlayer.wade`) and gets washed back past `WADE.deep`.
 - Critter numbers/spawn rate per difficulty (`DIFFS.crits`/`spawn`), planets further apart (`SYSTEM_SPREAD`), Nimbus-9 outer islands spread (`NIMBUS_SPREAD`).
-- **Third person was removed** (V and the Camera setting); only the emote camera swing remains. Esc closes menus and resumes from pause; if the browser refuses the pointer lock, `Game.lockFailed` resumes without it until the next click.
+- **Goober ragdolls** (`GoobRagdoll` in `js/goober.js`): down or knocked out, `GooberAnim` goes limp: a rigid torso (a few spheres, impulse contacts against `world.ground`) plus verlet two-link arms/legs with joint limits, blended back out on getting up. Your own ragdoll drives `LocalPlayer.pos` (so the net position is the body) and the camera orbits it (`updateCamera`); a friend's is simulated locally but pinned to their net position. Friendly fire is 75% (`FF_DMG`); a revive takes `REVIVE_TIME` (5s) of holding use, during which you can't fire, reload or throw.
+- **Third person was removed** (V and the Camera setting); only the emote camera swing and the downed camera remain. Esc closes menus and resumes from pause; if the browser refuses the pointer lock, `Game.lockFailed` resumes without it until the next click.
 
 ### Gun model redesign integration (2026-09-27)
 

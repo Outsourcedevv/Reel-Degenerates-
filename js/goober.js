@@ -4,8 +4,9 @@
    He walks with floppy noodle arms and his head bobbling
    about in its bubble, sprints like his pants are on fire,
    flails all the way down a long fall, front-flips on a
-   double jump, gets knocked silly, and lies on his back like
-   a flipped bug when he's down. Stand still and he fidgets.
+   double jump, gets knocked silly, and goes limp as a
+   ragdoll when he's down (see GoobRagdoll). Stand still and
+   he fidgets.
    Worked out fresh every frame from what he's doing (see
    GooberAnim.update) plus one-off moves (play), so he looks
    the same to you (while you emote, the Customize screen) as
@@ -89,7 +90,9 @@ class GooberAnim {
   // st: what he's doing. vx, vy, vz: how fast he's going (world), yaw / pitch: where he's looking, ground,
   // tool ('zap', 'vac', 'drill', 'peel' or none), gun (its type), use (vacuuming, drilling, beaming), jet,
   // glide, stomp, launch (flung by a jump pad or a rocket), slide (on ice), revive (picking a friend up),
-  // down, dead, lift (a friend picking him up, 0-1), sit ('pilot' / 'pass'), calm (no fidgets)
+  // down, dead, lift (a friend picking him up, 0-1), sit ('pilot' / 'pass'), calm (no fidgets). Lying there
+  // he goes limp if he has somewhere to lie: world (a PlanetWorld or the Arena), grav, v0 (how fast he was going when it
+  // got him), pin (keep his body over there), thud (make a noise hitting the ground)
   update(dt, st) {
     dt = Math.min(dt, 0.1);
     this.t += dt;
@@ -99,6 +102,11 @@ class GooberAnim {
     const sy = Math.sin(st.yaw || 0), cy = Math.cos(st.yaw || 0), vx = st.vx || 0, vz = st.vz || 0, vy = st.vy || 0;
     const fwd = -vx * sy - vz * cy, left = -vx * cy + vz * sy, spd = Math.hypot(vx, vz);
     const lying = !!(st.dead || st.down);
+    // --- down or out cold: he goes limp (see GoobRagdoll), and eases back out of it once he's up again
+    if (lying && !this.rag && st.world) { this.rag = new GoobRagdoll(this.m, st.v0); this.acts.length = 0; this.emo = null; }
+    else if (this.rag && !lying) this.rag.leaving = true;
+    const limp = !!this.rag && !this.rag.leaving;
+    if (limp) this.acts.length = 0;
     // --- leaving the ground and landing (a long drop lands hard)
     if (!lying && !st.sit) {
       if (this.wasGround && !st.ground && vy > 2.5) { this.play('jump'); this.jumpSide = -this.jumpSide; }
@@ -114,6 +122,7 @@ class GooberAnim {
     if (!lying) { this.head.v -= U.clamp(af, -60, 60) * 0.04; this.headZ.v += U.clamp(al, -60, 60) * 0.03; }
     // --- the base pose
     if (st.sit) this.sitPose(T, X, st);
+    else if (limp) this.ragPose(T, st);
     else if (lying) this.liePose(T, X, st);
     else if (!st.ground) this.airPose(T, X, st, vy, dt);
     else this.groundPose(T, X, st, spd, fwd, left, dt);
@@ -147,6 +156,28 @@ class GooberAnim {
     const c = this.cur, r = 1 - Math.exp(-24 * dt);
     for (const k of GOOB_KEYS) c[k] += (T[k] - c[k]) * r;
     this.apply(c, X, st, dt);
+    // --- limp: the ragdoll moves him (and a hard landing rattles his head about), then lets go of him bit by bit
+    const rg = this.rag;
+    if (!rg) return;
+    if (limp) {
+      rg.update(dt, st);
+      if (rg.hit > 3) {
+        const k = Math.min(rg.hit, 12);
+        this.head.v -= k * 1.4; this.headZ.v += U.rand(-1, 1) * k; this.noseS.v += k * 3; this.earS.v += k * 2.5;
+        if (st.thud && G.time - (rg.thudT || 0) > 0.3) { rg.thudT = G.time; Sound.play(k > 7 ? 'thud' : 'boing'); }
+      }
+    } else if ((rg.k -= dt / RAG.out) <= 0) { this.rag = null; return; }
+    rg.put(goobEase(rg.k));
+  }
+
+  // limp: only his face, and his head lolling about in the helmet the way gravity pulls it (see GoobRagdoll)
+  ragPose(T, st) {
+    const g = this.rag.down(_rv), t = this.t;
+    T.nx = U.clamp(g.z * 0.9, -0.7, 0.7); T.nz = U.clamp(-g.x * 0.7, -0.5, 0.5);
+    if (st.down) { // groggy, eyes rolling round, groaning
+      T.squint = 0.5 + 0.25 * Math.sin(t * 1.7); T.yell = 0.3 * Math.max(0, Math.sin(t * 2.3));
+      T.px = 0.55 * Math.sin(t * 3); T.py = 0.55 * Math.cos(t * 3);
+    } else { T.xe = 1; T.yell = 0.35; } // (out cold: X eyes, tongue out)
   }
 
   groundPose(T, X, st, spd, fwd, left, dt) {
@@ -347,6 +378,203 @@ class GooberAnim {
     // the cape streams out while gliding
     m.cape.visible = !!st.glide;
     if (m.cape.visible) m.cape.rotation.x = 0.18 + 0.07 * Math.sin(this.t * 18);
+  }
+}
+
+/* ----- going limp: the ragdoll -----
+   Down (or knocked out cold), a goober goes limp and flops about. His body (his helmet, chest, belly and bum,
+   as a few balls in one piece) gets thrown by whatever got him, tips over, bounces and rolls to a stop. His
+   arms and legs are chains of two links hanging off it: they trail behind as he goes, fall wherever gravity
+   takes them and lie on the ground (knees and elbows only bend the way they should, and his legs don't go up
+   over his head). His head lolls about in his helmet. A friend picking him up jostles him about with every
+   pump. GooberAnim runs it while he's lying there, and eases him back out of it when he gets up. */
+// h: the time step · bounce: how much a hard landing bounces back · mu: how grippy the ground is · k2: how hard he
+// is to spin (for his weight) · out: how long getting back up takes, out of it
+const RAG = { h: 1 / 180, bounce: 0.3, mu: 0.7, k2: 0.1, out: 0.45 };
+// the balls his body is made of: [x, y, z, radius], from his belly (game meters)
+const RAG_HULL = [[0, 0.79, 0.03, 0.26], [0, 0.36, 0, 0.17], [0, 0, 0, 0.2], [0, -0.17, 0, 0.19]];
+// his eyes (in his helmet), from his belly
+const RAG_EYE = new V3(0, 0.8, 0.05);
+// arms and legs (the left side: the right one is the mirror image): the joints it turns at, where the elbow /
+// knee is and where the hand / ankle is (design meters, see buildAstronaut), how far the link from the body can
+// point forward (-) and back (+) and out to the side (radians, from pointing straight down), how far the lower
+// link bends, and how fat each end is
+const RAG_LIMBS = [
+  { j: 'arm', k: 'fore', e: 'hand', top: [0.14, 1.37, 0], mid: [0.23, 1.07, 0.01], end: [0.212, 0.77, 0.085], x: [-3.05, 1.3], out: [-0.3, 2.9], bend: [-2.6, 0.05], r: [0.06, 0.06] },
+  { j: 'leg', k: 'shin', e: 'foot', top: [0.075, 0.92, 0], mid: [0.092, 0.48, 0.022], end: [0.092, 0.12, 0], x: [-2.1, 0.55], out: [-0.2, 1.1], bend: [-0.05, 2.5], r: [0.08, 0.09] },
+];
+const _rq = new THREE.Quaternion(), _rq2 = new THREE.Quaternion(), _rq3 = new THREE.Quaternion(), _rqId = new THREE.Quaternion();
+const _rv = new V3(), _rv2 = new V3(), _rv3 = new V3(), _ra = new V3(), _rOne = new V3(1, 1, 1), _rX = new V3(1, 0, 0);
+const ragWrap = (a) => a - Math.PI * 2 * Math.floor((a + Math.PI) / (Math.PI * 2));
+// a direction from pointing straight down: [forward (-) / back (+), out to the side (+x)]
+const ragAng = (d) => [Math.atan2(-d.z, -d.y), Math.asin(U.clamp(d.x, -1, 1))];
+
+class GoobRagdoll {
+  // m: the goober, as he is right now. v: how fast he was going when it got him (world)
+  constructor(m, v) {
+    this.m = m;
+    m.root.updateMatrixWorld(true);
+    this.c = m.pose.getWorldPosition(new V3()); // (his belly: the middle of his body)
+    this.q = m.pose.getWorldQuaternion(new THREE.Quaternion());
+    this.v = v ? v.clone() : new V3();
+    // he tips over the way he was thrown (backwards if nothing threw him), with a bit of a twist
+    let h = Math.hypot(this.v.x, this.v.z), dx, dz;
+    if (h > 0.5) { dx = this.v.x / h; dz = this.v.z / h; } else {
+      _rv.set(0, 0, -1).applyQuaternion(this.q);
+      const l = Math.hypot(_rv.x, _rv.z) || 1;
+      dx = _rv.x / l; dz = _rv.z / l;
+      this.v.x += dx * 1.4; this.v.z += dz * 1.4; h = 1.4;
+    }
+    const spin = 2.4 + Math.min(h, 10) * 0.3;
+    this.w = new V3(dz * spin + U.rand(-0.5, 0.5), U.rand(-1.6, 1.6), -dx * spin + U.rand(-0.5, 0.5));
+    this.v.y = Math.max(this.v.y, 1.6); // (knocked off his feet)
+    this.acc = 0; this.still = 0; this.asleep = false; this.hit = 0; this.pumpT = 0; this.k = 1; this.leaving = false;
+    this.limbs = [];
+    for (const d of RAG_LIMBS) {
+      for (const s of [1, -1]) {
+        const P = (a) => new V3(a[0] * s * GOOB.s, a[1] * GOOB.s - GOOB.belly, a[2] * GOOB.s);
+        const side = s > 0 ? 'L' : 'R', top = P(d.top), r1 = P(d.mid).sub(top), r2 = P(d.end).sub(P(d.mid));
+        const end = d.e === 'hand' ? (s > 0 ? m.handL : m.hand) : m['foot' + side];
+        const L = {
+          d, s, j: m[d.j + side], k: m[d.k + side], top, L1: r1.length(), L2: r2.length(), r1: r1.normalize(), r2: r2.normalize(),
+          a2: Math.atan2(-r2.z, -r2.y), qj: new THREE.Quaternion(), qk: new THREE.Quaternion(),
+          p1: m[d.k + side].getWorldPosition(new V3()), p2: end.getWorldPosition(new V3()),
+        };
+        // (moving along with his body to start with)
+        L.o1 = L.p1.clone().addScaledVector(this.v, -RAG.h); L.o2 = L.p2.clone().addScaledVector(this.v, -RAG.h);
+        this.limbs.push(L);
+      }
+    }
+  }
+  // a point on his body (from his belly), in the world
+  at(p, out) { return out.copy(p).applyQuaternion(this.q).add(this.c); }
+  // which way is down, for his body
+  down(out) { return out.set(0, -1, 0).applyQuaternion(_rq.copy(this.q).invert()); }
+  wake() { this.asleep = false; this.still = 0; }
+
+  // st: world (what he's lying on), grav, lift (a friend picking him up), pin (keep his body over this spot:
+  // someone else's goober, whose own game says where they are)
+  update(dt, st) {
+    this.hit = 0;
+    if (st.lift > 0) { // a friend picking him up: he gets jostled about with every pump
+      this.pumpT -= dt;
+      if (this.pumpT <= 0) {
+        this.pumpT = 0.57; this.wake();
+        this.v.y += 1.2; this.w.x += U.rand(-0.8, 0.8); this.w.z += U.rand(-0.8, 0.8);
+        for (const L of this.limbs) { L.o1.y -= 0.01; L.o2.y -= 0.018; }
+      }
+    }
+    this.acc = Math.min(this.acc + Math.min(dt, 0.1), RAG.h * 12);
+    while (this.acc >= RAG.h) { this.acc -= RAG.h; this.step(RAG.h, st.world, st.grav || 20, st.pin); }
+  }
+  step(h, w, g, pin) {
+    const c = this.c, v = this.v, wv = this.w;
+    if (!this.asleep) {
+      v.y -= g * h;
+      // sideways, unless something's in the way: a wall, a rock, the edge of the island (or the deck)
+      const gy = w.ground(c.x, c.z, c.y), nx = c.x + v.x * h, nz = c.z + v.z * h;
+      if (w.blocked(nx, nz, gy) || w.ground(nx, nz, c.y) < gy - 1.2) { v.x *= -0.3; v.z *= -0.3; } else { c.x = nx; c.z = nz; }
+      if (w.collide) {
+        _rv.set(c.x, gy, c.z); w.collide(_rv, 0.3);
+        if (_rv.x !== c.x || _rv.z !== c.z) { c.x = _rv.x; c.z = _rv.z; v.x *= 0.5; v.z *= 0.5; }
+      }
+      c.y += v.y * h;
+      const a = wv.length();
+      if (a > 1e-5) { _rq.setFromAxisAngle(_rv.copy(wv).divideScalar(a), a * h); this.q.premultiply(_rq).normalize(); }
+      wv.multiplyScalar(Math.exp(-0.4 * h));
+      this.contacts(h, w);
+      const fl = w.ground(c.x, c.z, c.y); // (never through the floor)
+      if (!(c.y > fl - 2)) { c.y = fl + 0.4; v.set(0, 0, 0); wv.set(0, 0, 0); }
+    }
+    if (pin) { const k = 1 - Math.exp(-8 * h); c.x += (pin.x - c.x) * k; c.z += (pin.z - c.z) * k; }
+    this.limbStep(h, w, g);
+  }
+  // the balls of his body against the ground: they stop him going through it, bounce him (a bit, off a hard
+  // landing), and grip it, so he tips and rolls over instead of just sliding
+  contacts(h, w) {
+    const c = this.c, v = this.v, wv = this.w;
+    let deep = 0, touch = false;
+    for (const b of RAG_HULL) {
+      const s = this.at(_rv.set(b[0], b[1], b[2]), _rv);
+      const pen = w.ground(s.x, s.z, s.y + 0.3) + b[3] - s.y;
+      if (pen < -0.02) continue;
+      touch = true;
+      if (pen <= 0) continue;
+      deep = Math.max(deep, pen);
+      const r = _rv2.set(s.x - c.x, s.y - b[3] - c.y, s.z - c.z); // (from his middle to where it touches)
+      const vc = _rv3.crossVectors(wv, r).add(v); // (how fast that spot is going)
+      if (vc.y >= 0) continue;
+      const e = -vc.y > 3 ? RAG.bounce : 0;
+      if (-vc.y > this.hit) this.hit = -vc.y;
+      const jn = (-(1 + e) * vc.y) / (1 + (r.x * r.x + r.z * r.z) / RAG.k2);
+      let jx = 0, jz = 0;
+      const tl = Math.hypot(vc.x, vc.z);
+      if (tl > 1e-4) {
+        const ux = vc.x / tl, uz = vc.z / tl, cx = r.y * uz, cy = r.z * ux - r.x * uz, cz = -r.y * ux;
+        const jt = Math.min(tl / (1 + (cx * cx + cy * cy + cz * cz) / RAG.k2), RAG.mu * jn);
+        jx = -ux * jt; jz = -uz * jt;
+      }
+      v.x += jx; v.y += jn; v.z += jz;
+      wv.addScaledVector(_rv3.set(jx, jn, jz).cross(r).negate(), 1 / RAG.k2); // (r x J)
+    }
+    if (deep > 0) c.y += deep;
+    if (touch) { const k = Math.exp(-2.5 * h); wv.multiplyScalar(k); v.x *= Math.exp(-1.2 * h); v.z *= Math.exp(-1.2 * h); }
+    // lying still for a moment: he stays put (until something moves him)
+    if (touch && v.lengthSq() < 0.04 && wv.lengthSq() < 0.09) { this.still += h; if (this.still > 0.7) { this.asleep = true; v.set(0, 0, 0); wv.set(0, 0, 0); } }
+    else this.still = 0;
+  }
+  // arms and legs: each end carries on the way it was going and falls, then the links are put back to their
+  // lengths (off his body, which doesn't give), out of the ground, and turned only as far as the joints go
+  limbStep(h, w, g) {
+    const qi = _rq3.copy(this.q).invert();
+    for (const L of this.limbs) {
+      const a = this.at(L.top, _ra), d = L.d;
+      for (const [p, o] of [[L.p1, L.o1], [L.p2, L.o2]]) {
+        const x = p.x, y = p.y, z = p.z;
+        p.x += (p.x - o.x) * 0.992; p.y += (p.y - o.y) * 0.992 - g * h * h; p.z += (p.z - o.z) * 0.992;
+        o.set(x, y, z);
+      }
+      for (let it = 0; it < 2; it++) {
+        this.keep(a, L.p1, L.L1, 0, 1);
+        this.keep(L.p1, L.p2, L.L2, 0.3, 0.7);
+        this.floor(w, L.p1, L.o1, d.r[0]);
+        this.floor(w, L.p2, L.o2, d.r[1]);
+      }
+      // the joint at his body: which way the link points (from his body's point of view), only as far as it goes
+      const u = _rv.copy(L.p1).sub(a).applyQuaternion(qi).normalize();
+      const [ax0, az0] = ragAng(u), ax = U.clamp(ragWrap(ax0), d.x[0], d.x[1]), az = U.clamp(az0 * L.s, d.out[0], d.out[1]) * L.s;
+      if (ax !== ax0 || az !== az0) u.set(Math.sin(az), -Math.cos(az) * Math.cos(ax), -Math.cos(az) * Math.sin(ax));
+      L.qj.setFromUnitVectors(L.r1, u);
+      const qw = _rq2.copy(this.q).multiply(L.qj);
+      L.p1.copy(u).applyQuaternion(this.q).multiplyScalar(L.L1).add(a);
+      // the elbow / knee: a hinge
+      const u2 = _rv.copy(L.p2).sub(L.p1).applyQuaternion(_rq.copy(qw).invert());
+      const bend = U.clamp(ragWrap(Math.atan2(-u2.z, -u2.y) - L.a2), d.bend[0], d.bend[1]);
+      L.qk.setFromAxisAngle(_rX, bend);
+      L.p2.copy(L.r2).applyQuaternion(L.qk).applyQuaternion(qw).multiplyScalar(L.L2).add(L.p1);
+    }
+  }
+  // a link back to its length: p moves by kp of the difference, q by kq
+  keep(p, q, len, kp, kq) {
+    const dx = q.x - p.x, dy = q.y - p.y, dz = q.z - p.z, l = Math.hypot(dx, dy, dz) || 1e-6, f = (l - len) / l;
+    p.x += dx * f * kp; p.y += dy * f * kp; p.z += dz * f * kp;
+    q.x -= dx * f * kq; q.y -= dy * f * kq; q.z -= dz * f * kq;
+  }
+  // an end out of the ground: it stops falling and drags along it
+  floor(w, p, o, r) {
+    const gy = w.ground(p.x, p.z, p.y + 0.3) + r;
+    if (p.y >= gy) return;
+    p.y = gy; o.y = gy;
+    o.x += (p.x - o.x) * 0.25; o.z += (p.z - o.z) * 0.25;
+  }
+  // put him how he's lying (k: how much, 1: all the way, less while he gets up), over what GooberAnim posed
+  put(k) {
+    const m = this.m, rq = _rq.copy(m.root.quaternion).invert();
+    m.pose.position.lerp(_rv.copy(this.c).sub(m.root.position).applyQuaternion(rq), k);
+    m.pose.quaternion.slerp(_rq2.copy(rq).multiply(this.q), k);
+    m.pose.scale.lerp(_rOne, k);
+    m.spine.quaternion.slerp(_rqId, k); m.hips.quaternion.slerp(_rqId, k);
+    for (const L of this.limbs) { L.j.quaternion.slerp(L.qj, k); L.k.quaternion.slerp(L.qk, k); }
   }
 }
 
