@@ -46,19 +46,23 @@ const Input = {
   endFrame() { this.pressed = {}; this.dx = this.dy = 0; this.wheel = 0; },
 };
 
+const CARRY_BIG = 1.8; // (a critter this much bigger than normal in your arms (Huge and up) goes over your head)
 const WAKE_TIME = 2.6; // (seconds to get up after blacking out, see LocalPlayer.wake)
 const TOOLS = ['zap', 'vac', 'drill', 'peel', 'crit']; // (the kinds of thing you can hold: every gun is a 'zap', every critter a 'crit'. See Loadout)
 // a goober carrying a critter (yours seen from outside, or a friend's): he hugs it to his belly, belly up, his
-// arms under it (see GooberAnim.toolPose). who keeps {critKey, critObj}; m: his model; key: the critter's
-// backpack key, or null (nothing); show: false while his arms are busy (dancing, flopping about as a ragdoll)
+// arms under it, or a big one (CARRY_BIG) he holds up over his head (see GooberAnim.toolPose). who keeps
+// {critKey, critObj, critK}; m: his model; key: the critter's backpack key, or null (nothing); show: false while
+// his arms are busy (dancing, flopping about as a ragdoll)
 function carryCritter(who, m, key, show = true) {
   if (who.critObj) who.critObj.visible = show;
   if (who.critKey === key) { if (who.critObj && who.critObj.parent !== m.spine) m.spine.add(who.critObj); return; } // (a new goober: same critter)
   if (who.critObj) { if (who.critObj.parent) who.critObj.parent.remove(who.critObj); disposeObj(who.critObj); who.critObj = null; }
-  who.critKey = key;
+  who.critKey = key; who.critK = 0; who.critTop = 0;
   if (!key) return;
-  const { g, size } = buildCarriedCritter(key, 0.2); // (in the goober's own units, see GOOB.s)
-  g.position.set(0, 0.06 + size.y / 2, 0.17 + size.z / 2); // (on his forearms, just in front of his belly)
+  const { g, size, k } = buildCarriedCritter(key, 0.2); // (in the goober's own units, see GOOB.s)
+  who.critK = k;
+  if (k >= CARRY_BIG) { g.position.set(0, 0.84 + size.y / 2, 0.1); who.critTop = (GOOB.waist + 0.84 + size.y) * GOOB.s; } // (up on his hands, over his head)
+  else g.position.set(0, 0.06 + size.y / 2, 0.17 + size.z / 2); // (on his forearms, just in front of his belly)
   m.spine.add(g);
   g.visible = show;
   who.critObj = g;
@@ -251,10 +255,11 @@ class LocalPlayer {
     if (this.vmCrit) { this.vm.remove(this.vmCrit); disposeObj(this.vmCrit); this.vmCrit = null; }
     this.critEntry = entry;
     if (!entry) return;
-    const { g, size } = buildCarriedCritter(entry, 0.15); // (sitting right in the middle of your palm)
-    g.add(buildSupportHand(this.cuffMat, size.y / 2, U.clamp(size.x / 2, 0.04, 0.13), this.sleeveMat)); // (your hand under it)
+    const { g, size, k } = buildCarriedCritter(entry, 0.15); // (sitting right in the middle of your palm)
+    g.add(buildSupportHand(this.cuffMat, size.y / 2, U.clamp(size.x / 2, 0.04, 0.3), this.sleeveMat)); // (your hand under it)
     g.scale.setScalar(0.62); // (like everything else you hold, see layoutVM)
-    g.userData.base = new V3(0.1, -0.13, -0.5);
+    // (a big one is held lower and further out, more in the middle: it's big, but you can still see past it)
+    g.userData.base = new V3(0.1 - 0.035 * (k - 1), -0.13 - 0.06 * (k - 1), -0.5 - 0.1 * (k - 1));
     g.position.copy(g.userData.base);
     g.traverse((o) => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } });
     this.vm.add(g);
@@ -1221,7 +1226,7 @@ class LocalPlayer {
     carryCritter(this.gbCarry || (this.gbCarry = {}), m, this.tool === 'crit' ? this.critEntry : null, !this.gbAnim.emo && !this.down && !this.dead);
     this.gbAnim.update(dt, {
       vx: this.vel.x + this.ext.x, vy: this.onGround ? 0 : this.vel.y, vz: this.vel.z + this.ext.z, yaw: this.gbYaw, pitch: this.pitch, ground: this.onGround,
-      tool: this.tool, gun: gunDef(SAVE.zap).type, use: this.using, jet: this.jetting, glide: this.gliding, stomp: this.stomping,
+      tool: this.tool, gun: gunDef(SAVE.zap).type, carry: (this.gbCarry && this.gbCarry.critK) || 0, use: this.using, jet: this.jetting, glide: this.gliding, stomp: this.stomping,
       launch: this.launchT > 0 && !this.onGround, slide: this.sliding, revive: this.reviveT > 0, reviveK: this.reviveT / REVIVE_TIME,
       down: this.down, dead: this.dead && !this.down, lift: this.isHelped() ? this.helpP : 0, from: this.isHelped() ? this.helpFrom : null,
       world: this.world(), grav: PLANETS[G.planet].grav, v0: this.vel.clone().add(this.ext), thud: true,
@@ -1363,6 +1368,7 @@ class RemotePlayer {
     r.root.rotation.y = this.yaw + Math.PI;
     this.tools.forEach((t, i) => (t.visible = i === s.t));
     carryCritter(this, r, TOOLS[s.t] === 'crit' && typeof s.cr === 'string' && RES[s.cr] ? s.cr : null, !this.anim.emo && !s.dn && !s.d);
+    this.tag.position.y = this.critObj && this.critObj.visible && this.critTop ? Math.max(2.75, this.critTop + 0.35) : 2.75; // (their name over what they're holding up)
     r.pose.visible = !ghost;
     this.ghostTag.visible = ghost;
     if (!this.downTag) { this.downTag = textSprite('REVIVE ME', { size: 44, color: '#ffffff', bg: 'rgba(200,30,30,.8)', scale: 0.0075, depthTest: false, order: 20 }); this.downTag.position.y = 1.6; r.root.add(this.downTag); }
@@ -1372,7 +1378,7 @@ class RemotePlayer {
     this.vel.x = U.damp(this.vel.x, this.tvel.x, 10, dt); this.vel.z = U.damp(this.vel.z, this.tvel.z, 10, dt);
     this.anim.update(dt, {
       vx: this.vel.x, vy: s.og ? 0 : s.vy || 0, vz: this.vel.z, yaw: this.yaw, pitch: s.pt || 0, ground: !!s.og,
-      tool: TOOLS[s.t], gun: gunDef(this.zl).type, use: !!s.u,
+      tool: TOOLS[s.t], gun: gunDef(this.zl).type, use: !!s.u, carry: this.critK || 0,
       jet: !!(mv & 1), glide: !!(mv & 2), stomp: !!(mv & 4), launch: !!(mv & 8), slide: !!(mv & 16), revive: !!(mv & 32), reviveK: s.rv || 0,
       down: !!s.dn, dead: !!s.d && !s.dn, lift: Math.max(this.lift, s.lf || 0, s.d && G.time < (this.liftHold || 0) ? 1 : 0),
       from: this.lift > 0 || (s.d && G.time < (this.liftHold || 0)) ? G.player.pos : null, // (you've got them)

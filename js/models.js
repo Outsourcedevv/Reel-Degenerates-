@@ -1296,15 +1296,17 @@ function buildCritter(kind, gold) {
   return m;
 }
 // a critter someone's carrying about (from their hotbar, see Loadout): belly up with its legs in the air, about r
-// across (a bit more for the big ones), sitting in the middle of its group. Returns {g, size} (size: its box)
+// across for a normal one, sitting in the middle of its group. Returns {g, size, k} (size: its box; k: how much
+// bigger it is than a normal one. The big ones really are bigger: a TITANIC one about 3.5x, see CARRY_K)
+const CARRY_K = 0.55; // (sizes grow by s^this in your arms: all the way to 10x wouldn't fit on the screen)
 function buildCarriedCritter(entry, r) {
-  const { id, sz, gold } = critOf(entry), m = buildCritter(id, gold), g = new THREE.Group();
-  m.root.scale.setScalar(r * (0.85 + 0.15 * Math.sqrt(SIZES[sz].s)) / (m.hit || 0.45));
+  const { id, sz, gold } = critOf(entry), m = buildCritter(id, gold), g = new THREE.Group(), k = Math.pow(SIZES[sz].s, CARRY_K);
+  m.root.scale.setScalar(r * k / (m.hit || 0.45));
   m.root.rotation.set(0.35, 2.3, PI - 0.25);
   const box = new THREE.Box3().setFromObject(m.root), size = box.getSize(new V3());
   m.root.position.sub(box.getCenter(new V3()));
   g.add(m.root);
-  return { g, size };
+  return { g, size, k };
 }
 // a mini boss: a huge version of one of the planet's critters, with a crown, a glow on the ground under it
 // and its name over its head (so you know it's not just a GIANT one)

@@ -51,7 +51,8 @@
   rarer now (about 1 in 12, and a TITANIC one is 1 in 1,700). And they really are that big: a critter's size,
   health and bite all match what it's worth, so a 10x one is 10x as big, 10x as tough and bites 10x as hard.
 - **Carry critters in your hotbar.** Backpack full? A critter you pick up goes in a free hotbar slot and you hold it
-  up in your hand (your crew sees you carrying it in front of you, belly up). You can move them between your backpack and hotbar yourself too (press `I`), shops buy them from
+  up in your hand (your crew sees you carrying it in front of you, belly up, or a Huge-or-bigger one over your
+  head). The bigger it is, the bigger it looks in your hands, and the hint says what you're carrying. You can move them between your backpack and hotbar yourself too (press `I`), shops buy them from
   either, and they drop into your grave with your backpack if you die.
 - **The ship coasts.** When the pilot moves to the back seat mid-flight, the ship keeps going instead of stopping
   dead in the air, until someone takes the controls again.

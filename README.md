@@ -263,7 +263,8 @@ E-Scooters charge from way off. Shoot a mean one and it comes for you, and its f
 on its own timer, so a pack is dangerous. Zap them and sell them at the shop: a zapped critter goes flying, bounces
 and lands in a heap (legs in the air, seeing stars), and you walk over and press `E` to bag it (or vacuum it up).
 Only the one who zapped it can pick it up. If your backpack is full you carry it in a free hotbar slot instead (you
-hold it up in your hand, and your crew sees you hugging it to your belly), and if your hotbar is full too it just waits there for you, even if you fly off and come
+hold it up in your hand, and your crew sees you hugging it to your belly, or holding a Huge-or-bigger one up over
+your head; the bigger it is, the bigger it looks in your arms), and if your hotbar is full too it just waits there for you, even if you fly off and come
 back later. You can also move a critter between your backpack and your hotbar yourself (press `I`: **To hotbar** /
 **To backpack**). Shops buy the ones in your hotbar too, and if you die they drop into your grave with your
 backpack. Each kill pops up what you got: **Killed Trash Rat $78**, and under it what made it worth that (`3x Large`,
