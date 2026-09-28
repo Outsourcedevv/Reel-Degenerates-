@@ -594,7 +594,7 @@ const PERKS = {
   goo:    { mb: 'gloop', name: 'Goo Gland',          icon: 'boots',  chip: 'JUMP +35%',          desc: 'Jump 35% higher (double jumps too).' },
   dice:   { mb: 'luck',  name: 'Loaded Dice',        icon: 'cash',   chip: 'SELL +25%',          desc: 'Shops pay you 25% more for everything you sell.' },
   mitts:  { mb: 'frost', name: 'Yeti Mitts',         icon: 'gun',    chip: 'RELOAD 35% FASTER',  desc: 'Reload every gun 35% faster.' },
-  bone:   { mb: 'spook', name: 'Funny Bone',         icon: 'heart',  chip: 'HEALING x2',         desc: 'Your health comes back twice as fast.' },
+  bone:   { mb: 'spook', name: 'Funny Bone',         icon: 'heart',  chip: 'HEALING +30%',       desc: 'Your health comes back 30% faster.' },
   storm:  { mb: 'cloud', name: 'Storm Core',         icon: 'star',   chip: 'DAMAGE +20%',        desc: 'Every gun (and grenade) hits 20% harder.' },
   wheels: { mb: 'city',  name: 'Scooter Wheels',     icon: 'boots',  chip: 'SPEED +20%',         desc: 'Walk and run 20% faster.' },
   collar: { mb: 'zorb',  name: 'Cerberoni\'s Collar', icon: 'shield', chip: 'DAMAGE TAKEN -25%',  desc: 'Take 25% less damage from everything.' },

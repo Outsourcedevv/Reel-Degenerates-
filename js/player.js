@@ -456,7 +456,7 @@ class LocalPlayer {
     if (wheel) { wheel.visible = this.ammo > 0; wheel.rotation.x += dt * 3; }
     if ((G.mode === 'boss' || G.mode === 'planet') && !this.dead && !this.ghost) {
       this.regenT -= dt;
-      if (this.regenT <= 0 && this.hp < 100) this.hp = Math.min(100, this.hp + (G.mode === 'boss' ? 6 : 12) * (hasPerk('bone') ? 2 : 1) * dt); // (Funny Bone: twice as fast)
+      if (this.regenT <= 0 && this.hp < 100) this.hp = Math.min(100, this.hp + (G.mode === 'boss' ? 6 : 12) * (hasPerk('bone') ? 1.3 : 1) * dt); // (Funny Bone: 30% faster)
     }
     UI.planetHp(this.hp);
     // --- picking a friend up: it takes both hands, so no shooting, reloading or throwing while you do

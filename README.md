@@ -316,7 +316,7 @@ Grenades. The first time you beat it: its **special item**, yours for keeps (see
 | Sir Squelchalot | Goo Gland | jump 35% higher (double jumps too) |
 | The Pit Boss | Loaded Dice | shops pay you 25% more for everything you sell |
 | Mama Yeti | Yeti Mitts | reload every gun 35% faster |
-| Bonejangles | Funny Bone | your health comes back twice as fast |
+| Bonejangles | Funny Bone | your health comes back 30% faster |
 | Thunderhead | Storm Core | every gun (and grenade) hits 20% harder |
 | Scooterzilla | Scooter Wheels | walk and run 20% faster |
 | Cerberoni | Cerberoni's Collar | take 25% less damage from everything |
