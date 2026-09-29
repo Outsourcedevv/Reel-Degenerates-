@@ -302,7 +302,7 @@ function signMesh(lines, w, h, o = {}) {
       c.fillText(ln, px / 2, (py / n) * (i + 0.5) + f * 0.04);
     });
   });
-  const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: !!o.transparent, side: o.double ? THREE.DoubleSide : THREE.FrontSide });
+  const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: !!o.transparent, alphaTest: .05, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1, side: o.double ? THREE.DoubleSide : THREE.FrontSide });
   return new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
 }
 
@@ -335,7 +335,9 @@ function mergeStatic(root) {
   const buckets = new Map();
   root.traverse((o) => {
     if (!o.isMesh || !o.material || !o.material.userData.shared || o.geometry.index) return;
-    if (o.material.transparent) return;
+    // These batches contain positions/normals only; keep UVs and colors on
+    // textured or vertex-painted surfaces instead of silently losing them.
+    if (o.material.transparent || o.material.map || o.material.vertexColors) return;
     let p = o, skip = false;
     while (p && p !== root) { if (p.userData.dynamic) { skip = true; break; } p = p.parent; }
     if (skip) return;
@@ -383,7 +385,7 @@ function mergeLocal(root, keep = []) {
   const walk = (o) => {
     for (const c of o.children) {
       if (keep.includes(c)) continue;
-      if (c.isMesh && !c.userData.keep && !c.children.length && c.material && c.material.userData.shared && !c.material.transparent && !c.geometry.index) {
+      if (c.isMesh && !c.userData.keep && !c.children.length && c.material && c.material.userData.shared && !c.material.transparent && !c.material.map && !c.material.vertexColors && !c.geometry.index) {
         if (!buckets.has(c.material)) buckets.set(c.material, []);
         buckets.get(c.material).push(c);
       }

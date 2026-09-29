@@ -124,5 +124,36 @@ function runGameplayRegressions() {
     fake.updProcessions(20, { pos: new V3(0, DECK_Y, -3) });
     check(fake.processions.length === 0 && !h.g, theme + ': formation cleans up');
   }
+  const colliderWorld = Object.create(PlanetWorld.prototype);
+  colliderWorld.circles=[]; colliderWorld.boxes=[];
+  const rng=U.seeded(718);
+  for(let i=0;i<12;i++) {
+    const model=i%2?buildLavaRock(rng):buildRock(rng,'#87918a');
+    model.position.set(14,3,-8);model.rotation.y=rng()*Math.PI*2;
+    colliderWorld.circles=[];colliderWorld.sceneryCollider(model);
+    const c=colliderWorld.circles[0], point=new V3(c.x,3,c.z);
+    check(c.hull.length>=3 && c.top>c.bot,'Stone '+i+': transformed footprint has finite height');
+    colliderWorld.collide(point,.35);
+    check(Number.isFinite(point.x) && !colliderWorld.sceneryPush(c,point.x,point.z,.35),'Stone '+i+': resolves center overlap outside visible footprint');
+    const above=new V3(c.x,c.top+.1,c.z), original=above.clone();
+    colliderWorld.collide(above,.35);
+    check(above.distanceTo(original)===0,'Stone '+i+': no invisible collision above rock');
+    disposeObj(model);
+  }
+  const narrow=new THREE.Mesh(new THREE.BoxGeometry(2,2,6),M('#999999'));
+  colliderWorld.circles=[];colliderWorld.sceneryCollider(narrow);
+  const gap=new V3(1.4,0,0);colliderWorld.collide(gap,.3);
+  check(gap.x===1.4,'Narrow scenery leaves empty space beside its actual outline');
+  disposeObj(narrow);
+  for(const merge of [mergeStatic,mergeLocal]) {
+    const root=new THREE.Group(), tex=canvasTex(8,8,c=>c.fillRect(0,0,8,8));
+    const mat=new THREE.MeshBasicMaterial({map:tex});mat.userData.shared=true;
+    for(let i=0;i<2;i++) root.add(new THREE.Mesh(new THREE.PlaneGeometry(1,1).toNonIndexed(),mat));
+    merge(root);
+    check(root.children.length===2 && root.children.every(m=>m.geometry.attributes.uv),'Textured surfaces retain UVs after '+merge.name);
+    mat.userData.shared=false;disposeObj(root);
+  }
+  const sign=signMesh('Texture QA',2,1);
+  check(sign.material.alphaTest>0 && sign.material.polygonOffset,'Signs preserve cutout corners and avoid surface flicker');disposeObj(sign);
   return results;
 }

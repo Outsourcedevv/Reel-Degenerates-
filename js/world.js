@@ -565,6 +565,45 @@ class PlanetWorld {
     }
   }
   circle(x, z, r) { this.circles.push({ x, z, r }); }
+  // Capture a compact convex footprint before static batching discards the
+  // model hierarchy. Actual transformed vertices include rotation and scale.
+  sceneryCollider(model) {
+    model.updateWorldMatrix(true, true);
+    const points = [], v = new V3(); let bot = Infinity, top = -Infinity;
+    model.traverse(o => {
+      if (!o.isMesh) return;
+      const p = o.geometry.attributes.position;
+      for (let i = 0; i < p.count; i++) {
+        v.fromBufferAttribute(p, i).applyMatrix4(o.matrixWorld);
+        points.push({ x: v.x, z: v.z }); bot = Math.min(bot, v.y); top = Math.max(top, v.y);
+      }
+    });
+    points.sort((a,b) => a.x-b.x || a.z-b.z);
+    const unique = points.filter((p,i) => !i || p.x !== points[i-1].x || p.z !== points[i-1].z);
+    if (unique.length < 3) return;
+    const cross = (a,b,c) => (b.x-a.x)*(c.z-a.z)-(b.z-a.z)*(c.x-a.x);
+    const half = list => { const h=[]; for (const p of list) { while(h.length>1 && cross(h[h.length-2],h[h.length-1],p)<=0) h.pop(); h.push(p); } h.pop(); return h; };
+    const hull = half(unique).concat(half(unique.slice().reverse()));
+    const x = (unique[0].x+unique[unique.length-1].x)/2;
+    const z = (Math.min(...hull.map(p=>p.z))+Math.max(...hull.map(p=>p.z)))/2;
+    const r = Math.max(...hull.map(p=>Math.hypot(p.x-x,p.z-z)));
+    this.circles.push({x,z,r,bot,top,hull});
+  }
+  sceneryPush(c, x, z, rad) {
+    if (Math.abs(x-c.x)>c.r+rad || Math.abs(z-c.z)>c.r+rad) return null;
+    let inside=true, best=Infinity, qx=0, qz=0, nx=0, nz=0;
+    for(let i=0;i<c.hull.length;i++) {
+      const a=c.hull[i], b=c.hull[(i+1)%c.hull.length], dx=b.x-a.x, dz=b.z-a.z, len2=dx*dx+dz*dz;
+      if(dx*(z-a.z)-dz*(x-a.x)<-1e-8) inside=false;
+      const t=U.clamp(((x-a.x)*dx+(z-a.z)*dz)/len2,0,1), px=a.x+t*dx, pz=a.z+t*dz;
+      const d2=(x-px)**2+(z-pz)**2;
+      if(d2<best) {best=d2;qx=px;qz=pz;const len=Math.sqrt(len2);nx=dz/len;nz=-dx/len;}
+    }
+    if(!inside && best>=rad*rad) return null;
+    const d=Math.sqrt(best);
+    if(d>1e-8) {nx=(inside?qx-x:x-qx)/d;nz=(inside?qz-z:z-qz)/d;}
+    return {x:qx+nx*(rad+.0001),z:qz+nz*(rad+.0001)};
+  }
   // a giant mushroom's physics (see buildMushroom: a stem h tall, then a domed cap of radius r). You stand on
   // the dome itself, the stem only stops you below the cap (so you can walk right to the middle of the cap,
   // where the berry is), you can't walk into the cap's rim head first (see blocked), and jumping up under a
@@ -679,7 +718,7 @@ class PlanetWorld {
   rock(x, z, color) {
     const r = buildRock(this.rng, color);
     this.place(r, x, z, this.rng() * 6, null, r.userData.r * 0.6);
-    this.circle(x, z, r.userData.r);
+    this.sceneryCollider(r);
   }
   jokeSign(x, z, model) {
     const s = SIGNS[this.cfg.id];
@@ -743,7 +782,7 @@ class PlanetWorld {
     // decor around the rest of the island
     this.jokeSign(-12, 10, (() => { const g = new THREE.Group(); mk(BOX(0.2, 2.2, 0.2), '#555', g, 0, 1.1, 0); const s = signMesh(['POSTER'], 1.6, 1.0, { bg: '#ff3df0', color: '#fff' }); s.position.set(0, 2.2, 0.12); g.add(s); return g; })());
     this.scatter(26, 14, 84, 1.5, (x, z) => { this.place(buildNeonPalm(rng), x, z, 0, null, 0.3); this.circle(x, z, 0.4); });
-    this.scatter(11, 18, 80, 2.5, (x, z) => { const s = 1.5 + rng() * 2; this.place(buildDice(s), x, z, rng() * 6, null, s * 0.5); this.circle(x, z, s * 0.7); });
+    this.scatter(11, 18, 80, 2.5, (x, z) => { const s = 1.5 + rng() * 2; const m=this.place(buildDice(s), x, z, rng() * 6, null, s * 0.5); this.sceneryCollider(m); });
     this.scatter(18, 10, 84, 1.2, (x, z) => { this.place(buildChipStack(rng), x, z, 0, null, 0.7); this.circle(x, z, 0.8); });
     // chips people dropped, lying all over the place (inside the casino too): vacuum them up
     this.scatter(14, 12, 82, 1, (x, z) => this.addNode('chips', x, this.gh(x, z) - 0.02, z));
@@ -1079,7 +1118,7 @@ class PlanetWorld {
       this.box(x, z, 2.2, 2.2);
     }
     this.scatter(38, 16, 88, 2, (x, z) => { this.place(buildSpire(rng), x, z, 0, null, 1); this.circle(x, z, 1.3); });
-    this.scatter(50, 10, 88, 1.8, (x, z) => { const r = buildLavaRock(rng); this.place(r, x, z, rng() * 6, null, r.userData.r * 0.6); this.circle(x, z, r.userData.r); });
+    this.scatter(50, 10, 88, 1.8, (x, z) => { const r = buildLavaRock(rng); this.place(r, x, z, rng() * 6, null, r.userData.r * 0.6); this.sceneryCollider(r); });
     // what the meteors leave behind: vacuum it up
     this.scatter(16, 12, 84, 1.2, (x, z) => this.addNode('crust', x, this.gh(x, z) - 0.02, z));
     const hr = signMesh(['LATE DELIVERY CO.', 'HR POP-UP KIOSK'], 3.2, 1.2, { bg: '#dfe6ee', colors: ['#d6281b', '#2b1d14'], border: '#2b1d14' });
@@ -1101,7 +1140,7 @@ class PlanetWorld {
     // a spooky lit path down to the altar, and lanterns by the shop
     for (const z of [-15, -24, -32]) for (const x of [-3.6, 3.6]) { this.place(buildGasLamp(), x, z, 0, null, 0.2); this.circle(x, z, 0.25); }
     for (const z of [-8.8, -3.2]) { this.place(buildJackOLantern(1.2), 12.8, z, -PI / 2, null, 0.3); this.circle(12.8, z, 0.45); }
-    this.scatter(20, 12, 86, 1, (x, z) => { this.place(buildTombstone(rng), x, z, rng() * 6, null, 0.4); this.circle(x, z, 0.45); });
+    this.scatter(20, 12, 86, 1, (x, z) => { const m=this.place(buildTombstone(rng), x, z, rng() * 6, null, 0.4); this.sceneryCollider(m); });
     this.scatter(30, 14, 86, 1.4, (x, z) => { this.place(buildDeadTree(rng), x, z, rng() * 6, null, 0.25); this.circle(x, z, 0.35); });
     this.scatter(26, 10, 84, 0.9, (x, z) => { const s = 0.8 + rng() * 0.9; this.place(buildJackOLantern(s), x, z, rng() * 6, null, 0.3 * s); this.circle(x, z, 0.4 * s); });
     this.scatter(48, 8, 88, 0.8, (x, z) => this.place(buildGlowPlant(rng, U.pick(['#7dff8a', '#b9a4ff', '#ff8a1f'])), x, z, 0, null, 0.4));
@@ -1408,6 +1447,7 @@ class PlanetWorld {
     for (const c of this.circles) {
       if (Math.abs(pos.x - c.x) > c.r + rad || Math.abs(pos.z - c.z) > c.r + rad) continue;
       if (c.top != null && (pos.y > c.top || pos.y + 1.8 < c.bot)) continue; // (a floating island: only its sides)
+      if (c.hull) { const push=this.sceneryPush(c,pos.x,pos.z,rad); if(push) {pos.x=push.x;pos.z=push.z;} continue; }
       const dx = pos.x - c.x, dz = pos.z - c.z, d2 = dx * dx + dz * dz, rr = c.r + rad;
       if (d2 < rr * rr && d2 > 1e-6) { const d = Math.sqrt(d2); pos.x = c.x + (dx / d) * rr; pos.z = c.z + (dz / d) * rr; }
     }
@@ -1429,7 +1469,7 @@ class PlanetWorld {
     if (Math.hypot(x, z) > PLANET_R + 2 || this.h(x, z) < 0.6) return false;
     for (const b of this.boxes) if (x > b.x0 - rad && x < b.x1 + rad && z > b.z0 - rad && z < b.z1 + rad) return false;
     for (const b of this.indoors) if (x > b.x0 - rad && x < b.x1 + rad && z > b.z0 - rad && z < b.z1 + rad) return false;
-    for (const c of this.circles) { if (c.bot != null) continue; const dx = x - c.x, dz = z - c.z, r = c.r + rad; if (dx * dx + dz * dz < r * r) return false; }
+    for (const c of this.circles) { if(c.hull) {if(this.sceneryPush(c,x,z,rad)) return false;continue;} if (c.bot != null) continue; const dx = x - c.x, dz = z - c.z, r = c.r + rad; if (dx * dx + dz * dz < r * r) return false; }
     return true;
   }
   // open dry ground for a meteor to hit: not a building or rock, and not the
