@@ -58,6 +58,11 @@ function runGameplayRegressions() {
   for (const name of ['ship-cockpit-frame', 'ship-engine-left', 'ship-engine-right', 'ship-dorsal-fin', 'ship-ramp-handrail']) check(shipNames.includes(name), name + ' is present');
   check(ship.userData.shipDetails.design === 'courier-shuttle-v2', 'Ship uses the remodeled shuttle');
   ship.updateMatrixWorld(true);
+  const nose=ship.getObjectByName('ship-armored-nose');
+  for(const x of [-.4,0,.4]) {
+    const hits=new THREE.Raycaster(new V3(x,3.5,2.3),new V3(0,-1,0)).intersectObject(nose,true);
+    check(hits.length>0 && hits[0].point.y<CABIN.floor,'Nose armor stays below pilot seat and footwell at x='+x);
+  }
   for (const [origin, direction, label] of [
     [[0,8,0],[0,-1,0],'roof'], [[0,-2,0],[0,1,0],'underside'],
     [[0,3.5,-8],[0,0,1],'rear wall'], [[-6,3.7,0],[1,0,0],'side glazing'],

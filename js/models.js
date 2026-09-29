@@ -869,7 +869,15 @@ function buildShip(boardable = false) {
   mk(BOX(.52,.055,4.82),red,g,0,5.035,-.69);
   for (const z of [-2.4,-1.7,-1,.6]) mk(BOX(.8,.08,.12),steel,g,0,5.1,z);
   // Broad, sloping panoramic windshield and a blunt armored nose.
-  loft([rect(1.88,2.22,3.27,1.6),rect(1.58,2.15,3.28,3.65),rect(1.02,2.04,2.62,4.75)],red).name='ship-armored-nose';
+  // Hollow cockpit shell: the old solid nose extended through the pilot's
+  // cushion and footwell. Keep armor below the floor and along the sides.
+  const nose=grp(g); nose.name='ship-armored-nose';
+  loft([rect(1.88,2.15,2.24,1.6),rect(1.58,2.15,2.24,3.65)],red,nose);
+  for(const s of [-1,1]) {
+    loft([[[s*1.88,2.22,1.6],[s*1.62,2.22,1.6],[s*1.62,3.27,1.6],[s*1.88,3.27,1.6]],
+          [[s*1.58,2.15,3.65],[s*1.36,2.15,3.65],[s*1.36,3.28,3.65],[s*1.58,3.28,3.65]]],red,nose);
+  }
+  loft([rect(1.58,2.15,3.28,3.65),rect(1.02,2.04,2.62,4.75)],red,nose);
   const glass = M('#4e9cb5',{transparent:true,opacity:.48,depthWrite:false,side:THREE.DoubleSide});
   const pane = (points) => {
     const geo=new THREE.BufferGeometry();
