@@ -25,6 +25,12 @@
   (Frostbyte, $3,500) and put it on any gun that aims, on the shop's Loadout tab. The red dot aims in twice as fast
   and barely slows you down, the holo zooms in more and tightens your hip fire, the 3x scope is for long shots.
   Your friends see the sight on your gun.
+- **Nimbus-9 is easier on the eyes** (it was nearly all white), and **its clouds are bouncy**: fall off an island and
+  they throw you back up into the sky, onto the nearest island, instead of dumping you back at the ship.
+- **Esc on the pause menu** takes you straight back into the game with the mouse grabbed (it used to open the menu
+  again, and a second press left the mouse loose).
+- **Bigger sights.** The red dot and holo windows are about twice the size with clearer glass, and the scope view
+  (the Longshot's and the 3x Scope's) fills almost the whole screen.
 - **Back from a boss win,** what you won and the planet you just unlocked come up at the bottom of the screen
   ("+$400 · New planet unlocked: Luckstar").
 - **JACKPOT kills pay double.** A critter killed by a Jackpot Blaster JACKPOT shot (or its blast) is worth 2x: a

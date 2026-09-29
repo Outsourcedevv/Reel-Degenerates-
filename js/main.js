@@ -68,7 +68,7 @@ const Game = {
       G.player.layoutVM();
     });
     document.addEventListener('pointerlockchange', () => {
-      if (document.pointerLockElement === G.renderer.domElement) { this.everLocked = true; this.wantLock = false; clearTimeout(this.lockT); this.fallback = false; this.setSoft(false); G.locked = true; }
+      if (document.pointerLockElement === G.renderer.domElement) { this.everLocked = true; this.wantLock = false; this.relockTried = false; clearTimeout(this.lockT); this.fallback = false; this.setSoft(false); G.locked = true; }
       else { this.unlockedAt = performance.now(); if (!this.soft && !this.wantLock) G.locked = false; }
       this.updatePause();
     });
@@ -385,6 +385,12 @@ const Game = {
     this.setSoft(true);
     G.locked = true;
     this.updatePause();
+    // (right after letting go of the mouse some browsers want a second before they'll grab it again: try once
+    // more then, so you don't have to click)
+    if (!this.relockTried) {
+      this.relockTried = true;
+      setTimeout(() => { if (this.soft && G.started && !G.panel && !G.chatting && !document.pointerLockElement) this.lock(); }, 1100);
+    }
   },
   setSoft(on) {
     this.soft = !!on;
@@ -424,13 +430,20 @@ const Game = {
     U.$('p-cust').onclick = () => Custom.open(true);
     U.$('p-leave').onclick = () => { persist(); Net.leave(); location.reload(); };
     U.$('s-ff').onclick = () => { Sound.play('click'); this.setFF(!G.ff); };
-    // Esc on the pause menu: back to the game (the Esc that just paused it doesn't count)
+    // Esc on the pause menu: back to the game (the Esc that just paused it doesn't count). The mouse gets grabbed
+    // when the key comes back UP: grabbed while Esc is still down, it was let go again straight away (letting go of
+    // the mouse is what Esc does), which just brought the menu back
     addEventListener('keydown', (e) => {
       if (e.code !== 'Escape' || Keys.capturing || G.chatting || U.$('pause').classList.contains('hidden')) return;
       if (performance.now() - (this.unlockedAt || 0) < 350) return;
       e.preventDefault();
       Input.pressed.Escape = false; // (so this press doesn't pause it again, see keys)
-      this.lock();
+      this.escResume = true;
+    });
+    addEventListener('keyup', (e) => {
+      if (e.code !== 'Escape' || !this.escResume) return;
+      this.escResume = false;
+      if (!U.$('pause').classList.contains('hidden')) this.lock();
     });
   },
   updatePause() {

@@ -1839,12 +1839,13 @@ const SIGHT_MOUNT = {
   chain: [-0.15, 0.11, 0.138],
 };
 // (each sight's window middle to its bottom: see buildSight)
-const SIGHT_HALF = { dot: 0.038, holo: 0.04, scope: 0.034 };
+const SIGHT_HALF = { dot: 0.058, holo: 0.065, scope: 0.034 };
 // a sight, with the middle of its window (where you look through it) at 0,0,0. drop: how far down its riser
 // goes to the gun. userData.half: from the middle of the window down to the bottom of the sight
 function buildSight(id, drop = 0) {
   const g = new THREE.Group(); g.name = SIGHTS[id] ? SIGHTS[id].name : 'Sight';
-  const glass = (w, h, color, z = 0) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide })); m.position.z = z; m.name = 'Sight glass'; g.add(m); return m; };
+  // (big windows with thin frames and clear glass: easy to see through)
+  const glass = (w, h, color, z = 0) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.1, depthWrite: false, side: THREE.DoubleSide })); m.position.z = z; m.name = 'Sight glass'; g.add(m); return m; };
   let half;
   if (id === 'scope') { // (a little scope: a tube, a big front lens, an eyepiece, knobs on top and the side)
     half = 0.034;
@@ -1858,17 +1859,17 @@ function buildSight(id, drop = 0) {
     tf(mk(CYL(0.012, 0.012, 0.022, 8), '#ffd23f', g, 0.03, 0, 0), 0, 0, PI / 2);
     for (const z of [-0.06, 0.06]) mk(BOX(0.03, 0.016, 0.022), '#2a2f3a', g, 0, -0.026, z);
   } else if (id === 'holo') { // (a wide window with neon strips round it, and a battery on the side)
-    const w = 0.04, h = 0.028, t = 0.012, d = 0.075;
+    const w = 0.08, h = 0.055, t = 0.01, d = 0.07;
     half = h + t;
     mk(BOX(2 * w + 2 * t, t, d), '#2b2440', g, 0, -h - t / 2, 0);
     mk(BOX(2 * w + 2 * t, t, d + 0.02), '#2b2440', g, 0, h + t / 2, -0.01);
     for (const sx of [-1, 1]) mk(BOX(t, 2 * h, d), '#2b2440', g, sx * (w + t / 2), 0, 0);
     for (const sy of [-1, 1]) mk(BOX(2 * w, 0.004, 0.006), '#ff3df0', g, 0, sy * (h - 0.002), -d / 2 + 0.004, { emissive: '#a0209a' });
     for (const sx of [-1, 1]) mk(BOX(0.004, 2 * h, 0.006), '#3df0ff', g, sx * (w - 0.002), 0, -d / 2 + 0.004, { emissive: '#1a8a90' });
-    mk(BOX(0.018, 0.03, 0.045), '#f2c44e', g, w + t + 0.009, -0.01, 0.01);
+    mk(BOX(0.02, 0.04, 0.05), '#f2c44e', g, w + t + 0.01, -0.02, 0.01);
     glass(2 * w, 2 * h, '#7df9ff', -d / 2 + 0.008);
   } else { // (the red dot: a small square hood, red, with a glass window and a little light on the side)
-    const w = 0.03, h = 0.025, t = 0.013, d = 0.05;
+    const w = 0.06, h = 0.048, t = 0.01, d = 0.05;
     half = h + t;
     mk(BOX(2 * w + 2 * t, t, d + 0.01), '#2f3440', g, 0, -h - t / 2, 0);
     mk(BOX(2 * w + 2 * t, t, d), '#e8483c', g, 0, h + t / 2, 0);

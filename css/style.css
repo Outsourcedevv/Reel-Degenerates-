@@ -1035,18 +1035,17 @@ body.softlock #clicklook { display: block; }
 #hud.induel #hotbar { display: none; } /* (a duel: you've got the one gun you picked) */
 /* the Longshot's scope (aiming it): a round window with a crosshair, dark all round it */
 #scope { display: none; position: absolute; inset: 0; pointer-events: none;
-  background: radial-gradient(circle at 50% 50%, transparent 0 33vmin, rgba(0,0,0,.94) 33.4vmin); }
+  background: radial-gradient(circle at 50% 50%, transparent 0 46vmin, rgba(0,0,0,.94) 46.4vmin); }
 #scope::before, #scope::after { content: ''; position: absolute; left: 50%; top: 50%; background: rgba(125,255,138,.85); }
-#scope::before { width: 66vmin; height: 2px; transform: translate(-50%, -50%); }
-#scope::after { width: 2px; height: 66vmin; transform: translate(-50%, -50%); }
-#scope i { position: absolute; left: 50%; top: 50%; width: 66vmin; height: 66vmin; transform: translate(-50%, -50%); border-radius: 50%; box-shadow: inset 0 0 0 3px rgba(20,24,30,.9), inset 0 0 40px rgba(0,0,0,.6); }
+#scope::before { width: 92vmin; height: 2px; transform: translate(-50%, -50%); }
+#scope::after { width: 2px; height: 92vmin; transform: translate(-50%, -50%); }
+#scope i { position: absolute; left: 50%; top: 50%; width: 92vmin; height: 92vmin; transform: translate(-50%, -50%); border-radius: 50%; box-shadow: inset 0 0 0 3px rgba(20,24,30,.9), inset 0 0 22px rgba(0,0,0,.45); }
 body.scoped #scope { display: block; }
 body.scoped #crosshair { opacity: 0; }
-/* a 3x Scope (a sight, see SIGHTS): a bigger window, a thin dark crosshair */
-body.lens3 #scope { background: radial-gradient(circle at 50% 50%, transparent 0 40vmin, rgba(0,0,0,.94) 40.4vmin); }
-body.lens3 #scope::before { width: 80vmin; height: 1px; background: rgba(12,14,18,.85); }
-body.lens3 #scope::after { height: 80vmin; width: 1px; background: rgba(12,14,18,.85); }
-body.lens3 #scope i { width: 80vmin; height: 80vmin; box-shadow: inset 0 0 0 4px rgba(40,44,52,.95), inset 0 0 50px rgba(0,0,0,.55); }
+/* a 3x Scope (a sight, see SIGHTS): the same big window, a thin dark crosshair */
+body.lens3 #scope::before { height: 1px; background: rgba(12,14,18,.85); }
+body.lens3 #scope::after { width: 1px; background: rgba(12,14,18,.85); }
+body.lens3 #scope i { box-shadow: inset 0 0 0 4px rgba(40,44,52,.95), inset 0 0 22px rgba(0,0,0,.45); }
 /* looking through a red dot or a holo sight: its reticle, right where your shots go, instead of the crosshair */
 #reticle { display: none; position: absolute; left: 50%; top: 50%; width: 0; height: 0; pointer-events: none; }
 #reticle i { position: absolute; border-radius: 50%; }

@@ -109,14 +109,15 @@ const PLANETS = [
     steps: [
       'Grab Sky Pearls: walk into them, or suck them in with the Grabby Vac ({tool:vac}).',
       'Stand in a glowing updraft to float up to the next island.',
-      'Fall off and you drop through the clouds (you wash up back at the ship).',
+      'Fall off and the clouds bounce you back up into the sky (steer onto an island on the way down).',
       'Boss: Stormy McStormface. A Weather Balloon is tangled in the big pearls on the highest islands.',
     ],
-    sky: ['#3f9bff', '#e2f1ff'], fog: ['#d6eaff', 110, 420], stars: 0.1, mood: 'day',
-    sun: ['#fffaf0', 0.95], hemi: ['#ffffff', '#9fb4d8', 0.55],
+    // (toned down: it used to be almost all white, and too bright to look at)
+    sky: ['#2f7fe0', '#a4c6ec'], fog: ['#a2c0e2', 110, 420], stars: 0.1, mood: 'day',
+    sun: ['#fff1dc', 0.62], hemi: ['#d9e5f5', '#6c7fa3', 0.4],
     bodies: [{ color: '#ffd9a8', r: 85, dir: [-0.55, 0.3, -1], ring: '#fff3e0' }],
-    ground: ['#eef4ff', '#d9e4f7', '#ffd0ef'], amp: 0.4, islands: true,
-    liquid: { color: '#c6daf2', op: 0.95, name: 'clouds' },
+    ground: ['#c9d5ea', '#b6c6e0', '#e6b8d9'], amp: 0.4, islands: true,
+    liquid: { color: '#a3bcdc', op: 0.95, name: 'clouds' },
     grav: 15, fric: 12, pizza: 'Cold & Fluffy',
   },
   {
@@ -781,7 +782,7 @@ const LINES = {
   gigTake: ['Parcel acquired. The clock is ticking!', 'The customer is waiting. And judging.', 'Go go go! Tips wait for no one!'],
   gigDone: ['Delivered! The customer says "finally".', 'Delivered! 5 stars! (Out of 50.)', 'Delivered! They tipped! In cash! Wow!'],
   gigLate: ['Too slow! The customer ate the box.', 'Late! They left 1 star and a frowny face.', 'Gig expired. Your rating dropped to 0.3 stars.'],
-  fellClouds: ['You fell through the clouds. The ground was further down than expected.', 'Whoops. Clouds are not solid. Mostly.', 'You fell off the island. It happens to the best of us. And to you.'],
+  cloudBounce: ['BOING! The clouds threw you back up.', 'Clouds: surprisingly bouncy. Please do not tell anyone.', 'You fell off the island. The clouds did not want you either.'],
 };
 
 const SIGNS = {
