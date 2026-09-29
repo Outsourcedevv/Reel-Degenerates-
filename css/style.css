@@ -271,12 +271,16 @@ kbd {
 #hotbar .slot.on small, #hotbar .slot.on .k { color: var(--acc); }
 #hotbar .slot.on::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--acc); }
 
-#crosshair { position: absolute; left: 50%; top: 50%; width: 22px; height: 22px; margin: -11px 0 0 -11px; }
-#crosshair::before, #crosshair::after {
-  content: ''; position: absolute; background: rgba(255,255,255,.9); box-shadow: 0 0 2px rgba(0,0,0,.8);
-}
-#crosshair::before { left: 10px; top: 0; width: 2px; height: 22px; clip-path: polygon(0 0, 100% 0, 100% 35%, 0 35%, 0 65%, 100% 65%, 100% 100%, 0 100%); }
-#crosshair::after { top: 10px; left: 0; height: 2px; width: 22px; clip-path: polygon(0 0, 35% 0, 35% 100%, 0 100%, 0 0, 65% 0, 100% 0, 100% 100%, 65% 100%); }
+/* four ticks round the middle. --gap (set by the game) is how far out they sit: from the hip it opens up to show
+   how far off a shot could go, aimed it closes right in */
+#crosshair { --gap: 4px; position: absolute; left: 50%; top: 50%; width: 0; height: 0; }
+#crosshair i { position: absolute; background: rgba(255,255,255,.9); box-shadow: 0 0 2px rgba(0,0,0,.8); }
+#crosshair i:nth-child(1), #crosshair i:nth-child(2) { left: -1px; width: 2px; height: 8px; }
+#crosshair i:nth-child(3), #crosshair i:nth-child(4) { top: -1px; width: 8px; height: 2px; }
+#crosshair i:nth-child(1) { bottom: var(--gap); }
+#crosshair i:nth-child(2) { top: var(--gap); }
+#crosshair i:nth-child(3) { right: var(--gap); }
+#crosshair i:nth-child(4) { left: var(--gap); }
 /* a kill of yours: what it was and what it's worth, with what made it worth that under it */
 #killmsg {
   position: absolute; left: 50%; top: 31%; transform: translateX(-50%); text-align: center; opacity: 0;
@@ -1014,8 +1018,8 @@ img.thumb.inline { display: inline-block; width: 32px; height: 32px; vertical-al
 #clicklook { display: none; position: absolute; left: 50%; top: 56%; transform: translateX(-50%); padding: 6px 14px; border-radius: 8px;
   background: rgba(10,14,24,.6); color: #fff; font-size: 14px; letter-spacing: 1px; pointer-events: none; }
 body.softlock #clicklook { display: block; }
-#hud.induel #hotbar { display: none; }
-/* the Longshot's scope (hold right-click): a round window with a crosshair, dark all round it */
+#hud.induel #hotbar { display: none; } /* (a duel: you've got the one gun you picked) */
+/* the Longshot's scope (aiming it): a round window with a crosshair, dark all round it */
 #scope { display: none; position: absolute; inset: 0; pointer-events: none;
   background: radial-gradient(circle at 50% 50%, transparent 0 33vmin, rgba(0,0,0,.94) 33.4vmin); }
 #scope::before, #scope::after { content: ''; position: absolute; left: 50%; top: 50%; background: rgba(125,255,138,.85); }
@@ -1023,5 +1027,5 @@ body.softlock #clicklook { display: block; }
 #scope::after { width: 2px; height: 66vmin; transform: translate(-50%, -50%); }
 #scope i { position: absolute; left: 50%; top: 50%; width: 66vmin; height: 66vmin; transform: translate(-50%, -50%); border-radius: 50%; box-shadow: inset 0 0 0 3px rgba(20,24,30,.9), inset 0 0 40px rgba(0,0,0,.6); }
 body.scoped #scope { display: block; }
-body.scoped #crosshair { opacity: 0; } /* (a duel: you've got the one gun you picked) */
+body.scoped #crosshair { opacity: 0; }
 #p-resume .kesc { margin-left: 10px; font-size: 11px; letter-spacing: 1px; opacity: .6; border: 1px solid currentColor; border-radius: 4px; padding: 1px 6px; }

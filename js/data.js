@@ -243,10 +243,22 @@ const ZAPPERS = [
   { name: 'Storm Caller',     short: 'Storm Caller', type: 'chain',   dmg: 120, cd: 0.3, mag: 14, rl: 1.4,  color: '#b8d8ff', range: 60, jumps: 3, hop: 9, falloff: 0.6 },
   { name: 'Same-Day Launcher', short: 'Launcher',    type: 'rocket',  dmg: 280, cd: 0.5, mag: 6,  rl: 1.6,  color: '#ffb23e', radius: 3.6 },
   { name: 'Pizza Cutter',     short: 'Pizza Cutter', type: 'cutter',  dmg: 135, cd: 0.3, mag: 3,  rl: 0,    color: '#ff6a3d', out: 0.55 },
-  // (the sniper, from Spookulon: a spectral round straight down the crosshair, no travel time. Hold right-click to
-  //  scope in; from the hip it wanders a little (spread). New guns go on the end: saves remember guns by number)
-  { name: 'Phantom Longshot', short: 'Longshot',     type: 'sniper',  dmg: 220, cd: 1.1, mag: 5,  rl: 2.2,  color: '#7dff8a', range: 160, spread: 0.035, zoom: 22 },
+  // (the sniper, from Spookulon: a spectral round straight down the crosshair, no travel time. Aiming (right-click)
+  //  looks down its scope. New guns go on the end: saves remember guns by number)
+  { name: 'Phantom Longshot', short: 'Longshot',     type: 'sniper',  dmg: 220, cd: 1.1, mag: 5,  rl: 2.2,  color: '#7dff8a', range: 160, zoom: 22 },
 ];
+// Aiming down the sights (hold right-click, see LocalPlayer.aimK): only the guns you point and shoot. The ones
+// that don't need it don't aim, and are as accurate from the hip as ever: the Goo Lobber and the Launcher (big
+// splashes), the Cryo Beam (a beam), the Pizza Cutter (it's thrown) and the Wisp Caller (its wisps find their
+// own way). From the hip a shot from one that aims goes somewhere inside a little circle round the crosshair,
+// this wide (how far off it can be, per metre out); aimed, it goes dead on. Running or in the air, the circle's
+// half as big again. The Scattergun's pellets spread out more from the hip and bunch up aimed (see HIP_CONE).
+// zoom: how far the view narrows aimed (a gun's own zoom wins: the Longshot's scope)
+const NO_AIM = new Set(['lob', 'rocket', 'beam', 'cutter', 'homing']);
+const HIP_SPREAD = { squirt: 0.04, bolt: 0.03, jackpot: 0.032, chain: 0.025, sniper: 0.06 };
+const HIP_CONE = [1.3, 0.7]; // (Scattergun: its spread x this from the hip, x that aimed)
+const AIM = { zoom: 52, sens: 0.75, speed: 0.65, drop: 0.07 }; // (sens: mouse speed aimed, speed: how fast you walk aimed, drop: how far under the crosshair the gun's top sits)
+const canAimGun = (z) => !NO_AIM.has(z.type);
 // Every new hire gets one of these for free. It's gun -1: you always have it, it never drops when you
 // die, and no shop sells it. It squirts water. Slowly. (Company policy: no free REAL guns.)
 const STARTER_ZAP = { name: 'Squirt Pistol', short: 'Squirter', type: 'squirt', dmg: 5, cd: 0.5, mag: 6, rl: 2.2, color: '#5fc8ff' };
@@ -297,7 +309,7 @@ const SHOPS = {
     greet: ['Bonjour! I am a snail. I am a chef. Do not think about it too hard.', 'Berries! Bring me berries! I am making a soup. It is mostly berries.', 'You look hungry. And sticky. Mostly sticky.'],
     items: [
       { kind: 'boots', price: 600, name: 'Bounce Boots', desc: 'Double jump! Smells faintly of gummy bears.' },
-      { kind: 'nades', price: 180, name: 'Goo Grenades x5', desc: 'Right-click to yeet in boss fights. Sticky. Explosive.' },
+      { kind: 'nades', price: 180, name: 'Goo Grenades x5', desc: 'Press {nade} to yeet in boss fights. Sticky. Explosive.' },
       { kind: 'zap', lvl: 2, price: 1400, desc: 'Lobs balls of goo that go SPLAT. Hits everything nearby and slows critters down. Aim a bit high.' },
       { kind: 'cargo', lvl: 2, price: 1100, name: 'Snail Shell Backpack', desc: 'Holds 35 things. The previous owner wants it back.' },
       { kind: 'hat', id: 'chef', price: 350 },
@@ -333,7 +345,7 @@ const SHOPS = {
     greet: ['Welcome to the Boo-tique! Everything here is 100% haunted, 0% refundable.', 'I\'d shake your hand, but, you know. Ghost.', 'The graveyard\'s lovely this time of year. Every year. Forever.'],
     items: [
       { kind: 'zap', lvl: 5, price: 11000, desc: 'Spits out little ghost wisps that drift after whatever is nearest your crosshair. They\'re not very bright, so point them roughly at something.' },
-      { kind: 'zap', lvl: 9, price: 14500, desc: 'A haunted sniper rifle. One spectral round, straight to wherever you\'re aiming, no travel time. Hold right-click to scope in. Headshots are... final.' },
+      { kind: 'zap', lvl: 9, price: 14500, desc: 'A haunted sniper rifle. One spectral round, straight to wherever you\'re aiming, no travel time. Hold {aim} to look down the scope. Headshots are... final.' },
       { kind: 'vac', lvl: 2, price: 6500, name: 'Spooky Vacuum', desc: 'A haunted ectoplasm trap. Reaches farther and sucks faster, with a ghost safely sealed inside.' },
       { kind: 'springs', price: 6500, name: 'Spring-Heeled Jacks', desc: 'Boots with actual bedsprings bolted on. You jump WAY higher. (Makes Bounce Boots bouncier too.)' },
       { kind: 'nades', price: 180, name: 'Goo Grenades x5', desc: 'Still sticky. Now slightly haunted.' },

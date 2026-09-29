@@ -125,6 +125,7 @@ const RECOIL = {
   cutter: { up: 0.024, side: 0.008, stay: 0.2, back: 0.1, rot: 0.2 }, // Pizza Cutter
   sniper: { up: 0.09, side: 0.01, stay: 0.2, back: 0.2, rot: 0.35, sh: 0.1 }, // Phantom Longshot
 };
+const _sightTmp = new V3(), _sightOff = new V3(); // (see sightPos)
 class LocalPlayer {
   constructor() {
     this.pos = new V3(); this.vel = new V3();
@@ -323,7 +324,7 @@ class LocalPlayer {
     const cfg = PLANETS[G.planet];
     const canAct = G.locked && !G.panel && !G.chatting;
     // --- look
-    const s = 0.0022 * G.settings.sens * (1 - 0.65 * (this.scopeK || 0)); // (scoped in: finer aim)
+    const s = 0.0022 * G.settings.sens * U.lerp(1, this.aimSens(), this.aimK || 0); // (aimed: finer aim)
     if (G.locked && !G.panel) {
       this.yaw -= Input.dx * s;
       this.pitch = U.clamp(this.pitch - Input.dy * s, -1.5, 1.5);
@@ -351,11 +352,11 @@ class LocalPlayer {
       if (Input.down('left')) mx -= 1;
       if (Input.down('right')) mx += 1;
     }
-    const sprint = Input.down('sprint');
+    const sprint = Input.down('sprint') && !(this.aimK > 0.3); // (no running while you aim)
     // (goo or a snowball a critter threw at you slows you down for a bit; boss fights set slowK themselves)
     if (this.slowT > 0) this.slowT -= dt;
     if (G.mode === 'planet') this.slowK = this.slowT > 0 ? 0.55 : 1;
-    const speed = (sprint ? 8.6 * (SAVE.skates ? 1.35 : 1) : 5.6) * (this.ghost ? 1.3 : 1) * this.slowK * (this.wadeK || 1) * (hasPerk('wheels') ? 1.2 : 1); // (Duct-Tape Skates: faster sprinting; wading: slower; Scooter Wheels: faster)
+    const speed = (sprint ? 8.6 * (SAVE.skates ? 1.35 : 1) : 5.6) * (this.ghost ? 1.3 : 1) * this.slowK * (this.wadeK || 1) * (hasPerk('wheels') ? 1.2 : 1) * U.lerp(1, AIM.speed, this.aimK || 0); // (Duct-Tape Skates: faster sprinting; wading: slower; Scooter Wheels: faster; aiming: slower)
     const sy = Math.sin(this.yaw), cy = Math.cos(this.yaw);
     let tx = (-sy * mz + cy * mx), tz = (-cy * mz - sy * mx);
     const len = Math.hypot(tx, tz);
@@ -371,7 +372,7 @@ class LocalPlayer {
     }
     // moving (or jumping) stops an emote
     if (this.emoteT > 0) { this.emoteT -= dt; if (len > 0 || (canAct && Input.hit('jump'))) this.stopEmote(); }
-    // --- Getaway Sneakers: Q dashes the way you're going (once per jump in the air)
+    // --- Getaway Sneakers: {dash} (F) dashes the way you're going (once per jump in the air)
     this.dashCd -= dt; this.launchT -= dt; this.padCd -= dt;
     if (canAct && !frozen && SAVE.dash && Input.hit('dash') && this.dashCd <= 0 && !this.stomping && (this.onGround || !this.airDash)) this.startDash(tx, tz);
     if (this.dashT > 0) {
@@ -453,6 +454,7 @@ class LocalPlayer {
     // reloading: every gun its own way (see GunReload). The rest of the time, some show how full they are.
     const gd = gunDef(this.gunL);
     GunReload.pose(this.vmZap, gd.type, this.reloadT > 0 ? U.clamp(1 - this.reloadT / this.reloadDur, 0, 1) : -1, this.ammo / gd.mag, this.reloadDur, G.time);
+    if (this.aimK > 0) this.vmZap.position.lerp(this.sightPos(this.vmZap), this.aimK); // (aiming: the gun comes up to the middle)
     const hs = Math.hypot(this.vel.x, this.vel.z);
     if (this.onGround && hs > 0.5) this.walkT += dt * hs * 1.25;
     this.sprintK = U.damp(this.sprintK, sprint && hs > 6.5 && this.onGround ? 1 : 0, 6, dt);
@@ -475,7 +477,7 @@ class LocalPlayer {
     if (this.using && this.emoteT > 0) this.stopEmote();
     if (!busy) this.useTool(dt);
     else if (this.vacTarget || this.drillTarget) this.releaseTargets();
-    if (!busy && Input.hit('nade') && !this.scoped()) this.throwNade(); // (with the Longshot out, right-click scopes in instead)
+    if (!busy && Input.hit('nade')) this.throwNade();
     // --- interaction prompt
     this.updateDown(dt);
     this.updateRespawn(dt, canAct);
@@ -909,13 +911,13 @@ class LocalPlayer {
     const last = this.ammo <= 0;
     if (last) this.startReload();
     this.act('fire', z.type, false); // (your crew gets the shot itself, and does this from that)
-    const o = this.muzzle(), d = this.aimFrom(o);
+    const o = this.muzzle(), d = this.wobble(this.aimFrom(o));
     const flags = this.shotFlags(last);
     const net = { t: 'shoot', k: z.type, o: v3r(o), d: v3r(d), c: z.color };
     let color = z.color;
     if (z.type === 'spread') { // six pellets in a cone
-      net.s = Math.floor(Math.random() * 1e6);
-      Shots.spread(o, d, net.s, z, true, flags);
+      net.s = Math.floor(Math.random() * 1e6); net.w = Math.round(this.cone(z) * 1000) / 1000;
+      Shots.spread(o, d, net.s, z, true, flags, net.w);
       Sound.play('shotgun'); this.kick('spread');
     } else if (z.type === 'lob') { // a ball of goo on an arc
       Shots.fire('goo', o, d, true, { dmg: z.dmg, radius: z.radius, flags });
@@ -936,7 +938,7 @@ class LocalPlayer {
       Sound.play(roll.k === 'dud' ? 'fizz' : 'coin'); this.kick('jackpot', roll.k === 'jp' ? 2 : roll.k === 'dud' ? 0.5 : 1);
     } else if (z.type === 'sniper') { // one spectral round, straight down the crosshair (no travel time)
       net.e = v3r(this.snipe(z, o, flags));
-      Sound.play('snipe'); this.kick('sniper', this.scopeK > 0.5 ? 0.6 : 1);
+      Sound.play('snipe'); this.kick('sniper');
     } else if (z.type === 'squirt') { // a little arc of water. It does try.
       Shots.fire('zap', o, d, true, { dmg: z.dmg, color, flags, water: true });
       Sound.play('squirt'); this.kick('squirt');
@@ -951,6 +953,7 @@ class LocalPlayer {
   // down); the gun jumps back and tips up in your hands. k: how hard (a jackpot kicks twice as hard)
   kick(type, k = 1) {
     const r = RECOIL[type] || RECOIL.bolt;
+    k *= 1 - 0.4 * (this.aimK || 0); // (aimed, you hold it steadier)
     this.kickP += r.up * k * U.rand(0.85, 1.15);
     this.kickY += (Math.random() - 0.5) * 2 * r.side * k;
     this.pitch = U.clamp(this.pitch + r.up * k * r.stay, -1.5, 1.5);
@@ -1012,7 +1015,7 @@ class LocalPlayer {
     const last = this.ammo <= 0;
     if (last) this.startReload();
     this.act('fire', 'beam', false);
-    const cam = this.rayStart(), dir = this.camDir(new V3()), w = this.world();
+    const cam = this.rayStart(), dir = this.wobble(this.camDir(new V3())), w = this.world();
     // follow the crosshair out until something's in the way
     const a = cam.clone(), b = new V3(), end = cam.clone().addScaledVector(dir, z.range);
     let hit = null;
@@ -1031,12 +1034,61 @@ class LocalPlayer {
     this.kick('beam');
     if (Math.random() < 0.6) FX.burst(end, '#bff6ff', 1, 2);
   }
-  // Phantom Longshot: follow the crosshair out (from the hip it wanders a bit) until something's in the way. Where it ended
+  /* ---- aiming down the sights (hold right-click): the guns that aim (canAimGun). The gun comes up to the middle
+     of the screen, the view narrows a bit (the Longshot: right down its scope), you turn slower and walk slower,
+     and shots go dead on. From the hip they go somewhere inside a little circle round the crosshair (HIP_SPREAD)
+     that the crosshair shows. aimK eases 0 (from the hip) -> 1 (aimed) */
+  canAim() { return this.tool === 'zap' && canAimGun(gunDef(SAVE.zap)); }
+  // the Longshot, aimed: looking down its scope
   scoped() { return this.tool === 'zap' && gunDef(SAVE.zap).type === 'sniper'; }
+  aimZoom() { return gunDef(SAVE.zap).zoom || AIM.zoom; }
+  aimSens() { return this.scoped() ? 0.35 : AIM.sens; }
+  // how far off a shot can go right now (per metre out)
+  spreadNow() {
+    const z = gunDef(SAVE.zap);
+    if (!canAimGun(z) || z.type === 'spread') return 0;
+    const moving = !this.onGround || this.sprintK > 0.5 ? 1.5 : 1;
+    return (HIP_SPREAD[z.type] || 0) * moving * (1 - (this.aimK || 0));
+  }
+  // the Scattergun's cone: wide from the hip, tight aimed
+  cone(z) { return z.spread * U.lerp(HIP_CONE[0], HIP_CONE[1], this.aimK || 0); }
+  // a direction, knocked somewhere inside that circle (evenly: anywhere in it's as likely as anywhere else)
+  wobble(d) {
+    const sp = this.spreadNow();
+    if (sp <= 0) return d;
+    const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * sp;
+    const u = Math.abs(d.y) < 0.95 ? new V3(0, 1, 0).cross(d).normalize() : new V3(1, 0, 0).cross(d).normalize(), v = d.clone().cross(u);
+    return d.addScaledVector(u, Math.cos(a) * r).addScaledVector(v, Math.sin(a) * r).normalize();
+  }
+  // where a gun goes aimed: in the middle, lined up with its barrel, with the top of it (the closest, biggest
+  // bit: its back end) sitting just under the crosshair, so you can see what you're aiming at
+  sightPos(g) {
+    const ud = g.userData;
+    if (!ud.sight) { // (worked out once per gun: how big it is, and where its muzzle is, not counting your hands)
+      g.updateMatrixWorld(true);
+      const inv = new THREE.Matrix4().copy(g.matrixWorld).invert(), m4 = new THREE.Matrix4(), box = new THREE.Box3(), b = new THREE.Box3();
+      const skip = new Set([...Object.values(ud.hands || {}), ud.flash]);
+      const walk = (o) => {
+        if (skip.has(o) || !o.visible) return;
+        if (o.isMesh) { if (!o.geometry.boundingBox) o.geometry.computeBoundingBox(); box.union(b.copy(o.geometry.boundingBox).applyMatrix4(m4.multiplyMatrices(inv, o.matrixWorld))); }
+        o.children.forEach(walk);
+      };
+      walk(g);
+      const sc = g.scale.x, m = ud.muzzle.getWorldPosition(new V3()).applyMatrix4(inv);
+      const back = -(ud.base.z + box.max.z * sc); // (how far in front of your eyes its back end is)
+      ud.sight = new V3(-m.x * sc, -AIM.drop * back - box.max.y * sc, ud.base.z);
+    }
+    return _sightTmp.copy(ud.sight).add(_sightOff.set(g.position.x - ud.base.x, g.position.y - ud.base.y, g.position.z - ud.base.z)); // (keeping whatever a reload's doing to it)
+  }
+  // the crosshair opens up to show how far off a shot from the hip could go (and closes right up aimed)
+  drawSpread(cam) {
+    const z = gunDef(SAVE.zap), sp = this.tool !== 'zap' ? 0 : z.type === 'spread' ? this.cone(z) : this.spreadNow();
+    const gap = Math.max(4, Math.round(sp / Math.tan(THREE.MathUtils.degToRad(cam.fov / 2)) * innerHeight / 2));
+    if (gap !== this.xhGap) { this.xhGap = gap; UI.el.crosshair.style.setProperty('--gap', gap + 'px'); }
+  }
+  // Phantom Longshot: follow the crosshair out (from the hip it wanders about) until something's in the way. Where it ended
   snipe(z, o, flags) {
-    const cam = this.rayStart(), dir = this.camDir(new V3()), w = this.world();
-    const sp = (z.spread || 0) * (1 - this.scopeK); // (scoped in: dead on)
-    if (sp > 0) { dir.x += (Math.random() - 0.5) * 2 * sp; dir.y += (Math.random() - 0.5) * 2 * sp; dir.z += (Math.random() - 0.5) * 2 * sp; dir.normalize(); }
+    const cam = this.rayStart(), dir = this.wobble(this.camDir(new V3())), w = this.world();
     const a = cam.clone(), b = new V3(), end = cam.clone().addScaledVector(dir, z.range);
     let hit = null;
     for (let d = 0.8; d <= z.range; d += 0.8) {
@@ -1051,7 +1103,7 @@ class LocalPlayer {
   }
   // Storm Caller: a bolt of lightning down the crosshair, then it jumps to whatever's close (weaker each jump)
   chainZap(z, o, flags) {
-    const cam = this.rayStart(), dir = this.camDir(new V3()), w = this.world();
+    const cam = this.rayStart(), dir = this.wobble(this.camDir(new V3())), w = this.world();
     const a = cam.clone(), b = new V3(), end = cam.clone().addScaledVector(dir, z.range);
     let hit = null;
     for (let d = 0.8; d <= z.range; d += 0.8) {
@@ -1086,7 +1138,7 @@ class LocalPlayer {
     this.cd = z.cd;
     this.ammo--;
     this.act('fire', 'cutter', false);
-    const o = this.muzzle(), d = this.aimFrom(o);
+    const o = this.muzzle(), d = this.wobble(this.aimFrom(o));
     Shots.fire('cutter', o, d, true, { dmg: z.dmg, out: z.out, flags: this.shotFlags(false) });
     Net.relay({ t: 'shoot', k: 'cutter', o: v3r(o), d: v3r(d), c: z.color });
     Sound.play('cutter');
@@ -1159,7 +1211,7 @@ class LocalPlayer {
 
   updateCamera(dt, hs) {
     const cam = G.camera;
-    const bob = this.onGround ? Math.sin(this.walkT * 2) * 0.05 * U.clamp(hs / 6, 0, 1) : 0;
+    const bob = this.onGround ? Math.sin(this.walkT * 2) * 0.05 * U.clamp(hs / 6, 0, 1) * (1 - 0.6 * (this.aimK || 0)) : 0; // (aimed: steadier)
     let eye = 1.65 + bob - this.landK * 0.22;
     if (this.dead) { this.deadT += dt; eye = U.lerp(1.65, 0.45, U.clamp(this.deadT * 2, 0, 1)); }
     // waking up (see wake): from lying on the ground, head tipped over, up onto your feet
@@ -1196,14 +1248,17 @@ class LocalPlayer {
     const sx = (Math.sin(t * 1.31) + 0.5 * Math.sin(t * 2.97)) * sh, sy = (Math.cos(t * 1.73) + 0.5 * Math.sin(t * 3.71)) * sh;
     this.kickP = U.damp(this.kickP, 0, 9, dt); this.kickY = U.damp(this.kickY, 0, 9, dt);
     cam.rotation.set(U.clamp(this.pitch + sx + this.kickP + wk * wk * 0.9, -1.55, 1.55), yaw + sy + this.kickY, this.dead ? Math.min(this.deadT * 0.6, 0.3) * (1 - this.tpK) : wk * wk * 0.5, 'YXZ');
-    // sprinting widens the view a little
-    // (the Longshot's scope: hold right-click. Not while reloading, not in menus)
-    const scope = this.scoped() && Input.down('nade') && G.locked && !G.panel && !this.dead && this.reloadT <= 0 && !Duel.holding();
-    this.scopeK = U.damp(this.scopeK || 0, scope ? 1 : 0, 16, dt);
-    if (this.scopeK < 0.01) this.scopeK = 0;
-    document.body.classList.toggle('scoped', this.scopeK > 0.6);
-    const fov = U.lerp(72 + this.sprintK * 7, gunDef(SAVE.zap).zoom || 22, this.scopeK);
+    // aiming down the sights (hold right-click. Not while reloading, swapping, picking a friend up, in menus...)
+    const aim = this.canAim() && Input.down('aim') && G.locked && !G.panel && !G.chatting && !this.dead && !this.ghost && this.reloadT <= 0
+      && this.swapT <= 0 && this.reviveT <= 0 && this.emoteT <= 0 && !Duel.holding();
+    this.aimK = dt > 0 ? U.damp(this.aimK || 0, aim ? 1 : 0, this.scoped() ? 16 : 18, dt) : 0; // (a snap: getting in the ship, a teleport)
+    if (this.aimK < 0.01) this.aimK = 0;
+    const scopeK = this.scoped() ? this.aimK : 0; // (the Longshot: looking down its scope)
+    document.body.classList.toggle('scoped', scopeK > 0.6);
+    // sprinting widens the view a little, aiming narrows it
+    const fov = U.lerp(72 + this.sprintK * 7, this.aimZoom(), this.aimK);
     if (Math.abs(cam.fov - fov) > 0.05) { cam.fov = fov; cam.updateProjectionMatrix(); }
+    this.drawSpread(cam);
     // viewmodel: lags behind the mouse, bobs with steps, dips on landing, drops out of view when swapping tools
     const k = Math.min(1, dt * 60);
     this.swayX = U.damp(this.swayX, U.clamp(U.angDiff(this.lastYaw, this.yaw) * 1.6 * k, -0.08, 0.08), 10, dt);
@@ -1212,13 +1267,14 @@ class LocalPlayer {
     // (picking a friend up takes both hands: what you're holding goes down out of the way)
     this.reviveK = U.damp(this.reviveK || 0, this.reviveT > 0 ? 1 : 0, 10, dt);
     const sw = Math.max(this.swapT * this.swapT, this.reviveK, wk), run = this.sprintK; // (and while you get up off the ground)
-    this.vm.visible = !this.dead && !this.ghost && this.tpK < 0.5 && (this.scopeK || 0) < 0.6; // (looking down the scope: no gun in the way)
+    this.vm.visible = !this.dead && !this.ghost && this.tpK < 0.5 && scopeK < 0.6; // (looking down the scope: no gun in the way)
+    const steady = 1 - 0.8 * this.aimK; // (aimed, it hardly bobs or sways)
     this.vm.position.set(
-      Math.cos(this.walkT) * (0.012 + run * 0.02) + this.swayX * 0.5,
-      Math.abs(Math.sin(this.walkT)) * (0.012 + run * 0.02) + (this.onGround ? 0 : 0.02) - sw * 0.3 - this.landK * 0.05 - this.swayY * 0.4 - run * 0.03,
-      this.recoil);
+      (Math.cos(this.walkT) * (0.012 + run * 0.02) + this.swayX * 0.5) * steady,
+      (Math.abs(Math.sin(this.walkT)) * (0.012 + run * 0.02) + (this.onGround ? 0 : 0.02) - this.landK * 0.05 - this.swayY * 0.4) * steady - sw * 0.3 - run * 0.03,
+      this.recoil * (1 - 0.5 * this.aimK));
     this.recoilRot = U.damp(this.recoilRot, 0, 11, dt); this.recoilRoll = U.damp(this.recoilRoll, 0, 10, dt);
-    this.vm.rotation.set(this.recoilRot - sw * 0.9 + run * 0.25 - this.swayY, this.swayX * 1.2 + run * 0.3, -this.swayX * 0.8 + this.recoilRoll);
+    this.vm.rotation.set(this.recoilRot * (1 - 0.6 * this.aimK) - sw * 0.9 + run * 0.25 - this.swayY * steady, (this.swayX * 1.2 + run * 0.3) * steady, -this.swayX * 0.8 * steady + this.recoilRoll);
     if (this.vmCrit && this.vmCrit.visible) { // (a critter you're carrying: it sways about, and wobbles when you poke it)
       this.critK = U.damp(this.critK || 0, 0, 5, dt);
       const c = this.vmCrit, b = c.userData.base, t = G.time, k = this.critK;
@@ -1549,10 +1605,11 @@ const Shots = {
     return s;
   },
   // a shotgun blast: pellets in a cone (seeded, so everyone sees the same spray)
-  spread(o, d, seed, z, local, flags) {
+  // (cone: how wide, see LocalPlayer.cone: wider from the hip)
+  spread(o, d, seed, z, local, flags, cone = z.spread) {
     const rng = U.seeded(seed), right = new V3().crossVectors(d, new V3(0, 1, 0)).normalize(), up = new V3().crossVectors(right, d);
     for (let i = 0; i < z.pellets; i++) {
-      const a = rng() * Math.PI * 2, r = Math.sqrt(rng()) * z.spread;
+      const a = rng() * Math.PI * 2, r = Math.sqrt(rng()) * cone;
       const dir = d.clone().addScaledVector(right, Math.cos(a) * r).addScaledVector(up, Math.sin(a) * r).normalize();
       this.fire('zap', o, dir, local, { dmg: z.dmg, color: z.color, flags, pellet: true });
     }
@@ -1565,7 +1622,7 @@ const Shots = {
     if (m.k === 'sniper') { if (m.e) { this.tracer(o, new V3(...m.e), m.c); Sound.play('snipe'); } return; }
     if (m.k === 'stomp') { FX.ring(o, '#ffffff', STOMP.r); FX.burst(o, '#e8f0f8', 12, 5); Sound.play('stomp'); return; }
     const d = new V3(...m.d), def = ZAPPERS.find((z) => z.type === m.k);
-    if (m.k === 'spread' && def) this.spread(o, d, m.s || 1, def, false, null);
+    if (m.k === 'spread' && def) this.spread(o, d, m.s || 1, def, false, null, m.w || def.spread);
     else if (m.k === 'lob') this.fire('goo', o, d, false, { radius: def ? def.radius : 2.8 });
     else if (m.k === 'cutter') this.fire('cutter', o, d, false, { owner: r, out: def ? def.out : 0.55 });
     else if (m.k === 'homing') this.fire('wisp', o, d, false, { color: m.c, speed: def ? def.speed : 30, turn: def ? def.turn : 7, seek: def && def.seek, reach: def && def.reach, target: this.seek(o, d, def && def.seek, def && def.reach) });
