@@ -652,7 +652,7 @@ const MB_DIFF = { easy: { hp: 1, pace: 1, pay: 1 }, hard: { hp: 1.4, pace: 0.9, 
 const mbAttacks = (def, diff) => def.atk.concat(diff === 'hard' || diff === 'hardcore' ? [def.hard] : [], diff === 'hardcore' ? [def.hardcore] : []);
 
 /* ---------- style kills: bonus multipliers for zapping critters in style ----------
-   Each one is at most 2x; they stack (up to STYLE_MAX). The bonus is baked into what the critter sells for. */
+   Each one is at most 2x, and they stack with no limit. The bonus is baked into what the critter sells for. */
 const STYLE = {
   air:    { name: 'AIRBORNE', m: 1.5, desc: 'kill it while you\'re in the air' },
   spin:   { name: '360', m: 2, desc: 'spin all the way around right before the kill' },
@@ -668,7 +668,6 @@ const STYLE = {
   head:   { name: 'HEADSHOT', m: 1.5, desc: 'finish it with a shot to the head' },
   jackpot:{ name: 'JACKPOT', m: 2, desc: 'kill it with a JACKPOT shot from the Jackpot Blaster (or its blast)' },
 };
-const STYLE_MAX = 5; // stacked style bonuses never pay more than this in total
 
 /* ---------- boss summoning items: earn one on each planet, use it at the boss altar ----------
    src/chance/pity: it drops from that kind of pickup, guaranteed by the pity-th try.

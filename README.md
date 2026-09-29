@@ -358,7 +358,7 @@ hit you land flashes a hitmarker round your crosshair: white for a hit, red for 
 
 ### Style kills
 
-Kill them in style for a bonus. Each bonus is at most 2x, and they stack up to 5x in total:
+Kill them in style for a bonus. Each bonus is at most 2x, and they all stack (there's no limit):
 
 | Style | Bonus | How |
 | --- | --- | --- |

@@ -260,13 +260,13 @@ const UI = {
   },
 
   // you killed something: KILLED <what> <what it's worth>, and under that what made it worth that. lines:
-  // [[x, what, kind]] (kind: 'size', 'gold', 'max', or a style bonus)
+  // [[x, what, kind]] (kind: 'size', 'gold', or a style bonus)
   killed(name, worth, lines) {
     const el = this.el.killmsg;
     if (!el) return;
     const x = (m) => Math.round(m * 100) / 100 + 'x';
     el.innerHTML = `<div class="k">Killed ${U.esc(name)} <b>${U.bucks(worth)}</b></div>` +
-      lines.map(([m, what, kind]) => kind === 'max' ? `<div class="l max">${U.esc(what)} <i>${x(m)}</i></div>` : `<div class="l ${kind}"><i>${x(m)}</i> ${U.esc(what)}</div>`).join('');
+      lines.map(([m, what, kind]) => `<div class="l ${kind}"><i>${x(m)}</i> ${U.esc(what)}</div>`).join('');
     el.classList.remove('on');
     void el.offsetWidth; // (so it pops up again for the next one)
     el.classList.add('on');
@@ -460,7 +460,7 @@ const UI = {
         <p>Zap one and it goes flying and lands in a heap: walk over and press {use} to bag it (or vacuum it up). Backpack full? It waits right there for you.</p>
         <p>Mean ones hunt you: a red ! means one spotted you. When one crouches over a red mark, it's about to pounce: step aside. Lots of them throw things, aimed where you're heading: keep changing direction. Goo and snowballs slow you down, some leave puddles. Shoot one and its friends join in.</p>
         <p>Mini bosses: zap 20 critters on a planet (not Scrapyard-9) and from then on every one you zap has a small chance of bringing its huge, crowned mini boss. Like a boss fight: it names each attack and marks it on the ground first. Hard and Hardcore give it extra attacks. Everyone on the planet gets paid when it goes down.</p>
-        <p>Style kills pay extra (up to 2x each, they stack up to 5x): in the air, after a 360, with your last shot, long shots, double kills, revenge and more.</p></div>
+        <p>Style kills pay extra (up to 2x each, and they all stack): in the air, after a 360, with your last shot, long shots, double kills, revenge and more.</p></div>
       <div><h4>The ship</h4>
         <p>{use} at the ship to get in. First one in flies, everyone else rides in the back. It only takes off once the whole crew is in.</p>
         <p>Pilot (flies from the cockpit): move the mouse to aim and the ship swings round to the circle (it's big, it takes a moment), {jump} lift off / up, {stomp} down, {forward}/{back} throttle, {sprint} turbo, {map} star map. Look down through the glass floor to line up a landing.</p>

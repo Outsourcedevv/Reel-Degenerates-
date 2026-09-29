@@ -26,6 +26,8 @@
   Your friends see the sight on your gun.
 - **JACKPOT kills pay double.** A critter killed by a Jackpot Blaster JACKPOT shot (or its blast) is worth 2x: a
   new style bonus, on top of the rest.
+- **No more cap on style bonuses.** They used to stop at 5x in total; now they all multiply together, however many
+  you pull off at once.
 - **Goo Grenades are on `Q` now** (right-click aims). The Getaway Sneakers' dash moved to `F`. If you'd changed your
   keys, those two move over unless you'd picked something else for them.
 - **The Duel Pit on Luckstar.** Wager a crewmate, each pick a gun you own, and fight it out in the arena. Friendly:

@@ -292,7 +292,6 @@ kbd {
 #killmsg .l i { font-style: normal; color: #fff; }
 #killmsg .l.size { color: #7dff8a; }
 #killmsg .l.gold { color: #ffd23f; }
-#killmsg .l.max { color: rgba(255,255,255,.6); font-size: 13px; }
 #killmsg.on { animation: killmsg 3s ease-out forwards; }
 @keyframes killmsg {
   0% { opacity: 0; transform: translateX(-50%) scale(1.35); }

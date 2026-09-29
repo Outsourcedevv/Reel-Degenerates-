@@ -863,7 +863,7 @@ const Critters = {
     }
   },
 
-  // which style bonuses this kill earned (each is at most 2x; they stack up to STYLE_MAX)
+  // which style bonuses this kill earned (each is at most 2x; they all stack)
   styleOf(c) {
     const f = c.style || {}, out = [];
     if (f.air) out.push('air');
@@ -891,15 +891,13 @@ const Critters = {
     this.bitBy.delete(c.id);
     let mult = 1;
     for (const s of styles) mult *= STYLE[s].m;
-    const maxed = mult > STYLE_MAX;
-    mult = Math.min(STYLE_MAX, Math.round(mult * 100) / 100);
+    mult = Math.round(mult * 100) / 100;
     const key = critKey(def.id, c.sz, !!c.g), entry = mult > 1 ? `${key}*${mult}` : key, worth = cargoRes(entry).v, z = SIZES[c.sz];
     // what you got: KILLED Rust Crab $22, and under it what made it worth that (its size, golden, each style bonus)
     const lines = [];
     if (z.v > 1) lines.push([z.v, z.name, 'size']);
     if (c.g) lines.push([8, 'Golden', 'gold']);
     for (const st of styles) lines.push([STYLE[st].m, STYLE[st].name, '']);
-    if (maxed) lines.push([STYLE_MAX, 'style bonus capped at', 'max']);
     UI.killed(def.name, worth, lines);
     FX.text(pos.clone().setY(pos.y + 1.5), U.bucks(worth), '#ffd23f', 44);
     if (styles.length) {
