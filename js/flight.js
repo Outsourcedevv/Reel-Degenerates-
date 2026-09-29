@@ -215,8 +215,7 @@ const Flight = {
     this.pivot = grp(this.group);
     this.hull = buildShip();
     this.pivot.add(this.hull);
-    // Keep the boarding ramp deployed on the pad, then fold it against the
-    // airborne hull once the ship is safely above the local ground.
+    // Start with the ramp open on the pad; fold it up when takeoff begins.
     this.ramp = this.hull.userData.ramp || null;
     this.rampT = 1;
     this.landingLegs = this.hull.userData.landingLegs;
@@ -672,19 +671,12 @@ const Flight = {
   },
   fwd() { return new V3(Math.sin(this.yaw) * Math.cos(this.pitch), Math.sin(this.pitch), Math.cos(this.yaw) * Math.cos(this.pitch)); },
 
-  // The boarding ramp is a physical part of the ship: it retracts only after
-  // the ship is more than 75m above the local terrain, and deploys again on
-  // the approach so players can walk into the ship after landing.
+  // Open only after touchdown; hovering or descending near the ground is
+  // still flight. The parked world model already has its ramp deployed.
   updateRamp(dt) {
     const ramp = this.ramp, pose = ramp && ramp.userData.shipRamp;
     if (!ramp || !pose) return;
-    let altitude = Infinity;
-    if (this.ph === 'atmo') {
-      const w = G.worlds[this.planet];
-      const ground = w ? Math.max(w.h(this.pos.x, this.pos.z), WATER_Y) : 0;
-      altitude = this.pos.y - ground;
-    }
-    const target = altitude > 75 ? 0 : 1;
+    const target = this.ph === 'atmo' && this.grounded ? 1 : 0;
     this.rampT = U.damp(this.rampT == null ? target : this.rampT, target, 8, dt);
     ramp.position.lerpVectors(pose.upPos, pose.downPos, this.rampT);
     if (pose.upScale) ramp.scale.set(

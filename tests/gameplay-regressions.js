@@ -69,14 +69,21 @@ function runGameplayRegressions() {
   disposeObj(ship);
   const flyingShip = buildShip(), ramp = flyingShip.userData.ramp;
   const ground = Math.max(G.world.h(0, 0), WATER_Y);
-  const flight = { ramp, rampT: 1, ph: 'atmo', planet: G.planet, pos: new V3(0, ground + 76, 0) };
+  const flight = { ramp, rampT: 1, grounded: false, ph: 'atmo', planet: G.planet, pos: new V3(0, ground + 76, 0) };
   Flight.updateRamp.call(flight, 1);
-  check(flight.rampT < .01, 'Ramp retracts above 75m above terrain');
+  check(flight.rampT < .01, 'Ramp retracts while airborne');
   check(ramp.scale.x < .5, 'Folded ramp telescopes to hatch height');
-  flight.pos.y = ground + 74;
+  flight.pos.y = ground + 1;
   Flight.updateRamp.call(flight, 1);
-  check(flight.rampT > .99, 'Ramp deploys on descent below 75m');
+  check(flight.rampT < .01, 'Ramp stays closed even one metre above touchdown');
+  flight.pos.y = ground; flight.grounded = true;
+  Flight.updateRamp.call(flight, 1);
+  check(flight.rampT > .99, 'Ramp deploys after touchdown');
   check(ramp.scale.x > .99, 'Deployed ramp reaches the ground again');
+  flight.grounded = false;
+  Flight.updateRamp.call(flight, 1);
+  check(flight.rampT < .01, 'Ramp retracts as soon as takeoff begins');
+  flight.grounded = true; // A stale grounded flag must not open it in space.
   flight.ph = 'space';
   Flight.updateRamp.call(flight, 1);
   check(flight.rampT < .01, 'Ramp stays retracted in space');
