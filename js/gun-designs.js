@@ -88,16 +88,62 @@ function pizza(){group=new T.Group();group.name='Pizza Cutter';grip(-.18,'#96382
  for(const s of [-1,1]){cyl('Red axle hub',.046,.021,C.red,[.28,.1,s*.029],'z');cyl('Hub bolt',.017,.012,C.brass,[.28,.1,s*.045],'z',.017,6);box('Axle bracket',[.162,.034,.016],C.steel,[.208,.103,s*.051]);for(let i=0;i<6;i++){const a=i*Math.PI/3;ball('Blade recess '+i,.012,C.dark,[.28+Math.cos(a)*.106,.1+Math.sin(a)*.106,s*.014],[1,1,.12]);}}
  const arc=new T.TorusGeometry(.205,.019,4,20,Math.PI*.8);mesh('Upper red blade guard',arc,C.red,[.28,.1,0],[0,0,.1*Math.PI]);box('Grease shield',[.065,.086,.19],C.red,[.068,.107,0]);for(const s of [-1,1]){plate('Pizza badge',[[-.241,.086],[-.176,.086],[-.209,.011]],.006,C.yellow,s*.08);for(const [x,y]of[[-.217,.062],[-.202,.041],[-.196,.07]])ball('Pepperoni badge dot',.006,C.red,[x,y,s*.086],[1,1,.2]);}
  box('Pizza trigger',[.018,.047,.028],C.cream,[-.015,-.066,0],[0,0,-.27]);return group;}
-function sniper(){group=new T.Group();group.name='Phantom Longshot';grip(-.24,'#2c2436');
- box('Bone stock',[.26,.1,.08],'#e9e0c8',[-.46,.005,0],[0,0,.06],.015);box('Stock cheek rest',[.14,.03,.085],'#cfc5aa',[-.44,.07,0]);box('Stock butt plate',[.03,.12,.09],C.dark,[-.595,-.005,0],[0,0,.06]);
- box('Gothic receiver',[.36,.12,.12],'#2c2436',[-.16,.03,0],[],.015);box('Receiver brass trim',[.32,.02,.125],C.brass,[-.16,.09,0]);
- cyl('Barrel shroud',.042,.24,'#2c2436',[.13,.05,0]);cyl('Long barrel',.027,.5,'#3a3446',[.45,.05,0]);for(let i=0;i<3;i++)ring('Ecto band '+i,.034,.008,'#7dff8a',[.3+i*.13,.05,0],'x',{emissive:'#2a8a3a'});
- cyl('Muzzle brake',.04,.07,C.steel,[.72,.05,0]);for(const s of [-1,1])box('Brake port '+s,[.03,.012,.005],C.dark,[.72,.05,s*.041]);cyl('Spectral muzzle',.02,.002,'#7dff8a',[.756,.05,0],'x',.02,12,{emissive:'#2a8a3a'});
- cyl('Scope tube',.03,.32,'#1d1a24',[.02,.175,0]);cyl('Scope front bell',.046,.07,'#1d1a24',[.21,.175,0],'x',.032);cyl('Scope lens',.041,.003,'#7dff8a',[.246,.175,0],'x',.041,14,{emissive:'#2a8a3a'});cyl('Scope eyepiece',.037,.05,'#1d1a24',[-.16,.175,0],'x',.03);
- for(const x of [-.07,.1]){box('Scope mount',[.028,.06,.034],C.brass,[x,.115,0]);ring('Scope ring',.034,.007,C.brass,[x,.175,0]);}
- box('Ecto cell',[.09,.05,.07],'#7dff8a',[-.27,.115,0],[],.01);box('Ecto cell cap',[.02,.056,.074],C.brass,[-.225,.115,0]);
- for(const s of [-1,1]){ball('Skull emblem',.026,'#e9e0c8',[-.12,.035,s*.063],[1,1.1,.35]);for(const z of [-.01,.01])ball('Skull eye',.006,'#1d1a24',[-.113,.042+z*0,s*.069+z*s*0],[1,1,.4]);}
- box('Bone trigger',[.014,.05,.025],'#e9e0c8',[-.12,-.072,0],[0,0,-.3]);box('Support foregrip',[.13,.05,.075],'#2c2436',[.13,-.015,0],[],.01);return group;}
+function sniper(){
+ group=new T.Group();group.name='Phantom Longshot — Wraith pattern';
+ const bone='#e3dcc5',dark='#232331',violet='#514064',mint='#8cf4c4',metal='#8698a6',black='#111821';
+ const glow={emissive:'#359777',emissiveIntensity:.7};
+ grip(-.24,dark);
+ // Open skeletal stock, with two separate braces and a padded shoulder plate.
+ plate('Bone upper stock',[[-.6,.015],[-.59,.09],[-.38,.075],[-.3,.025],[-.36,-.005]],.09,bone);
+ plate('Bone lower stock',[[-.59,-.14],[-.55,-.155],[-.32,-.035],[-.34,.015]],.075,bone);
+ box('Shoulder pad',[.038,.225,.105],dark,[-.605,-.025,0],[0,0,-.04]);
+ box('Cheek cushion',[.15,.032,.095],violet,[-.49,.092,0]);
+ for(let i=0;i<4;i++)box('Stock pad groove',[.012,.012,.112],metal,[-.626,.04-i*.045,0]);
+ plate('Angular receiver',[[-.33,-.025],[-.33,.083],[-.23,.127],[.015,.104],[.085,.033],[.035,-.029]],.13,dark);
+ box('Bone receiver rail',[.34,.023,.135],bone,[-.13,.108,0]);
+ for(const s of [-1,1]){
+  plate('Violet armor cheek',[[-.28,.012],[-.24,.087],[-.045,.073],[.025,.02],[-.055,-.012]],.012,violet,s*.073);
+  for(const x of [-.245,-.055])bolt('Armor fastener',x,.045,s*.087,metal,.01);
+  // A readable ghost crest: two separate eyes, tapered jaw, raised brow.
+  ball('Ghost crest',.028,bone,[-.14,.045,s*.09],[1.05,1.1,.28]);
+  for(const x of [-.151,-.129])ball('Ghost eye',.007,black,[x,.052,s*.099],[.8,1.1,.28]);
+  plate('Ghost jaw',[[-.16,.033],[-.152,.013],[-.141,.022],[-.132,.014],[-.119,.033]],.006,bone,s*.098);
+ }
+ // Long barrel with a tapered bone heat shield and exposed spectral spine.
+ cyl('Barrel core',.025,.63,metal,[.405,.05,0]);
+ cyl('Chamber collar',.056,.11,violet,[.055,.05,0]);
+ for(const s of [-1,1]){
+  plate('Bone barrel shroud',[[.105,.102],[.41,.091],[.5,.069],[.49,.015],[.15,-.015]],.022,bone,s*.042);
+  for(let i=0;i<5;i++)box('Barrel vent',[.028,.03,.026],dark,[.17+i*.055,.049,s*.057],[0,0,-.22]);
+  rod('Ectoplasm conduit',[.1,.066,s*.032],[.54,.066,s*.032],.007,mint);
+ }
+ for(const x of [.51,.59])ring('Barrel binding',.034,.009,violet,[x,.05,0]);
+ cyl('Faceted muzzle housing',.058,.105,dark,[.7,.05,0],'x',.043,8);
+ ring('Bone muzzle crown',.048,.009,bone,[.751,.05,0]);
+ cyl('Muzzle recess',.037,.002,black,[.759,.05,0]);
+ ring('Spectral muzzle aperture',.021,.006,mint,[.76,.05,0],'x',glow);
+ for(const s of [-1,1])box('Muzzle side port',[.04,.014,.006],black,[.7,.05,s*.054]);
+ // Larger dedicated scope: raised mounts, adjustment turret and tinted lens.
+ for(const x of [-.085,.115])box('Scope saddle',[.036,.08,.05],metal,[x,.163,0]);
+ cyl('Scope tube',.036,.31,dark,[.025,.22,0]);
+ cyl('Scope objective hood',.062,.115,violet,[.224,.22,0],'x',.037,12);
+ ring('Scope objective rim',.057,.008,bone,[.284,.22,0]);
+ cyl('Scope recessed lens',.048,.003,mint,[.286,.22,0],'x',.048,20,glow);
+ cyl('Scope eyepiece',.047,.07,violet,[-.167,.22,0]);
+ cyl('Scope rear lens',.033,.003,mint,[-.204,.22,0],'x',.033,16,glow);
+ for(const x of [-.075,.1])ring('Scope mounting band',.04,.008,bone,[x,.22,0]);
+ cyl('Scope adjustment turret',.027,.033,metal,[.02,.271,0],'y',.027,10);
+ // Keep the Ecto cell prefix: these pieces form the existing reload magazine.
+ box('Ecto cell casing',[.094,.067,.088],dark,[-.27,.126,0]);
+ for(const s of [-1,1])box('Ecto cell window',[.066,.042,.008],mint,[-.27,.129,s*.047]).material=material(mint,glow);
+ box('Ecto cell latch',[.018,.076,.097],bone,[-.216,.126,0]);
+ box('Support foregrip',[.19,.058,.085],dark,[.13,-.015,0]);
+ for(let i=0;i<5;i++)box('Foregrip rib',[.014,.065,.092],violet,[.055+i*.037,-.015,0]);
+ rod('Trigger guard front',[-.055,-.025,0],[-.08,-.119,0],.008,metal);
+ rod('Trigger guard bottom',[-.08,-.119,0],[-.25,-.12,0],.008,metal);
+ box('Bone trigger',[.014,.05,.025],bone,[-.12,-.072,0],[0,0,-.3]);
+ return group;
+}
 
 // [builder, design grip-center X, muzzle X, muzzle Y, optional support X/Y/radius/width]
 const specs = {
