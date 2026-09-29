@@ -300,6 +300,21 @@ kbd {
   100% { opacity: 0; transform: translateX(-50%) translateY(-12px); }
 }
 #hud.flying #killmsg, #hud.dead #killmsg { display: none; }
+/* back from a boss win: what it paid and the planet it unlocked (see UI.payout), just above your hotbar */
+#payout { position: absolute; left: 50%; bottom: 128px; transform: translateX(-50%); text-align: center; opacity: 0;
+  pointer-events: none; white-space: nowrap; text-shadow: 0 2px 10px rgba(0,0,0,.85), 0 0 2px #000; }
+#payout .m { font-size: 38px; font-weight: 700; letter-spacing: 3px; color: #ffd23f; }
+#payout .u { margin-top: 4px; font-size: 19px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: #7dff8a; }
+#payout .u b { color: #fff; }
+#payout.on { animation: payout 6.5s ease-out forwards; }
+@keyframes payout {
+  0% { opacity: 0; transform: translate(-50%, 18px) scale(.9); }
+  6% { opacity: 1; transform: translate(-50%, 0) scale(1.08); }
+  10% { transform: translate(-50%, 0) scale(1); }
+  85% { opacity: 1; transform: translate(-50%, 0); }
+  100% { opacity: 0; transform: translate(-50%, -12px); }
+}
+#hud.flying #payout, #hud.dead #payout { display: none; }
 /* the hitmarker: four ticks round the crosshair for a moment when a shot of yours lands (red: a headshot) */
 #hitmark { position: absolute; left: 50%; top: 50%; width: 0; height: 0; opacity: 0; pointer-events: none; }
 #hitmark i {

@@ -25,6 +25,8 @@
   (Frostbyte, $3,500) and put it on any gun that aims, on the shop's Loadout tab. The red dot aims in twice as fast
   and barely slows you down, the holo zooms in more and tightens your hip fire, the 3x scope is for long shots.
   Your friends see the sight on your gun.
+- **Back from a boss win,** what you won and the planet you just unlocked come up at the bottom of the screen
+  ("+$400 · New planet unlocked: Luckstar").
 - **JACKPOT kills pay double.** A critter killed by a Jackpot Blaster JACKPOT shot (or its blast) is worth 2x: a
   new style bonus, on top of the rest.
 - **No more cap on style bonuses.** They used to stop at 5x in total; now they all multiply together, however many

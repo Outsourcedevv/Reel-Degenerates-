@@ -207,7 +207,9 @@ Bosses only pipe up now and then (a line every half a minute or so). Beat one an
 stiff with sparks popping off it, then it spins up off the floor puffing up bigger and bigger until it goes POP in a
 shower of confetti and coins, its head and hands bouncing across the arena. **VICTORY!** comes up with your reward
 (anyone who was down gets back up), and a beam of light comes down in the middle of the arena: walk into it to go back
-to the planet (it takes you after 30 seconds anyway). No menu to click through. Lose, and everything goes black...
+to the planet (it takes you after 30 seconds anyway). Back on the planet, what you won comes up just above your
+hotbar, and the planet you can fly to now if you just unlocked one ("+$170 · New planet unlocked: Planet Gloop").
+No menu to click through. Lose, and everything goes black...
 then you wake up on the planet you came from, getting up off the ground, with a space hospital bill (10% of your
 bucks, at most $1,000); a rematch needs another summoning item. Mini bosses go flying end over end,
 land on their backs with their legs in the air, and a moment later go pop too.

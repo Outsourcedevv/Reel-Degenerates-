@@ -2175,7 +2175,9 @@ class BossFight {
       const reward = first ? b.reward : Math.round(b.reward * 0.5);
       addBucks(reward);
       if (first) SAVE.beaten.push(this.id);
+      const opened = !G.progress.includes(this.id) && PLANETS[G.planet + 1]; // (the next planet, if this win opened it up)
       if (!G.progress.includes(this.id)) G.progress.push(this.id);
+      this.payout = { reward, planet: opened ? opened.name : null }; // (shown when you're back on the planet, see beamUp)
       SAVE.stats.bossWins++;
       persist();
       Sound.play('victory');
@@ -2183,8 +2185,6 @@ class BossFight {
       const me = this.me();
       if (me.down) me.revive(null); // (everybody gets up to see it)
       UI.bigTitle('VICTORY!', `+${U.bucks(reward)} · ${b.win}`, '#7dff8a', 5);
-      const next = first && PLANETS[G.planet + 1];
-      if (next) setTimeout(() => { if (G.boss === this) UI.toast(`New planet unlocked: ${next.name}! Fly there from your ship.`, 'good', 5); }, 2600);
       setTimeout(() => { if (G.boss === this) this.openExit(); }, BOSS_EXIT.delay * 1000);
       return;
     }
@@ -2240,14 +2240,19 @@ class BossFight {
     const p = this.me(), inside = Math.hypot(p.pos.x - e.g.position.x, p.pos.z - e.g.position.z) < BOSS_EXIT.r && !p.dead && !p.down;
     if (inside || e.left <= 0) this.beamUp();
   }
-  // into the light: a flash, and you're back on the planet (the last boss: the ending)
+  // into the light: a flash, and you're back on the planet (the last boss: the ending), where it says what you won
+  // and which planet you can fly to now
   beamUp() {
-    const e = this.exit, p = this.me();
+    const e = this.exit, p = this.me(), pay = this.payout, last = this.id === 'zorblax';
     e.going = true;
     Sound.play('warp');
     FX.burst(p.pos.clone().setY(p.pos.y + 1), BOSS_EXIT.color, 30, 8);
     UI.flash();
-    setTimeout(() => { if (G.boss === this) Game.endBoss(this.id === 'zorblax'); }, 350);
+    setTimeout(() => {
+      if (G.boss !== this) return;
+      Game.endBoss(last);
+      if (pay && !last) setTimeout(() => UI.payout(pay.reward, pay.planet), 450);
+    }, 350);
   }
   dispose() {
     if (this.exit) { G.scene.remove(this.exit.g); disposeObj(this.exit.g); this.exit = null; }

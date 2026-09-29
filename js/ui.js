@@ -10,7 +10,7 @@ const UI = {
   init() {
     ['hud', 'bucks', 'pizza', 'goal', 'ammo', 'cargo', 'nades', 'roomcode', 'planetname', 'crosshair', 'prompt', 'hint', 'actbar',
       'bossbar', 'phud', 'feed', 'chat', 'chatinput', 'toasts', 'subtitle', 'bigtitle', 'pickups', 'hurt', 'plist',
-      'spectate', 'deathscreen', 'panel', 'panel-inner', 'flyhud', 'gig', 'funhud', 'fuel', 'bosscall', 'threats', 'safe', 'guide', 'hotbar', 'hitmark', 'killmsg'].forEach((id) => (this.el[id] = U.$(id)));
+      'spectate', 'deathscreen', 'panel', 'panel-inner', 'flyhud', 'gig', 'funhud', 'fuel', 'bosscall', 'threats', 'safe', 'guide', 'hotbar', 'hitmark', 'killmsg', 'payout'].forEach((id) => (this.el[id] = U.$(id)));
     this.el['panel-inner'].addEventListener('click', (e) => {
       const b = e.target.closest('[data-act]');
       if (!b || b.disabled) return;
@@ -270,6 +270,16 @@ const UI = {
     el.classList.remove('on');
     void el.offsetWidth; // (so it pops up again for the next one)
     el.classList.add('on');
+  },
+  // back from a boss win: what it paid (+$1,200), and the planet it opened up (if it did), just above your hotbar
+  payout(amount, planet) {
+    const el = this.el.payout;
+    if (!el) return;
+    el.innerHTML = `<div class="m">+${U.bucks(amount)}</div>` + (planet ? `<div class="u">New planet unlocked: <b>${U.esc(planet)}</b></div>` : '');
+    el.classList.remove('on');
+    void el.offsetWidth; // (so it plays again next time)
+    el.classList.add('on');
+    Sound.play('coin');
   },
   // a shot of yours landed: the hitmarker round the crosshair flashes (red for a headshot)
   hitmark(head) {
