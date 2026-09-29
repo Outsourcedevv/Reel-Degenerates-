@@ -219,6 +219,8 @@ const Flight = {
     // airborne hull once the ship is safely above the local ground.
     this.ramp = this.hull.userData.ramp || null;
     this.rampT = 1;
+    this.landingLegs = this.hull.userData.landingLegs;
+    this.gearT = 1;
     this.flames = [-1, 1].map((s) => {
       const f = new THREE.Mesh(new THREE.ConeGeometry(0.5, 3, 7), basicMat('#ffb23e'));
       f.rotation.x = -Math.PI / 2; f.position.set(s * 3.0, 2.23, -7.15);
@@ -697,6 +699,23 @@ const Flight = {
     );
   },
 
+  updateLandingLegs(dt) {
+    if (!this.landingLegs) return;
+    let deploy = false;
+    if (this.ph === 'atmo') {
+      const w = G.worlds[this.planet];
+      const overPad = Math.hypot(this.pos.x, this.pos.z) < FLY.padR + 1.5;
+      const altitude = w ? this.pos.y - Math.max(w.h(0, 0), WATER_Y) : Infinity;
+      deploy = overPad && (this.grounded || (altitude <= 35 && this.vel.y < -.15));
+    }
+    this.gearT = U.damp(this.gearT == null ? 0 : this.gearT, deploy ? 1 : 0, 6, dt);
+    for (const leg of this.landingLegs) {
+      leg.rotation.z = leg.userData.foldAngle * (1 - this.gearT);
+      // The retracted assembly is enclosed in its underbody bay.
+      leg.visible = this.gearT > .005;
+    }
+  },
+
   /* ---------------- every frame ---------------- */
   update(dt) {
     if (!this.on) return;
@@ -739,6 +758,7 @@ const Flight = {
     this.pivot.position.copy(this.pos);
     this.pivot.rotation.set(this.ph === 'space' ? -this.pitch : 0, this.yaw, this.bank, 'YXZ');
     this.updateRamp(dt);
+    this.updateLandingLegs(dt);
     const thr = this.ph === 'space' ? U.clamp((this.speed - 15) / (FLY.space.turbo - 15), 0.1, 1) : this.grounded ? 0.05 : U.clamp(0.3 + this.vel.y * 0.04 + this.speed * 0.015, 0.1, 1);
     for (const f of this.flames) f.scale.set(1, 0.4 + thr * 1.8 + Math.random() * 0.3, 1);
     Sound.engineLevel(thr);

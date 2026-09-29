@@ -910,11 +910,18 @@ function buildShip(boardable = false) {
   const fin=loft([[[-.07,5,-2.9],[-.07,5,-1.3],[-.07,5.72,-2.65]],[[.07,5,-2.9],[.07,5,-1.3],[.07,5.72,-2.65]]],dark);
   fin.name='ship-dorsal-fin';
   // Four shock-absorbing landing legs with broad, grounded feet.
+  g.userData.landingLegs = [];
   for (const x of [-1.7,1.7]) for (const z of [-2.55,2.7]) {
-    beam([x,1.95,z],[x*1.15,.24,z+.14],.18,steel);
-    mk(BOX(.33,.48,.36),red,g,x,1.22,z);
-    mk(BOX(.82,.18,.96),dark,g,x*1.15,.09,z+.14);
-    mk(BOX(.62,.06,.76),steel,g,x*1.15,.2,z+.14);
+    const leg = grp(g), pivot = new V3(x,1.95,z);
+    leg.name = 'ship-landing-leg';
+    beam([x,1.95,z],[x*1.15,.24,z+.14],.18,steel,leg);
+    mk(BOX(.33,.48,.36),red,leg,x,1.22,z);
+    mk(BOX(.82,.18,.96),dark,leg,x*1.15,.09,z+.14);
+    mk(BOX(.62,.06,.76),steel,leg,x*1.15,.2,z+.14);
+    for (const child of leg.children) child.position.sub(pivot);
+    leg.position.copy(pivot);
+    leg.userData.foldAngle = -Math.sign(x) * PI / 2;
+    g.userData.landingLegs.push(leg);
   }
   // The complete ramp rotates at its hinge. It telescopes to hatch height
   // when stowed; deck, treads and edge rails all move as one assembly.

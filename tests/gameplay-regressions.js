@@ -80,6 +80,26 @@ function runGameplayRegressions() {
   flight.ph = 'space';
   Flight.updateRamp.call(flight, 1);
   check(flight.rampT < .01, 'Ramp stays retracted in space');
+  flight.landingLegs = flyingShip.userData.landingLegs;
+  flight.gearT = 0; flight.ph = 'atmo'; flight.vel = new V3(0,-4,0); flight.grounded = false;
+  flight.pos.set(0,ground + 20,0);
+  Flight.updateLandingLegs.call(flight,1);
+  check(flight.gearT > .99 && flight.landingLegs.every(l => l.visible), 'Legs deploy while descending over the pad below 35m');
+  flight.vel.y = 6;
+  Flight.updateLandingLegs.call(flight,1);
+  check(flight.gearT < .005 && flight.landingLegs.every(l => !l.visible), 'Legs retract on ascent');
+  flight.vel.y = -4; flight.pos.x = 50;
+  Flight.updateLandingLegs.call(flight,1);
+  check(flight.gearT < .005, 'Descending away from the pad does not deploy legs');
+  flight.pos.x = 0; flight.pos.y = ground + 80;
+  Flight.updateLandingLegs.call(flight,1);
+  check(flight.gearT < .005, 'Legs stay stowed at high altitude');
+  flight.pos.y = ground; flight.vel.y = 0; flight.grounded = true;
+  Flight.updateLandingLegs.call(flight,1);
+  check(flight.gearT > .99, 'Legs remain deployed while parked on the pad');
+  flight.ph = 'space';
+  Flight.updateLandingLegs.call(flight,1);
+  check(flight.gearT < .005, 'Legs stay stowed in space');
   disposeObj(flyingShip);
   for (const theme of ['count', 'stormy', 'chad']) {
     const fake = Object.create(BossFight.prototype);
