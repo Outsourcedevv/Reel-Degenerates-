@@ -221,7 +221,7 @@ const Flight = {
     this.rampT = 1;
     this.flames = [-1, 1].map((s) => {
       const f = new THREE.Mesh(new THREE.ConeGeometry(0.5, 3, 7), basicMat('#ffb23e'));
-      f.rotation.x = -Math.PI / 2; f.position.set(s * 1.0, 2.2, -6.1);
+      f.rotation.x = -Math.PI / 2; f.position.set(s * 3.0, 2.23, -7.15);
       this.hull.add(f);
       return f;
     });
@@ -685,6 +685,11 @@ const Flight = {
     const target = altitude > 75 ? 0 : 1;
     this.rampT = U.damp(this.rampT == null ? target : this.rampT, target, 8, dt);
     ramp.position.lerpVectors(pose.upPos, pose.downPos, this.rampT);
+    if (pose.upScale) ramp.scale.set(
+      U.lerp(pose.upScale.x, 1, this.rampT),
+      U.lerp(pose.upScale.y, 1, this.rampT),
+      U.lerp(pose.upScale.z, 1, this.rampT)
+    );
     ramp.rotation.set(
       pose.upRot.x + (pose.downRot.x - pose.upRot.x) * this.rampT,
       pose.upRot.y + (pose.downRot.y - pose.upRot.y) * this.rampT,

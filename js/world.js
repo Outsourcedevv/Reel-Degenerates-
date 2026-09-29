@@ -1370,7 +1370,7 @@ class PlanetWorld {
     if (this.parked && this.parked.visible && Math.abs(x) < 1.4 && z > -2.7 && z < 3.5) {
       const base = this.parked.position.y;
       if (y >= base + CABIN.floor - .3 && y < base + 4.5)
-        c0 = base + Math.max(CABIN.floor + 1.85, 2.7 + Math.sqrt(1.95 * 1.95 - x * x));
+        c0 = base + 4.68; // underside of the remodeled shuttle's solid roof
     }
     for (const c of this.caps) {
       if (c.bot == null || y + 1.8 > c.bot + 0.05) continue;

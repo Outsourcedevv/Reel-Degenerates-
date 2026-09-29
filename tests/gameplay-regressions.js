@@ -56,16 +56,27 @@ function runGameplayRegressions() {
   ship.traverse(o => { if (o.name) shipNames.push(o.name); if (o.isMesh && !Array.from(o.geometry.attributes.position.array).every(Number.isFinite)) throw Error('Invalid ship geometry'); });
   check(ship.userData.shipDetails && ship.userData.shipDetails.boardable, 'Ship keeps boardable detail metadata');
   for (const name of ['ship-cockpit-frame', 'ship-engine-left', 'ship-engine-right', 'ship-dorsal-fin', 'ship-ramp-handrail']) check(shipNames.includes(name), name + ' is present');
-  check(ship.children.length >= 70, 'Ship has the upgraded courier detail pass');
+  check(ship.userData.shipDetails.design === 'courier-shuttle-v2', 'Ship uses the remodeled shuttle');
+  ship.updateMatrixWorld(true);
+  for (const [origin, direction, label] of [
+    [[0,8,0],[0,-1,0],'roof'], [[0,-2,0],[0,1,0],'underside'],
+    [[0,3.5,-8],[0,0,1],'rear wall'], [[-6,3.7,0],[1,0,0],'side glazing'],
+    [[0,4,8],[0,0,-1],'windshield']
+  ]) {
+    const ray = new THREE.Raycaster(new V3(...origin), new V3(...direction));
+    check(ray.intersectObject(ship,true).length > 0, 'Ship has a visible surface at its ' + label);
+  }
   disposeObj(ship);
   const flyingShip = buildShip(), ramp = flyingShip.userData.ramp;
   const ground = Math.max(G.world.h(0, 0), WATER_Y);
   const flight = { ramp, rampT: 1, ph: 'atmo', planet: G.planet, pos: new V3(0, ground + 76, 0) };
   Flight.updateRamp.call(flight, 1);
   check(flight.rampT < .01, 'Ramp retracts above 75m above terrain');
+  check(ramp.scale.x < .5, 'Folded ramp telescopes to hatch height');
   flight.pos.y = ground + 74;
   Flight.updateRamp.call(flight, 1);
   check(flight.rampT > .99, 'Ramp deploys on descent below 75m');
+  check(ramp.scale.x > .99, 'Deployed ramp reaches the ground again');
   flight.ph = 'space';
   Flight.updateRamp.call(flight, 1);
   check(flight.rampT < .01, 'Ramp stays retracted in space');

@@ -808,120 +808,144 @@ function buildSnail(color) {
 /* ---------------- the ship ---------------- */
 function buildShip(boardable = false) {
   const g = new THREE.Group();
-  const white = '#f4f1ea', red = '#ff5a36', grey = '#6d7480';
-  const navy = '#273342', steel = '#c9ced6', cyan = '#7dffea', amber = '#ffb03a';
-  if (!boardable) tf(mk(CYL(1.8, 2.1, 7, 10), white, g, 0, 2.7, 0), PI / 2);
-  else {
-    // Axial hull sections leave a real aperture at the starboard ramp.
-    for (const [z0, z1, arcs] of [[-3.5, -1, [[0, PI * 2]]], [-1, 1.4, [[0, 1.35], [2.5, PI * 2]]], [1.4, 3.5, [[0, PI * 2]]]]) {
-      for (const [a, b] of arcs) {
-        // Keep the hatch as the one intentional opening, but cap every
-        // section so viewing the ship from below or behind never exposes a
-        // paper-thin shell with an accidental hole at a segment seam.
-        const geo = new THREE.CylinderGeometry(1.95, 1.95, z1 - z0, 20, 1, false, a, b - a);
-        tf(mk(geo, white, g, 0, 2.7, (z0 + z1) / 2, { side: THREE.DoubleSide }), PI / 2);
-      }
+  g.name = 'S.S. Late Delivery — courier shuttle';
+  const ivory = '#e8e4d8', red = '#cf492e', dark = '#202b38', steel = '#8196a5', cyan = '#83e6eb', amber = '#ffbc55';
+  const glow = { emissive: '#297681', emissiveIntensity: .7 };
+  // Closed cross-section lofts make the nose, keel and wings solid from every
+  // view. The cabin is assembled from thick panels around actual apertures.
+  const loft = (rings, color, parent = g) => {
+    const n = rings[0].length, vertices = rings.flat(2), indices = [];
+    for (let r = 0; r < rings.length - 1; r++) for (let i = 0; i < n; i++) {
+      const a = r * n + i, b = r * n + (i + 1) % n, c = b + n, d = a + n;
+      indices.push(a, b, d, b, c, d);
     }
-    mk(BOX(3.2, .12, 5.9), '#303746', g, 0, 2.24, .3);
-    mk(BOX(.6, .02, 5.5), '#b8372b', g, 0, 2.31, .3);
-    for (const [x, z] of [[0, 2.3], [-.95, -.9], [-.95, -2]]) {
-      mk(BOX(.6, .45, .6), '#343a47', g, x, 2.53, z);
-      mk(BOX(.7, .15, .65), '#b8372b', g, x, 2.83, z);
-      mk(BOX(.7, 1.05, .16), '#b8372b', g, x, 3.37, z - .38);
-      mk(BOX(.48, .26, .18), '#e6e1dc', g, x, 4, z - .38);
+    for (let i = 1; i < n - 1; i++) {
+      indices.push(0, i + 1, i);
+      const end = (rings.length - 1) * n;
+      indices.push(end, end + i, end + i + 1);
     }
-    mk(BOX(2.3, .55, .5), '#303746', g, 0, 3.05, 3.15);
-    for (const x of [-.65, .65]) mk(BOX(.48, .25, .025), '#7dffea', g, x, 3.25, 2.88, { emissive: '#1b7869' });
-    const label = signMesh(['WALK IN · TAKE A SEAT'], 2.5, .35, { bg: '#303746', color: '#7dffea', double: true });
-    label.position.set(1.7, 4.3, .2); label.rotation.y = PI / 2; g.add(label);
-  }
-  tf(mk(CONE(1.8, 2.8, 10), red, g, 0, 2.7, 4.9), PI / 2);
-  if (!boardable) tf(mk(CYL(1.86, 1.9, 0.6, 10), red, g, 0, 2.7, 1.2), PI / 2);
-  tf(mk(boardable ? new THREE.CylinderGeometry(1.97, 1.97, .6, 20, 1, true) : CYL(1.9, 2.0, 0.6, 10), red, g, 0, 2.7, -2.2), PI / 2);
-  tf(mk(boardable ? HEMI(1.1, 16, 8) : SPH(1.1, 10, 8), M('#7fd8ff', { transparent: true, opacity: boardable ? .25 : .65, depthWrite: false, side: THREE.DoubleSide }), g, 0, boardable ? 3.8 : 4.0, 2.4), 0, 0, 0, 1, 0.7, 1.4);
-  for (const s of [-1, 1]) tf(mk(BOX(0.22, 2.2, 2.2), red, g, s * 2.1, 2.3, -2.8), 0, 0, -s * 0.55);
-  mk(BOX(0.22, 2.0, 2.2), red, g, 0, 4.6, -2.8);
-  // cabin windows down both sides, on the hull's upper side panels (one by every row of seats inside)
-  for (const s of [-1, 1]) for (const z of [0.48, -0.55, -1.5]) {
-    if (boardable && s === 1 && z > -1) continue;
-    const ap = (1.95 - (z * 0.3) / 7) * Math.cos(PI / 10); // (how far out the panel is here: the hull narrows to the front)
-    tf(mk(BOX(0.05, 0.72, 0.86), '#c9ced6', g, s * (ap + 0.01) * 0.809, 2.7 + (ap + 0.01) * 0.588, z), 0, 0, s * 0.628);
-    tf(mk(BOX(0.05, 0.6, 0.74), '#22384f', g, s * (ap + 0.035) * 0.809, 2.7 + (ap + 0.035) * 0.588, z, { emissive: '#0a1422' }), 0, 0, s * 0.628);
-  }
-  // The ship reads as a little courier now: armored ribs, a framed cockpit,
-  // twin nacelles and colored navigation lights give the silhouette a clear
-  // front/back direction even when it is parked on a dark planet.
-  for (const z of [-2.85, 0.15, 2.95]) {
-    const rib = tf(mk(TOR(1.88, .045, 8, 24), steel, g, 0, 2.7, z), PI / 2);
-    rib.name = 'ship-hull-rib';
-  }
-  mk(BOX(.5, .12, 4.2), navy, g, 0, 4.58, -.15);
-  for (const z of [-1.8, -.9, 0, .9, 1.8]) mk(BOX(.62, .035, .08), cyan, g, 0, 4.66, z, { emissive: '#1b7869' });
-  const canopyFrame = tf(mk(TOR(1.15, .075, 8, 24), navy, g, 0, 3.82, 2.4), 0);
-  canopyFrame.name = 'ship-cockpit-frame';
-  for (const x of [-.72, .72]) {
-    const strut = mk(BOX(.09, .62, .1), steel, g, x, 4.05, 2.39);
-    strut.rotation.z = x * .18;
-  }
-  for (const s of [-1, 1]) {
-    const nac = grp(g, s * 1.05, 2.34, -4.03);
-    nac.name = s < 0 ? 'ship-engine-left' : 'ship-engine-right';
-    tf(mk(CYL(.67, .78, 1.65, 12), navy, nac, 0, 0, 0), PI / 2);
-    tf(mk(TOR(.68, .065, 8, 20), steel, nac, 0, 0, -.72), PI / 2);
-    tf(mk(CYL(.42, .45, .12, 12), '#171d26', nac, 0, 0, -.86), PI / 2);
-    tf(mk(TOR(.29, .075, 8, 18), amber, nac, 0, 0, -.94), PI / 2);
-    tf(mk(CYL(.23, .23, .035, 12), '#ff6a00', nac, 0, 0, -.98, { emissive: '#aa4400' }), PI / 2);
-    mk(BOX(.22, .34, 1.55), grey, g, s * .78, 2.62, -3.55);
-  }
-  // A dorsal fin and tail strakes make the nose readable from above while the
-  // starboard side remains open for the walk-in ramp.
-  const fin = mk(CONE(.46, 1.15, 5), red, g, 0, 4.82, -1.72);
-  fin.name = 'ship-dorsal-fin';
-  for (const s of [-1, 1]) {
-    const strake = mk(BOX(.12, .72, 1.45), red, g, s * 1.94, 2.82, -2.28);
-    strake.rotation.z = -s * .28;
-  }
-  for (const [x, col] of [[-2.14, '#ff4b4b'], [2.14, '#63ff9a']]) mk(SPH(.095, 8, 6), col, g, x, 2.73, -1.2, { emissive: col === '#ff4b4b' ? '#7a1010' : '#15783d' });
-  if (boardable) {
-    // Thin hazard bars and handrails sell the opening without narrowing the
-    // collision path through the hatch.
-    for (const z of [-1.02, 1.42]) {
-      const bar = mk(BOX(.12, 1.85, .1), amber, g, 1.93, 2.72, z);
-      bar.name = 'ship-hatch-frame';
-    }
-    for (const z of [-.84, .84]) {
-      const rail = mk(BOX(Math.hypot(4.6, 2.3), .07, .07), steel, g, 3.9, 1.28, z);
-      rail.rotation.z = -Math.atan2(2.3, 4.6);
-      rail.name = 'ship-ramp-handrail';
-      const strip = mk(BOX(Math.hypot(4.6, 2.3) * .78, .025, .035), cyan, g, 3.9, 1.2, z, { emissive: '#1b7869' });
-      strip.rotation.z = -Math.atan2(2.3, 4.6);
-    }
-    for (const z of [-.52, .52]) mk(BOX(.08, .035, .62), amber, g, 1.86, 1.95, z);
-  }
-  g.userData.shipDetails = { canopy: canopyFrame, fin, boardable };
-  for (const [x, z] of [[-1.6, 2.4], [1.6, 2.4], [-1.6, -2.6], [1.6, -2.6]]) {
-    tf(mk(BOX(0.18, 1.6, 0.18), grey, g, x * 1.08, 0.8, z), 0, 0, x > 0 ? 0.25 : -0.25);
-    mk(CYL(0.35, 0.4, 0.14, 8), grey, g, x * 1.25, 0.07, z);
-  }
-  if (!boardable) mk(BOX(0.12, 1.8, 1.4), '#3b3f4a', g, 2.06, 2.4, 0.2);
-  const ramp = mk(BOX(boardable ? Math.hypot(4.6, 2.3) : 2.6, 0.12, boardable ? 2 : 1.5), '#9aa3ad', g, boardable ? 3.9 : 3.1, boardable ? 1.09 : .85, .2);
-  ramp.rotation.z = boardable ? -Math.atan2(2.3, 4.6) : -.62;
-  ramp.name = 'ship-boarding-ramp';
-  ramp.userData.shipRamp = {
-    downPos: ramp.position.clone(), downRot: ramp.rotation.clone(),
-    upPos: new V3(2.05, 2.55, .2), upRot: new THREE.Euler(0, 0, Math.PI / 2),
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+    geo.setIndex(indices); geo.computeVertexNormals();
+    return mk(geo.toNonIndexed(), color, parent, 0, 0, 0, { side: THREE.DoubleSide, flatShading: true });
   };
-  g.userData.ramp = ramp;
-  // pizza topper
-  mk(BOX(0.4, 0.3, 0.4), grey, g, 0, 4.8, -0.4);
-  const top = grp(g, 0, 5.4, -0.4);
-  mk(BOX(2.4, 0.9, 0.5), '#ffffff', top, 0, 0, 0);
-  for (const s of [-1, 1]) {
-    const sg = signMesh(['PIZZA'], 2.3, 0.8, { bg: '#d6281b', border: '#ffd23f' });
-    sg.position.set(0, 0, s * 0.26); if (s < 0) sg.rotation.y = PI; top.add(sg);
+  const rect = (x, y0, y1, z) => [[-x,y0,z],[x,y0,z],[x,y1,z],[-x,y1,z]];
+  const beam = (a, b, width, color, parent = g) => {
+    const start = new V3(...a), end = new V3(...b), delta = end.clone().sub(start);
+    const m = mk(BOX(width, delta.length(), width), color, parent);
+    m.position.copy(start.add(end).multiplyScalar(.5));
+    m.quaternion.setFromUnitVectors(new V3(0,1,0), delta.normalize());
+    return m;
+  };
+  loft([rect(1.32,1.05,2.24,-3.25),rect(1.88,1.52,2.24,-2.6),rect(1.88,1.52,2.24,2.5),rect(.95,2.02,2.24,4.7)], dark).name = 'ship-sealed-keel';
+  mk(BOX(3.6,.22,6.6), ivory, g, 0,2.19,.3);
+  mk(BOX(3.27,.025,6.1), '#34404a', g, 0,2.305,.35);
+  mk(BOX(.52,.03,5.1), red, g, 0,2.33,-.1);
+  // Side panels and individually glazed windows; starboard middle is the hatch.
+  for (const s of [-1,1]) {
+    const spans = s === 1 ? [[-3.05,-1.04],[1.44,1.72]] : [[-3.05,1.72]];
+    for (const [a,b] of spans) {
+      mk(BOX(.2,1.05,b-a), ivory,g,s*1.78,2.8,(a+b)/2);
+      mk(BOX(.23,.18,b-a), red,g,s*1.79,3.26,(a+b)/2);
+      mk(BOX(.23,.4,b-a), ivory,g,s*1.78,4.52,(a+b)/2);
+      mk(BOX(.08,.95,b-a), M('#5192ac',{transparent:true,opacity:.4,depthWrite:false,side:THREE.DoubleSide}),g,s*1.79,3.83,(a+b)/2);
+      for (let z=a;z<=b;z+=.98) mk(BOX(.24,1.06,.095),dark,g,s*1.79,3.83,z);
+      mk(BOX(.24,1.06,.095),dark,g,s*1.79,3.83,b);
+    }
+    for (const z of [-2.6,-1.55]) {
+      mk(BOX(.06,.48,.64),steel,g,s*1.905,2.82,z);
+      for (let k=0;k<3;k++) mk(BOX(.065,.04,.44),dark,g,s*1.94,2.69+k*.12,z);
+    }
   }
-  const side = signMesh(['LATE DELIVERY CO.', '"Always Late. Never Hot."'], 4.4, 1.3, { bg: red, border: '#ffffff', colors: ['#ffffff', '#ffe6b3'] });
-  side.position.set(-2.12, 2.9, -0.6); side.rotation.y = -PI / 2; g.add(side);
+  mk(BOX(3.55,2.48,.22),ivory,g,0,3.49,-3.05);
+  // Solid chamfered roof with a raised cargo spine.
+  loft([[[-1.89,4.68,-3.16],[1.89,4.68,-3.16],[1.5,5.02,-3.16],[-1.5,5.02,-3.16]],
+        [[-1.89,4.68,1.78],[1.89,4.68,1.78],[1.5,5.02,1.78],[-1.5,5.02,1.78]]],ivory).name='ship-sealed-roof';
+  mk(BOX(.52,.055,4.82),red,g,0,5.035,-.69);
+  for (const z of [-2.4,-1.7,-1,.6]) mk(BOX(.8,.08,.12),steel,g,0,5.1,z);
+  // Broad, sloping panoramic windshield and a blunt armored nose.
+  loft([rect(1.88,2.22,3.27,1.6),rect(1.58,2.15,3.28,3.65),rect(1.02,2.04,2.62,4.75)],red).name='ship-armored-nose';
+  const glass = M('#4e9cb5',{transparent:true,opacity:.48,depthWrite:false,side:THREE.DoubleSide});
+  const pane = (points) => {
+    const geo=new THREE.BufferGeometry();
+    geo.setAttribute('position',new THREE.Float32BufferAttribute(points.flat(),3));
+    geo.setIndex([0,1,2,0,2,3]); geo.computeVertexNormals();
+    mk(geo,glass,g);
+  };
+  const a=[-1.78,4.76,1.72], b=[1.78,4.76,1.72], c=[1.56,3.3,3.7], d=[-1.56,3.3,3.7];
+  pane([a,b,c,d]);
+  pane([[-1.78,3.28,1.72],a,d,[-1.56,3.28,3.7]]);
+  pane([b,[1.78,3.28,1.72],[1.56,3.28,3.7],c]);
+  const canopyFrame=grp(g); canopyFrame.name='ship-cockpit-frame';
+  for (const [p,q] of [[a,b],[b,c],[c,d],[d,a],[[0,4.76,1.72],[0,3.3,3.7]]]) beam(p,q,.11,dark,canopyFrame);
+  for (const s of [-1,1]) {
+    beam([s*1.78,3.28,1.72],[s*1.78,4.76,1.72],.11,dark,canopyFrame);
+    mk(BOX(.48,.16,.1),dark,g,s*.93,2.69,4.59);
+    mk(BOX(.36,.075,.11),cyan,g,s*.93,2.72,4.65,glow);
+  }
+  // Swept wings sit behind the hatch, clear of the boarding approach.
+  for (const s of [-1,1]) {
+    const outline=[[s*1.75,-1.15],[s*3.5,-1.8],[s*4.65,-3.9],[s*1.7,-3.9]];
+    loft([outline.map(([x,z])=>[x,1.96,z]),outline.map(([x,z])=>[x,2.2,z])],ivory).name='ship-swept-wing';
+    beam([s*2.1,2.23,-1.5],[s*4.45,2.23,-3.72],.12,red);
+    const nac=grp(g,s*3.0,2.23,-3.92); nac.name=s<0?'ship-engine-left':'ship-engine-right';
+    tf(mk(CYL(.66,.8,2.7,12),dark,nac),PI/2);
+    tf(mk(CYL(.72,.74,1.45,12),ivory,nac,0,0,.16),PI/2);
+    for (const z of [-.65,.77]) tf(mk(TOR(.73,.07,6,20),red,nac,0,0,z),0);
+    tf(mk(CYL(.79,.63,.38,12),steel,nac,0,0,-1.5),PI/2);
+    tf(mk(CYL(.61,.61,.04,12),dark,nac,0,0,-1.71),PI/2);
+    mk(TOR(.43,.08,6,20),cyan,nac,0,0,-1.75,glow);
+    tf(mk(CYL(.33,.33,.045,12),cyan,nac,0,0,-1.75,glow),PI/2);
+    for (const x of [-.26,.26]) mk(BOX(.08,.12,1.25),steel,nac,x,.71,.12);
+    const fin=loft([[[s*4.45,2.05,-3.95],[s*4.45,2.05,-2.1],[s*4.45,3.32,-3.7]],
+                    [[s*4.58,2.05,-3.95],[s*4.58,2.05,-2.1],[s*4.58,3.32,-3.7]]],red);
+    fin.name='ship-tail-fin';
+    mk(SPH(.1,8,6),s<0?'#ff554b':'#74ffd2',g,s*4.54,3.2,-3.68,{emissive:s<0?'#ff554b':'#74ffd2'});
+  }
+  const fin=loft([[[-.07,5,-2.9],[-.07,5,-1.3],[-.07,5.72,-2.65]],[[.07,5,-2.9],[.07,5,-1.3],[.07,5.72,-2.65]]],dark);
+  fin.name='ship-dorsal-fin';
+  // Four shock-absorbing landing legs with broad, grounded feet.
+  for (const x of [-1.7,1.7]) for (const z of [-2.55,2.7]) {
+    beam([x,1.95,z],[x*1.15,.24,z+.14],.18,steel);
+    mk(BOX(.33,.48,.36),red,g,x,1.22,z);
+    mk(BOX(.82,.18,.96),dark,g,x*1.15,.09,z+.14);
+    mk(BOX(.62,.06,.76),steel,g,x*1.15,.2,z+.14);
+  }
+  // The complete ramp rotates at its hinge. It telescopes to hatch height
+  // when stowed; deck, treads and edge rails all move as one assembly.
+  const ramp=grp(g,1.6,2.24,.2), length=Math.hypot(4.6,2.3);
+  ramp.name='ship-boarding-ramp'; ramp.rotation.z=-Math.atan2(2.3,4.6);
+  mk(BOX(length,.12,1.92),steel,ramp,length/2,0,0);
+  mk(BOX(length-.18,.025,1.65),dark,ramp,length/2,.073,0);
+  for (let x=.3;x<length;x+=.4) mk(BOX(.09,.03,1.56),steel,ramp,x,.1,0);
+  for (const z of [-.93,.93]) {
+    const rail=mk(BOX(length,.16,.08),ivory,ramp,length/2,.13,z); rail.name='ship-ramp-handrail';
+    mk(BOX(length-.25,.035,.035),cyan,ramp,length/2,.23,z,glow);
+  }
+  for (const z of [-.98,.98]) {
+    mk(BOX(.24,2.38,.18),dark,g,1.8,3.48,z+.2).name='ship-hatch-frame';
+    for(let y=2.5;y<4.5;y+=.34) mk(BOX(.25,.12,.19),amber,g,1.8,y,z+.2);
+  }
+  mk(BOX(.25,.16,2.18),dark,g,1.8,4.61,.2);
+  ramp.userData.shipRamp={downPos:ramp.position.clone(),downRot:ramp.rotation.clone(),upPos:new V3(1.88,2.24,.2),upRot:new THREE.Euler(0,0,PI/2),upScale:new V3(2.3/length,1,1)};
+  g.userData.ramp=ramp;
+  // Seats stay aligned with the existing walk-in interactions.
+  for (const [x,z] of [[0,2.3],[-.95,-.9],[-.95,-2]]) {
+    mk(BOX(.48,.48,.48),dark,g,x,2.55,z);
+    mk(BOX(.68,.16,.64),red,g,x,2.87,z);
+    mk(BOX(.68,.95,.16),dark,g,x,3.4,z-.37);
+    mk(BOX(.54,.64,.08),red,g,x,3.38,z-.26);
+    mk(BOX(.49,.22,.2),ivory,g,x,4,z-.37);
+  }
+  mk(BOX(2.7,.4,.48),dark,g,0,3.08,3.14);
+  for (const x of [-.78,0,.78]) tf(mk(BOX(.5,.035,.3),cyan,g,x,3.3,3.12,glow),.3);
+  // Delivery identity is built into the roof pod instead of a floating topper.
+  const sign=signMesh(['LATE DELIVERY','PIZZA CO.'],1.8,.64,{bg:dark,colors:['#ffffff',amber],border:red});
+  sign.position.set(0,5.38,-.35); g.add(sign);
+  mk(BOX(1.94,.73,.42),dark,g,0,5.36,-.58);
+  const badge=signMesh(['LD-01','INTERPLANETARY COURIER'],2.25,.57,{bg:red,color:'#ffffff'});
+  badge.position.set(-1.925,2.79,.1); badge.rotation.y=-PI/2; g.add(badge);
+  g.userData.shipDetails={canopy:canopyFrame,fin,boardable,design:'courier-shuttle-v2'};
   return g;
 }
 
