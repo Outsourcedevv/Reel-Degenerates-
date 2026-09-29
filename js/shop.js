@@ -58,8 +58,8 @@ const Shop = {
       }
       case 'boots': r.icon = 'boots'; r.chips = ['DOUBLE JUMP']; r.owned = SAVE.boots; break;
       case 'skates': r.icon = 'boots'; r.chips = ['SPRINT +35%']; r.owned = SAVE.skates; break;
-      case 'dash': r.icon = 'boots'; r.chips = ['Q: DASH', 'WORKS IN THE AIR']; r.owned = SAVE.dash; break;
-      case 'stomp': r.icon = 'boots'; r.chips = ['C (IN THE AIR): SLAM', `${STOMP.dmg} DMG SHOCKWAVE`]; r.owned = SAVE.stomp; break;
+      case 'dash': r.icon = 'boots'; r.chips = [`${Keys.name('dash').toUpperCase()}: DASH`, 'WORKS IN THE AIR']; r.owned = SAVE.dash; break;
+      case 'stomp': r.icon = 'boots'; r.chips = [`${Keys.name('stomp').toUpperCase()} (IN THE AIR): SLAM`, `${STOMP.dmg} DMG SHOCKWAVE`]; r.owned = SAVE.stomp; break;
       case 'springs': r.icon = 'boots'; r.chips = ['SUPER JUMP']; r.owned = SAVE.springs; break;
       case 'cape': r.icon = 'star'; r.chips = ['HOLD SPACE: GLIDE']; r.owned = SAVE.cape; break;
       case 'jetpack': r.icon = 'rocket'; r.chips = ['HOLD SPACE: FLY', `${JET.fuel}s OF FUEL`]; r.owned = SAVE.jetpack; break;
@@ -71,6 +71,13 @@ const Shop = {
       case 'charm': r.icon = 'clover'; r.chips = ['+0% LUCK']; r.owned = SAVE.charm; break;
       case 'nades': r.icon = 'bomb'; r.chips = [`${NADE_DMG} DMG`, `YOU HAVE ${SAVE.nades}`]; break;
       case 'hat': r.name = HATS[it.id]; r.icon = 'hat'; r.desc = 'Cosmetic. Yours in every world. Friends will see it. Friends will judge.'; r.chips = ['COSMETIC']; r.owned = SAVE.hats.includes(it.id); break;
+      case 'sight': { // (fits any gun that aims: see SIGHTS)
+        const sg = SIGHTS[it.id];
+        r.name = sg.name; r.icon = 'star'; r.desc = sg.desc; r.chips = sg.chips.slice();
+        r.owned = (SAVE.sights || []).includes(it.id);
+        if (r.owned) r.ownedMsg = 'YOURS: SEE LOADOUT';
+        break;
+      }
       case 'summon': r.name = SUMMONS[it.b].name; r.icon = SUMMONS[it.b].icon; r.chips = [`SUMMONS ${BOSSES[it.b].name.toUpperCase()}`]; r.owned = Summons.has(it.b); break;
     }
     return r;
@@ -99,7 +106,29 @@ const Shop = {
       <button class="price equip" data-act="lput" data-it="${it}">${sel == null ? 'Put on hotbar' : `Put in slot ${sel + 1}`}</button></div>`;
     return `<h5 class="shead">Your hotbar</h5><div class="lbar">${s.map(slot).join('')}</div>
       <p class="tip">${sel == null ? 'Click a slot to pick it, then click something in your locker to put it there (or another slot to swap the two). The X takes a thing off.' : `Slot ${sel + 1} picked: click something in your locker to put it here, or another slot to swap them.`}</p>
-      <h5 class="shead">Your locker</h5>` + (locker.length ? `<div class="cards hats">${locker.map(card).join('')}</div>` : '<p class="tip">Everything you own is on your hotbar.</p>') + this.perksHtml();
+      <h5 class="shead">Your locker</h5>` + (locker.length ? `<div class="cards hats">${locker.map(card).join('')}</div>` : '<p class="tip">Everything you own is on your hotbar.</p>') + this.sightsHtml() + this.perksHtml();
+  },
+  // which sight goes on which gun (see SIGHTS): every gun of yours that can take one, and the sights you own
+  sightsHtml() {
+    const mine = Object.keys(SIGHTS).filter((id) => (SAVE.sights || []).includes(id));
+    const where = { dot: 'Scrapyard-9', holo: 'Luckstar', scope: 'Frostbyte' };
+    if (!mine.length) return `<h5 class="shead">Sights</h5><p class="tip">Sights for the guns that aim: a ${SIGHTS.dot.name} on ${where.dot}, a ${SIGHTS.holo.name} on ${where.holo}, and a ${SIGHTS.scope.name} on ${where.scope}. Buy one once and put it on any of your guns.</p>`;
+    const guns = [-1, ...SAVE.guns.filter((g) => ZAPPERS[g]).sort((a, b) => a - b)].filter((g) => canSight(gunDef(g)));
+    const row = (g) => {
+      const on = sightOf(g), b = (id, lab) => `<button class="sopt ${on === id ? 'on' : ''}" data-act="sighton" data-g="${g}" data-s="${id || ''}">${U.esc(lab)}</button>`;
+      return `<div class="card2 sightcard"><div class="ic">${Thumbs.img(Loadout.pic('gun:' + g), '', 'gun')}</div>
+        <div class="info"><h4>${U.esc(gunDef(g).name)}</h4><div class="sopts">${b(null, 'None')}${mine.map((id) => b(id, SIGHTS[id].short)).join('')}</div></div></div>`;
+    };
+    return `<h5 class="shead">Sights</h5><div class="cards hats">${guns.map(row).join('')}</div>
+      <p class="tip">A sight fits any gun that aims (the Longshot has its own scope). Put the same one on as many guns as you like.</p>`;
+  },
+  // put sight id on gun g (id '': take it off)
+  fitSight(g, id) {
+    if (!SAVE.sightOn) SAVE.sightOn = {};
+    if (id && (SAVE.sights || []).includes(id) && canSight(gunDef(g))) SAVE.sightOn[g] = id; else delete SAVE.sightOn[g];
+    persist();
+    G.player.refitSight();
+    UI.hud();
   },
   // the special items mini bosses drop (see PERKS): yours, and the ones still out there
   perksHtml() {
@@ -113,6 +142,12 @@ const Shop = {
     }).join('') + '</div>';
   },
   loadoutAct(act, d) {
+    if (act === 'sighton') {
+      this.fitSight(Number(d.g), d.s);
+      Sound.play('reload');
+      this.line = d.s ? U.pick(['Now you can see what you\'re missing.', 'Snapped right on. Mostly.', 'Looks professional. You don\'t, but it does.']) : 'Iron sights. Old school. Brave.';
+      return;
+    }
     const i = Number(d.i);
     if (act === 'lsel') {
       if (this.sel == null) this.sel = i;
@@ -152,6 +187,19 @@ const Shop = {
     const out = had[i] && had[i] !== it && Loadout.owned(had[i]) ? ` (your ${Loadout.name(had[i])} went to your locker)` : '';
     UI.toast(first ? `Your first real gun! It's on your hotbar: {slot${i + 1}}${out}. {reload} to reload.` : `${name} is on your hotbar: {slot${i + 1}}${out}.` + (it === 'peel' ? ' Stand in the landing circles!' : ''), 'good', 4);
   },
+  // you bought a sight: it goes on the gun in your hands if that one aims, and on every gun of yours that aims
+  // and hasn't got one yet
+  gotSight(id) {
+    if (!SAVE.sights) SAVE.sights = [];
+    if (!SAVE.sights.includes(id)) SAVE.sights.push(id);
+    if (!SAVE.sightOn) SAVE.sightOn = {};
+    const guns = [-1, ...SAVE.guns].filter((g) => canSight(gunDef(g)));
+    const held = G.player && G.player.tool === 'zap' && canSight(gunDef(SAVE.zap)) ? SAVE.zap : null;
+    for (const g of guns) if (g === held || !sightOf(g)) SAVE.sightOn[g] = id;
+    const n = guns.filter((g) => SAVE.sightOn[g] === id).length;
+    G.player.refitSight();
+    UI.toast(`${SIGHTS[id].name}! It's on ${n === 1 ? 'your ' + gunDef(guns.find((g) => SAVE.sightOn[g] === id)).name : n + ' of your guns'}. Hold {aim} to look through it. Swap sights on the Loadout tab.`, 'good', 4.5);
+  },
   // pricier stuff gets a fancier frame
   tier(price) { return price >= 5000 ? 'legend' : price >= 1500 ? 'epic' : price >= 400 ? 'rare' : 'common'; },
   buy(it) {
@@ -185,6 +233,7 @@ const Shop = {
       case 'charm': SAVE.charm = true; UI.toast('You feel lucky. (You are not.)', '', 2.5); break;
       case 'nades': SAVE.nades += 5; break;
       case 'hat': SAVE.hats.push(it.id); SAVE.hat = it.id; break;
+      case 'sight': this.gotSight(it.id); break;
     }
     this.line = 'Pleasure doing business. No refunds.';
     persist();
@@ -193,7 +242,7 @@ const Shop = {
 
   // which shop section an item goes in
   section(it) {
-    if (it.kind === 'zap' || it.kind === 'nades') return 'weapons';
+    if (it.kind === 'zap' || it.kind === 'nades' || it.kind === 'sight') return 'weapons';
     if (it.kind === 'hat') return 'looks';
     if (it.kind === 'summon' || it.kind === 'charm') return 'special';
     return 'gear';
@@ -286,7 +335,7 @@ const Shop = {
         UI.toast(`Sold for ${U.bucks(v)}!`, 'good');
       }
       if (act === 'hat') { SAVE.hat = d.h; persist(); Sound.play('buy'); }
-      if (act === 'lsel' || act === 'loff' || act === 'lput') this.loadoutAct(act, d);
+      if (act === 'lsel' || act === 'loff' || act === 'lput' || act === 'sighton') this.loadoutAct(act, d);
       this.open(shopId);
     };
     if (G.panel) { UI.setPanel(html); UI.panelHandler = handler; }

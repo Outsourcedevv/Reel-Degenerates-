@@ -186,11 +186,14 @@ class LocalPlayer {
     this.shown = undefined; // (whatever's in that slot now, take it out)
     this.selectSlot(hand, true);
   }
-  // a gun's model in your hands (built the first time you take that gun out, then kept)
+  // a gun's model in your hands (built the first time you take that gun out, then kept; built again when a
+  // different sight goes on it)
   gunVM(l) {
     let vm = this.vmGuns.get(l);
+    const sight = sightOf(l);
+    if (vm && (vm.userData.sightId || null) !== sight) { this.vm.remove(vm); disposeObj(vm); this.vmGuns.delete(l); vm = null; }
     if (!vm) {
-      vm = buildZapperVM(l);
+      vm = buildZapperVM(l, sight);
       addHands(vm, gunDef(l).type, this.cuffMat, this.sleeveMat);
       this.vm.add(vm);
       this.vmGuns.set(l, vm); // (first: laying out your hands, below, goes through vmGuns)
@@ -202,6 +205,12 @@ class LocalPlayer {
     o.traverse((c) => { if (c.isMesh) { c.castShadow = false; c.receiveShadow = false; } });
     o.visible = false;
     this.layoutVM();
+  }
+  // a sight went on or came off a gun (see Shop.loadoutAct): the one in your hands shows it
+  refitSight() {
+    if (this.gunL == null) return;
+    const vm = this.gunVM(this.gunL);
+    if (vm !== this.vmZap) { this.vmZap = vm; vm.visible = this.tool === 'zap'; }
   }
   // fresh batteries in every gun (a boss fight, a respawn)
   refill() {
@@ -356,7 +365,7 @@ class LocalPlayer {
     // (goo or a snowball a critter threw at you slows you down for a bit; boss fights set slowK themselves)
     if (this.slowT > 0) this.slowT -= dt;
     if (G.mode === 'planet') this.slowK = this.slowT > 0 ? 0.55 : 1;
-    const speed = (sprint ? 8.6 * (SAVE.skates ? 1.35 : 1) : 5.6) * (this.ghost ? 1.3 : 1) * this.slowK * (this.wadeK || 1) * (hasPerk('wheels') ? 1.2 : 1) * U.lerp(1, AIM.speed, this.aimK || 0); // (Duct-Tape Skates: faster sprinting; wading: slower; Scooter Wheels: faster; aiming: slower)
+    const speed = (sprint ? 8.6 * (SAVE.skates ? 1.35 : 1) : 5.6) * (this.ghost ? 1.3 : 1) * this.slowK * (this.wadeK || 1) * (hasPerk('wheels') ? 1.2 : 1) * U.lerp(1, this.aimWalk(), this.aimK || 0); // (Duct-Tape Skates: faster sprinting; wading: slower; Scooter Wheels: faster; aiming: slower)
     const sy = Math.sin(this.yaw), cy = Math.cos(this.yaw);
     let tx = (-sy * mz + cy * mx), tz = (-cy * mz - sy * mx);
     const len = Math.hypot(tx, tz);
@@ -1041,17 +1050,21 @@ class LocalPlayer {
   canAim() { return this.tool === 'zap' && canAimGun(gunDef(SAVE.zap)); }
   // the Longshot, aimed: looking down its scope
   scoped() { return this.tool === 'zap' && gunDef(SAVE.zap).type === 'sniper'; }
-  aimZoom() { return gunDef(SAVE.zap).zoom || AIM.zoom; }
-  aimSens() { return this.scoped() ? 0.35 : AIM.sens; }
+  // the sight on the gun in your hands (see SIGHTS): its id, and what it does
+  sightId() { return this.tool === 'zap' ? sightOf(SAVE.zap) : null; }
+  sight() { const s = this.sightId(); return s ? SIGHTS[s] : null; }
+  aimZoom() { const s = this.sight(); return gunDef(SAVE.zap).zoom || (s ? s.zoom : AIM.zoom); }
+  aimSens() { const s = this.sight(); return this.scoped() ? 0.35 : (s && s.sens) || AIM.sens; }
+  aimWalk() { const s = this.sight(); return (s && s.walk) || AIM.speed; }
   // how far off a shot can go right now (per metre out)
   spreadNow() {
-    const z = gunDef(SAVE.zap);
+    const z = gunDef(SAVE.zap), s = this.sight();
     if (!canAimGun(z) || z.type === 'spread') return 0;
     const moving = !this.onGround || this.sprintK > 0.5 ? 1.5 : 1;
-    return (HIP_SPREAD[z.type] || 0) * moving * (1 - (this.aimK || 0));
+    return (HIP_SPREAD[z.type] || 0) * moving * ((s && s.hip) || 1) * (1 - (this.aimK || 0));
   }
   // the Scattergun's cone: wide from the hip, tight aimed
-  cone(z) { return z.spread * U.lerp(HIP_CONE[0], HIP_CONE[1], this.aimK || 0); }
+  cone(z) { const s = this.sight(); return z.spread * U.lerp(HIP_CONE[0] * ((s && s.hip) || 1), HIP_CONE[1], this.aimK || 0); }
   // a direction, knocked somewhere inside that circle (evenly: anywhere in it's as likely as anywhere else)
   wobble(d) {
     const sp = this.spreadNow();
@@ -1061,9 +1074,11 @@ class LocalPlayer {
     return d.addScaledVector(u, Math.cos(a) * r).addScaledVector(v, Math.sin(a) * r).normalize();
   }
   // where a gun goes aimed: in the middle, lined up with its barrel, with the top of it (the closest, biggest
-  // bit: its back end) sitting just under the crosshair, so you can see what you're aiming at
+  // bit: its back end) sitting just under the crosshair, so you can see what you're aiming at. With a sight on
+  // it: you look right through the middle of the sight's window
   sightPos(g) {
     const ud = g.userData;
+    if (!ud.sight && ud.sightLens) ud.sight = new V3(-ud.sightLens.x * g.scale.x, -ud.sightLens.y * g.scale.x, ud.base.z);
     if (!ud.sight) { // (worked out once per gun: how big it is, and where its muzzle is, not counting your hands)
       g.updateMatrixWorld(true);
       const inv = new THREE.Matrix4().copy(g.matrixWorld).invert(), m4 = new THREE.Matrix4(), box = new THREE.Box3(), b = new THREE.Box3();
@@ -1251,10 +1266,15 @@ class LocalPlayer {
     // aiming down the sights (hold right-click. Not while reloading, swapping, picking a friend up, in menus...)
     const aim = this.canAim() && Input.down('aim') && G.locked && !G.panel && !G.chatting && !this.dead && !this.ghost && this.reloadT <= 0
       && this.swapT <= 0 && this.reviveT <= 0 && this.emoteT <= 0 && !Duel.holding();
-    this.aimK = dt > 0 ? U.damp(this.aimK || 0, aim ? 1 : 0, this.scoped() ? 16 : 18, dt) : 0; // (a snap: getting in the ship, a teleport)
+    const sid = this.sightId(), sg = sid ? SIGHTS[sid] : null;
+    this.aimK = dt > 0 ? U.damp(this.aimK || 0, aim ? 1 : 0, (this.scoped() ? 16 : 18) * ((sg && sg.speed) || 1), dt) : 0; // (a snap: getting in the ship, a teleport)
     if (this.aimK < 0.01) this.aimK = 0;
-    const scopeK = this.scoped() ? this.aimK : 0; // (the Longshot: looking down its scope)
+    // (the Longshot, or a 3x Scope: looking down the scope. A red dot or a holo sight: its reticle instead of the crosshair)
+    const scopeK = this.scoped() || sid === 'scope' ? this.aimK : 0;
     document.body.classList.toggle('scoped', scopeK > 0.6);
+    document.body.classList.toggle('lens3', scopeK > 0.6 && sid === 'scope');
+    const ret = sid && sid !== 'scope' && this.aimK > 0.6 ? sid : '';
+    if (ret !== this.retShown) { this.retShown = ret; document.body.dataset.reticle = ret; }
     // sprinting widens the view a little, aiming narrows it
     const fov = U.lerp(72 + this.sprintK * 7, this.aimZoom(), this.aimK);
     if (Math.abs(cam.fov - fov) > 0.05) { cam.fov = fov; cam.updateProjectionMatrix(); }
@@ -1268,7 +1288,7 @@ class LocalPlayer {
     this.reviveK = U.damp(this.reviveK || 0, this.reviveT > 0 ? 1 : 0, 10, dt);
     const sw = Math.max(this.swapT * this.swapT, this.reviveK, wk), run = this.sprintK; // (and while you get up off the ground)
     this.vm.visible = !this.dead && !this.ghost && this.tpK < 0.5 && scopeK < 0.6; // (looking down the scope: no gun in the way)
-    const steady = 1 - 0.8 * this.aimK; // (aimed, it hardly bobs or sways)
+    const steady = 1 - 0.92 * this.aimK; // (aimed, it hardly bobs or sways: a sight stays right on the crosshair)
     this.vm.position.set(
       (Math.cos(this.walkT) * (0.012 + run * 0.02) + this.swayX * 0.5) * steady,
       (Math.abs(Math.sin(this.walkT)) * (0.012 + run * 0.02) + (this.onGround ? 0 : 0.02) - this.landK * 0.05 - this.swayY * 0.4) * steady - sw * 0.3 - run * 0.03,
@@ -1315,9 +1335,10 @@ class LocalPlayer {
       this.gbTools.forEach((t, i) => t && gripTool(this.gb.hand, t, TOOLS[i]));
       G.scene.add(this.gb.root);
     }
-    if (this.gbZap !== SAVE.zap) { // (a different gun)
+    if (this.gbZap !== SAVE.zap || this.gbSight !== sightOf(SAVE.zap)) { // (a different gun, or a different sight on it)
       if (this.gbTools[0]) { this.gb.hand.remove(this.gbTools[0]); disposeObj(this.gbTools[0]); }
-      this.gbTools[0] = gripTool(this.gb.hand, buildZapperVM(SAVE.zap), 'zap');
+      this.gbSight = sightOf(SAVE.zap);
+      this.gbTools[0] = gripTool(this.gb.hand, buildZapperVM(SAVE.zap, this.gbSight), 'zap');
       this.gbZap = SAVE.zap;
     }
     if (this.gb.hatId !== SAVE.hat) setHat(this.gb, SAVE.hat);
@@ -1383,7 +1404,7 @@ class LocalPlayer {
       vx: Math.round(this.vel.x * 10) / 10, vy: Math.round(this.vel.y * 10) / 10, vz: Math.round(this.vel.z * 10) / 10,
       og: this.onGround ? 1 : 0, st: Flight.on ? (Flight.seat === 'pilot' ? 1 : 2) : 0,
       t: TOOLS.indexOf(this.tool), cr: this.tool === 'crit' && this.critEntry ? this.critEntry.split('*')[0] : undefined, h: SAVE.hat, c: G.color, lk: G.look, n: G.name, m: G.mode, p: G.planet, vl: SAVE.vacLvl,
-      hp: Math.round(this.hp), g: this.ghost ? 1 : 0, d: this.dead ? 1 : 0, dn: this.down ? 1 : 0, $: SAVE.bucks, zp: SAVE.zap,
+      hp: Math.round(this.hp), g: this.ghost ? 1 : 0, d: this.dead ? 1 : 0, dn: this.down ? 1 : 0, $: SAVE.bucks, zp: SAVE.zap, sg: sightOf(SAVE.zap) || undefined,
       u: this.using ? 1 : 0, pt: U.r2(this.pitch), an: this.an, ac: this.ac, // (what your goober is up to, see RemotePlayer)
       du: Duel.cur ? Duel.cur.id : undefined, // (which duel you're in: only the two of you see each other there)
       // your movement gear and what's happening to you: jet pack, glider cape, ground pound, flung, sliding, picking someone up
@@ -1411,8 +1432,9 @@ class RemotePlayer {
     this.ghostTag.visible = false;
     this.m.root.add(this.ghostTag);
     this.zl = s.zp == null ? -1 : s.zp; // their gun (so you see the one they really have out)
+    this.sg = s.sg || null; // (and the sight on it)
     this.vacLevel = s.vl || 0;
-    this.tools = [buildZapperVM(this.zl), buildVacVM(this.vacLevel === 2 ? 2 : this.vacLevel > 0), buildDrillVM(), buildPeelVM()];
+    this.tools = [buildZapperVM(this.zl, this.sg), buildVacVM(this.vacLevel === 2 ? 2 : this.vacLevel > 0), buildDrillVM(), buildPeelVM()];
     this.tools.forEach((t, i) => gripTool(this.m.hand, t, TOOLS[i]));
     this.pos = new V3(s.x, s.y, s.z); this.tpos = this.pos.clone();
     this.tvel = new V3(); this.vel = new V3(); this.rcvT = G.time; this.lift = 0;
@@ -1454,11 +1476,11 @@ class RemotePlayer {
       this.m.hand.remove(this.tools[1]); disposeObj(this.tools[1]);
       this.tools[1] = gripTool(this.m.hand, buildVacVM(vl === 2 ? 2 : vl > 0), 'vac');
     }
-    const zl = s.zp == null ? -1 : s.zp;
-    if (zl !== this.zl) { // they switched guns (or bought one)
-      this.zl = zl;
+    const zl = s.zp == null ? -1 : s.zp, sg = s.sg || null;
+    if (zl !== this.zl || sg !== this.sg) { // they switched guns (or bought one), or put a sight on it
+      this.zl = zl; this.sg = sg;
       this.m.hand.remove(this.tools[0]); disposeObj(this.tools[0]);
-      this.tools[0] = gripTool(this.m.hand, buildZapperVM(zl), 'zap');
+      this.tools[0] = gripTool(this.m.hand, buildZapperVM(zl, sg), 'zap');
     }
     // a move of theirs (a flip, a dash, a hit, an emote...): their goober does it too
     if (s.an != null && s.an !== this.an) {

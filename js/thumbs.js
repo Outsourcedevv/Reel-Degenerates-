@@ -44,7 +44,8 @@ const Thumbs = {
   model(key) {
     const [k, a, b, c] = key.split(':');
     switch (k) {
-      case 'zap': { const z = buildZapperVM(+a); z.remove(z.userData.flash); return { o: z, look: 'tool' }; }
+      case 'zap': { const z = buildZapperVM(+a, b || null); z.remove(z.userData.flash); return { o: z, look: 'tool' }; } // ('zap:0:dot': with a sight on)
+      case 'sight': return { o: buildSight(a), look: 'item' }; // (from the front a bit: you see through its window)
       case 'vac': return { o: buildVacVM(a === '2' ? 2 : a === '1'), look: 'tool' };
       case 'drill': return { o: buildDrillVM(), look: 'tool' };
       case 'peel': return { o: buildPeelVM(), look: 'tool' };
@@ -170,6 +171,7 @@ const Thumbs = {
       case 'cargo': return 'cargo:' + it.lvl;
       case 'hat': return 'hat:' + it.id;
       case 'summon': return 'sum:' + it.b;
+      case 'sight': return 'sight:' + it.id;
       default: return it.kind; // boots, socks, armor, life, charm, nades, drill, peel
     }
   },
