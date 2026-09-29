@@ -25,6 +25,9 @@
   (Frostbyte, $3,500) and put it on any gun that aims, on the shop's Loadout tab. The red dot aims in twice as fast
   and barely slows you down, the holo zooms in more and tightens your hip fire, the 3x scope is for long shots.
   Your friends see the sight on your gun.
+- **Bosses are much tougher to fight.** Their attacks move three times as fast (shots, shockwaves, sweeping beams,
+  charges, falling stuff), with shorter warnings. They circle round you instead of standing still, see your shots
+  coming and sidestep them, and in phase 2 they often do two attacks at once.
 - **Nimbus-9 is easier on the eyes** (it was nearly all white), and **its clouds are bouncy**: fall off an island and
   they throw you back up into the sky, onto the nearest island, instead of dumping you back at the ship.
 - **Esc on the pause menu** takes you straight back into the game with the mouse grabbed (it used to open the menu

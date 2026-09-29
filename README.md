@@ -188,7 +188,13 @@ if someone leaves, the duel's off.
 
 ### Boss fights
 
-Every attack is telegraphed, so you can read the fight:
+Bosses don't hang about. Their attacks are quick: everything they throw, every shockwave, sweeping beam and charge
+moves three times as fast as it used to, and the warnings are shorter, so you have to move the moment you see one.
+They keep moving too: the ones on foot circle round you instead of standing still (and back off if you get too
+close), the ones that fly round the arena go faster and turn back now and then, and all of them see your shots coming
+and sidestep (not the Longshot's: nothing dodges that). In phase 2 they often throw two attacks at once.
+
+Every attack is still telegraphed, so you can read the fight:
 
 - **Wind-ups.** Before a boss attacks it strikes a pose (arm back to throw, arms up to slam, a crouch before it
   jumps) and glows. The attack's name shows under its health bar, with a bar that fills until it goes off. With
