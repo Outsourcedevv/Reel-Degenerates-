@@ -247,15 +247,18 @@ const ZAPPERS = [
   //  looks down its scope. New guns go on the end: saves remember guns by number)
   { name: 'Phantom Longshot', short: 'Longshot',     type: 'sniper',  dmg: 220, cd: 1.1, mag: 5,  rl: 2.2,  color: '#7dff8a', range: 160, zoom: 22 },
 ];
-// Aiming down the sights (hold right-click, see LocalPlayer.aimK): every gun but the Wisp Caller (its wisps find
-// their own way). From the hip a shot goes somewhere inside a little circle round the crosshair, this wide
-// (how far off it can be, per metre out); aimed, it goes dead on. Running or in the air, the circle's half as
-// big again. The Scattergun's pellets spread out more from the hip and bunch up aimed (see HIP_CONE).
+// Aiming down the sights (hold right-click, see LocalPlayer.aimK): only the guns you point and shoot. The ones
+// that don't need it don't aim, and are as accurate from the hip as ever: the Goo Lobber and the Launcher (big
+// splashes), the Cryo Beam (a beam), the Pizza Cutter (it's thrown) and the Wisp Caller (its wisps find their
+// own way). From the hip a shot from one that aims goes somewhere inside a little circle round the crosshair,
+// this wide (how far off it can be, per metre out); aimed, it goes dead on. Running or in the air, the circle's
+// half as big again. The Scattergun's pellets spread out more from the hip and bunch up aimed (see HIP_CONE).
 // zoom: how far the view narrows aimed (a gun's own zoom wins: the Longshot's scope)
-const HIP_SPREAD = { squirt: 0.04, bolt: 0.03, jackpot: 0.032, lob: 0.03, beam: 0.02, chain: 0.025, rocket: 0.028, cutter: 0.022, sniper: 0.06 };
+const NO_AIM = new Set(['lob', 'rocket', 'beam', 'cutter', 'homing']);
+const HIP_SPREAD = { squirt: 0.04, bolt: 0.03, jackpot: 0.032, chain: 0.025, sniper: 0.06 };
 const HIP_CONE = [1.3, 0.7]; // (Scattergun: its spread x this from the hip, x that aimed)
 const AIM = { zoom: 52, sens: 0.75, speed: 0.65, drop: 0.07 }; // (sens: mouse speed aimed, speed: how fast you walk aimed, drop: how far under the crosshair the gun's top sits)
-const canAimGun = (z) => z.type !== 'homing';
+const canAimGun = (z) => !NO_AIM.has(z.type);
 // Every new hire gets one of these for free. It's gun -1: you always have it, it never drops when you
 // die, and no shop sells it. It squirts water. Slowly. (Company policy: no free REAL guns.)
 const STARTER_ZAP = { name: 'Squirt Pistol', short: 'Squirter', type: 'squirt', dmg: 5, cd: 0.5, mag: 6, rl: 2.2, color: '#5fc8ff' };

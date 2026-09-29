@@ -445,7 +445,7 @@ const UI = {
         <p>{emote} emote (a different one each press) · change any key on the Keybinds screen (pause menu)</p></div>
       <div><h4>Your hotbar</h4>
         <p>{slot1} to {slot5} take out what's in each slot (or flip through them with the mouse wheel). Put anything you own in any slot, or take it off, on any shop's <b>Loadout</b> tab: carry three guns and the Grabby Vac if you like.</p>
-        <p>Guns: {fire} to shoot, {reload} to reload, hold {aim} to aim down the sights. From the hip your shots go somewhere inside the crosshair's circle; aimed, they go dead on (but you walk slower). Every gun aims except the Wisp Caller: its wisps find their own way. You start with a Squirt Pistol (it's terrible). Every planet sells a different real gun, and you keep every one you buy.</p>
+        <p>Guns: {fire} to shoot, {reload} to reload, hold {aim} to aim down the sights. From the hip your shots go somewhere inside the crosshair's circle; aimed, they go dead on (but you walk slower). The Goo Lobber, Launcher, Cryo Beam, Pizza Cutter and Wisp Caller don't need to: they're just as good from the hip. You start with a Squirt Pistol (it's terrible). Every planet sells a different real gun, and you keep every one you buy.</p>
         <p>Grabby Vac: hold {fire} on things to suck them up (junk, berries, chips, snow piles, pearls, litter, crusts, and critters you zapped). Ghosts too: it's the ONLY way to catch one, and you have to keep it in the middle of your screen.</p>
         <p>Laser Drill: hold {fire} on crystals (buy on Frostbyte) · Pizza Peel: catch pepperoni meteors (buy on Zorblax Prime)</p>
         <p>{nade} throw a Goo Grenade (boss fights)</p></div>

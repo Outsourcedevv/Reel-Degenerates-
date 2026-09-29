@@ -1034,7 +1034,7 @@ class LocalPlayer {
     this.kick('beam');
     if (Math.random() < 0.6) FX.burst(end, '#bff6ff', 1, 2);
   }
-  /* ---- aiming down the sights (hold right-click): every gun but the Wisp Caller. The gun comes up to the middle
+  /* ---- aiming down the sights (hold right-click): the guns that aim (canAimGun). The gun comes up to the middle
      of the screen, the view narrows a bit (the Longshot: right down its scope), you turn slower and walk slower,
      and shots go dead on. From the hip they go somewhere inside a little circle round the crosshair (HIP_SPREAD)
      that the crosshair shows. aimK eases 0 (from the hip) -> 1 (aimed) */
@@ -1048,7 +1048,7 @@ class LocalPlayer {
     const z = gunDef(SAVE.zap);
     if (!canAimGun(z) || z.type === 'spread') return 0;
     const moving = !this.onGround || this.sprintK > 0.5 ? 1.5 : 1;
-    return (HIP_SPREAD[z.type] || 0.03) * moving * (1 - (this.aimK || 0));
+    return (HIP_SPREAD[z.type] || 0) * moving * (1 - (this.aimK || 0));
   }
   // the Scattergun's cone: wide from the hip, tight aimed
   cone(z) { return z.spread * U.lerp(HIP_CONE[0], HIP_CONE[1], this.aimK || 0); }

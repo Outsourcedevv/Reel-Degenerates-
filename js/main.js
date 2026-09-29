@@ -878,13 +878,13 @@ const Game = {
     const z = gunDef(SAVE.zap);
     switch (z.type) {
       case 'squirt': return '{fire}: squirt (it\'s terrible: buy a real gun!) · {reload}: refill';
-      case 'spread': return '{fire}: blast · {reload}: reload';
+      case 'spread': return '{fire}: blast · hold {aim}: aim (tighter spread) · {reload}: reload';
       case 'lob': return '{fire}: lob goo (aim a bit high) · {reload}: reload';
-      case 'jackpot': return '{fire}: shoot and pray · {reload}: reload';
+      case 'jackpot': return '{fire}: shoot and pray · hold {aim}: aim · {reload}: reload';
       case 'beam': return 'Hold {fire}: freeze beam · {reload}: recharge';
       case 'cutter': return '{fire}: throw a pizza cutter (it comes back)';
       case 'homing': return '{fire}: ghost wisps (they chase things) · {reload}: reload';
-      case 'chain': return '{fire}: chain lightning (it jumps between targets) · {reload}: reload';
+      case 'chain': return '{fire}: chain lightning (it jumps between targets) · hold {aim}: aim · {reload}: reload';
       case 'rocket': return '{fire}: launch a parcel (shoot your feet to rocket-jump) · {reload}: reload';
       case 'sniper': return '{fire}: shoot · hold {aim}: look down the scope · {reload}: reload';
       default: return '{fire}: zap · hold {aim}: aim (dead on) · {reload}: reload';

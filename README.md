@@ -115,7 +115,7 @@ defaults:
 | `E` | talk, shop, use things, pick up critters you zapped · hold next to a downed friend to pick them up (5 seconds) |
 | `1` to `5` / mouse wheel | take out what's in that hotbar slot / flip through your hotbar |
 | Left click | use what you're holding |
-| Right click (hold) | aim down the sights: every gun but the Wisp Caller. Shots go dead on (from the hip they go somewhere inside the crosshair's circle), the view zooms in a bit and you walk slower. The Phantom Longshot looks down its scope |
+| Right click (hold) | aim down the sights: the Squirt Pistol, Zapper, Scattergun, Jackpot Blaster, Storm Caller and Phantom Longshot. Shots go dead on (from the hip they go somewhere inside the crosshair's circle; the Scattergun's pellets bunch up), the view zooms in a bit and you walk slower. The Longshot looks down its scope. The Goo Lobber, Launcher, Cryo Beam, Pizza Cutter and Wisp Caller don't aim: they're just as accurate from the hip |
 | `R` | reload (infinite batteries, but the battery pack runs out) |
 | `Q` | throw a Goo Grenade (boss fights) |
 | `I` | backpack (drop things) and crew (send money) |

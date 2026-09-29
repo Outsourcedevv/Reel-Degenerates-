@@ -14,7 +14,7 @@ function gunChips(z) {
     case 'jackpot': return ['LUCKY SHOTS', `${z.dmg} DMG`, 'x2 · 777 · JACKPOT', mag];
     case 'beam': return ['FREEZE RAY', `${Math.round(z.dmg / z.cd)} DMG / SEC`, 'FREEZES CRITTERS', `${(z.mag * z.cd).toFixed(0)}s CHARGE`];
     case 'cutter': return ['BOOMERANG', `${z.dmg} DMG PER SLICE`, 'SLICES THROUGH', `${z.mag} CUTTERS`];
-    case 'homing': return ['HOMING', `${z.dmg} DMG`, rate, `${z.mag} WISPS`, 'NO AIMING'];
+    case 'homing': return ['HOMING', `${z.dmg} DMG`, rate, `${z.mag} WISPS`];
     case 'chain': return ['CHAIN LIGHTNING', `${z.dmg} DMG`, `JUMPS ${z.jumps}x`, 'STUNS CRITTERS'];
     case 'rocket': return ['ROCKETS', `${z.dmg} SPLASH DMG`, 'ROCKET JUMPS', `${z.mag} PARCELS`];
     case 'sniper': return ['SNIPER', `${z.dmg} DMG`, `${Keys.name('aim').toUpperCase()}: SCOPE`, `${z.mag} ROUNDS`];
