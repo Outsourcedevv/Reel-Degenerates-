@@ -215,6 +215,10 @@ const Flight = {
     this.pivot = grp(this.group);
     this.hull = buildShip();
     this.pivot.add(this.hull);
+    // Keep the boarding ramp deployed on the pad, then fold it against the
+    // airborne hull once the ship is safely above the local ground.
+    this.ramp = this.hull.userData.ramp || null;
+    this.rampT = 1;
     this.flames = [-1, 1].map((s) => {
       const f = new THREE.Mesh(new THREE.ConeGeometry(0.5, 3, 7), basicMat('#ffb23e'));
       f.rotation.x = -Math.PI / 2; f.position.set(s * 1.0, 2.2, -6.1);
@@ -666,6 +670,28 @@ const Flight = {
   },
   fwd() { return new V3(Math.sin(this.yaw) * Math.cos(this.pitch), Math.sin(this.pitch), Math.cos(this.yaw) * Math.cos(this.pitch)); },
 
+  // The boarding ramp is a physical part of the ship: it retracts only after
+  // the ship is more than 75m above the local terrain, and deploys again on
+  // the approach so players can walk into the ship after landing.
+  updateRamp(dt) {
+    const ramp = this.ramp, pose = ramp && ramp.userData.shipRamp;
+    if (!ramp || !pose) return;
+    let altitude = Infinity;
+    if (this.ph === 'atmo') {
+      const w = G.worlds[this.planet];
+      const ground = w ? Math.max(w.h(this.pos.x, this.pos.z), WATER_Y) : 0;
+      altitude = this.pos.y - ground;
+    }
+    const target = altitude > 75 ? 0 : 1;
+    this.rampT = U.damp(this.rampT == null ? target : this.rampT, target, 8, dt);
+    ramp.position.lerpVectors(pose.upPos, pose.downPos, this.rampT);
+    ramp.rotation.set(
+      pose.upRot.x + (pose.downRot.x - pose.upRot.x) * this.rampT,
+      pose.upRot.y + (pose.downRot.y - pose.upRot.y) * this.rampT,
+      pose.upRot.z + (pose.downRot.z - pose.upRot.z) * this.rampT
+    );
+  },
+
   /* ---------------- every frame ---------------- */
   update(dt) {
     if (!this.on) return;
@@ -707,6 +733,7 @@ const Flight = {
     // ship pose, flames, spinning stuff
     this.pivot.position.copy(this.pos);
     this.pivot.rotation.set(this.ph === 'space' ? -this.pitch : 0, this.yaw, this.bank, 'YXZ');
+    this.updateRamp(dt);
     const thr = this.ph === 'space' ? U.clamp((this.speed - 15) / (FLY.space.turbo - 15), 0.1, 1) : this.grounded ? 0.05 : U.clamp(0.3 + this.vel.y * 0.04 + this.speed * 0.015, 0.1, 1);
     for (const f of this.flames) f.scale.set(1, 0.4 + thr * 1.8 + Math.random() * 0.3, 1);
     Sound.engineLevel(thr);

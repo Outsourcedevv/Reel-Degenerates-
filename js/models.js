@@ -906,6 +906,12 @@ function buildShip(boardable = false) {
   if (!boardable) mk(BOX(0.12, 1.8, 1.4), '#3b3f4a', g, 2.06, 2.4, 0.2);
   const ramp = mk(BOX(boardable ? Math.hypot(4.6, 2.3) : 2.6, 0.12, boardable ? 2 : 1.5), '#9aa3ad', g, boardable ? 3.9 : 3.1, boardable ? 1.09 : .85, .2);
   ramp.rotation.z = boardable ? -Math.atan2(2.3, 4.6) : -.62;
+  ramp.name = 'ship-boarding-ramp';
+  ramp.userData.shipRamp = {
+    downPos: ramp.position.clone(), downRot: ramp.rotation.clone(),
+    upPos: new V3(2.05, 2.55, .2), upRot: new THREE.Euler(0, 0, Math.PI / 2),
+  };
+  g.userData.ramp = ramp;
   // pizza topper
   mk(BOX(0.4, 0.3, 0.4), grey, g, 0, 4.8, -0.4);
   const top = grp(g, 0, 5.4, -0.4);

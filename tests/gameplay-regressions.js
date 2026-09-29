@@ -58,6 +58,18 @@ function runGameplayRegressions() {
   for (const name of ['ship-cockpit-frame', 'ship-engine-left', 'ship-engine-right', 'ship-dorsal-fin', 'ship-ramp-handrail']) check(shipNames.includes(name), name + ' is present');
   check(ship.children.length >= 70, 'Ship has the upgraded courier detail pass');
   disposeObj(ship);
+  const flyingShip = buildShip(), ramp = flyingShip.userData.ramp;
+  const ground = Math.max(G.world.h(0, 0), WATER_Y);
+  const flight = { ramp, rampT: 1, ph: 'atmo', planet: G.planet, pos: new V3(0, ground + 76, 0) };
+  Flight.updateRamp.call(flight, 1);
+  check(flight.rampT < .01, 'Ramp retracts above 75m above terrain');
+  flight.pos.y = ground + 74;
+  Flight.updateRamp.call(flight, 1);
+  check(flight.rampT > .99, 'Ramp deploys on descent below 75m');
+  flight.ph = 'space';
+  Flight.updateRamp.call(flight, 1);
+  check(flight.rampT < .01, 'Ramp stays retracted in space');
+  disposeObj(flyingShip);
   for (const theme of ['count', 'stormy', 'chad']) {
     const fake = Object.create(BossFight.prototype);
     fake.processions = []; fake.rpos = new V3(); fake.canHurt = () => true;
