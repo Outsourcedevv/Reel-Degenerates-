@@ -363,6 +363,7 @@ Kill them in style for a bonus. Each bonus is at most 2x, and they stack up to 5
 | Style | Bonus | How |
 | --- | --- | --- |
 | 360 | 2x | spin all the way around right before the kill |
+| Jackpot | 2x | kill it with a JACKPOT shot from the Jackpot Blaster (the direct hit or its blast) |
 | Multi Kill | 2x | three or more kills, each within 3 seconds of the last |
 | Airborne | 1.5x | kill it while you're in the air |
 | Last Shot | 1.5x | kill it with the last shot in your battery |

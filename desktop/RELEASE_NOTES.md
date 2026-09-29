@@ -24,6 +24,8 @@
   (Frostbyte, $3,500) and put it on any gun that aims, on the shop's Loadout tab. The red dot aims in twice as fast
   and barely slows you down, the holo zooms in more and tightens your hip fire, the 3x scope is for long shots.
   Your friends see the sight on your gun.
+- **JACKPOT kills pay double.** A critter killed by a Jackpot Blaster JACKPOT shot (or its blast) is worth 2x: a
+  new style bonus, on top of the rest.
 - **Goo Grenades are on `Q` now** (right-click aims). The Getaway Sneakers' dash moved to `F`. If you'd changed your
   keys, those two move over unless you'd picked something else for them.
 - **The Duel Pit on Luckstar.** Wager a crewmate, each pick a gun you own, and fight it out in the arena. Friendly:

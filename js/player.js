@@ -1856,6 +1856,7 @@ const Shots = {
   landBolt(s, hit) {
     const pos = s.pos.clone(), roll = s.roll;
     if (!roll) { this.land(s, hit, pos, s.dmg); return; }
+    if (roll.k === 'jp' && s.flags) s.flags = Object.assign({}, s.flags, { jp: true }); // (a kill with it pays double: see STYLE)
     if (roll.text) FX.text(pos.clone().setY(pos.y + 1.1), roll.text, roll.color, roll.k === 'jp' ? 70 : 48);
     if (roll.mult > 0) this.land(s, hit, pos, Math.round(s.dmg * roll.mult));
     if (roll.blast) {

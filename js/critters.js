@@ -874,6 +874,7 @@ const Critters = {
     if (f.first && c.myHits === 1) out.push('one');
     if (f.run) out.push('run');
     if (f.head) out.push('head');
+    if (f.jp) out.push('jackpot');
     if (f.low) out.push('clutch');
     const bit = this.bitBy.get(c.id);
     if (bit != null && G.time - bit < 8) out.push('revenge');

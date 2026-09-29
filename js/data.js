@@ -666,6 +666,7 @@ const STYLE = {
   revenge:{ name: 'REVENGE', m: 1.5, desc: 'kill the critter that just bit you' },
   clutch: { name: 'CLUTCH', m: 1.5, desc: 'kill it while you\'re under 25 HP' },
   head:   { name: 'HEADSHOT', m: 1.5, desc: 'finish it with a shot to the head' },
+  jackpot:{ name: 'JACKPOT', m: 2, desc: 'kill it with a JACKPOT shot from the Jackpot Blaster (or its blast)' },
 };
 const STYLE_MAX = 5; // stacked style bonuses never pay more than this in total
 
