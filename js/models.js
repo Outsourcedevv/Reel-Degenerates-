@@ -857,7 +857,12 @@ function buildShip(boardable = false) {
       for (let k=0;k<3;k++) mk(BOX(.065,.04,.44),dark,g,s*1.94,2.69+k*.12,z);
     }
   }
-  mk(BOX(3.55,2.48,.22),ivory,g,0,3.49,-3.05);
+  mk(BOX(3.55,2.48,.24),ivory,g,0,3.49,-3.03);
+  mk(BOX(2.65,1.74,.1),dark,g,0,3.48,-3.2);
+  mk(BOX(2.38,1.46,.06),steel,g,0,3.48,-3.28);
+  for (const x of [-.93,.93]) mk(BOX(.09,1.3,.07),ivory,g,x,3.48,-3.33);
+  mk(BOX(.78,.24,.08),dark,g,0,3.5,-3.33);
+  for (const x of [-1.08,1.08]) for (const y of [2.86,4.1]) mk(SPH(.05,6,4),amber,g,x,y,-3.34);
   // Solid chamfered roof with a raised cargo spine.
   loft([[[-1.89,4.68,-3.16],[1.89,4.68,-3.16],[1.5,5.02,-3.16],[-1.5,5.02,-3.16]],
         [[-1.89,4.68,1.78],[1.89,4.68,1.78],[1.5,5.02,1.78],[-1.5,5.02,1.78]]],ivory).name='ship-sealed-roof';
