@@ -13,4 +13,6 @@ contextBridge.exposeInMainWorld('desktop', {
     ipcRenderer.on('update:progress', (_e, p) => cb(p));
   },
   openReleases: (version) => ipcRenderer.send('update:releases', String(version || '')),
+  // the game wants the mouse back (see Game.lockFailed): the app clicks in the middle of the window for it
+  grabMouse: () => ipcRenderer.send('game:grab-mouse'),
 });

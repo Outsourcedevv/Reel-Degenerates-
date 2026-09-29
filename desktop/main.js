@@ -76,6 +76,16 @@ ipcMain.handle('update:install', async (e) => {
     return { ok: false, error: err.message };
   }
 });
+// the game let go of the mouse (Esc does that) and wants it back. Chromium only grabs it again after a real click or
+// key press, and Esc doesn't count, so the game used to sit there saying "Click to look around". The app clicks in
+// the middle of the window for it instead: a real click as far as Chromium's concerned, so the mouse is grabbed
+// straight back. (The game ignores that click for anything else: it can't shoot, see Input.loose.)
+ipcMain.on('game:grab-mouse', (e) => {
+  if (!fromGame(e) || !win || !win.isFocused()) return;
+  const [w, h] = win.getContentSize(), x = Math.round(w / 2), y = Math.round(h / 2);
+  e.sender.sendInputEvent({ type: 'mouseDown', x, y, button: 'left', clickCount: 1 });
+  e.sender.sendInputEvent({ type: 'mouseUp', x, y, button: 'left', clickCount: 1 });
+});
 ipcMain.on('update:releases', (e, v) => { if (fromGame(e)) shell.openExternal(/^\d+(\.\d+)*$/.test(v) ? `${RELEASES}/tag/v${v}` : `${RELEASES}/latest`); });
 
 Menu.setApplicationMenu(null);

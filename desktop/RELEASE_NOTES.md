@@ -6,9 +6,8 @@
   go straight onto your hotbar if there's room. Die and your gear's slots wait for it; pick your stuff up and it all
   goes back where it was.
 - **Esc does what you'd expect.** It closes shops and menus and drops you straight back into the game (no pause menu),
-  and on the pause menu it's the same as Resume. If the mouse can't be grabbed again right away, "Click to look
-  around" comes up: the keys work, the mouse doesn't turn you until you click (no more getting stuck spinning at the
-  edge of the screen), and that click doesn't shoot.
+  and on the pause menu it's the same as Resume, with the mouse grabbed straight back (no more "Click to look
+  around", and no getting stuck spinning at the edge of the screen).
 - **Mini boss prizes.** Mini bosses turn up a bit more often (after 15 critters, 4% a kill) and drop prizes when they
   pop: a trophy that sells for a lot, Goo Grenades, and the first time, a special item that's yours for keeps: jump
   higher, sell for more, reload faster, heal faster, hit harder, run faster, or take less damage.

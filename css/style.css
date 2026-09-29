@@ -1027,11 +1027,6 @@ img.thumb.inline { display: inline-block; width: 32px; height: 32px; vertical-al
 #pause .row2.tight .btn { flex: none; }
 
 /* ---------- v1.12: Esc to resume ---------- */
-/* back in the game before the mouse is grabbed again (see Game.lockFailed): no cursor in the way */
-/* the mouse isn't grabbed (see Game.lockFailed): the cursor's there, and a click grabs it */
-#clicklook { display: none; position: absolute; left: 50%; top: 56%; transform: translateX(-50%); padding: 6px 14px; border-radius: 8px;
-  background: rgba(10,14,24,.6); color: #fff; font-size: 14px; letter-spacing: 1px; pointer-events: none; }
-body.softlock #clicklook { display: block; }
 #hud.induel #hotbar { display: none; } /* (a duel: you've got the one gun you picked) */
 /* the Longshot's scope (aiming it): a round window with a crosshair, dark all round it */
 #scope { display: none; position: absolute; inset: 0; pointer-events: none;

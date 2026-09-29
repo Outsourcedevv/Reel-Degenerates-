@@ -68,15 +68,17 @@ const Game = {
       G.player.layoutVM();
     });
     document.addEventListener('pointerlockchange', () => {
-      if (document.pointerLockElement === G.renderer.domElement) { this.everLocked = true; this.wantLock = false; this.relockTried = false; clearTimeout(this.lockT); this.fallback = false; this.setSoft(false); G.locked = true; }
+      if (document.pointerLockElement === G.renderer.domElement) { this.everLocked = true; this.wantLock = false; this.relockTried = false; this.grabTries = 0; clearTimeout(this.lockT); clearTimeout(this.grabT); this.fallback = false; this.setSoft(false); G.locked = true; }
       else { this.unlockedAt = performance.now(); if (!this.soft && !this.wantLock) G.locked = false; }
       this.updatePause();
     });
     // the browser wouldn't grab the mouse (some never do: fall back to free-mouse look)
     document.addEventListener('pointerlockerror', () => this.lockFailed());
     G.renderer.domElement.addEventListener('click', () => { if (G.started && !G.panel && (!G.locked || this.soft)) this.lock(); });
-    // playing without the mouse grabbed (see lockFailed): the next click grabs it
+    // playing without the mouse grabbed (see lockFailed): the next click grabs it, and so does the next key you press
+    // (any key but Esc counts for the browser, so the W you press to walk off grabs it: no "click to look" needed)
     addEventListener('mousedown', () => { if (this.soft && G.started && !G.panel) this.lock(); });
+    addEventListener('keydown', (e) => { if (this.soft && !this.wantLock && G.started && !G.panel && !G.chatting && e.code !== 'Escape' && !Keys.capturing) this.lock(); });
     addEventListener('beforeunload', () => { Casino.cashOut(); persist(); Net.leave(); });
     U.$('loading').classList.add('hidden');
     U.$('menu').classList.remove('hidden');
@@ -385,11 +387,21 @@ const Game = {
     this.setSoft(true);
     G.locked = true;
     this.updatePause();
-    // (right after letting go of the mouse some browsers want a second before they'll grab it again: try once
-    // more then, so you don't have to click)
-    if (!this.relockTried) {
+    this.regrab();
+  },
+  // get the mouse back without you having to click. The desktop app (what goes on Steam) clicks for us (see
+  // desktop/main.js: Chromium wants a real click or key press after Esc let go of the mouse, and won't take one
+  // for 1.25s after that Esc). In a browser: try once more after that, and the next key you press grabs it too.
+  regrab() {
+    const wait = Math.max(60, (this.unlockedAt || 0) + 1300 - performance.now());
+    const still = () => this.soft && G.started && !G.panel && !G.chatting && !document.pointerLockElement;
+    clearTimeout(this.grabT);
+    if (window.desktop && window.desktop.grabMouse) {
+      if ((this.grabTries = (this.grabTries || 0) + 1) > 3) return; // (it keeps saying no: a click will do it)
+      this.grabT = setTimeout(() => { if (still()) window.desktop.grabMouse(); }, wait);
+    } else if (!this.relockTried) {
       this.relockTried = true;
-      setTimeout(() => { if (this.soft && G.started && !G.panel && !G.chatting && !document.pointerLockElement) this.lock(); }, 1100);
+      this.grabT = setTimeout(() => { if (still()) this.lock(); }, wait);
     }
   },
   setSoft(on) {
