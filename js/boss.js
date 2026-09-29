@@ -2105,6 +2105,7 @@ class BossFight {
     if (!this.canHurt()) return;
     d = Math.round(raw ? d : d * Game.dmgMul() * BOSS_DMG);
     if (SAVE.armor) d = Math.round(d * 0.7);
+    if (hasPerk('collar')) d = Math.round(d * 0.75);
     p.hp -= d; p.inv = 0.75; p.regenT = 4;
     UI.hurt();
     G.shake = Math.max(G.shake, 0.55);

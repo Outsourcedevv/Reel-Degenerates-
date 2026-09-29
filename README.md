@@ -178,6 +178,13 @@ says where it is):
 
 Your best is kept, and your crew hears about new medals. Friends can play at the same time, each on their own run.
 
+**The Duel Pit** (Luckstar, the roped-off ring between the landing pad and the casino): talk to Referee Rex to
+challenge a crewmate who's on Luckstar. Pick who and how much ($25 to $2,500, only what you both have). If they
+accept, you both go to the arena and each pick one gun you own. After 3, 2, 1, FIGHT! your shots hurt each other for
+real (headshots count, no hotbar, no grenades). It's friendly: going down doesn't cost you a life or drop your stuff,
+you just lose the bet, and the winner takes the wager from the loser. Both down at once is a draw (nobody pays), and
+if someone leaves, the duel's off.
+
 ### Boss fights
 
 Every attack is telegraphed, so you can read the fight:
@@ -228,6 +235,7 @@ Every planet sells a different gun, and each one shoots differently:
 | Jackpot Blaster | Luckstar | every shot is a slot pull: x2, 777s, the odd JACKPOT |
 | Cryo Beam | Frostbyte | hold to freeze things |
 | Wisp Caller | Spookulon | ghost wisps that drift after whatever is nearest your crosshair (they hit softer than the guns you aim) |
+| Phantom Longshot | Spookulon ($14,500) | a sniper: one spectral round straight to the crosshair (220 damage, no travel time), 5 rounds, slow. Hold right-click to scope in (dead on; from the hip it wanders a bit) |
 | Storm Caller | Nimbus-9 | lightning that jumps from target to target (and stuns critters) |
 | Same-Day Launcher | Gigopolis | exploding parcels; shoot the ground under you mid-jump to rocket-jump |
 | Pizza Cutter | Zorblax Prime | spinning cutters that slice through everything and come back |
@@ -297,14 +305,27 @@ Golden ones are worth a fortune (8x).
 
 ### Mini bosses
 
-Zap 20 critters on a planet and from then on every critter you zap there has a 2.5% chance of bringing that planet's
-mini boss (about 40 more kills on average; the count starts again after one turns up). Everyone on the planet gets a
-heads-up at 20. Scrapyard-9 doesn't have one. A mini boss is a huge, crowned version of one of the planet's critters
+Zap 15 critters on a planet and from then on every critter you zap there has a 4% chance of bringing that planet's
+mini boss (about 25 more kills on average; the count starts again after one turns up). Everyone on the planet gets a
+heads-up at 15. Scrapyard-9 doesn't have one. A mini boss is a huge, crowned version of one of the planet's critters
 that hunts you across the planet. It fights like a boss: each attack winds up with its name under the health bar,
 and everything that can hurt you is marked on the ground first (circles that fill up, shockwaves to jump, arrows
 where it's about to charge, marks where things will land, puddles). It has two attacks on Easy, learns a new one on
 Hard and one more on Hardcore, and on harder worlds it's also tougher and quicker. Below half health it gets angry
-and attacks faster. When it goes down, everyone on the planet gets paid (1.5x on Hard, 2x on Hardcore).
+and attacks faster. When it goes down, everyone on the planet gets paid (1.5x on Hard, 2x on Hardcore), and when
+its body pops, everyone who was there gets their own prizes: they burst out of it, land under a beam of light, and
+fly over to you. Every time: its **trophy** (it sells for a lot, and it squeezes into a full backpack) and three Goo
+Grenades. The first time you beat it: its **special item**, yours for keeps (see them all on any shop's Loadout tab):
+
+| Mini boss | Special item | What it does |
+| --- | --- | --- |
+| Sir Squelchalot | Goo Gland | jump 35% higher (double jumps too) |
+| The Pit Boss | Loaded Dice | shops pay you 25% more for everything you sell |
+| Mama Yeti | Yeti Mitts | reload every gun 35% faster |
+| Bonejangles | Funny Bone | your health comes back 30% faster |
+| Thunderhead | Storm Core | every gun (and grenade) hits 20% harder |
+| Scooterzilla | Scooter Wheels | walk and run 20% faster |
+| Cerberoni | Cerberoni's Collar | take 25% less damage from everything |
 
 | Planet | Mini boss | Easy | + Hard | + Hardcore | Pays |
 | --- | --- | --- | --- | --- | --- |

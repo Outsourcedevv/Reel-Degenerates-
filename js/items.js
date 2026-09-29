@@ -703,6 +703,88 @@ function buildScooterKey() {
   return g;
 }
 
+/* ---------------- mini boss prizes (see PERKS) ---------------- */
+// a mini boss's trophy: a gold cup with a gem in its color
+function buildTrophyItem(color) {
+  const g = new THREE.Group(), gold = '#ffd23f', E = { emissive: '#5a4000' };
+  mk(BOX(0.34, 0.08, 0.34), '#3b2a1a', g, 0, 0.04, 0);
+  mk(CYL(0.06, 0.09, 0.2, 10), gold, g, 0, 0.18, 0, E);
+  mk(CYL(0.24, 0.1, 0.3, 14), gold, g, 0, 0.43, 0, E);
+  tf(mk(TOR(0.24, 0.02, 5, 20), '#ffe98a', g, 0, 0.58, 0, E), PI / 2);
+  for (const s of [-1, 1]) tf(mk(TOR(0.08, 0.022, 5, 12), gold, g, s * 0.25, 0.44, 0, E), 0, 0, 0);
+  mk(OCT(0.07), color, g, 0, 0.42, 0.21, { emissive: color });
+  sparkle(g, 0.3, 0.7, 0.1);
+  return g;
+}
+function buildGooGland() { // (Sir Squelchalot)
+  const g = new THREE.Group();
+  tf(mk(SPH(0.24, 12, 10), '#ff7a2a', g, 0, 0.3, 0, { emissive: '#6a2a00' }), 0, 0, 0, 1, 0.85, 1);
+  for (const [x, y, r] of [[0.1, 0.1, 0.06], [-0.12, 0.13, 0.05], [0.02, 0.04, 0.045]]) mk(SPH(r, 8, 6), '#ffb23e', g, x, y, 0.12, { emissive: '#6a3a00' });
+  for (const s of [-1, 1]) mk(SPH(0.05, 8, 6), '#ffffff', g, s * 0.08, 0.38, 0.2);
+  sparkle(g, 0.25, 0.6, 0.08);
+  return g;
+}
+function buildLoadedDice() { // (The Pit Boss)
+  const g = new THREE.Group();
+  const die = (x, z, ry, col, pip) => {
+    const d = grp(g, x, 0.13, z); d.rotation.set(0.2, ry, 0.1);
+    mk(roundBox(0.24, 0.24, 0.24, 0.04), col, d, 0, 0, 0);
+    for (const [px, py] of [[-0.06, 0.06], [0, 0], [0.06, -0.06]]) mk(SPH(0.022, 5, 4), pip, d, px, py, 0.122);
+    for (const [px, pz] of [[-0.06, -0.06], [0.06, 0.06]]) mk(SPH(0.022, 5, 4), pip, d, px, 0.122, pz);
+  };
+  die(-0.14, 0, 0.4, '#ffffff', '#d6281b');
+  die(0.15, 0.05, -0.3, '#ffd23f', '#1d1d24');
+  sparkle(g, 0.25, 0.45, 0.08);
+  return g;
+}
+function buildYetiMitts() { // (Mama Yeti)
+  const g = new THREE.Group();
+  for (const s of [-1, 1]) {
+    const m = grp(g, s * 0.15, 0.2, 0); m.rotation.z = -s * 0.25;
+    tf(mk(SPH(0.14, 10, 8), '#f4f7fb', m, 0, 0.06, 0), 0, 0, 0, 1, 1.25, 0.7);
+    mk(SPH(0.06, 8, 6), '#f4f7fb', m, -s * 0.12, 0.02, 0);
+    tf(mk(TOR(0.1, 0.035, 6, 14), '#7fd8ff', m, 0, -0.12, 0), PI / 2);
+  }
+  sparkle(g, 0.25, 0.5, 0.08);
+  return g;
+}
+function buildFunnyBone() { // (Bonejangles)
+  const g = new THREE.Group(), b = grp(g, 0, 0.16, 0);
+  b.rotation.set(0.2, 0.5, 0.25);
+  tf(mk(CYL(0.055, 0.055, 0.5, 10), '#f1ead2', b, 0, 0, 0), 0, 0, PI / 2);
+  for (const x of [-0.27, 0.27]) for (const z of [-0.06, 0.06]) mk(SPH(0.08, 10, 8), '#f1ead2', b, x, 0, z);
+  sparkle(g, 0.25, 0.45, 0.08);
+  return g;
+}
+function buildStormCore() { // (Thunderhead)
+  const g = new THREE.Group();
+  mk(SPH(0.2, 14, 12), '#7fd8ff', g, 0, 0.3, 0, { emissive: '#1a6aa0' });
+  tf(mk(TOR(0.3, 0.02, 5, 24), '#ffffff', g, 0, 0.3, 0, { emissive: '#7fd8ff' }), 1.1, 0.3, 0);
+  const bolt = grp(g, 0, 0.3, 0.2);
+  for (const [x, y, r] of [[0.02, 0.08, -0.5], [-0.02, 0, 0.6], [0.02, -0.08, -0.5]]) tf(mk(BOX(0.04, 0.1, 0.02), '#fff36b', bolt, x, y, 0, { emissive: '#aa9900' }), 0, 0, r);
+  sparkle(g, 0.3, 0.6, 0.1);
+  return g;
+}
+function buildScooterWheels() { // (Scooterzilla)
+  const g = new THREE.Group();
+  tf(mk(CYL(0.025, 0.025, 0.46, 6), '#9aa3ad', g, 0, 0.16, 0), 0, 0, PI / 2);
+  for (const s of [-1, 1]) {
+    tf(mk(CYL(0.15, 0.15, 0.08, 16), '#1d1d24', g, s * 0.2, 0.16, 0), 0, 0, PI / 2);
+    tf(mk(CYL(0.08, 0.08, 0.09, 12), '#3ddc84', g, s * 0.2, 0.16, 0, { emissive: '#0a5a2a' }), 0, 0, PI / 2);
+  }
+  sparkle(g, 0.25, 0.4, 0.08);
+  return g;
+}
+function buildHoundCollar() { // (Cerberoni)
+  const g = new THREE.Group(), c = grp(g, 0, 0.3, 0);
+  c.rotation.set(0.35, 0.3, 0);
+  mk(TOR(0.2, 0.05, 8, 20), '#c0392b', c, 0, 0, 0);
+  for (let i = 0; i < 8; i++) { const a = (i / 8) * PI * 2; tf(mk(CONE(0.03, 0.09, 5), '#dfe6ee', c, Math.cos(a) * 0.25, Math.sin(a) * 0.25, 0), 0, 0, a - PI / 2); }
+  tf(mk(CYL(0.07, 0.07, 0.02, 12), '#ffd23f', c, 0, -0.27, 0.02, { emissive: '#5a4000' }), PI / 2);
+  sparkle(g, 0.25, 0.5, 0.08);
+  return g;
+}
+
 /* ---------------- things the Grabby Vac picks up on the other planets ---------------- */
 // a poker chip, stood up on its edge (col: the chip, edge: the stripes round it)
 function buildChipItem(col, edge, gold) {
@@ -870,8 +952,11 @@ const ITEM_MODELS = {
   'res:blackchip': () => buildChipItem('#1d1d24', '#ffd23f'), 'res:goldchip': () => buildChipItem('#ffd23f', '#fff6c2', true),
   'res:snowball': buildSnowballItem, 'res:fish': buildFrozenFishItem, 'res:sodacan': buildSodaCanItem, 'res:receipt': buildReceiptItem,
   'res:crust': buildCrustItem,
+  'perk:goo': buildGooGland, 'perk:dice': buildLoadedDice, 'perk:mitts': buildYetiMitts, 'perk:bone': buildFunnyBone,
+  'perk:storm': buildStormCore, 'perk:wheels': buildScooterWheels, 'perk:collar': buildHoundCollar,
   'prize:jackpot': buildJackpotPile, 'prize:ticket': buildGoldenTicket, 'prize:bucks': buildCashStack,
   'prize:sock': buildSockItem, 'prize:rock': buildSpaceRock, 'prize:sandwich': buildHalfSandwich, 'prize:empty': buildEmptyBox,
   'prize:coupon': () => buildPaperItem(['10% OFF', 'THIS CRATE', '(EXPIRED)'], ['#d6281b', '#2b1d14', '#9a8a6a']),
   'prize:iou': () => buildPaperItem(['I.O.U.', 'one (1) money', '- Glorp'], ['#2b1d14', '#2b1d14', '#1e7b3a']),
 };
+for (const [pid, d] of Object.entries(MINIBOSSES)) ITEM_MODELS['res:mbt_' + pid] = () => buildTrophyItem(d.color);

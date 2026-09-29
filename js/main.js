@@ -68,7 +68,7 @@ const Game = {
       G.player.layoutVM();
     });
     document.addEventListener('pointerlockchange', () => {
-      if (document.pointerLockElement === G.renderer.domElement) { this.everLocked = true; this.wantLock = false; this.fallback = false; this.setSoft(false); G.locked = true; }
+      if (document.pointerLockElement === G.renderer.domElement) { this.everLocked = true; this.wantLock = false; clearTimeout(this.lockT); this.fallback = false; this.setSoft(false); G.locked = true; }
       else { this.unlockedAt = performance.now(); if (!this.soft && !this.wantLock) G.locked = false; }
       this.updatePause();
     });
@@ -362,18 +362,24 @@ const Game = {
     // Keep the pause menu hidden during the asynchronous lock request.
     G.locked = true; this.updatePause();
     this.wantLock = true;
+    // (while the browser makes up its mind there's no pause menu; no answer at all counts as a no)
+    clearTimeout(this.lockT);
+    this.lockT = setTimeout(() => this.lockFailed(), 1000);
     try {
       const p = G.renderer.domElement.requestPointerLock();
       if (p && p.catch) p.catch(() => this.lockFailed());
     } catch (e) { this.lockFailed(); }
+    this.updatePause();
   },
   // the browser wouldn't grab the mouse. Right after you press Esc it won't without a click (Esc doesn't
   // count), so pressing Esc again to get back in would leave you stuck on the pause menu: instead you're
-  // straight back in the game, looking around with the mouse as it is, and your next click grabs it.
+  // straight back in the game (the keys work, no pause menu), and your next click grabs the mouse. Until then
+  // the mouse doesn't turn you: a loose cursor stuck at the edge of the screen would keep you spinning.
   // (A browser that never grabs the mouse at all: free-mouse look for good, see enableFallback.)
   lockFailed() {
     if (!this.wantLock || document.pointerLockElement) return;
     this.wantLock = false;
+    clearTimeout(this.lockT);
     if (!this.everLocked) { this.enableFallback(); return; }
     if (!G.started || G.panel) return;
     this.setSoft(true);
@@ -428,7 +434,7 @@ const Game = {
     });
   },
   updatePause() {
-    const show = G.started && !G.locked && !G.panel && !G.chatting && !document.getElementById('ending');
+    const show = G.started && !G.locked && !G.panel && !G.chatting && !this.wantLock && !document.getElementById('ending');
     U.$('pause').classList.toggle('hidden', !show);
     U.$('pause-title').textContent = G.online ? 'MENU' : 'PAUSED';
     // friendly fire is the captain's call; everyone else can see how it's set
@@ -480,6 +486,11 @@ const Game = {
     Net.toAll({ t: 'bstart', b, seed, ids });
     this.beginBoss(b, seed, ids);
   },
+  // this planet's arena (boss fights and duels), built the first time it's needed
+  arena(i) {
+    if (!this.arenas[i]) { const a = new Arena(i); G.scene.add(a.group); this.arenas[i] = a; }
+    return this.arenas[i];
+  },
   beginBoss(bossId, seed, ids) {
     if (G.panel) UI.closePanel(true);
     G.player.releaseTargets();
@@ -487,8 +498,7 @@ const Game = {
     G.mode = 'boss';
     G.world.clearSummon();
     G.world.group.visible = false;
-    if (!this.arenas[G.planet]) { const a = new Arena(G.planet); G.scene.add(a.group); this.arenas[G.planet] = a; }
-    G.arena = this.arenas[G.planet];
+    G.arena = this.arena(G.planet);
     G.arena.group.visible = true;
     setAtmosphere(PLANETS[G.planet]);
     const p = G.player;
@@ -690,8 +700,10 @@ const Game = {
       if (!r || !r.visible) return;
       Shots.fire('nade', new V3(...m.o), new V3(...m.d), false, {});
     });
+    N.on('duel', (m) => Duel.onMsg(m));
     N.on('bonk', (m) => {
       const p = G.player;
+      if (m.du) { Duel.onHit(m); return; } // (a duel: that's a real hit)
       // friendly fire is on: that actually hurt
       if (m.dmg && G.ff) {
         const fx = p.pos.x - (m.d[0] || 0), fz = p.pos.z - (m.d[1] || 0);
@@ -814,10 +826,11 @@ const Game = {
         const t = G.time * 0.05;
         cam.position.set(Math.cos(t) * 46, 20, Math.sin(t) * 46);
         cam.lookAt(0, 3, 0);
-      } else if (G.mode === 'planet' || G.mode === 'boss') G.player.update(dt);
+      } else if (G.mode === 'planet' || G.mode === 'boss' || G.mode === 'duel') G.player.update(dt);
       else if (G.mode === 'space') Flight.update(dt);
-      if (G.mode !== 'planet' && G.mode !== 'boss' && G.player) G.player.hideBody(); // (you're in the ship, or at the menu)
-      if (G.world && G.mode !== 'boss') G.world.update(dt, G.time);
+      if (G.mode !== 'planet' && G.mode !== 'boss' && G.mode !== 'duel' && G.player) G.player.hideBody(); // (you're in the ship, or at the menu)
+      if (G.world && G.mode !== 'boss' && G.mode !== 'duel') G.world.update(dt, G.time);
+      Duel.update(dt);
       if (G.boss) G.boss.update(dt);
       Activities.update(dt);
       if (G.started) { // (the host keeps critters going even while sitting in the parked ship)
@@ -885,7 +898,8 @@ const Game = {
   updateHint() {
     const p = G.player;
     let h = '';
-    if (G.mode === 'boss') {
+    if (G.mode === 'duel') h = Duel.hint();
+    else if (G.mode === 'boss') {
       if (p.ghost) h = '';
       else if (p.tool !== 'zap') h = Loadout.findTool('zap') >= 0 ? this.slotTip('zap', 'take out a gun!') : 'No gun on your hotbar! Dodge, and throw Goo Grenades ({nade})';
       else h = `${this.gunHint()} · {nade}: Goo Grenade (${SAVE.nades}) · {jump}: jump the rings!`;

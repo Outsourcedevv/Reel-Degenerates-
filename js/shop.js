@@ -17,6 +17,7 @@ function gunChips(z) {
     case 'homing': return ['HOMING', `${z.dmg} DMG`, rate, `${z.mag} WISPS`];
     case 'chain': return ['CHAIN LIGHTNING', `${z.dmg} DMG`, `JUMPS ${z.jumps}x`, 'STUNS CRITTERS'];
     case 'rocket': return ['ROCKETS', `${z.dmg} SPLASH DMG`, 'ROCKET JUMPS', `${z.mag} PARCELS`];
+    case 'sniper': return ['SNIPER', `${z.dmg} DMG`, 'RIGHT-CLICK: SCOPE', `${z.mag} ROUNDS`];
     default: return ['BLASTER', `${z.dmg} DMG`, rate, mag, rl];
   }
 }
@@ -98,7 +99,18 @@ const Shop = {
       <button class="price equip" data-act="lput" data-it="${it}">${sel == null ? 'Put on hotbar' : `Put in slot ${sel + 1}`}</button></div>`;
     return `<h5 class="shead">Your hotbar</h5><div class="lbar">${s.map(slot).join('')}</div>
       <p class="tip">${sel == null ? 'Click a slot to pick it, then click something in your locker to put it there (or another slot to swap the two). The X takes a thing off.' : `Slot ${sel + 1} picked: click something in your locker to put it here, or another slot to swap them.`}</p>
-      <h5 class="shead">Your locker</h5>` + (locker.length ? `<div class="cards hats">${locker.map(card).join('')}</div>` : '<p class="tip">Everything you own is on your hotbar.</p>');
+      <h5 class="shead">Your locker</h5>` + (locker.length ? `<div class="cards hats">${locker.map(card).join('')}</div>` : '<p class="tip">Everything you own is on your hotbar.</p>') + this.perksHtml();
+  },
+  // the special items mini bosses drop (see PERKS): yours, and the ones still out there
+  perksHtml() {
+    const where = (mb) => { const pl = PLANETS.find((p) => p.id === mb); return pl ? pl.name : ''; };
+    return `<h5 class="shead">Mini boss prizes</h5><div class="cards hats">` + Object.entries(PERKS).map(([id, k]) => {
+      const got = hasPerk(id), mb = MINIBOSSES[k.mb];
+      return `<div class="card2 ${got ? 'owned' : 'locked'}"><div class="ic">${got ? Thumbs.img('perk:' + id, '', k.icon) : icon('lock')}</div>
+        <div class="info"><h4>${got ? U.esc(k.name) : '???'}</h4><div class="chips"><span>${U.esc(k.chip)}</span></div>
+        <p>${got ? U.esc(k.desc) : `Beat ${U.esc(mb ? mb.name : 'its mini boss')} on ${U.esc(where(k.mb))} to get it.`}</p></div>
+        ${got ? `<div class="badge ok">${icon('check')} YOURS</div>` : ''}</div>`;
+    }).join('') + '</div>';
   },
   loadoutAct(act, d) {
     const i = Number(d.i);
@@ -223,18 +235,19 @@ const Shop = {
         return `<div class="srow ${r.rare ? 'rare' : ''}"><div class="ic">${Thumbs.img(Thumbs.cargoKey(id), '', r.icon)}</div>
           <div class="info"><b>${U.esc(r.name)}</b><small>${U.esc(r.desc)}</small></div>
           <div class="qty">x${counts[id]}</div><div class="each">${U.bucks(r.v)} each</div>
-          <button class="price small" data-act="sell1" data-id="${U.esc(id)}">${U.bucks(r.v * counts[id])}</button></div>`;
+          <button class="price small" data-act="sell1" data-id="${U.esc(id)}">${U.bucks(Activities.pays(r.v * counts[id]))}</button></div>`;
       }).join('');
       const hrows = held.map(([i, id]) => {
         const r = cargoRes(id);
         return `<div class="srow ${r.rare ? 'rare' : ''}"><div class="ic">${Thumbs.img(Thumbs.cargoKey(id), '', r.icon)}</div>
           <div class="info"><b>${U.esc(r.name)}</b><small>Hotbar slot ${i + 1}</small></div>
           <div class="qty">x1</div><div class="each"></div>
-          <button class="price small" data-act="sellslot" data-i="${i}">${U.bucks(r.v)}</button></div>`;
+          <button class="price small" data-act="sellslot" data-i="${i}">${U.bucks(Activities.pays(r.v))}</button></div>`;
       }).join('');
       body = nsell
         ? (held.length ? `<h5 class="shead">In your hotbar</h5><div class="srows">${hrows}</div>` + (rows ? '<h5 class="shead">In your backpack</h5>' : '') : '') +
-          (rows ? `<div class="srows">${rows}</div>` : '') + `<button class="sellall" data-act="sellall">Sell everything <b>${U.bucks(value + Activities.heldValue())}</b></button>`
+          (rows ? `<div class="srows">${rows}</div>` : '') + `<button class="sellall" data-act="sellall">Sell everything <b>${U.bucks(Activities.pays(value + Activities.heldValue()))}</b></button>` +
+          (hasPerk('dice') ? '<p class="tip">Loaded Dice: you get 25% more for everything.</p>' : '')
         : `<div class="empty"><div>${Thumbs.img('cargo:' + SAVE.cargoLvl, '', 'bag')}</div>Your backpack is empty.<br>Go vacuum, catch or zap something!</div>`;
     } else if (this.tab === 'loadout') {
       body = this.loadoutHtml();

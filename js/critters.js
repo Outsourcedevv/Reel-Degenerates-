@@ -774,6 +774,7 @@ const Critters = {
     FX.burst(c, '#ffd23f', 14, 6);
     FX.ring(c, b.color || '#ffffff', 5);
     if (G.mode === 'planet' && G.player.pos.distanceTo(c) < 40) { Sound.play('party'); Sound.play('boom'); }
+    if (b.onPop) b.onPop(c.clone()); // (a mini boss: its prizes burst out, see MiniBoss.dropLoot)
     this.dropBody(b.key);
   },
   dropBody(key) {

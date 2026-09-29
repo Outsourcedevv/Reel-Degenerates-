@@ -6,7 +6,7 @@
 // everyone else should see these (the host passes them on)
 const RELAY = new Set(['chat', 'ann', 'shoot', 'nade', 'fly', 'fph', 'fev']);
 // these go to one player only (bonk = zapped by a friend, rvp = being picked up, gift = money)
-const TARGETED = new Set(['bonk', 'revive', 'rvp', 'gift']);
+const TARGETED = new Set(['bonk', 'revive', 'rvp', 'gift', 'duel']);
 
 const Net = {
   peer: null, conns: new Map(), hostConn: null,

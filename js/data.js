@@ -243,6 +243,9 @@ const ZAPPERS = [
   { name: 'Storm Caller',     short: 'Storm Caller', type: 'chain',   dmg: 120, cd: 0.3, mag: 14, rl: 1.4,  color: '#b8d8ff', range: 60, jumps: 3, hop: 9, falloff: 0.6 },
   { name: 'Same-Day Launcher', short: 'Launcher',    type: 'rocket',  dmg: 280, cd: 0.5, mag: 6,  rl: 1.6,  color: '#ffb23e', radius: 3.6 },
   { name: 'Pizza Cutter',     short: 'Pizza Cutter', type: 'cutter',  dmg: 135, cd: 0.3, mag: 3,  rl: 0,    color: '#ff6a3d', out: 0.55 },
+  // (the sniper, from Spookulon: a spectral round straight down the crosshair, no travel time. Hold right-click to
+  //  scope in; from the hip it wanders a little (spread). New guns go on the end: saves remember guns by number)
+  { name: 'Phantom Longshot', short: 'Longshot',     type: 'sniper',  dmg: 220, cd: 1.1, mag: 5,  rl: 2.2,  color: '#7dff8a', range: 160, spread: 0.035, zoom: 22 },
 ];
 // Every new hire gets one of these for free. It's gun -1: you always have it, it never drops when you
 // die, and no shop sells it. It squirts water. Slowly. (Company policy: no free REAL guns.)
@@ -330,6 +333,7 @@ const SHOPS = {
     greet: ['Welcome to the Boo-tique! Everything here is 100% haunted, 0% refundable.', 'I\'d shake your hand, but, you know. Ghost.', 'The graveyard\'s lovely this time of year. Every year. Forever.'],
     items: [
       { kind: 'zap', lvl: 5, price: 11000, desc: 'Spits out little ghost wisps that drift after whatever is nearest your crosshair. They\'re not very bright, so point them roughly at something.' },
+      { kind: 'zap', lvl: 9, price: 14500, desc: 'A haunted sniper rifle. One spectral round, straight to wherever you\'re aiming, no travel time. Hold right-click to scope in. Headshots are... final.' },
       { kind: 'vac', lvl: 2, price: 6500, name: 'Spooky Vacuum', desc: 'A haunted ectoplasm trap. Reaches farther and sucks faster, with a ghost safely sealed inside.' },
       { kind: 'springs', price: 6500, name: 'Spring-Heeled Jacks', desc: 'Boots with actual bedsprings bolted on. You jump WAY higher. (Makes Bounce Boots bouncier too.)' },
       { kind: 'nades', price: 180, name: 'Goo Grenades x5', desc: 'Still sticky. Now slightly haunted.' },
@@ -541,13 +545,13 @@ for (const list of Object.values(CRITTERS)) {
 }
 
 /* ---------- mini bosses: a huge, angry critter that can turn up once you've zapped enough of them ----------
-   Once 20 critters have been zapped on a planet, every kill after that has a 2.5% chance of bringing its mini
+   Once 15 critters have been zapped on a planet, every kill after that has a 4% chance of bringing its mini
    boss (not on Scrapyard-9). base: the critter it's a giant version of · s: how much bigger · dmg: how hard
    its attacks hit (before the difficulty) · keep: how far away it likes to fight from · reward: bucks for
    everyone on the planet when it goes down (more on Hard and Hardcore).
    atk: its attacks on every difficulty; hard: a new one it only does on Hard and Hardcore; hardcore: another
    new one, only on Hardcore (see ATTACKS in miniboss.js). */
-const MB_AFTER = 20, MB_CHANCE = 0.025;
+const MB_AFTER = 15, MB_CHANCE = 0.04;
 const MINIBOSSES = {
   gloop: {
     name: 'Sir Squelchalot', base: 'hopper', s: 4.2, hp: 1400, dmg: 9, speed: 3.6, keep: 5, reward: 220, color: '#ff7a2a',
@@ -592,6 +596,24 @@ const MINIBOSSES = {
     taunts: ['GRRRAWR!', 'The Emperor says NO DELIVERIES!', 'Who\'s a good boy? NOT YOU!', 'I smell pepperoni. And FEAR.'],
   },
 };
+/* ---------- what a mini boss drops (see MiniBoss.dropLoot) ----------
+   Every time: its trophy (sell it: shops pay well) and a few Goo Grenades. The first time you beat it: its special
+   item, which is yours for keeps and gives you something (mb: whose it is). */
+const PERKS = {
+  goo:    { mb: 'gloop', name: 'Goo Gland',          icon: 'boots',  chip: 'JUMP +35%',          desc: 'Jump 35% higher (double jumps too).' },
+  dice:   { mb: 'luck',  name: 'Loaded Dice',        icon: 'cash',   chip: 'SELL +25%',          desc: 'Shops pay you 25% more for everything you sell.' },
+  mitts:  { mb: 'frost', name: 'Yeti Mitts',         icon: 'gun',    chip: 'RELOAD 35% FASTER',  desc: 'Reload every gun 35% faster.' },
+  bone:   { mb: 'spook', name: 'Funny Bone',         icon: 'heart',  chip: 'HEALING +30%',       desc: 'Your health comes back 30% faster.' },
+  storm:  { mb: 'cloud', name: 'Storm Core',         icon: 'star',   chip: 'DAMAGE +20%',        desc: 'Every gun (and grenade) hits 20% harder.' },
+  wheels: { mb: 'city',  name: 'Scooter Wheels',     icon: 'boots',  chip: 'SPEED +20%',         desc: 'Walk and run 20% faster.' },
+  collar: { mb: 'zorb',  name: 'Cerberoni\'s Collar', icon: 'shield', chip: 'DAMAGE TAKEN -25%',  desc: 'Take 25% less damage from everything.' },
+};
+const perkOf = (mb) => Object.keys(PERKS).find((k) => PERKS[k].mb === mb) || null;
+const hasPerk = (id) => !!(SAVE.perks && SAVE.perks.includes(id));
+// (and the trophies, in your backpack like anything else)
+for (const [pid, d] of Object.entries(MINIBOSSES)) {
+  RES['mbt_' + pid] = { name: `${d.name} Trophy`, v: Math.round(d.reward * 0.6), icon: 'star', rare: true, desc: `Proof you took down ${d.name}. Shops pay well for it.` };
+}
 // on harder worlds they're tougher, wind up faster, rest less between attacks, and pay more
 const MB_DIFF = { easy: { hp: 1, pace: 1, pay: 1 }, hard: { hp: 1.4, pace: 0.9, pay: 1.5 }, hardcore: { hp: 1.8, pace: 0.8, pay: 2 } };
 // the attacks a mini boss does on this difficulty

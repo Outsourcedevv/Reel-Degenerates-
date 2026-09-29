@@ -28,7 +28,7 @@ try {
     check(meshes < 30, def.name + ': static parts batched (' + meshes + ')');
     addHands(gun, def.type, M('#333333'), M('#ffffff'));
     check(gun.userData.hands.grip.position.distanceTo(new V3(0, -.1, .08)) < 1e-6, def.name + ': grip anchor');
-    check(!!gun.userData.hands.support === ['spread','lob','beam','chain','rocket','cutter'].includes(def.type), def.name + ': support hand');
+    check(!!gun.userData.hands.support === ['spread','lob','beam','chain','rocket','cutter','sniper'].includes(def.type), def.name + ': support hand');
     const hand = new THREE.Group(); gripTool(hand, other, 'zap');
     check(other.position.distanceTo(new V3(0, .1, -.08)) < 1e-6, def.name + ': third-person attachment');
     if (def.type === 'cutter') {

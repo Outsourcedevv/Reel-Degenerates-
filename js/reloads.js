@@ -168,6 +168,7 @@ const GUN_RELOADS = {
     mag: { carry: [[0.42, 0.62]], hide: [[0.2, 0.42]], toss: { t: 0.2, v: [0.5, 1.5, 0.3], spin: [6, 0, 9], until: 0.62 } },
     sfx: [[0.2, 'magout'], [0.62, 'magin'], [0.64, 'sizzle'], [0.71, 'tap']],
   },
+  get sniper() { return Object.assign({}, this.chain, { sfx: [[0.2, 'magout'], [0.62, 'magin'], [0.64, 'ghost'], [0.71, 'tap']] }); }, // Phantom Longshot: out with the old ecto cell, in with a fresh one. Oooo.
   rocket: { // Same-Day Launcher: fetch a parcel, shove it down the tube, pat it. Delivered.
     gun: [[0, ...RL_REST], [0.15, 0.18, 0.85, 0.05, -0.03, 0.03, 0.03, 'o'], [0.68, 0.18, 0.85, 0.05, -0.03, 0.03, 0.03],
       [0.72, 0.14, 0.85, 0.05, -0.03, 0.02, 0.06, 'i'], [0.8, 0.18, 0.85, 0.05, -0.03, 0.03, 0.03], [0.88, 0.18, 0.85, 0.05, -0.03, 0.03, 0.03], [1, ...RL_REST]],
