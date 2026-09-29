@@ -806,6 +806,29 @@ function buildSnail(color) {
 }
 
 /* ---------------- the ship ---------------- */
+function buildShipFloorGlass() {
+  const g = new THREE.Group(); g.name = 'ship-glass-footwell';
+  const glass = mk(new THREE.BoxGeometry(2.3,.055,.85), new THREE.MeshPhongMaterial({
+    color:'#67bdd9', transparent:true, opacity:.38, depthWrite:false,
+    side:THREE.DoubleSide, shininess:100, specular:'#d8f6ff'
+  }),g,0,2.2725,3.02);
+  glass.name='ship-floor-glass'; glass.renderOrder=2;
+  for(const z of [2.57,3.47]) mk(BOX(2.4,.07,.08),'#536879',g,0,2.29,z);
+  for(const x of [-1.18,1.18]) mk(BOX(.08,.07,.98),'#536879',g,x,2.29,3.02);
+  for(const x of [-.85,.76]) {
+    const reflection=mk(BOX(.3,.006,.018),'#b9e8f4',g,x,2.304,3.07);
+    reflection.rotation.y=-.5;
+  }
+  return g;
+}
+// Keep the floor glazing clear of every opaque floor/armor layer.
+function shipFloorPanel(parent,y,h,w,z0,z1,color) {
+  const a=Math.max(z0,2.55),b=Math.min(z1,3.5);
+  const panel=(width,start,end,x=0)=>{if(end>start&&width>0) mk(BOX(width,h,end-start),color,parent,x,y,(start+end)/2);};
+  if(a>=b) {panel(w,z0,z1);return;}
+  panel(w,z0,a);panel(w,b,z1);
+  for(const s of [-1,1]) panel(w/2-1.2,a,b,s*(w/2+1.2)/2);
+}
 function buildShip(boardable = false) {
   const g = new THREE.Group();
   g.name = 'S.S. Late Delivery — courier shuttle';
@@ -837,10 +860,18 @@ function buildShip(boardable = false) {
     m.quaternion.setFromUnitVectors(new V3(0,1,0), delta.normalize());
     return m;
   };
-  loft([rect(1.32,1.05,2.24,-3.25),rect(1.88,1.52,2.24,-2.6),rect(1.88,1.52,2.24,2.5),rect(.95,2.02,2.24,4.7)], dark).name = 'ship-sealed-keel';
-  mk(BOX(3.6,.22,6.6), ivory, g, 0,2.19,.3);
-  mk(BOX(3.27,.025,6.1), '#34404a', g, 0,2.305,.35);
-  mk(BOX(.52,.03,5.1), red, g, 0,2.33,-.1);
+  const keel=grp(g);keel.name='ship-sealed-keel';
+  const section=z=>rect(1.88-(z-2.5)*.93/2.2,1.52+(z-2.5)*.5/2.2,2.24,z);
+  loft([rect(1.32,1.05,2.24,-3.25),rect(1.88,1.52,2.24,-2.6),rect(1.88,1.52,2.24,2.5),section(2.55)],dark,keel);
+  loft([section(3.5),rect(.95,2.02,2.24,4.7)],dark,keel);
+  for(const s of [-1,1]) loft([2.55,3.5].map(z=>{
+    const ring=section(z),x=ring[1][0],bottom=ring[0][1];
+    return [[s*1.2,bottom,z],[s*x,bottom,z],[s*x,2.24,z],[s*1.2,2.24,z]];
+  }),dark,keel);
+  shipFloorPanel(g,2.19,.22,3.6,-3,3.6,ivory);
+  shipFloorPanel(g,2.305,.025,3.27,-2.7,3.4,'#34404a');
+  shipFloorPanel(g,2.33,.03,.52,-2.65,2.45,red);
+  g.add(buildShipFloorGlass());
   // Side panels and individually glazed windows; starboard middle is the hatch.
   for (const s of [-1,1]) {
     const spans = s === 1 ? [[-3.05,-1.04],[1.44,1.72]] : [[-3.05,1.72]];
@@ -872,7 +903,7 @@ function buildShip(boardable = false) {
   // Hollow cockpit shell: the old solid nose extended through the pilot's
   // cushion and footwell. Keep armor below the floor and along the sides.
   const nose=grp(g); nose.name='ship-armored-nose';
-  loft([rect(1.88,2.15,2.24,1.6),rect(1.58,2.15,2.24,3.65)],red,nose);
+  shipFloorPanel(nose,2.195,.09,3.16,1.6,3.65,red);
   for(const s of [-1,1]) {
     loft([[[s*1.88,2.22,1.6],[s*1.62,2.22,1.6],[s*1.62,3.27,1.6],[s*1.88,3.27,1.6]],
           [[s*1.58,2.15,3.65],[s*1.36,2.15,3.65],[s*1.36,3.28,3.65],[s*1.58,3.28,3.65]]],red,nose);

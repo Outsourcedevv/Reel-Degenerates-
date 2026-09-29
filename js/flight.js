@@ -248,9 +248,7 @@ const Flight = {
     mk(BOX(0.07, 0.07, 1.4), trim, ck, 0, 5.1, 2.5);
     // the cockpit floor: solid under the pilot's chair, glass in front of it (look down through it to line up a landing)
     mk(BOX(2.3, 0.1, 0.95), '#262b34', ck, 0, FY - 0.05, 2.12);
-    const floorGlass = mk(BOX(2.3, 0.03, 0.85), new THREE.MeshBasicMaterial({ color: '#8fe3ff', transparent: true, opacity: 0.14, depthWrite: false }), ck, 0, FY - 0.02, 3.02);
-    floorGlass.renderOrder = 2;
-    for (const z of [2.6, 3.44]) mk(BOX(2.3, 0.04, 0.05), '#3df0ff', ck, 0, FY, z, glow('#1d8fa0'));
+    ck.add(buildShipFloorGlass());
     // the pilot's chair (the passengers see the back of it from the cabin)
     const red = '#b8372b', dark = '#252a33', white = '#aca599';
     mk(BOX(0.34, 0.5, 0.4), dark, ck, 0, FY + 0.25, 2.3);

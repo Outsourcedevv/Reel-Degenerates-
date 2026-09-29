@@ -58,6 +58,10 @@ function runGameplayRegressions() {
   for (const name of ['ship-cockpit-frame', 'ship-engine-left', 'ship-engine-right', 'ship-dorsal-fin', 'ship-ramp-handrail']) check(shipNames.includes(name), name + ' is present');
   check(ship.userData.shipDetails.design === 'courier-shuttle-v2', 'Ship uses the remodeled shuttle');
   ship.updateMatrixWorld(true);
+  const floorGlass=ship.getObjectByName('ship-floor-glass');
+  check(floorGlass && floorGlass.material.transparent && floorGlass.material.opacity>=.3 && floorGlass.material.side===THREE.DoubleSide,'Footwell has visible tinted glass from both sides');
+  const belowGlass=new THREE.Raycaster(new V3(0,0,3.02),new V3(0,1,0)).intersectObject(ship,true).filter(h=>h.point.y<2.31);
+  check(belowGlass.length>0 && belowGlass.every(h=>h.object===floorGlass),'Glass footwell is not blocked by opaque hull layers');
   const nose=ship.getObjectByName('ship-armored-nose');
   for(const x of [-.4,0,.4]) {
     const hits=new THREE.Raycaster(new V3(x,3.5,2.3),new V3(0,-1,0)).intersectObject(nose,true);
