@@ -255,8 +255,9 @@ const ZAPPERS = [
 // half as big again. The Scattergun's pellets spread out more from the hip and bunch up aimed (see HIP_CONE).
 // zoom: how far the view narrows aimed (a gun's own zoom wins: the Longshot's scope)
 const NO_AIM = new Set(['lob', 'rocket', 'beam', 'cutter', 'homing']);
-const HIP_SPREAD = { squirt: 0.04, bolt: 0.03, jackpot: 0.032, chain: 0.025, sniper: 0.06 };
-const HIP_CONE = [1.3, 0.7]; // (Scattergun: its spread x this from the hip, x that aimed)
+// (the user wants hip fire a lot less accurate than aimed: at 15 m a Zapper shot from the hip lands up to 1.35 m off)
+const HIP_SPREAD = { squirt: 0.12, bolt: 0.09, jackpot: 0.095, chain: 0.075, sniper: 0.16 };
+const HIP_CONE = [2.2, 0.7]; // (Scattergun: its spread x this from the hip, x that aimed)
 const AIM = { zoom: 52, sens: 0.75, speed: 0.65, drop: 0.07 }; // (sens: mouse speed aimed, speed: how fast you walk aimed, drop: how far under the crosshair the gun's top sits)
 const canAimGun = (z) => !NO_AIM.has(z.type);
 // Sights: buy them at shops and fit one to any gun that aims (not the Longshot: it has its own scope). A sight is

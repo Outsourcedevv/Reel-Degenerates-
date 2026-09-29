@@ -17,7 +17,8 @@
 - **Aim down the sights.** Hold right-click with the Squirt Pistol, Zapper, Scattergun, Jackpot Blaster, Storm
   Caller or Longshot: the gun comes up to the middle, the view zooms in a bit, and your shots go dead on (you walk
   slower while you aim). From the hip they go somewhere inside the crosshair's circle, which opens up to show how
-  far off they could go (more when you're running or in the air). The Scattergun's pellets bunch up when you aim.
+  far off they could go (more when you're running or in the air), and that circle is big: hip fire is for close
+  up. The Scattergun's pellets spray wide from the hip and bunch up when you aim.
   The Goo Lobber, Launcher, Cryo Beam, Pizza Cutter and Wisp Caller don't aim, and are just as accurate from the
   hip as before.
 - **Sights.** Buy a Blinky Red Dot (Scrapyard-9, $500), a Neon Holo Sight (Luckstar, $2,000) or a Peeper 3x Scope
