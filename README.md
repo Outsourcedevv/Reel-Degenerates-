@@ -253,10 +253,12 @@ Jackpot Blaster's lever (the reels spin), wave a new ghost into the Wisp Caller'
 Pistol's cap to refill the bottle. The bottle's water and the Zapper's cells show how much is left.
 
 Sights go on the guns that aim (the Squirt Pistol, Zapper, Scattergun, Jackpot Blaster and Storm Caller; the Longshot
-has its own scope). Buy one once and put it on as many of your guns as you like on any shop's **Loadout** tab. You
+has its own scope). Open the **Scope** dropdown on a gun card or loadout slot in any shop to buy and equip a sight.
+Each sight requires its associated planet to be unlocked; you do not need to visit that planet's shop.
+Buy one once and equip it on as many compatible guns as you like. Choosing a sight changes only that gun. You
 keep them when you die. Aim (right-click) to look through it:
 
-| Sight | Where | What it does |
+| Sight | Planet required / price | What it does |
 | --- | --- | --- |
 | Blinky Red Dot | Scrapyard-9 ($500) | a red dot right where your shots go; you aim in twice as fast and hardly slow down while aiming |
 | Neon Holo Sight | Luckstar ($2,000) | a glowing ring; zooms in a bit more (1.7x) and your shots from the hip land 30% tighter |

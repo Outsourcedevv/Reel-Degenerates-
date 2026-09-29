@@ -1042,6 +1042,13 @@ body[data-reticle="holo"] #reticle i::after { content: ''; position: absolute; l
 body[data-reticle="dot"] #crosshair, body[data-reticle="holo"] #crosshair { opacity: 0; }
 /* the Loadout tab: which sight goes on which gun */
 .sightcard .sopts { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+.scope-picker { margin-top: 8px; font-size: 12px; text-align: left; }
+.scope-picker summary { cursor: pointer; padding: 7px 9px; border: 1px solid #57677c; border-radius: 6px; background: #192434; color: #dcefff; }
+.scope-options { display: grid; gap: 5px; padding: 7px 0; }
+.scope-options button { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; width: 100%; padding: 8px; white-space: normal; text-align: left; background: #243448; color: #edf7ff; border: 1px solid #53677c; border-radius: 5px; }
+.scope-options button small { font-size: 11px; color: #a8d9cf; }
+.scope-options button:disabled { opacity: .55; cursor: default; }
+.scope-options button:not(:disabled):hover { border-color: #8be3cd; }
 .sopt { font-family: var(--font-h); font-weight: 600; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: #cfd6e2;
   background: rgba(255,255,255,.07); border: 1px solid var(--line); border-radius: 3px; padding: 4px 8px; cursor: pointer; }
 .sopt:hover { background: rgba(255,255,255,.12); }

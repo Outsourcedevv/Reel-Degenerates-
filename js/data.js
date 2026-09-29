@@ -267,11 +267,11 @@ const canAimGun = (z) => !NO_AIM.has(z.type);
 // walk (how fast you walk aimed: 0.65 without one), hip (the circle from the hip, x), sens (mouse speed aimed).
 // The models and where they sit on each gun: buildSight / SIGHT_MOUNT in models.js
 const SIGHTS = {
-  dot: { name: 'Blinky Red Dot', short: 'Red Dot', zoom: 52, speed: 1.8, walk: 0.85, chips: ['SNAPPY AIM', 'WALK FASTER AIMED'],
+  dot: { price: 500, planet: 0, name: 'Blinky Red Dot', short: 'Red Dot', zoom: 52, speed: 1.8, walk: 0.85, chips: ['SNAPPY AIM', 'WALK FASTER AIMED'],
     desc: 'A little red dot right where your shots go. You aim in twice as fast and hardly slow down while you do. One size fits every gun that aims.' },
-  holo: { name: 'Neon Holo Sight', short: 'Holo Sight', zoom: 45, speed: 1.3, walk: 0.72, hip: 0.7, chips: ['1.7x ZOOM', 'TIGHTER FROM THE HIP'],
+  holo: { price: 2000, planet: 2, name: 'Neon Holo Sight', short: 'Holo Sight', zoom: 45, speed: 1.3, walk: 0.72, hip: 0.7, chips: ['1.7x ZOOM', 'TIGHTER FROM THE HIP'],
     desc: 'A glowing ring to aim with. Zooms in a bit more than plain aiming, and your shots from the hip land 30% tighter too. Lights up like a slot machine.' },
-  scope: { name: 'Peeper 3x Scope', short: '3x Scope', zoom: 26, speed: 0.8, walk: 0.55, sens: 0.45, chips: ['3x ZOOM', 'FOR LONG SHOTS'],
+  scope: { price: 3500, planet: 3, name: 'Peeper 3x Scope', short: '3x Scope', zoom: 26, speed: 0.8, walk: 0.55, sens: 0.45, chips: ['3x ZOOM', 'FOR LONG SHOTS'],
     desc: 'A proper little scope. 3x zoom for picking off critters from way over there. Slower to aim, and you shuffle along while you look through it.' },
 };
 const canSight = (z) => canAimGun(z) && z.type !== 'sniper';
@@ -317,7 +317,6 @@ const SHOPS = {
       { kind: 'zap', lvl: 1, price: 350, desc: 'A shotgun built out of scrap. Six pellets a shot. Get close, then point it at the problem.' },
       { kind: 'vac', lvl: 1, price: 300, name: 'Turbo Vac', desc: 'Sucks twice as fast and reaches further.' },
       { kind: 'cargo', lvl: 1, price: 250, name: 'Bigger Backpack', desc: 'Holds 20 things. Mostly garbage.' },
-      { kind: 'sight', id: 'dot', price: 500 },
       { kind: 'skates', price: 450, name: 'Duct-Tape Skates', desc: 'Roller skates held together with duct tape. Sprinting is 35% faster. Brakes sold separately. (They are not sold.)' },
       { kind: 'hat', id: 'cone', price: 120 },
       { kind: 'hat', id: 'antenna', price: 200 },
@@ -341,7 +340,6 @@ const SHOPS = {
       { kind: 'zap', lvl: 3, price: 4000, desc: 'Every shot is a slot pull. Usually normal. Sometimes x2. Rarely 777. Once in a blue moon: JACKPOT.' },
       { kind: 'nades', price: 180, name: 'Goo Grenades x5', desc: 'Imported from Gloop. Same price everywhere. (It\'s the law.)' },
       { kind: 'summon', b: 'jerry', price: 7500, desc: 'Summons Jackpot Jerry at the altar. Non-refundable. Like everything here.' },
-      { kind: 'sight', id: 'holo', price: 2000 },
       { kind: 'dash', price: 2500, name: 'Getaway Sneakers', desc: 'Press {dash} to dash. For outrunning debt collectors. Works in the air too.' },
       { kind: 'charm', price: 77, name: 'Lucky Space Foot', desc: 'Does absolutely nothing. You will feel lucky, though.' },
       { kind: 'hat', id: 'tophat', price: 900 },
@@ -356,7 +354,6 @@ const SHOPS = {
       { kind: 'socks', price: 500, name: 'Heated Socks', desc: 'No more slipping around. Toasty toes.' },
       { kind: 'stomp', price: 4000, name: 'Yeti Stompers', desc: 'Press {stomp} in the air to slam into the ground. Squashes critters. Wakes the neighbors.' },
       { kind: 'zap', lvl: 4, price: 9000, desc: 'Hold to fire a freezing beam. Freezes critters solid. Just keep it on the boss.' },
-      { kind: 'sight', id: 'scope', price: 3500 },
       { kind: 'cargo', lvl: 3, price: 3800, name: 'Industrial Fridge', desc: 'Holds 60 things. You are wearing a fridge now.' },
       { kind: 'hat', id: 'viking', price: 600 },
     ],

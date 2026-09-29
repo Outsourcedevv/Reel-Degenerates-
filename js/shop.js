@@ -99,31 +99,49 @@ const Shop = {
         <span class="k">${U.esc(Keys.name('slot' + (i + 1)))}</span>
         <div class="ic">${ok || lost ? Thumbs.img(Loadout.pic(it), '', Loadout.icon(it)) : ''}</div>
         <b>${ok ? U.esc(Loadout.name(it)) : lost ? `${U.esc(Loadout.name(it))}<small>in your grave</small>` : 'Empty'}</b>
-        ${ok || lost ? `<button class="lx" data-act="loff" data-i="${i}" title="${Loadout.crit(it) ? 'Put it in your backpack' : 'Take it off'}">${icon('close')}</button>` : ''}</div>`;
+        ${ok ? this.sightMenu(Loadout.gun(it)) : ''}${ok || lost ? `<button class="lx" data-act="loff" data-i="${i}" title="${Loadout.crit(it) ? 'Put it in your backpack' : 'Take it off'}">${icon('close')}</button>` : ''}</div>`;
     };
     const card = (it) => `<div class="card2"><div class="ic">${Thumbs.img(Loadout.pic(it), '', Loadout.icon(it))}</div>
-      <div class="info"><h4>${U.esc(Loadout.name(it))}</h4><div class="chips">${this.gearChips(it).map((c) => `<span>${U.esc(c)}</span>`).join('')}</div></div>
+      <div class="info"><h4>${U.esc(Loadout.name(it))}</h4><div class="chips">${this.gearChips(it).map((c) => `<span>${U.esc(c)}</span>`).join('')}</div>${this.sightMenu(Loadout.gun(it))}</div>
       <button class="price equip" data-act="lput" data-it="${it}">${sel == null ? 'Put on hotbar' : `Put in slot ${sel + 1}`}</button></div>`;
     return `<h5 class="shead">Your hotbar</h5><div class="lbar">${s.map(slot).join('')}</div>
       <p class="tip">${sel == null ? 'Click a slot to pick it, then click something in your locker to put it there (or another slot to swap the two). The X takes a thing off.' : `Slot ${sel + 1} picked: click something in your locker to put it here, or another slot to swap them.`}</p>
       <h5 class="shead">Your locker</h5>` + (locker.length ? `<div class="cards hats">${locker.map(card).join('')}</div>` : '<p class="tip">Everything you own is on your hotbar.</p>') + this.sightsHtml() + this.perksHtml();
   },
-  // which sight goes on which gun (see SIGHTS): every gun of yours that can take one, and the sights you own
-  sightsHtml() {
-    const mine = Object.keys(SIGHTS).filter((id) => (SAVE.sights || []).includes(id));
-    const where = { dot: 'Scrapyard-9', holo: 'Luckstar', scope: 'Frostbyte' };
-    if (!mine.length) return `<h5 class="shead">Sights</h5><p class="tip">Sights for the guns that aim: a ${SIGHTS.dot.name} on ${where.dot}, a ${SIGHTS.holo.name} on ${where.holo}, and a ${SIGHTS.scope.name} on ${where.scope}. Buy one once and put it on any of your guns.</p>`;
-    const guns = [-1, ...SAVE.guns.filter((g) => ZAPPERS[g]).sort((a, b) => a - b)].filter((g) => canSight(gunDef(g)));
-    const row = (g) => {
-      const on = sightOf(g), b = (id, lab) => `<button class="sopt ${on === id ? 'on' : ''}" data-act="sighton" data-g="${g}" data-s="${id || ''}">${U.esc(lab)}</button>`;
-      return `<div class="card2 sightcard"><div class="ic">${Thumbs.img(Loadout.pic('gun:' + g), '', 'gun')}</div>
-        <div class="info"><h4>${U.esc(gunDef(g).name)}</h4><div class="sopts">${b(null, 'None')}${mine.map((id) => b(id, SIGHTS[id].short)).join('')}</div></div></div>`;
-    };
-    return `<h5 class="shead">Sights</h5><div class="cards hats">${guns.map(row).join('')}</div>
-      <p class="tip">A sight fits any gun that aims (the Longshot has its own scope). Put the same one on as many guns as you like.</p>`;
+  // Every compatible gun carries its own compact attachment menu.
+  sightsHtml() { return ''; },
+  sightMenu(g) {
+    if (g == null || !Number.isInteger(g) || !canSight(gunDef(g))) return '';
+    const haveGun = g === -1 || SAVE.guns.includes(g), on = sightOf(g);
+    const row = (id, name, status, disabled) => '<button type="button" data-act="scope-pick" data-g="'+g+'" data-s="'+id+'" '+(disabled?'disabled':'')+'><span>'+U.esc(name)+'</span><small>'+U.esc(status)+'</small></button>';
+    const options = row('', 'No scope', on ? 'Equip' : 'Equipped', !haveGun || !on) + Object.entries(SIGHTS).map(([id,s]) => {
+      const unlocked=planetUnlocked(s.planet), owned=(SAVE.sights||[]).includes(id);
+      const status=!unlocked?'Unlock '+PLANETS[s.planet].name:!haveGun?'Buy this gun first':on===id?'Equipped':owned?'Equip':'Buy & equip · '+U.bucks(s.price);
+      return row(id,s.name,status,!unlocked||!haveGun||on===id||(!owned&&SAVE.bucks<s.price));
+    }).join('');
+    return '<details class="scope-picker" data-act="scope-menu"><summary>Scope: '+U.esc(on?SIGHTS[on].short:'None')+'</summary><div class="scope-options">'+options+'</div></details>';
+  },
+  pickSight(g,id) {
+    if (!Number.isInteger(g) || (g!==-1&&!SAVE.guns.includes(g)) || !canSight(gunDef(g))) return false;
+    if (id) {
+      const s=SIGHTS[id];
+      if (!s || !planetUnlocked(s.planet)) { UI.toast('Unlock that planet first.', 'bad'); return false; }
+      if (!(SAVE.sights||[]).includes(id)) {
+        if (SAVE.bucks<s.price) { UI.toast('Not enough bucks!', 'bad'); return false; }
+        addBucks(-s.price);
+        if (!SAVE.sights) SAVE.sights=[];
+        SAVE.sights.push(id);
+        Sound.play('buy');
+      } else Sound.play('reload');
+    }
+    this.fitSight(g,id);
+    this.line=id?SIGHTS[id].name+' fitted to '+gunDef(g).name+'.':'Scope removed.';
+    return true;
   },
   // put sight id on gun g (id '': take it off)
   fitSight(g, id) {
+    if (!Number.isInteger(g) || (g!==-1&&!SAVE.guns.includes(g)) || !canSight(gunDef(g))) return;
+    if (id && (!SIGHTS[id] || !planetUnlocked(SIGHTS[id].planet) || !(SAVE.sights||[]).includes(id))) return;
     if (!SAVE.sightOn) SAVE.sightOn = {};
     if (id && (SAVE.sights || []).includes(id) && canSight(gunDef(g))) SAVE.sightOn[g] = id; else delete SAVE.sightOn[g];
     persist();
@@ -272,7 +290,7 @@ const Shop = {
         : `<button class="price" data-act="buy" data-i="${i}" ${poor ? 'disabled' : ''}>${U.bucks(it.price)}</button>`;
       return `<div class="card2 ${this.tier(it.price)} ${cls}">
         <div class="ic">${Thumbs.img(inf.pic, '', inf.icon)}</div>
-        <div class="info"><h4>${U.esc(inf.name)}</h4><div class="chips">${inf.chips.map((c) => `<span>${U.esc(c)}</span>`).join('')}</div><p>${U.esc(inf.desc)}</p></div>
+        <div class="info"><h4>${U.esc(inf.name)}</h4><div class="chips">${inf.chips.map((c) => `<span>${U.esc(c)}</span>`).join('')}</div><p>${U.esc(inf.desc)}</p>${it.kind === 'zap' ? this.sightMenu(it.lvl) : ''}</div>
         ${btn}</div>`;
     };
     let body = '';
@@ -325,6 +343,8 @@ const Shop = {
       <section class="wares"><div class="stabs">${tabs}</div><div class="wbody">${body}</div></section>
     </div>`;
     const handler = (act, d) => {
+      if (act === 'scope-menu') return;
+      if (act === 'scope-pick') this.pickSight(Number(d.g), d.s);
       if (act === 'tab') { this.tab = d.t; }
       if (act === 'buy') this.buy(items[Number(d.i)]);
       if (act === 'sellall' || act === 'sell1' || act === 'sellslot') {
