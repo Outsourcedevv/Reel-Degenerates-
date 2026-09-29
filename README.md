@@ -109,14 +109,15 @@ defaults:
 | --- | --- |
 | `W` `A` `S` `D` / `Shift` | move / sprint |
 | `Space` | jump (double jump with Bounce Boots) |
-| `Q` | dash (Getaway Sneakers, from Luckstar) |
+| `F` | dash (Getaway Sneakers, from Luckstar) |
 | `C` in the air | ground pound (Yeti Stompers, from Frostbyte) |
 | hold `Space` in the air | glide (Glider Cape, from Nimbus-9) or fly (Jet Pack, from Gigopolis) |
 | `E` | talk, shop, use things, pick up critters you zapped · hold next to a downed friend to pick them up (5 seconds) |
 | `1` to `5` / mouse wheel | take out what's in that hotbar slot / flip through your hotbar |
 | Left click | use what you're holding |
+| Right click (hold) | aim down the sights: every gun but the Wisp Caller. Shots go dead on (from the hip they go somewhere inside the crosshair's circle), the view zooms in a bit and you walk slower. The Phantom Longshot looks down its scope |
 | `R` | reload (infinite batteries, but the battery pack runs out) |
-| Right click | throw a Goo Grenade (boss fights) |
+| `Q` | throw a Goo Grenade (boss fights) |
 | `I` | backpack (drop things) and crew (send money) |
 | `G` | emote (a different one each press) |
 | `H` | what to do on this planet (a short guide) |
@@ -235,7 +236,7 @@ Every planet sells a different gun, and each one shoots differently:
 | Jackpot Blaster | Luckstar | every shot is a slot pull: x2, 777s, the odd JACKPOT |
 | Cryo Beam | Frostbyte | hold to freeze things |
 | Wisp Caller | Spookulon | ghost wisps that drift after whatever is nearest your crosshair (they hit softer than the guns you aim) |
-| Phantom Longshot | Spookulon ($14,500) | a sniper: one spectral round straight to the crosshair (220 damage, no travel time), 5 rounds, slow. Hold right-click to scope in (dead on; from the hip it wanders a bit) |
+| Phantom Longshot | Spookulon ($14,500) | a sniper: one spectral round straight to the crosshair (220 damage, no travel time), 5 rounds, slow. Aim (right-click) to look down its scope: dead on, from the hip it wanders a lot |
 | Storm Caller | Nimbus-9 | lightning that jumps from target to target (and stuns critters) |
 | Same-Day Launcher | Gigopolis | exploding parcels; shoot the ground under you mid-jump to rocket-jump |
 | Pizza Cutter | Zorblax Prime | spinning cutters that slice through everything and come back |
@@ -257,7 +258,7 @@ Movement gear you can pick up along the way (you keep it when you die):
 | --- | --- | --- |
 | Duct-Tape Skates | Scrapyard-9 | sprint 35% faster |
 | Bounce Boots | Planet Gloop | double jump |
-| Getaway Sneakers | Luckstar | `Q` to dash, once in the air too |
+| Getaway Sneakers | Luckstar | `F` to dash, once in the air too |
 | Heated Socks | Frostbyte | no more slipping on the ice |
 | Yeti Stompers | Frostbyte | `C` in the air slams you down with a shockwave that squashes critters |
 | Spring-Heeled Jacks | Spookulon | jump way higher (Bounce Boots get bouncier too) |

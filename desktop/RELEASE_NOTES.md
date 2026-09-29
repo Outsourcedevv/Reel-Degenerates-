@@ -13,7 +13,13 @@
   pop: a trophy that sells for a lot, Goo Grenades, and the first time, a special item that's yours for keeps: jump
   higher, sell for more, reload faster, heal faster, hit harder, run faster, or take less damage.
 - **New gun: the Phantom Longshot** (Spookulon, $14,500). A haunted sniper rifle: one spectral round straight to
-  your crosshair for 220 damage, no travel time. Hold right-click to scope in.
+  your crosshair for 220 damage, no travel time. Aim it to look down the scope.
+- **Aim down the sights.** Hold right-click with any gun but the Wisp Caller: the gun comes up to the middle, the
+  view zooms in a bit, and your shots go dead on (you walk slower while you aim). From the hip they go somewhere
+  inside the crosshair's circle, which opens up to show how far off they could go (more when you're running or
+  in the air). The Scattergun's pellets bunch up when you aim.
+- **Goo Grenades are on `Q` now** (right-click aims). The Getaway Sneakers' dash moved to `F`. If you'd changed your
+  keys, those two move over unless you'd picked something else for them.
 - **The Duel Pit on Luckstar.** Wager a crewmate, each pick a gun you own, and fight it out in the arena. Friendly:
   going down costs you nothing but the bet. Winner takes the wager.
 - **Keybinds.** Change any key (or mouse button) on the new Keybinds screen, in the pause menu or on the title

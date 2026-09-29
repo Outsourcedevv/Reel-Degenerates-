@@ -87,6 +87,13 @@ Known documented systems include:
 
 ## Current Task
 
+### Aiming down the sights, hip-fire spread, grenades on Q (2026-09-29)
+
+- Keys: new `aim` action (hold, default right-click), `nade` is now `Q`, `dash` moved to `F`. `Keys` saves `_v: KEY_V`; a saved set of keys from before (no `_v`) that still has an old default from `KEY_OLD` gets the new one, custom keys stay.
+- `LocalPlayer.aimK` (0 hip .. 1 aimed, eased in `updateCamera`) replaces the Longshot-only `scopeK`. Any gun where `canAimGun(z)` (all but the Wisp Caller, type `homing`) aims while `aim` is held (not reloading, swapping, reviving, emoting, in menus, or before a duel's FIGHT). Aimed: FOV to `z.zoom || AIM.zoom`, mouse speed `aimSens()`, walk speed `AIM.speed`, no sprint, less bob/sway/recoil, and the held gun moves to `sightPos(g)`: centered on its muzzle line with the top of its bounding box (hands excluded) `AIM.drop` under the crosshair, applied after `GunReload.pose`. The Longshot still shows `#scope` (`body.scoped`) and hides the viewmodel.
+- Hip-fire spread: `HIP_SPREAD[type]` (x1.5 running or in the air, x(1 - aimK)); `wobble(dir)` knocks each shot's direction inside that circle (bolts, lobs, rockets, jackpot, squirt, cutter, beam ticks, chain, sniper). The Scattergun's cone is `z.spread * lerp(HIP_CONE)` and is sent as `w` on its `shoot` message. The crosshair is now four `<i>` ticks whose `--gap` (`drawSpread`) shows the current spread in pixels.
+- Shop descriptions now go through `keyText`, so `{dash}`/`{nade}`/`{aim}` show the real key.
+
 ### Spooky Vacuum and difficulty-scaled healing (2026-09-28)
 
 - The Spooky Vacuum is now tier 2 of `VAC` (12m reach, 2.4x suction), sold only by the Spookulon shop for $6,500. Buying it raises `SAVE.vacLvl`, puts `vac` on the loadout, refreshes the held model and thumbnail, and sends `vl` in multiplayer state so remote players see the correct vacuum.
@@ -128,7 +135,7 @@ Known documented systems include:
 - **Ship coasting** (`Flight.coast`, `Flight.driving()`): when the pilot moves to the back seat, their game keeps simulating the ship with no input (`atmo` damps gently and holds height; `spaceFly` keeps speed) and keeps relaying `fly` syncs until someone takes the pilot seat.
 - **Esc / mouse lock**: closing a panel calls `Game.lock()`; while the request is pending (`wantLock`, 1s timeout) the pause menu stays hidden. If the browser refuses (Esc isn't a user gesture, so it often does), `lockFailed` puts you in soft mode (`body.softlock`): playing, keys work, but `Input.loose()` makes mouse movement and the grabbing click do nothing until a click grabs the mouse (a loose cursor pinned to the screen edge used to spin you). `#clicklook` says so. True free-mouse look (`fallback`) is only for browsers that never grab.
 - **Mini boss prizes** (`PERKS` in data.js, `MiniBoss.lootItems/dropLoot/updateLoot/give`): on `mbdie` each player on the planet (not dead) gets their own local loot when the body pops (`body.onPop`, set in `MiniBoss.onDie`; `Critters.popBody` calls it): trophy `RES.mbt_<planet>` (sellable), 3 grenades, and the planet's perk if not owned (`SAVE.perks`, `hasPerk`). Perk effects: jump (`goo`), `Activities.pays` (`dice`), reload (`mitts`), regen +30% (`bone`), `Shots.land/blast` (`storm`), speed (`wheels`), `hurtPlanet`/`BossFight.hurt`/`Duel.onHit` (`collar`). Listed on the shop's Loadout tab (`Shop.perksHtml`). `MB_AFTER` 15, `MB_CHANCE` 0.04.
-- **Phantom Longshot** (`ZAPPERS[9]`, type `sniper`, appended so old saves keep their gun numbers): hitscan in `LocalPlayer.snipe` (like the Cryo Beam's trace), `Shots.tracer` for the streak (friends get `shoot` with `e`), scope while holding the `nade` key (`scopeK`: FOV to `zoom`, lower sensitivity, `#scope` overlay, no grenade throw with it out). Model `sniper()` in gun-designs.js; reload reuses the Storm Caller's (`GUN_RELOADS.sniper`).
+- **Phantom Longshot** (`ZAPPERS[9]`, type `sniper`, appended so old saves keep their gun numbers): hitscan in `LocalPlayer.snipe` (like the Cryo Beam's trace), `Shots.tracer` for the streak (friends get `shoot` with `e`), scope when aimed (see the 2026-09-29 aiming entry: FOV to its `zoom`, `#scope` overlay). Model `sniper()` in gun-designs.js; reload reuses the Storm Caller's (`GUN_RELOADS.sniper`).
 - **Duels** (`js/duel.js`, `DUEL`/`Duel`): the Duel Pit on Luckstar (`PlanetWorld.buildDuelPit`, at `DUEL.spot`). Targeted `duel` messages (ask/yes/no/ready/win/quit); `G.mode = 'duel'` uses the planet's `Game.arena()`; remotes in a duel are only visible to the one they're fighting (net state `du`). Shots hit the opponent at full damage (`Shots.test`, `bonkFriend` send `bonk` with `du`, handled by `Duel.onHit`). The loser pays locally in `Duel.lose` and sends `win`; the winner is paid in `Duel.won` (a loss then a win = draw). No graves, lives or respawns involved; `finish` puts you back by the pit and `refreshGear` restores the hotbar.
 - **Third person was removed** (V and the Camera setting); only the emote camera swing and the downed camera remain. Esc closes menus and resumes from pause; if the browser refuses the pointer lock, `Game.lockFailed` resumes without it until the next click.
 
@@ -218,6 +225,6 @@ Keep updates concise and useful to the next AI.
 
 ## Last Updated
 
-- Date: 2026-09-27
-- AI: GPT-5.6 Sol
+- Date: 2026-09-29
+- AI: Claude (aiming down the sights, hip-fire spread, grenades on Q)
 - Reason: Initial Claude ↔ GPT/Codex handoff setup from the current GitHub repository.

@@ -14,10 +14,10 @@ function gunChips(z) {
     case 'jackpot': return ['LUCKY SHOTS', `${z.dmg} DMG`, 'x2 · 777 · JACKPOT', mag];
     case 'beam': return ['FREEZE RAY', `${Math.round(z.dmg / z.cd)} DMG / SEC`, 'FREEZES CRITTERS', `${(z.mag * z.cd).toFixed(0)}s CHARGE`];
     case 'cutter': return ['BOOMERANG', `${z.dmg} DMG PER SLICE`, 'SLICES THROUGH', `${z.mag} CUTTERS`];
-    case 'homing': return ['HOMING', `${z.dmg} DMG`, rate, `${z.mag} WISPS`];
+    case 'homing': return ['HOMING', `${z.dmg} DMG`, rate, `${z.mag} WISPS`, 'NO AIMING'];
     case 'chain': return ['CHAIN LIGHTNING', `${z.dmg} DMG`, `JUMPS ${z.jumps}x`, 'STUNS CRITTERS'];
     case 'rocket': return ['ROCKETS', `${z.dmg} SPLASH DMG`, 'ROCKET JUMPS', `${z.mag} PARCELS`];
-    case 'sniper': return ['SNIPER', `${z.dmg} DMG`, 'RIGHT-CLICK: SCOPE', `${z.mag} ROUNDS`];
+    case 'sniper': return ['SNIPER', `${z.dmg} DMG`, `${Keys.name('aim').toUpperCase()}: SCOPE`, `${z.mag} ROUNDS`];
     default: return ['BLASTER', `${z.dmg} DMG`, rate, mag, rl];
   }
 }
@@ -32,7 +32,7 @@ const Shop = {
 
   itemInfo(it) {
     // returns {name, desc, icon, chips[], owned, locked, lockMsg}
-    const r = { name: it.name, desc: it.desc || '', icon: 'box', pic: Thumbs.shopKey(it), chips: [], owned: false, locked: false, lockMsg: '' };
+    const r = { name: it.name, desc: keyText(it.desc || ''), icon: 'box', pic: Thumbs.shopKey(it), chips: [], owned: false, locked: false, lockMsg: '' };
     switch (it.kind) {
       case 'zap': { // (any gun can be bought straight away, and every gun you buy is yours to keep: see the Loadout tab)
         const z = ZAPPERS[it.lvl];

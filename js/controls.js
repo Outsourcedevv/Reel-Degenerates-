@@ -20,10 +20,11 @@ const KEY_ACTIONS = {
   right: ['Move right', 'KeyD', 'move', 'foot'],
   jump: ['Jump (ship: lift off / up)', 'Space', 'move', 'any'],
   sprint: ['Sprint (ship: turbo)', 'ShiftLeft', 'move', 'any'],
-  dash: ['Dash (Getaway Sneakers)', 'KeyQ', 'move', 'foot'],
+  dash: ['Dash (Getaway Sneakers)', 'KeyF', 'move', 'foot'],
   stomp: ['Ground pound (ship: down)', 'KeyC', 'move', 'any'],
   fire: ['Shoot / use what you\'re holding', 'Mouse0', 'act', 'foot'],
-  nade: ['Throw a Goo Grenade', 'Mouse2', 'act', 'foot'],
+  aim: ['Aim down the sights (hold)', 'Mouse2', 'act', 'foot'],
+  nade: ['Throw a Goo Grenade', 'KeyQ', 'act', 'foot'],
   reload: ['Reload', 'KeyR', 'act', 'foot'],
   use: ['Talk / use / pick up (ship: get out)', 'KeyE', 'act', 'any'],
   emote: ['Emote', 'KeyG', 'act', 'foot'],
@@ -41,6 +42,9 @@ const KEY_ACTIONS = {
   swap: ['Swap seats', 'KeyF', 'ship', 'ship'],
   view: ['Look at the ship from outside (in the back)', 'KeyV', 'ship', 'ship'],
 };
+// (keys that used to be the default: a saved set of keys from before still has them, and gets the new ones)
+const KEY_OLD = { 1: { nade: 'Mouse2', dash: 'KeyQ' } };
+const KEY_V = 2;
 const KEY_GROUPS = [['move', 'Moving'], ['act', 'Doing stuff'], ['slots', 'Hotbar'], ['menu', 'Menus & chat'], ['ship', 'The ship']];
 // (both Shift keys, both Ctrl keys... count as the same key)
 const normKey = (c) => (c === 'ShiftRight' ? 'ShiftLeft' : c === 'ControlRight' ? 'ControlLeft' : c === 'AltRight' ? 'AltLeft' : c === 'MetaRight' ? 'MetaLeft' : c);
@@ -61,13 +65,14 @@ const Keys = {
   layout: null,    // (the keyboard's real letters, where the browser tells us: an AZERTY Z shows as Z)
 
   load() {
-    const saved = lsGet(this.KEY, null) || {};
+    const saved = Object.assign({}, lsGet(this.KEY, null) || {});
+    for (let v = saved._v || 1; v < KEY_V; v++) for (const a in KEY_OLD[v] || {}) if (saved[a] === KEY_OLD[v][a]) delete saved[a];
     this.map = {};
     for (const a in KEY_ACTIONS) this.map[a] = typeof saved[a] === 'string' && saved[a] ? normKey(saved[a]) : KEY_ACTIONS[a][1];
     this.index();
     try { if (navigator.keyboard && navigator.keyboard.getLayoutMap) navigator.keyboard.getLayoutMap().then((m) => { this.layout = m; }).catch(() => {}); } catch (e) { /* not here */ }
   },
-  save() { lsSet(this.KEY, this.map); this.index(); if (typeof UI !== 'undefined' && UI.el.hud) UI.hud(); },
+  save() { lsSet(this.KEY, Object.assign({ _v: KEY_V }, this.map)); this.index(); if (typeof UI !== 'undefined' && UI.el.hud) UI.hud(); },
   index() {
     this.byCode = new Map();
     for (const a in this.map) { const c = this.map[a]; if (!this.byCode.has(c)) this.byCode.set(c, []); this.byCode.get(c).push(a); }
@@ -164,9 +169,9 @@ const KeybindsUI = {
       const box = e.target.closest && e.target.closest('.kbkey');
       if (!box) { this.stop(); this.redraw(); return; } // (clicked somewhere else: never mind)
       if (!box.classList.contains('wait')) { this.stop(); return; } // (another box: its click picks that one next)
-      // a mouse button pressed on the box. (A plain left click only counts for shooting and grenades:
+      // a mouse button pressed on the box. (A plain left click only counts for shooting, aiming and grenades:
       // for anything else it just means "never mind", it's too easy to do by accident.)
-      if (e.button === 0 && d.a !== 'fire' && d.a !== 'nade') { this.stop(); this.boundAt = performance.now(); this.redraw(); return; }
+      if (e.button === 0 && d.a !== 'fire' && d.a !== 'nade' && d.a !== 'aim') { this.stop(); this.boundAt = performance.now(); this.redraw(); return; }
       e.preventDefault(); e.stopPropagation();
       this.boundAt = performance.now();
       this.done('Mouse' + e.button);

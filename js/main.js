@@ -886,7 +886,8 @@ const Game = {
       case 'homing': return '{fire}: ghost wisps (they chase things) · {reload}: reload';
       case 'chain': return '{fire}: chain lightning (it jumps between targets) · {reload}: reload';
       case 'rocket': return '{fire}: launch a parcel (shoot your feet to rocket-jump) · {reload}: reload';
-      default: return '{fire}: zap · {reload}: reload';
+      case 'sniper': return '{fire}: shoot · hold {aim}: look down the scope · {reload}: reload';
+      default: return '{fire}: zap · hold {aim}: aim (dead on) · {reload}: reload';
     }
   },
   // "3: Laser Drill for the crystals" if it's on your hotbar ("the Laser Drill for the crystals (on your
