@@ -20,6 +20,14 @@
   far off they could go (more when you're running or in the air). The Scattergun's pellets bunch up when you aim.
   The Goo Lobber, Launcher, Cryo Beam, Pizza Cutter and Wisp Caller don't aim, and are just as accurate from the
   hip as before.
+- **Sights.** Buy a Blinky Red Dot (Scrapyard-9, $500), a Neon Holo Sight (Luckstar, $2,000) or a Peeper 3x Scope
+  (Frostbyte, $3,500) and put it on any gun that aims, on the shop's Loadout tab. The red dot aims in twice as fast
+  and barely slows you down, the holo zooms in more and tightens your hip fire, the 3x scope is for long shots.
+  Your friends see the sight on your gun.
+- **JACKPOT kills pay double.** A critter killed by a Jackpot Blaster JACKPOT shot (or its blast) is worth 2x: a
+  new style bonus, on top of the rest.
+- **No more cap on style bonuses.** They used to stop at 5x in total; now they all multiply together, however many
+  you pull off at once.
 - **Goo Grenades are on `Q` now** (right-click aims). The Getaway Sneakers' dash moved to `F`. If you'd changed your
   keys, those two move over unless you'd picked something else for them.
 - **The Duel Pit on Luckstar.** Wager a crewmate, each pick a gun you own, and fight it out in the arena. Friendly:

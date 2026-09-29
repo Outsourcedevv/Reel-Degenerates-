@@ -252,6 +252,16 @@ new parcel down the Launcher's tube, smack the Pew Pew Zapper until its cells li
 Jackpot Blaster's lever (the reels spin), wave a new ghost into the Wisp Caller's lantern, and unscrew the Squirt
 Pistol's cap to refill the bottle. The bottle's water and the Zapper's cells show how much is left.
 
+Sights go on the guns that aim (the Squirt Pistol, Zapper, Scattergun, Jackpot Blaster and Storm Caller; the Longshot
+has its own scope). Buy one once and put it on as many of your guns as you like on any shop's **Loadout** tab. You
+keep them when you die. Aim (right-click) to look through it:
+
+| Sight | Where | What it does |
+| --- | --- | --- |
+| Blinky Red Dot | Scrapyard-9 ($500) | a red dot right where your shots go; you aim in twice as fast and hardly slow down while aiming |
+| Neon Holo Sight | Luckstar ($2,000) | a glowing ring; zooms in a bit more (1.7x) and your shots from the hip land 30% tighter |
+| Peeper 3x Scope | Frostbyte ($3,500) | a 3x scope for long shots (you see through the scope, like the Longshot); slower to aim, slower to walk aimed |
+
 Movement gear you can pick up along the way (you keep it when you die):
 
 | Gear | Where | What it does |
@@ -348,11 +358,12 @@ hit you land flashes a hitmarker round your crosshair: white for a hit, red for 
 
 ### Style kills
 
-Kill them in style for a bonus. Each bonus is at most 2x, and they stack up to 5x in total:
+Kill them in style for a bonus. Each bonus is at most 2x, and they all stack (there's no limit):
 
 | Style | Bonus | How |
 | --- | --- | --- |
 | 360 | 2x | spin all the way around right before the kill |
+| Jackpot | 2x | kill it with a JACKPOT shot from the Jackpot Blaster (the direct hit or its blast) |
 | Multi Kill | 2x | three or more kills, each within 3 seconds of the last |
 | Airborne | 1.5x | kill it while you're in the air |
 | Last Shot | 1.5x | kill it with the last shot in your battery |

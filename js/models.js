@@ -1789,8 +1789,77 @@ function buildCutterWheel(parent, r = 0.11) {
   return w;
 }
 // every gun is its own thing (see ZAPPERS). Points down -z; userData.muzzle is where shots come out.
-function buildZapperVM(lvl = 0) {
+// where a sight goes on each gun that takes one (see SIGHTS), in the gun's own space (-z forward):
+// [how far along it sits, the top of the gun there, the top of everything behind and around it]. The sight
+// stands on a riser tall enough that you look over the whole gun through it.
+const SIGHT_MOUNT = {
+  squirt: [-0.17, 0.062, 0.216], // (on the barrel, in front of the bottle: it's on a stick. It's the Squirt Pistol)
+  bolt: [0.02, 0.156, 0.232],
+  spread: [-0.07, 0.13, 0.132],
+  jackpot: [0, 0.166, 0.166],
+  chain: [-0.15, 0.11, 0.138],
+};
+// (each sight's window middle to its bottom: see buildSight)
+const SIGHT_HALF = { dot: 0.038, holo: 0.04, scope: 0.034 };
+// a sight, with the middle of its window (where you look through it) at 0,0,0. drop: how far down its riser
+// goes to the gun. userData.half: from the middle of the window down to the bottom of the sight
+function buildSight(id, drop = 0) {
+  const g = new THREE.Group(); g.name = SIGHTS[id] ? SIGHTS[id].name : 'Sight';
+  const glass = (w, h, color, z = 0) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide })); m.position.z = z; m.name = 'Sight glass'; g.add(m); return m; };
+  let half;
+  if (id === 'scope') { // (a little scope: a tube, a big front lens, an eyepiece, knobs on top and the side)
+    half = 0.034;
+    tf(mk(CYL(0.022, 0.022, 0.2, 12), '#39404f', g), PI / 2);
+    tf(mk(CYL(0.036, 0.022, 0.05, 12), '#39404f', g, 0, 0, -0.12), PI / 2);
+    tf(mk(CYL(0.03, 0.022, 0.04, 12), '#39404f', g, 0, 0, 0.11), PI / 2);
+    for (const z of [-0.145, 0.13]) tf(mk(CYL(0.034, 0.034, 0.012, 12), '#ffd23f', g, 0, 0, z), PI / 2);
+    tf(mk(CYL(0.033, 0.033, 0.004, 12), '#5fc8ff', g, 0, 0, -0.146, { emissive: '#1d5a80' }), PI / 2);
+    tf(mk(CYL(0.027, 0.027, 0.004, 12), '#1a2030', g, 0, 0, 0.131), PI / 2);
+    mk(CYL(0.012, 0.012, 0.022, 8), '#ffd23f', g, 0, 0.03, 0);
+    tf(mk(CYL(0.012, 0.012, 0.022, 8), '#ffd23f', g, 0.03, 0, 0), 0, 0, PI / 2);
+    for (const z of [-0.06, 0.06]) mk(BOX(0.03, 0.016, 0.022), '#2a2f3a', g, 0, -0.026, z);
+  } else if (id === 'holo') { // (a wide window with neon strips round it, and a battery on the side)
+    const w = 0.04, h = 0.028, t = 0.012, d = 0.075;
+    half = h + t;
+    mk(BOX(2 * w + 2 * t, t, d), '#2b2440', g, 0, -h - t / 2, 0);
+    mk(BOX(2 * w + 2 * t, t, d + 0.02), '#2b2440', g, 0, h + t / 2, -0.01);
+    for (const sx of [-1, 1]) mk(BOX(t, 2 * h, d), '#2b2440', g, sx * (w + t / 2), 0, 0);
+    for (const sy of [-1, 1]) mk(BOX(2 * w, 0.004, 0.006), '#ff3df0', g, 0, sy * (h - 0.002), -d / 2 + 0.004, { emissive: '#a0209a' });
+    for (const sx of [-1, 1]) mk(BOX(0.004, 2 * h, 0.006), '#3df0ff', g, sx * (w - 0.002), 0, -d / 2 + 0.004, { emissive: '#1a8a90' });
+    mk(BOX(0.018, 0.03, 0.045), '#f2c44e', g, w + t + 0.009, -0.01, 0.01);
+    glass(2 * w, 2 * h, '#7df9ff', -d / 2 + 0.008);
+  } else { // (the red dot: a small square hood, red, with a glass window and a little light on the side)
+    const w = 0.03, h = 0.025, t = 0.013, d = 0.05;
+    half = h + t;
+    mk(BOX(2 * w + 2 * t, t, d + 0.01), '#2f3440', g, 0, -h - t / 2, 0);
+    mk(BOX(2 * w + 2 * t, t, d), '#e8483c', g, 0, h + t / 2, 0);
+    for (const sx of [-1, 1]) mk(BOX(t, 2 * h, d), '#e8483c', g, sx * (w + t / 2), 0, 0);
+    tf(mk(CYL(0.008, 0.008, 0.01, 8), '#ff3a2a', g, w + t + 0.004, 0.006, 0.008, { emissive: '#aa1a10' }), 0, 0, PI / 2);
+    glass(2 * w, 2 * h, '#ff8a8a', -d / 2 + 0.006);
+  }
+  const riser = drop - half; // (down to the gun)
+  if (riser > 0.004) {
+    mk(BOX(0.03, riser, 0.04), '#2f3440', g, 0, -half - riser / 2, 0);
+    mk(BOX(0.05, 0.012, 0.075), '#2f3440', g, 0, -drop + 0.006, 0);
+  }
+  g.userData.half = half;
+  return g;
+}
+// put sight id on a gun (built by GunDesigns.build). Where you look through it: userData.sightLens
+function fitSight(gun, type, id) {
+  const at = SIGHT_MOUNT[type];
+  if (!id || !at) return;
+  const half = SIGHT_HALF[id] || 0.038;
+  const y = Math.max(at[2] + half + 0.012, at[1] + half), s = buildSight(id, y - at[1]);
+  s.position.set(0, y, at[0]);
+  gun.add(s);
+  gun.userData.sightLens = s.position.clone();
+  gun.userData.sightId = id;
+}
+// sight: the one fitted to it (see SIGHTS)
+function buildZapperVM(lvl = 0, sight = null) {
   const z = gunDef(lvl), g = GunDesigns.build(z.type), muzzle = g.userData.muzzle;
+  fitSight(g, z.type, sight);
   const map = flashTex(); map.userData.shared = true;
   const flash = new THREE.Mesh(new THREE.PlaneGeometry(0.26, 0.26), new THREE.MeshBasicMaterial({ map, color: z.color, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
   flash.position.copy(muzzle.position); flash.position.z -= 0.04;

@@ -260,13 +260,13 @@ const UI = {
   },
 
   // you killed something: KILLED <what> <what it's worth>, and under that what made it worth that. lines:
-  // [[x, what, kind]] (kind: 'size', 'gold', 'max', or a style bonus)
+  // [[x, what, kind]] (kind: 'size', 'gold', or a style bonus)
   killed(name, worth, lines) {
     const el = this.el.killmsg;
     if (!el) return;
     const x = (m) => Math.round(m * 100) / 100 + 'x';
     el.innerHTML = `<div class="k">Killed ${U.esc(name)} <b>${U.bucks(worth)}</b></div>` +
-      lines.map(([m, what, kind]) => kind === 'max' ? `<div class="l max">${U.esc(what)} <i>${x(m)}</i></div>` : `<div class="l ${kind}"><i>${x(m)}</i> ${U.esc(what)}</div>`).join('');
+      lines.map(([m, what, kind]) => `<div class="l ${kind}"><i>${x(m)}</i> ${U.esc(what)}</div>`).join('');
     el.classList.remove('on');
     void el.offsetWidth; // (so it pops up again for the next one)
     el.classList.add('on');
@@ -445,7 +445,7 @@ const UI = {
         <p>{emote} emote (a different one each press) · change any key on the Keybinds screen (pause menu)</p></div>
       <div><h4>Your hotbar</h4>
         <p>{slot1} to {slot5} take out what's in each slot (or flip through them with the mouse wheel). Put anything you own in any slot, or take it off, on any shop's <b>Loadout</b> tab: carry three guns and the Grabby Vac if you like.</p>
-        <p>Guns: {fire} to shoot, {reload} to reload, hold {aim} to aim down the sights. From the hip your shots go somewhere inside the crosshair's circle; aimed, they go dead on (but you walk slower). The Goo Lobber, Launcher, Cryo Beam, Pizza Cutter and Wisp Caller don't need to: they're just as good from the hip. You start with a Squirt Pistol (it's terrible). Every planet sells a different real gun, and you keep every one you buy.</p>
+        <p>Guns: {fire} to shoot, {reload} to reload, hold {aim} to aim down the sights. From the hip your shots go somewhere inside the crosshair's circle; aimed, they go dead on (but you walk slower). The Goo Lobber, Launcher, Cryo Beam, Pizza Cutter and Wisp Caller don't need to: they're just as good from the hip. Sights (a red dot, a holo sight, a 3x scope) from the shops go on any gun that aims: pick which on the <b>Loadout</b> tab. You start with a Squirt Pistol (it's terrible). Every planet sells a different real gun, and you keep every one you buy.</p>
         <p>Grabby Vac: hold {fire} on things to suck them up (junk, berries, chips, snow piles, pearls, litter, crusts, and critters you zapped). Ghosts too: it's the ONLY way to catch one, and you have to keep it in the middle of your screen.</p>
         <p>Laser Drill: hold {fire} on crystals (buy on Frostbyte) · Pizza Peel: catch pepperoni meteors (buy on Zorblax Prime)</p>
         <p>{nade} throw a Goo Grenade (boss fights)</p></div>
@@ -460,7 +460,7 @@ const UI = {
         <p>Zap one and it goes flying and lands in a heap: walk over and press {use} to bag it (or vacuum it up). Backpack full? It waits right there for you.</p>
         <p>Mean ones hunt you: a red ! means one spotted you. When one crouches over a red mark, it's about to pounce: step aside. Lots of them throw things, aimed where you're heading: keep changing direction. Goo and snowballs slow you down, some leave puddles. Shoot one and its friends join in.</p>
         <p>Mini bosses: zap 20 critters on a planet (not Scrapyard-9) and from then on every one you zap has a small chance of bringing its huge, crowned mini boss. Like a boss fight: it names each attack and marks it on the ground first. Hard and Hardcore give it extra attacks. Everyone on the planet gets paid when it goes down.</p>
-        <p>Style kills pay extra (up to 2x each, they stack up to 5x): in the air, after a 360, with your last shot, long shots, double kills, revenge and more.</p></div>
+        <p>Style kills pay extra (up to 2x each, and they all stack): in the air, after a 360, with your last shot, long shots, double kills, revenge and more.</p></div>
       <div><h4>The ship</h4>
         <p>{use} at the ship to get in. First one in flies, everyone else rides in the back. It only takes off once the whole crew is in.</p>
         <p>Pilot (flies from the cockpit): move the mouse to aim and the ship swings round to the circle (it's big, it takes a moment), {jump} lift off / up, {stomp} down, {forward}/{back} throttle, {sprint} turbo, {map} star map. Look down through the glass floor to line up a landing.</p>

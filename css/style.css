@@ -292,7 +292,6 @@ kbd {
 #killmsg .l i { font-style: normal; color: #fff; }
 #killmsg .l.size { color: #7dff8a; }
 #killmsg .l.gold { color: #ffd23f; }
-#killmsg .l.max { color: rgba(255,255,255,.6); font-size: 13px; }
 #killmsg.on { animation: killmsg 3s ease-out forwards; }
 @keyframes killmsg {
   0% { opacity: 0; transform: translateX(-50%) scale(1.35); }
@@ -1028,4 +1027,23 @@ body.softlock #clicklook { display: block; }
 #scope i { position: absolute; left: 50%; top: 50%; width: 66vmin; height: 66vmin; transform: translate(-50%, -50%); border-radius: 50%; box-shadow: inset 0 0 0 3px rgba(20,24,30,.9), inset 0 0 40px rgba(0,0,0,.6); }
 body.scoped #scope { display: block; }
 body.scoped #crosshair { opacity: 0; }
+/* a 3x Scope (a sight, see SIGHTS): a bigger window, a thin dark crosshair */
+body.lens3 #scope { background: radial-gradient(circle at 50% 50%, transparent 0 40vmin, rgba(0,0,0,.94) 40.4vmin); }
+body.lens3 #scope::before { width: 80vmin; height: 1px; background: rgba(12,14,18,.85); }
+body.lens3 #scope::after { height: 80vmin; width: 1px; background: rgba(12,14,18,.85); }
+body.lens3 #scope i { width: 80vmin; height: 80vmin; box-shadow: inset 0 0 0 4px rgba(40,44,52,.95), inset 0 0 50px rgba(0,0,0,.55); }
+/* looking through a red dot or a holo sight: its reticle, right where your shots go, instead of the crosshair */
+#reticle { display: none; position: absolute; left: 50%; top: 50%; width: 0; height: 0; pointer-events: none; }
+#reticle i { position: absolute; border-radius: 50%; }
+body[data-reticle="dot"] #reticle, body[data-reticle="holo"] #reticle { display: block; }
+body[data-reticle="dot"] #reticle i { left: -3px; top: -3px; width: 6px; height: 6px; background: #ff3a2a; box-shadow: 0 0 6px 2px rgba(255,58,42,.7); }
+body[data-reticle="holo"] #reticle i { left: -14px; top: -14px; width: 28px; height: 28px; box-sizing: border-box; border: 2px solid rgba(125,249,255,.95); box-shadow: 0 0 8px rgba(125,249,255,.7), inset 0 0 6px rgba(125,249,255,.5); }
+body[data-reticle="holo"] #reticle i::after { content: ''; position: absolute; left: 50%; top: 50%; width: 4px; height: 4px; margin: -2px 0 0 -2px; border-radius: 50%; background: #ff3df0; box-shadow: 0 0 5px #ff3df0; }
+body[data-reticle="dot"] #crosshair, body[data-reticle="holo"] #crosshair { opacity: 0; }
+/* the Loadout tab: which sight goes on which gun */
+.sightcard .sopts { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+.sopt { font-family: var(--font-h); font-weight: 600; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: #cfd6e2;
+  background: rgba(255,255,255,.07); border: 1px solid var(--line); border-radius: 3px; padding: 4px 8px; cursor: pointer; }
+.sopt:hover { background: rgba(255,255,255,.12); }
+.sopt.on { background: var(--acc); color: #120c00; border-color: var(--acc); }
 #p-resume .kesc { margin-left: 10px; font-size: 11px; letter-spacing: 1px; opacity: .6; border: 1px solid currentColor; border-radius: 4px; padding: 1px 6px; }
