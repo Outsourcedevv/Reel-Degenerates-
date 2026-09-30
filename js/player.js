@@ -30,7 +30,7 @@ const Input = {
       this.mx = e.clientX; this.my = e.clientY;
       if (!G.locked || G.panel || Input.loose()) return;
       if (Math.abs(e.movementX) > 400 || Math.abs(e.movementY) > 400) return; // browser glitch spikes
-      this.dx += e.movementX; this.dy += e.movementY;
+      this.dx += e.movementX; this.dy += G.settings.invert ? -e.movementY : e.movementY; // (Invert mouse, see Options)
     });
     addEventListener('wheel', (e) => { if (G.locked) this.wheel += Math.sign(e.deltaY); }, { passive: true });
     addEventListener('contextmenu', (e) => e.preventDefault());
@@ -96,6 +96,8 @@ const DASH = { speed: 22, time: 0.18, cd: 1.1 };
 const JET = { fuel: 2.2, up: 7, acc: 24, refuel: 0.6, hold: 0.22 }; // (seconds of fuel; hold Space this long before it kicks in)
 const CAPE_FALL = 2.2; // how fast you fall while gliding
 const STOMP = { speed: 32, r: 4.5, dmg: 80 };
+// Nimbus-9: how fast the clouds throw you back up when you fall into them (about 19 m up; see cloudBounce)
+const CLOUD_BOUNCE = 24;
 const RESPAWN_HOLD = 1.2; // seconds of holding the fire button to get back up after dying
 // wading in liquid: how much it slows you (per metre deep, never below `min`), and how deep the sea can get
 // before it washes you back to shore
@@ -302,7 +304,7 @@ class LocalPlayer {
   }
   // keep held tools in the lower-right corner on any screen shape
   layoutVM() {
-    const d = 0.5, hh = d * Math.tan(THREE.MathUtils.degToRad(G.camera.fov / 2)), hw = hh * G.camera.aspect;
+    const d = 0.5, hh = d * Math.tan(THREE.MathUtils.degToRad((G.settings.fov || 72) / 2)), hw = hh * G.camera.aspect;
     const x = Math.min(0.24, hw * 0.55), y = -hh * 0.45;
     for (const o of [...(this.vmGuns ? this.vmGuns.values() : []), this.vmVac, this.vmDrill, this.vmPeel]) { if (o) { o.position.set(x, y, -d); o.userData.base = o.position.clone(); o.scale.setScalar(0.62); } }
   }
@@ -442,8 +444,11 @@ class LocalPlayer {
       this.onGround = true; this.jumps = 0; this.airDash = false; this.launchT = 0;
     } else if (this.pos.y > gnd + 0.08) this.onGround = false;
     if (this.pos.y < -4 && G.mode === 'planet') {
-      this.teleport(G.world.spawn, G.world.spawnYaw);
-      UI.toast(cfg.islands ? U.pick(LINES.fellClouds) : `You fell in the ${cfg.liquid.name}. Gross.`, 'bad', 3);
+      if (cfg.islands) this.cloudBounce(cfg); // (Nimbus-9: the clouds throw you back up)
+      else {
+        this.teleport(G.world.spawn, G.world.spawnYaw);
+        UI.toast(`You fell in the ${cfg.liquid.name}. Gross.`, 'bad', 3);
+      }
     }
     if (G.mode === 'planet' && !cfg.islands) this.wade(dt, cfg);
     // --- timers
@@ -572,6 +577,25 @@ class LocalPlayer {
     }
     if (inVent && !this.inVent) Sound.play('vent');
     this.inVent = inVent;
+  }
+  // Nimbus-9: fall into the clouds and they fling you back up into the sky, on an arc that comes down on the nearest
+  // island (on the side you fell off). You can still steer a little on the way.
+  cloudBounce(cfg) {
+    const p = this.pos;
+    let isl = NIMBUS_ISLANDS[0], bd = Infinity;
+    for (const s of NIMBUS_ISLANDS) { const d = Math.hypot(p.x - s.x, p.z - s.z) - s.r; if (d < bd) { bd = d; isl = s; } }
+    const ox = p.x - isl.x, oz = p.z - isl.z, l = Math.hypot(ox, oz) || 1, k = Math.min(l, isl.r * 0.55);
+    const tx = isl.x + (ox / l) * k, tz = isl.z + (oz / l) * k; // (a bit in from its edge)
+    const g = cfg.grav, vy = CLOUD_BOUNCE, h = 2 - p.y; // (island tops are at 2)
+    const t = (vy + Math.sqrt(vy * vy - 2 * g * h)) / g; // (how long until it's back down at island height)
+    // (in the air after a launch your sideways speed eases off, see fric: start fast enough to get there anyway)
+    const drag = 0.5, go = drag / (1 - Math.exp(-drag * t));
+    this.vel.set((tx - p.x) * go, vy, (tz - p.z) * go);
+    this.onGround = false; this.launchT = t + 0.3; this.stomping = false; this.dashT = 0; this.airDash = false; this.jumps = 1;
+    Sound.play('boing');
+    FX.burst(p.clone(), '#ffffff', 26, 8);
+    FX.ring(p.clone().setY(p.y + 0.5), '#e8f2ff', 3);
+    if (G.time - (this.cloudTipT || -99) > 20) { this.cloudTipT = G.time; UI.toast(U.pick(LINES.cloudBounce), '', 2.5); }
   }
   // a rocket went off near me: get thrown (that's a rocket jump)
   blastPush(pos, r) {
@@ -1078,7 +1102,7 @@ class LocalPlayer {
   // it: you look right through the middle of the sight's window
   sightPos(g) {
     const ud = g.userData;
-    if (!ud.sight && ud.sightLens) ud.sight = new V3(-ud.sightLens.x * g.scale.x, -ud.sightLens.y * g.scale.x, ud.base.z);
+    if (!ud.sight && ud.sightLens) ud.sight = new V3(-ud.sightLens.x * g.scale.x, -ud.sightLens.y * g.scale.x, ud.base.z + 0.08); // (a bit closer: a bigger window)
     if (!ud.sight) { // (worked out once per gun: how big it is, and where its muzzle is, not counting your hands)
       g.updateMatrixWorld(true);
       const inv = new THREE.Matrix4().copy(g.matrixWorld).invert(), m4 = new THREE.Matrix4(), box = new THREE.Box3(), b = new THREE.Box3();
@@ -1259,7 +1283,7 @@ class LocalPlayer {
     // (it never touches your actual look direction)
     G.shake = U.clamp(G.shake - dt * 2.4, 0, 1.2);
     this.shakeT += dt * 22;
-    const sh = Math.min(1, G.shake) ** 2 * 0.03, t = this.shakeT;
+    const sh = Math.min(1, G.shake) ** 2 * 0.03 * (G.settings.shake == null ? 1 : G.settings.shake), t = this.shakeT; // (Screen shake, see Options)
     const sx = (Math.sin(t * 1.31) + 0.5 * Math.sin(t * 2.97)) * sh, sy = (Math.cos(t * 1.73) + 0.5 * Math.sin(t * 3.71)) * sh;
     this.kickP = U.damp(this.kickP, 0, 9, dt); this.kickY = U.damp(this.kickY, 0, 9, dt);
     cam.rotation.set(U.clamp(this.pitch + sx + this.kickP + wk * wk * 0.9, -1.55, 1.55), yaw + sy + this.kickY, this.dead ? Math.min(this.deadT * 0.6, 0.3) * (1 - this.tpK) : wk * wk * 0.5, 'YXZ');
@@ -1276,7 +1300,7 @@ class LocalPlayer {
     const ret = sid && sid !== 'scope' && this.aimK > 0.6 ? sid : '';
     if (ret !== this.retShown) { this.retShown = ret; document.body.dataset.reticle = ret; }
     // sprinting widens the view a little, aiming narrows it
-    const fov = U.lerp(72 + this.sprintK * 7, this.aimZoom(), this.aimK);
+    const fov = U.lerp((G.settings.fov || 72) + this.sprintK * 7, this.aimZoom(), this.aimK); // (Field of view, see Options)
     if (Math.abs(cam.fov - fov) > 0.05) { cam.fov = fov; cam.updateProjectionMatrix(); }
     this.drawSpread(cam);
     // viewmodel: lags behind the mouse, bobs with steps, dips on landing, drops out of view when swapping tools

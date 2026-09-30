@@ -21,7 +21,7 @@
     <div id="nades" class="hidden"></div>
   </div>
   <div id="topright">
-    <div id="roomcode" class="hidden" title="Click to copy"></div>
+    <div id="roomcode" class="hidden" data-tip="Click to copy"></div>
     <div id="planetname"></div>
     <div id="diffbadge" class="hidden"></div>
     <div id="safe" class="hidden"></div>
@@ -30,9 +30,9 @@
   <canvas id="threats"></canvas>
   <div id="crosshair"><i></i><i></i><i></i><i></i></div>
   <div id="hitmark"><i></i><i></i><i></i><i></i></div>
-  <div id="clicklook">Click to look around</div>
   <div id="scope"><i></i></div><div id="reticle"><i></i></div>
   <div id="killmsg"></div>
+  <div id="payout"></div>
   <div id="ammo" class="hidden"><div class="n"></div><div class="bar"><div class="fill"></div></div><div class="lbl"></div></div>
   <div id="prompt" class="hidden"></div>
   <div id="hint"></div>
@@ -53,7 +53,7 @@
     <div class="team"></div>
   </div>
   <div id="feed"></div>
-  <div id="chat" class="hidden"><input id="chatinput" maxlength="120" autocomplete="off" placeholder="Say something dumb... (Enter to send)"></div>
+  <div id="chat" class="hidden"><input id="chatinput" maxlength="120" autocomplete="off" spellcheck="false" placeholder="Say something dumb... (Enter to send)"></div>
   <div id="toasts"></div>
   <div id="subtitle" class="hidden"></div>
   <div id="bigtitle" class="hidden"><div class="t"></div><div class="s"></div></div>
@@ -76,36 +76,45 @@
 <div id="panel" class="hidden"><div id="panel-inner"></div></div>
 
 <div id="pause" class="hidden">
-  <div class="menu-card small">
+  <div class="menu-card" id="pause-card">
     <h2 id="pause-title">PAUSED</h2>
-    <button id="p-resume" class="btn big">Resume <small class="kesc">Esc</small></button>
-    <div class="setting"><label>Mouse sensitivity <b id="v-sens"></b></label><input type="range" id="s-sens" min="0.2" max="3" step="0.1"></div>
-    <div class="setting"><label>Sound volume</label><input type="range" id="s-vol" min="0" max="1" step="0.05"></div>
-    <div class="setting"><label>Music volume</label><input type="range" id="s-mus" min="0" max="1" step="0.05"></div>
-    <div class="setting"><label for="s-q">Graphics</label><select id="s-q"><option value="high">High (bloom, color grading)</option><option value="low">Low (faster)</option></select></div>
-    <div class="setting ffrow"><label>Friendly fire <b id="v-ff">OFF</b></label><button id="s-ff" class="btn small">Turn on</button><small id="ff-note"></small></div>
-    <div class="row2">
-      <button id="p-cust" class="btn small">Customize</button>
-      <button id="p-keys" class="btn small">Keybinds</button>
-      <button id="p-how" class="btn small">How to Play</button>
-    </div>
-    <div class="row2 tight"><button id="p-leave" class="btn small red">Leave Game</button></div>
+    <p id="pause-sub"></p>
+    <nav class="mnav">
+      <button id="p-resume" class="mitem main" type="button">Resume <small class="kesc">Esc</small></button>
+      <button id="p-opts" class="mitem" type="button">Options</button>
+      <button id="p-cust" class="mitem" type="button">Customize</button>
+      <button id="p-how" class="mitem" type="button">How to Play</button>
+      <button id="p-leave" class="mitem" type="button">Quit to Main Menu</button>
+      <button id="p-quit" class="mitem desk" type="button">Quit to Desktop</button>
+    </nav>
   </div>
 </div>
+
+<!-- are you sure? (quitting, see Ask in options.js) -->
+<div id="confirm" class="hidden"><div class="menu-card"><h3></h3><p></p><div class="row2"><button class="btn" data-c="no" type="button">Cancel</button><button class="btn red" data-c="yes" type="button"></button></div></div></div>
 
 <div id="menu" class="hidden">
   <div class="menu-card" id="m-main">
     <h1 class="logo"><span class="l1">SPACE</span><span class="l2">GOOBERS</span></h1>
     <p class="tag">Deliver one pizza across the galaxy. <i>It's already cold.</i></p>
-    <label for="m-name">Your name</label>
-    <input id="m-name" maxlength="14" autocomplete="off" spellcheck="false">
-    <label>Your astronaut</label>
-    <button id="m-cust" class="lookcard" type="button"><span class="pic"></span><span class="txt"><b>Customize</b><small>Suit, colors, face, hair, backpack</small></span><span class="go" data-ico="brush"></span></button>
-    <div class="row"><button id="m-solo" class="btn big">Play Solo</button></div>
-    <div class="row"><button id="m-host" class="btn big">Host Game</button></div>
-    <div class="row join"><input id="m-code" maxlength="5" placeholder="CODE" autocomplete="off" spellcheck="false"><button id="m-join" class="btn big blue">Join</button></div>
+    <nav class="mnav">
+      <button id="m-solo" class="mitem main" type="button">Play<small>Solo, on your own worlds</small></button>
+      <button id="m-multi" class="mitem" type="button">Multiplayer<small>Host a crew or join a friend</small></button>
+      <button id="m-cust" class="mitem" type="button">Customize</button>
+      <button id="m-opts" class="mitem" type="button">Options</button>
+      <button id="m-how" class="mitem" type="button">How to Play</button>
+      <button id="m-quit" class="mitem desk" type="button">Quit Game</button>
+    </nav>
+  </div>
+  <div id="m-mp" class="menu-card hidden">
+    <h2>Multiplayer</h2>
+    <p class="tag">Play with your friends. One of you hosts, everybody else joins with the host's room code.</p>
+    <button id="m-host" class="btn big green" type="button">Host a game</button>
+    <p class="mpnote">Pick one of your worlds, then send your friends the room code.</p>
+    <label for="m-code">Join a friend</label>
+    <div class="row join"><input id="m-code" maxlength="5" placeholder="CODE" autocomplete="off" spellcheck="false"><button id="m-join" class="btn big blue" type="button">Join</button></div>
     <div id="m-status"></div>
-    <div class="row mhelp"><button id="m-how" class="btn small ghost">How to Play</button><button id="m-keys" class="btn small ghost">Keybinds</button></div>
+    <button id="m-mback" class="btn small ghost" type="button">Back</button>
   </div>
   <div id="m-worlds" class="menu-card hidden">
     <h2>Select World</h2>
@@ -117,13 +126,19 @@
     <div class="row"><input id="m-wname" maxlength="24" placeholder="World name" autocomplete="off" spellcheck="false"><button id="m-wnew" class="btn green" style="flex:none">Create</button></div>
     <button id="m-wback" class="btn small ghost">Back</button>
   </div>
+  <button id="m-profile" type="button"><span class="txt"><b id="m-pname"></b><small>Edit name &amp; look</small></span><span class="pic"></span></button>
   <div id="m-update" class="hidden"></div>
   <div class="menu-foot"><span>v1.12.0</span><span>Your pizza is 3 years late. No pressure.</span></div>
 </div>
 
 <div id="flash"></div>
 <div id="blackout"><div class="fade"></div><div class="lid top"></div><div class="lid bot"></div><div class="msg"></div></div>
-<div id="loading"><div class="spinner"></div><div id="loading-text">Loading...</div></div>
+<div id="loading">
+  <div class="logo"><span class="l1">SPACE</span><span class="l2">GOOBERS</span></div>
+  <div class="lbar"><div class="fill"></div></div>
+  <div id="loading-text">Loading...</div>
+</div>
+<div id="fps" class="hidden"></div>
 
 <script src="vendor/three.min.js"></script>
 <script src="vendor/peerjs.min.js"></script>
@@ -162,6 +177,7 @@
 <script src="js/duel.js"></script>
 <script src="js/flight.js"></script>
 <script src="js/update.js"></script>
+<script src="js/options.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

@@ -35,6 +35,21 @@ const LANE_COL = { jerry: '#ffd23f', count: '#d6281b', stormy: '#fff36b', chad: 
 const MIN_COMP = { count: 0.75, stormy: 0.7, chad: 0.65, zorblax: 0.55 };
 const JERRY_W = { cherry: 3, bell: 3, 7: 2, cash: 3, lemon: 3, skull: 1 };
 const BOSS_DMG = 0.8; // every boss attack hits this much as hard as it's listed
+// how much quicker boss attacks are than they were first made (the user wanted them much harder to dodge, at least
+// 3x as quick). move: everything that flies, spreads out, sweeps round or charges goes this many times as fast (the
+// same paths, just quicker); warn: floor warnings and the pauses before things go off are this many times shorter;
+// tell: wind-ups; track: Zorblax's gaze follows you this much faster (any faster and you couldn't outrun it).
+// Applied to every attack as it's fired (see pace), so all the attack code below still reads like before.
+const BOSS_PACE = { move: 3, warn: 1.5, tell: 1.25, track: 1.4 };
+// bosses on the move (the user wanted them moving about more and dodging). Walkers go this much faster and circle
+// round you (strafe: how much of their speed goes sideways) instead of standing still, and back off if you get too
+// close; the ones that circle the arena go orbit times as fast, drift in and out, and turn back now and then.
+// dodge: they see shots coming and sidestep (see: how far off they notice one, r: how close to them it has to be
+// heading, dist / t: how far and how quick the step, cd and chance: [phase 1, phase 2])
+const BOSS_MOVE = { speed: 1.35, strafe: 0.85, orbit: 1.6 };
+const BOSS_DODGE = { see: 16, r: 2.6, dist: 4.5, t: 0.32, cd: [1.9, 1.1], chance: [0.55, 0.85] };
+// phase 2: how often a second attack goes off at the same time as the one it just wound up (see combo)
+const BOSS_COMBO = 0.5;
 const DANGER = '#ff2a2a'; // floor warnings for anything that hurts
 // the glow and trail of each kind of boss shot
 const SHOT_COL = {
@@ -49,6 +64,7 @@ const ZONE_COL = { stink: '#7ccf2a', goo: '#c8127e', ice: '#5ec8ff', fire: '#ff6
 // bosses that float (no walking legs)
 const FLOATS = { count: 1, stormy: 1, zorblax: 1, chad: 1, jerry: 1 };
 const TAU = Math.PI * 2;
+const _swp = new THREE.Vector3(), _swf = new THREE.Vector3(); // (see hurtCheckSwept)
 const wrap = (a) => ((a % TAU) + TAU) % TAU;
 const arr3 = (v) => [U.r2(v.x), U.r2(v.y), U.r2(v.z)];
 
@@ -293,7 +309,30 @@ class BossFight {
   }
   mouth() { return this.world(this.m.mouth); }
   center() { return this.world(this.m.hit[0].o); }
-  fire(a) { this.exec(a); Net.toAll({ t: 'batk', a }); }
+  fire(a) { this.pace(a); this.exec(a); Net.toAll({ t: 'batk', a }); }
+  // speed an attack up (see BOSS_PACE) before it goes out to everyone: changes it in place, so whoever fired it
+  // reads the quicker numbers back (the procession works out how long it'll take from them)
+  pace(a) {
+    if (!a || a.pc) return a;
+    const M = BOSS_PACE.move, W = BOSS_PACE.warn, r2 = U.r2;
+    a.pc = 1;
+    switch (a.k) {
+      case 'multi': for (const x of a.l) this.pace(x); break;
+      case 'proj': // (a thrown arc keeps its shape at 3x speed: velocity x3, gravity x9, the same path)
+        for (const p of a.l) { p.v = p.v.map((x) => r2(x * M)); if (p.g) p.g = r2(p.g * M * M); if (p.w) p.w = r2(p.w / M); if (p.hd) p.hd = r2(p.hd / W); }
+        break;
+      case 'ring': a.s = r2(a.s * M); a.w = r2((a.w || 0) / W); break;
+      case 'slam': a.w = r2(a.w / W); break;
+      case 'lane': a.w = r2(a.w / W); a.dur = r2(a.dur / M); break;
+      case 'sweep': a.sp = r2(a.sp * M); a.w = r2(a.w / W); a.dur = r2(a.dur / M); break;
+      case 'zone': case 'pull': a.w = r2(a.w / W); break;
+      case 'boomer': a.T = r2(a.T / M); break;
+      case 'track': a.w = r2(a.w / W); a.sp = r2(a.sp * BOSS_PACE.track); break;
+      case 'path': a.dur = r2(a.dur / W); break;
+      case 'procession': a.w = r2(a.w / W); a.speed = r2(a.speed * M); break;
+    }
+    return a;
+  }
   later(delay, fn) { this.ai.queue.push({ at: this.t + delay, fn }); }
   randDeck(max) { const a = Math.random() * TAU, r = Math.sqrt(Math.random()) * max; return new V3(Math.cos(a) * r, DECK_Y, Math.sin(a) * r); }
 
@@ -357,6 +396,7 @@ class BossFight {
     this.fire({ k: 'fx', snd: 'alarm' });
   }
   jumpTo(to, dur, h, onLand) {
+    if (this.ai.instant && this.ai.mv) return; // (a second attack at the same time: the jump already under way wins)
     this.ai.mv = { from: this.pos.clone(), to: to.clone(), t: 0, dur, h, onLand };
   }
   clampDeck(v, max) { const d = Math.hypot(v.x, v.z); if (d > max) { v.x *= max / d; v.z *= max / d; } return v; }
@@ -365,7 +405,7 @@ class BossFight {
     const to = this.clampDeck(new V3(tp.x, this.pos.y, tp.z), ARENA_R - 3);
     this.fire(this.slam(to.x, to.z, r, dur, dmg));
     this.face(to.x - this.pos.x, to.z - this.pos.z);
-    this.jumpTo(to, dur, h, () => {
+    this.jumpTo(to, dur / BOSS_PACE.warn, h, () => { // (lands just as its (quicker) warning fills up)
       this.fire({ k: 'multi', l: [this.ring(to.x, to.z, 9, 12), { k: 'fx', snd: 'boom', shake: 0.8 }] });
       if (after) after();
     });
@@ -379,11 +419,14 @@ class BossFight {
     to.y = from.y;
     this.face(dir.x, dir.z);
     this.fire(this.lane(from, to, hw, w, dur, dmg, true));
-    this.later(w, () => { this.fire({ k: 'fx', anim: 'charge', h: dur + 0.2, snd: snd || 'dash' }); this.jumpTo(to, dur, 0.4); });
+    const W = w / BOSS_PACE.warn, D = dur / BOSS_PACE.move; // (in step with the (quicker) lane)
+    this.later(W, () => { this.fire({ k: 'fx', anim: 'charge', h: D + 0.2, snd: snd || 'dash' }); if (!this.ai.mv) this.jumpTo(to, D, 0.4); });
   }
   // strike a pose everyone can see (and say what's coming), then do it. run() returns the cooldown.
   windup(name, pose, dur, run, o = {}) {
     const ai = this.ai;
+    if (ai.instant) return run() || 2.4; // (the second of two at once: no wind-up of its own, see combo)
+    dur /= BOSS_PACE.tell;
     if (this.phase === 2) dur *= 0.85;
     dur = U.r2(dur);
     ai.busy = dur + 0.15;
@@ -391,8 +434,48 @@ class BossFight {
     this.later(dur, () => {
       const cd = run();
       ai.atkT = Math.max(0.5, (cd || 2.4) * ai.comp * U.rand(0.85, 1.15) - dur);
+      if (!o.solo) this.combo();
     });
     return -1;
+  }
+  // phase 2: now and then another of its attacks goes off at the same time as the one it just wound up
+  combo() {
+    const ai = this.ai;
+    if (this.phase !== 2 || this.st !== 'fight' || ai.instant || Math.random() > BOSS_COMBO || !this.targets().length) return;
+    ai.instant = true;
+    try { this['attack_' + this.id](); } finally { ai.instant = false; }
+  }
+  // bosses see shots coming (the kind that fly: not beams or the Longshot) and sidestep, not while winding up or
+  // in the middle of a jump
+  dodgeCheck(dt) {
+    const ai = this.ai, D = BOSS_DODGE, p2 = this.phase === 2 ? 1 : 0;
+    ai.dodgeT = (ai.dodgeT || 0) - dt;
+    if (ai.dodgeT > 0 || ai.mv || ai.busy > 0 || this.hidden) return;
+    const c = this.center();
+    for (const s of Shots.list) {
+      if (!s.vel || s.kind === 'cutter') continue;
+      const dx = c.x - s.pos.x, dy = c.y - s.pos.y, dz = c.z - s.pos.z, dist = Math.hypot(dx, dy, dz), sp = s.vel.length();
+      if (dist > D.see || sp < 3) continue;
+      const along = (dx * s.vel.x + dy * s.vel.y + dz * s.vel.z) / sp; // (how far it'll go before it's closest)
+      if (along <= 0 || dist * dist - along * along > D.r * D.r) continue; // (going away, or going to miss anyway)
+      ai.dodgeT = D.cd[p2];
+      if (Math.random() > D.chance[p2]) return; // (didn't see that one)
+      this.dodge(s.vel);
+      return;
+    }
+  }
+  dodge(v) {
+    const ai = this.ai, side = Math.random() < 0.5 ? 1 : -1, D = BOSS_DODGE;
+    let to;
+    if (ai.R) { // (the ones that circle the arena: a quick step round the circle)
+      ai.ang += side * D.dist / ai.R;
+      to = new V3(Math.cos(ai.ang) * ai.R, this.pos.y, Math.sin(ai.ang) * ai.R);
+    } else {
+      const l = Math.hypot(v.x, v.z) || 1;
+      to = this.clampDeck(new V3(this.pos.x - (v.z / l) * side * D.dist, this.pos.y, this.pos.z + (v.x / l) * side * D.dist), ARENA_R - 2.5);
+    }
+    this.jumpTo(to, D.t, FLOATS[this.id] ? 0 : 0.9);
+    this.fire({ k: 'fx', snd: 'whoosh' });
   }
 
   /* ================= host AI ================= */
@@ -413,6 +496,7 @@ class BossFight {
     if (this.st === 'intro') this.hostIntro(dt);
     else if (this.st === 'fight') {
       if (!ai.mv) this['move_' + this.id](dt);
+      this.dodgeCheck(dt);
       ai.atkT -= dt;
       if (this.phase === 2) ai.comp = Math.max(MIN_COMP[this.id] || 0.8, ai.comp - dt * 0.01);
       if (ai.atkT <= 0 && !ai.mv && ai.busy <= 0 && this.targets().length) {
@@ -478,51 +562,56 @@ class BossFight {
     ai.tgtT -= dt;
     if (ai.tgtT <= 0 || !ai.tgt) { ai.tgt = this.nearestTarget(this.pos.x, this.pos.z) || this.randTarget(); ai.tgtT = 4; }
     const tg = ai.tgt ? ai.tgt.p : new V3();
-    const dx = tg.x - this.pos.x, dz = tg.z - this.pos.z, d = Math.hypot(dx, dz);
+    const dx = tg.x - this.pos.x, dz = tg.z - this.pos.z, d = Math.hypot(dx, dz) || 0.01;
     this.face(dx, dz);
-    // (speed up and slow down smoothly instead of starting and stopping dead)
-    ai.wv = U.damp(ai.wv, d > stopDist ? spd * ai.mk : 0, 4, dt);
-    if (d > 0.01) { this.pos.x += (dx / d) * ai.wv * dt; this.pos.z += (dz / d) * ai.wv * dt; }
+    // closes in, then circles round you (switching way now and then) instead of standing still, and backs off a
+    // bit if you get right up close. (Speeds up and slows down smoothly instead of starting and stopping dead.)
+    if ((ai.sideT = (ai.sideT || 0) - dt) <= 0) { ai.side = ai.side === 1 ? -1 : 1; ai.sideT = U.rand(1.6, 3.6); }
+    const fwd = d > stopDist ? 1 : d < stopDist * 0.6 ? -0.6 : 0, st = BOSS_MOVE.strafe * (d < stopDist * 2.2 ? 1 : 0.35);
+    let vx = (dx / d) * fwd - (dz / d) * ai.side * st, vz = (dz / d) * fwd + (dx / d) * ai.side * st;
+    const n = Math.hypot(vx, vz), want = spd * BOSS_MOVE.speed * ai.mk;
+    if (n > 1) { vx /= n; vz /= n; }
+    ai.vx = U.damp(ai.vx || 0, vx * want, 4, dt); ai.vz = U.damp(ai.vz || 0, vz * want, 4, dt);
+    ai.wv = Math.hypot(ai.vx, ai.vz);
+    this.pos.x += ai.vx * dt; this.pos.z += ai.vz * dt;
     this.clampDeck(this.pos, ARENA_R - 2.5);
     this.pos.y = DECK_Y;
+  }
+  // the ones that circle the arena: faster, drifting in and out, turning back now and then (ai.R: how far out it is
+  // right now, for dodging round the circle)
+  orbit(dt, rate, r) {
+    const ai = this.ai;
+    if ((ai.odT = (ai.odT || U.rand(3, 6)) - dt) <= 0) { ai.od = ai.od === -1 ? 1 : -1; ai.odT = U.rand(3, 6.5); }
+    ai.ang += dt * rate * BOSS_MOVE.orbit * (ai.od || 1) * ai.mk;
+    ai.R = r + Math.sin(this.t * 0.55) * 2.2;
+    return ai.R;
   }
   move_gary(dt) { this.walkToward(dt, this.phase === 2 ? 2.8 : 2.0, 3.2); this.contact = 2.3; this.contactDmg = 15; }
   move_blorb(dt) { this.walkToward(dt, 1.4, 3.5); this.contact = 2.8; this.contactDmg = 15; }
   move_snowdad(dt) { this.walkToward(dt, this.phase === 2 ? 4.0 : 3.0, 3.0); this.contact = 2.4; this.contactDmg = 18; }
   move_jerry(dt) {
-    const ai = this.ai;
-    ai.ang += dt * (this.phase === 2 ? 0.3 : 0.18) * ai.mk;
-    this.pos.set(Math.cos(ai.ang) * 11.5, DECK_Y, Math.sin(ai.ang) * 11.5);
+    const ai = this.ai, R = this.orbit(dt, this.phase === 2 ? 0.3 : 0.18, 11.5);
+    this.pos.set(Math.cos(ai.ang) * R, DECK_Y, Math.sin(ai.ang) * R);
     this.face(-this.pos.x, -this.pos.z);
     this.contact = 3.0; this.contactDmg = 15;
   }
   move_zorblax(dt) {
-    const ai = this.ai;
-    ai.ang += dt * (this.phase === 2 ? 0.45 : 0.3) * ai.mk;
-    this.pos.set(Math.cos(ai.ang) * 10, DECK_Y + 2.5, Math.sin(ai.ang) * 10);
+    const ai = this.ai, R = this.orbit(dt, this.phase === 2 ? 0.45 : 0.3, 10);
+    this.pos.set(Math.cos(ai.ang) * R, DECK_Y + 2.5, Math.sin(ai.ang) * R);
     const tg = this.nearestTarget(this.pos.x, this.pos.z);
     if (tg) this.face(tg.p.x - this.pos.x, tg.p.z - this.pos.z);
     this.contact = 0;
   }
   // Count Carbula glides after you, hovering, and keeps just out of reach
   move_count(dt) {
-    const ai = this.ai;
-    ai.tgtT -= dt;
-    if (ai.tgtT <= 0 || !ai.tgt) { ai.tgt = this.nearestTarget(this.pos.x, this.pos.z) || this.randTarget(); ai.tgtT = 4; }
-    const tg = ai.tgt ? ai.tgt.p : new V3();
-    const dx = tg.x - this.pos.x, dz = tg.z - this.pos.z, d = Math.hypot(dx, dz);
-    this.face(dx, dz);
-    ai.wv = U.damp(ai.wv, d > 5 ? (this.phase === 2 ? 3.4 : 2.4) * ai.mk : 0, 4, dt);
-    if (d > 0.01) { this.pos.x += (dx / d) * ai.wv * dt; this.pos.z += (dz / d) * ai.wv * dt; }
-    this.clampDeck(this.pos, ARENA_R - 2.5);
+    this.walkToward(dt, this.phase === 2 ? 3.4 : 2.4, 5);
     this.pos.y = DECK_Y + 1.2 + Math.sin(this.t * 2) * 0.3;
     this.contact = 2.2; this.contactDmg = 16;
   }
   // Stormy circles overhead, glaring at whoever is closest
   move_stormy(dt) {
-    const ai = this.ai;
-    ai.ang += dt * (this.phase === 2 ? 0.4 : 0.26) * ai.mk;
-    this.pos.set(Math.cos(ai.ang) * 10, DECK_Y + 4.5 + Math.sin(this.t * 1.5) * 0.4, Math.sin(ai.ang) * 10);
+    const ai = this.ai, R = this.orbit(dt, this.phase === 2 ? 0.4 : 0.26, 10);
+    this.pos.set(Math.cos(ai.ang) * R, DECK_Y + 4.5 + Math.sin(this.t * 1.5) * 0.4, Math.sin(ai.ang) * R);
     const tg = this.nearestTarget(this.pos.x, this.pos.z);
     if (tg) this.face(tg.p.x - this.pos.x, tg.p.z - this.pos.z);
     this.contact = 0;
@@ -550,7 +639,7 @@ class BossFight {
       const duration = attack.w + (ARENA_R + 3) * 2 / attack.speed + .5;
       this.ai.busy = duration;
       return duration + 2;
-    });
+    }, { solo: 1 });
   }
   pickAtk(list) { return U.weighted(list.filter((e) => e[1] > 0)); }
   attack_gary() {
@@ -812,7 +901,7 @@ class BossFight {
       if (!t) return cd;
       const to = this.clampDeck(new V3(t.p.x, DECK_Y + 2.5, t.p.z), ARENA_R - 3);
       this.fire(this.slam(to.x, to.z, 4, 1.2, 30));
-      this.jumpTo(new V3(to.x, DECK_Y + 0.3, to.z), 1.2, 6, () => {
+      this.jumpTo(new V3(to.x, DECK_Y + 0.3, to.z), 1.2 / BOSS_PACE.warn, 6, () => {
         this.fire({ k: 'multi', l: [this.ring(to.x, to.z, 11, 16), { k: 'fx', snd: 'boom', shake: 1 }] });
         this.jumpTo(new V3(to.x, DECK_Y + 2.5, to.z), 0.6, 0);
       });
@@ -837,7 +926,7 @@ class BossFight {
       if (!t) return cd;
       const to = this.clampDeck(new V3(t.p.x, DECK_Y + 1.2, t.p.z), ARENA_R - 3);
       this.fire({ k: 'multi', l: [this.slam(to.x, to.z, 3.8, 1.1, 26), { k: 'fx', snd: 'laugh' }] });
-      this.jumpTo(to, 1.1, 7, () => this.fire({ k: 'multi', l: [this.ring(to.x, to.z, 10, 14), { k: 'fx', snd: 'boom', shake: 0.8 }] }));
+      this.jumpTo(to, 1.1 / BOSS_PACE.warn, 7, () => this.fire({ k: 'multi', l: [this.ring(to.x, to.z, 10, 14), { k: 'fx', snd: 'boom', shake: 0.8 }] }));
       return cd;
     }, { tg: tg.id });
     if (a === 'bread') return this.windup('Carb Loading', 'summon', 0.55, () => { this.fire(this.rain(p2 ? 18 : 13, 'breadstick', 14, 0.5)); return cd; });
@@ -1472,6 +1561,12 @@ class BossFight {
 
   surfaceY(p) { return Math.hypot(p.x, p.z) < ARENA_R + 0.3 ? DECK_Y : WATER_Y - 1; }
   hurtCheckBody(pos, r) { return U.bodyDist2(pos, this.me().pos) < r * r; }
+  // the same, all along the way it went this frame (fast shots would skip right past you otherwise)
+  hurtCheckSwept(a, b, r) {
+    const n = Math.min(12, Math.ceil(a.distanceTo(b) / (r * 0.5)));
+    for (let i = 1; i <= n; i++) if (this.hurtCheckBody(_swp.lerpVectors(a, b, i / n), r)) return true;
+    return this.hurtCheckBody(b, r);
+  }
 
   /* ================= hazards (everyone simulates them, each checks hits on themselves) ================= */
   updateHazards(dt) {
@@ -1522,6 +1617,7 @@ class BossFight {
         }
       }
       const held = s.hd && p.t < s.hd; // (bats hanging in the air, about to close in)
+      const from = _swf.copy(p.pos);
       if (!held) {
         p.vel.y -= (s.g || 0) * dt;
         if (s.rl && Math.hypot(p.pos.x, p.pos.z) > ARENA_R) p.vel.y -= 30 * dt; // (rolls off the edge and drops)
@@ -1537,7 +1633,7 @@ class BossFight {
       if (!held && (p.trailT -= dt) <= 0) { p.trailT = 0.035; this.glow.puff(p.pos, c, s.r * 2.3, 0.3); }
       if (p.tele) this.markerSet(p.tele, U.clamp(p.t / p.teleT, 0, 1));
       let dead = false;
-      if (this.canHurt() && this.hurtCheckBody(p.pos, s.r + 0.35)) {
+      if (this.canHurt() && this.hurtCheckSwept(from, p.pos, s.r + 0.35)) {
         if (s.k === 'pizza' && me.tool === 'peel') { this.catchSlice(p.pos); dead = true; }
         else { this.hurt(s.d, s.k, false, p.pos.clone().addScaledVector(p.vel, -0.3)); dead = !s.rl; }
       }
@@ -1570,7 +1666,7 @@ class BossFight {
         FX.ring(new V3(s.c[0], DECK_Y + 0.1, s.c[1]), '#ffffff', 3);
         Sound.play('boom');
       }
-      const rad = r.t * s.s, R = Math.max(0.1, rad);
+      const rad = r.t * s.s, R = Math.max(0.1, rad), was = r.rad == null ? rad : r.rad; r.rad = rad;
       u.wall.scale.set(R, 1, R); u.top.scale.set(R, 1, R);
       setBand(u.band.geometry, Math.max(0, rad - 0.75), rad + 0.25);
       const fade = U.clamp((s.m - rad) / 8, 0, 1) * (rad > ARENA_R + 1 ? 0.55 : 1), pulse = 0.88 + 0.12 * Math.sin(this.t * 26);
@@ -1583,7 +1679,8 @@ class BossFight {
       }
       if (!r.hit && this.canHurt()) {
         const d = Math.hypot(me.pos.x - s.c[0], me.pos.z - s.c[1]);
-        if (Math.abs(d - rad) < 0.55 && me.pos.y < DECK_Y + s.h) { r.hit = true; this.hurt(s.d, 'ring', false, new V3(s.c[0], DECK_Y, s.c[1])); }
+        // (did it pass over me this frame? At 3x it can go from in front of me to behind me between two frames)
+        if (d > was - 0.55 && d < rad + 0.55 && me.pos.y < DECK_Y + s.h) { r.hit = true; this.hurt(s.d, 'ring', false, new V3(s.c[0], DECK_Y, s.c[1])); }
       }
       if (rad > s.m) { this.removeHazard(r); this.rings.splice(i, 1); }
     }
@@ -1823,14 +1920,15 @@ class BossFight {
       const u = U.clamp(b.t / s.T, 0, 1), along = Math.sin(Math.PI * u), side = Math.sin(TAU * u) * s.cv;
       const A = s.a, B = s.b, dx = B[0] - A[0], dz = B[2] - A[2], L = Math.hypot(dx, dz) || 1;
       const pos = new V3(A[0] + dx * along + (dz / L) * side, A[1] + (B[1] - A[1]) * along, A[2] + dz * along - (dx / L) * side);
-      if (!b.mesh) { b.mesh = projMesh(s.kind, s.r); G.scene.add(b.mesh); }
+      if (!b.mesh) { b.mesh = projMesh(s.kind, s.r); G.scene.add(b.mesh); b.last = pos.clone(); }
       b.mesh.position.copy(pos);
       b.mesh.rotation.y += dt * 16;
       const c = shotColor(s.kind);
       this.glow.head(pos, c, s.r * 3, 0.5);
       if ((b.trailT -= dt) <= 0) { b.trailT = 0.03; this.glow.puff(pos, c, s.r * 2, 0.35); }
       const leg = u < 0.5 ? 0 : 1;
-      if (!b.hit[leg] && this.canHurt() && this.hurtCheckBody(pos, s.r + 0.35)) { b.hit[leg] = true; this.hurt(s.d, s.kind, false, pos); }
+      if (!b.hit[leg] && this.canHurt() && this.hurtCheckSwept(b.last, pos, s.r + 0.35)) { b.hit[leg] = true; this.hurt(s.d, s.kind, false, pos); }
+      b.last.copy(pos);
       if (u >= 1) {
         this.removeHazard(b); this.boomers.splice(i, 1);
         if (s.own === 'lid' && this.m.lid && !this.boomers.some((o) => o.s.own === 'lid')) this.m.lid.visible = true;
@@ -2175,7 +2273,9 @@ class BossFight {
       const reward = first ? b.reward : Math.round(b.reward * 0.5);
       addBucks(reward);
       if (first) SAVE.beaten.push(this.id);
+      const opened = !G.progress.includes(this.id) && PLANETS[G.planet + 1]; // (the next planet, if this win opened it up)
       if (!G.progress.includes(this.id)) G.progress.push(this.id);
+      this.payout = { reward, planet: opened ? opened.name : null }; // (shown when you're back on the planet, see beamUp)
       SAVE.stats.bossWins++;
       persist();
       Sound.play('victory');
@@ -2183,8 +2283,6 @@ class BossFight {
       const me = this.me();
       if (me.down) me.revive(null); // (everybody gets up to see it)
       UI.bigTitle('VICTORY!', `+${U.bucks(reward)} · ${b.win}`, '#7dff8a', 5);
-      const next = first && PLANETS[G.planet + 1];
-      if (next) setTimeout(() => { if (G.boss === this) UI.toast(`New planet unlocked: ${next.name}! Fly there from your ship.`, 'good', 5); }, 2600);
       setTimeout(() => { if (G.boss === this) this.openExit(); }, BOSS_EXIT.delay * 1000);
       return;
     }
@@ -2240,14 +2338,19 @@ class BossFight {
     const p = this.me(), inside = Math.hypot(p.pos.x - e.g.position.x, p.pos.z - e.g.position.z) < BOSS_EXIT.r && !p.dead && !p.down;
     if (inside || e.left <= 0) this.beamUp();
   }
-  // into the light: a flash, and you're back on the planet (the last boss: the ending)
+  // into the light: a flash, and you're back on the planet (the last boss: the ending), where it says what you won
+  // and which planet you can fly to now
   beamUp() {
-    const e = this.exit, p = this.me();
+    const e = this.exit, p = this.me(), pay = this.payout, last = this.id === 'zorblax';
     e.going = true;
     Sound.play('warp');
     FX.burst(p.pos.clone().setY(p.pos.y + 1), BOSS_EXIT.color, 30, 8);
     UI.flash();
-    setTimeout(() => { if (G.boss === this) Game.endBoss(this.id === 'zorblax'); }, 350);
+    setTimeout(() => {
+      if (G.boss !== this) return;
+      Game.endBoss(last);
+      if (pay && !last) setTimeout(() => UI.payout(pay.reward, pay.planet), 450);
+    }, 350);
   }
   dispose() {
     if (this.exit) { G.scene.remove(this.exit.g); disposeObj(this.exit.g); this.exit = null; }

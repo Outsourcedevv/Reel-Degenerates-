@@ -30,8 +30,13 @@ html, body {
   background: var(--bg); color: var(--text);
   font-family: var(--font-b); font-weight: 500; font-size: 15px;
   user-select: none; -webkit-user-select: none;
-  -webkit-font-smoothing: antialiased;
+  -webkit-font-smoothing: antialiased; cursor: default;
 }
+button { cursor: pointer; }
+:focus { outline: none; }
+:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
+input:focus-visible { outline: none; }
+img, svg { -webkit-user-drag: none; }
 #game { position: fixed; inset: 0; }
 #game canvas { display: block; width: 100%; height: 100%; }
 .hidden { display: none !important; }
@@ -87,16 +92,15 @@ kbd {
 /* ---------- loading ---------- */
 #loading {
   position: fixed; inset: 0; z-index: 100;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
   background: radial-gradient(120% 90% at 50% 110%, #1a1430 0%, #07090f 60%);
-  font-family: var(--font-h); font-size: 14px; letter-spacing: 4px; text-transform: uppercase; color: var(--muted);
+  font-family: var(--font-h); font-size: 13px; letter-spacing: 4px; text-transform: uppercase; color: var(--muted);
+  transition: opacity .45s ease;
 }
-#loading .spinner {
-  width: 44px; height: 44px; border-radius: 50%;
-  border: 3px solid rgba(255,255,255,.08); border-top-color: var(--acc);
-  animation: spin .9s linear infinite;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
+#loading.gone { opacity: 0; pointer-events: none; }
+#loading .logo { text-align: center; margin-bottom: 18px; }
+#loading .lbar { width: min(340px, 60vw); height: 3px; background: rgba(255,255,255,.08); overflow: hidden; }
+#loading .lbar .fill { width: 0; height: 100%; background: var(--acc); box-shadow: 0 0 12px var(--acc); transition: width .35s ease; }
 
 /* ---------- title screen ---------- */
 #menu {
@@ -108,21 +112,28 @@ kbd {
 }
 #pause {
   position: fixed; inset: 0; z-index: 50;
-  display: flex; align-items: center; justify-content: center; padding: 16px;
-  background: rgba(4,6,10,.62); backdrop-filter: blur(6px);
+  display: flex; align-items: center; justify-content: flex-start; padding: 24px 24px 24px max(24px, 7vw);
+  background: linear-gradient(90deg, rgba(4,6,10,.92) 0%, rgba(4,6,10,.72) 36%, rgba(4,6,10,.3) 75%); backdrop-filter: blur(5px);
 }
+#pause-sub { margin: 0; font-size: 13px; letter-spacing: 1px; color: var(--muted); border-left: 2px solid var(--acc); padding-left: 10px; }
+#pause-sub b { color: var(--acc2); letter-spacing: 3px; }
+/* are you sure? */
+#confirm { position: fixed; inset: 0; z-index: 70; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(2,3,6,.6); }
+#confirm .menu-card { width: min(400px, 100%); gap: 6px; background: var(--panel); border: 1px solid var(--line); border-top: 2px solid var(--acc); border-radius: 8px; padding: 22px 24px 20px; box-shadow: 0 40px 100px rgba(0,0,0,.6); animation: pin .2s cubic-bezier(.2,.8,.2,1); }
+#confirm h3 { margin: 0; font-family: var(--font-h); font-weight: 700; font-size: 22px; letter-spacing: 2px; text-transform: uppercase; }
+#confirm p { margin: 0; font-size: 14px; color: var(--muted); }
+#confirm .row2 .btn { flex: 1; }
 .menu-card {
   width: min(430px, 100%);
   display: flex; flex-direction: column; gap: 8px;
   max-height: calc(100vh - 80px); overflow-y: auto;
   animation: fadeUp .45s cubic-bezier(.2,.8,.2,1);
 }
-#pause .menu-card, #m-worlds {
+#m-worlds {
   background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
   padding: 22px 24px 20px; box-shadow: 0 30px 80px rgba(0,0,0,.55);
 }
-#pause .menu-card { width: min(400px, 100%); }
-#pause h2 { font-family: var(--font-h); font-weight: 700; font-size: 30px; letter-spacing: 6px; margin: 0 0 10px; text-align: center; }
+#pause h2 { font-family: var(--font-h); font-weight: 700; font-size: 54px; letter-spacing: 6px; margin: 0 0 6px; line-height: 1; }
 .menu-card label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: var(--muted); margin-top: 8px; }
 .menu-card h2 { font-family: var(--font-h); font-weight: 700; font-size: 26px; letter-spacing: 3px; text-transform: uppercase; margin: 0 0 2px; }
 .logo { margin: 0 0 4px; line-height: .86; font-family: var(--font-h); font-weight: 700; }
@@ -132,28 +143,47 @@ kbd {
 .tag { margin: 6px 0 10px; font-size: 14px; color: var(--muted); }
 #m-main .tag { border-left: 2px solid var(--acc); padding-left: 10px; }
 .row { display: flex; gap: 8px; margin-top: 6px; }
-#m-main .btn.big { justify-content: flex-start; padding-left: 18px; }
-#m-main #m-solo { background: var(--acc); color: #120c00; border-color: var(--acc); }
-#m-main #m-solo:hover { background: var(--acc2); }
 .row.join #m-code { width: 130px; flex: none; text-align: center; text-transform: uppercase; letter-spacing: 6px; font-family: var(--font-h); font-size: 18px; }
 .row.join .btn { flex: 1; justify-content: center !important; padding-left: 0 !important; }
 .row2 { display: flex; gap: 8px; justify-content: center; margin-top: 12px; }
-/* your astronaut on the title screen: opens the customize screen */
-.lookcard {
-  display: flex; align-items: center; gap: 12px; width: 100%; padding: 6px 14px 6px 6px; cursor: pointer; text-align: left;
-  color: var(--text); background: rgba(255,255,255,.05); border: 1px solid var(--line2); border-radius: var(--r);
+/* the title screen and the pause menu: a list of big words, like a game (not a stack of web buttons) */
+.mnav { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; margin-top: 18px; }
+.mitem {
+  position: relative; display: flex; align-items: baseline; gap: 12px; padding: 7px 18px 7px 16px; margin-left: -16px;
+  font-family: var(--font-h); font-weight: 700; font-size: 25px; letter-spacing: 3px; text-transform: uppercase; text-align: left;
+  color: rgba(233,237,244,.72); background: transparent; border: 0; border-radius: 3px;
+  transition: color .12s, background .12s, padding .15s;
+}
+.mitem::before { content: ''; position: absolute; left: 0; top: 8px; bottom: 8px; width: 3px; background: var(--acc); transform: scaleY(0); transition: transform .15s; }
+.mitem small { font-family: var(--font-b); font-weight: 500; font-size: 12px; letter-spacing: .5px; text-transform: none; color: var(--muted); opacity: 0; transition: opacity .15s; }
+.mitem:hover, .mitem:focus-visible { color: #fff; padding-left: 24px; background: linear-gradient(90deg, rgba(255,176,32,.14), rgba(255,176,32,0)); outline: none; }
+.mitem:hover::before, .mitem:focus-visible::before { transform: none; }
+.mitem:hover small { opacity: 1; }
+.mitem.main { color: var(--acc); font-size: 34px; }
+.mitem.main:hover { color: var(--acc2); }
+.mitem:disabled { opacity: .4; pointer-events: none; }
+body:not(.desk) .mitem.desk { display: none; }
+/* you, top right on the title screen */
+#m-profile {
+  position: absolute; top: 22px; right: 24px; display: flex; align-items: center; gap: 12px; padding: 6px 6px 6px 16px; text-align: right;
+  color: var(--text); background: rgba(8,11,17,.55); border: 1px solid var(--line); border-radius: 6px; backdrop-filter: blur(4px);
   transition: background .15s, border-color .15s;
 }
-.lookcard:hover { background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.35); }
-.lookcard .pic { width: 56px; height: 56px; flex: none; border-radius: 4px; overflow: hidden; background: radial-gradient(circle at 50% 40%, rgba(255,176,32,.22), rgba(0,0,0,.25) 70%); display: flex; align-items: center; justify-content: center; }
-.lookcard .pic img, .lookcard .pic .ico { width: 100%; height: 100%; }
-.lookcard .txt { display: flex; flex-direction: column; flex: 1; min-width: 0; }
-.lookcard b { font-family: var(--font-h); font-weight: 600; font-size: 17px; letter-spacing: 1.5px; text-transform: uppercase; }
-.lookcard small { font-size: 12px; color: var(--muted); }
-.lookcard .go { color: var(--acc); font-size: 20px; }
+#m-profile:hover { background: rgba(20,26,38,.8); border-color: var(--line2); }
+#m-profile .txt { display: flex; flex-direction: column; }
+#m-profile b { font-family: var(--font-h); font-weight: 700; font-size: 18px; letter-spacing: 1.5px; }
+#m-profile small { font-size: 11px; color: var(--muted); }
+#m-profile:hover small { color: var(--acc); }
+#m-profile .pic { width: 52px; height: 52px; flex: none; border-radius: 4px; overflow: hidden; background: radial-gradient(circle at 50% 40%, rgba(255,176,32,.22), rgba(0,0,0,.25) 70%); display: flex; align-items: center; justify-content: center; }
+#m-profile .pic img, #m-profile .pic .ico { width: 100%; height: 100%; }
+#m-profile:not(.hidden) ~ #m-update { top: 96px; }
+/* Multiplayer (title screen) */
+#m-mp { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 22px 24px 20px; box-shadow: 0 30px 80px rgba(0,0,0,.55); }
+#m-mp #m-host { justify-content: center; margin-top: 4px; }
+.mpnote { margin: 0 0 8px; font-size: 12px; color: var(--muted); }
+#m-mback { align-self: center; margin-top: 4px; }
 #m-status { min-height: 20px; font-size: 13px; color: #ff8a8a; }
 #m-status.ok { color: var(--green); }
-#m-how { align-self: flex-start; }
 .menu-foot {
   position: absolute; left: max(24px, 7vw); right: 24px; bottom: 18px;
   display: flex; justify-content: space-between; font-size: 12px; color: #5b6477; letter-spacing: 1px;
@@ -171,10 +201,6 @@ kbd {
 .wslot .winfo small { font-size: 12px; color: var(--muted); }
 .wslot .btn.red { padding: 6px 8px; }
 .wempty { text-align: center; color: var(--muted); margin: 10px 0; font-size: 13px; }
-.setting { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
-.setting label { display: flex; justify-content: space-between; }
-.setting select { font-family: var(--font-b); font-weight: 600; color: var(--text); background: rgba(0,0,0,.35); border: 1px solid var(--line2); border-radius: var(--r); padding: 7px 8px; }
-.setting input[type=range] { width: 100%; accent-color: var(--acc); }
 @keyframes fadeUp { from { transform: translateY(14px); opacity: 0; } to { transform: none; opacity: 1; } }
 
 /* ---------- HUD ---------- */
@@ -300,6 +326,21 @@ kbd {
   100% { opacity: 0; transform: translateX(-50%) translateY(-12px); }
 }
 #hud.flying #killmsg, #hud.dead #killmsg { display: none; }
+/* back from a boss win: what it paid and the planet it unlocked (see UI.payout), just above your hotbar */
+#payout { position: absolute; left: 50%; bottom: 128px; transform: translateX(-50%); text-align: center; opacity: 0;
+  pointer-events: none; white-space: nowrap; text-shadow: 0 2px 10px rgba(0,0,0,.85), 0 0 2px #000; }
+#payout .m { font-size: 38px; font-weight: 700; letter-spacing: 3px; color: #ffd23f; }
+#payout .u { margin-top: 4px; font-size: 19px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: #7dff8a; }
+#payout .u b { color: #fff; }
+#payout.on { animation: payout 6.5s ease-out forwards; }
+@keyframes payout {
+  0% { opacity: 0; transform: translate(-50%, 18px) scale(.9); }
+  6% { opacity: 1; transform: translate(-50%, 0) scale(1.08); }
+  10% { transform: translate(-50%, 0) scale(1); }
+  85% { opacity: 1; transform: translate(-50%, 0); }
+  100% { opacity: 0; transform: translate(-50%, -12px); }
+}
+#hud.flying #payout, #hud.dead #payout { display: none; }
 /* the hitmarker: four ticks round the crosshair for a moment when a shot of yours lands (red: a headshot) */
 #hitmark { position: absolute; left: 50%; top: 50%; width: 0; height: 0; opacity: 0; pointer-events: none; }
 #hitmark i {
@@ -323,7 +364,9 @@ kbd {
   animation: fadeUp .2s;
 }
 #prompt kbd { margin-right: 6px; background: #fff; color: #000; border-color: #fff; text-shadow: none; }
-#hint { position: absolute; bottom: 98px; left: 50%; transform: translateX(-50%); font-family: var(--font-b); font-size: 12px; color: rgba(255,255,255,.7); white-space: nowrap; }
+#hint { position: absolute; bottom: 98px; left: 50%; transform: translateX(-50%); display: flex; gap: 16px; font-family: var(--font-b); font-weight: 600; font-size: 12px; color: rgba(255,255,255,.85); white-space: nowrap; }
+#hint span { display: inline-flex; align-items: center; gap: 5px; }
+#hint kbd { min-width: 20px; font-size: 11px; padding: 0 5px; line-height: 17px; color: #fff; background: rgba(10,13,20,.72); border-color: rgba(255,255,255,.35); text-shadow: none; }
 @keyframes shake { 0%,100% { translate: 0 0; } 25% { translate: -4px 2px; } 75% { translate: 4px -2px; } }
 
 #bossbar { position: absolute; top: 22px; left: 50%; transform: translateX(-50%); width: min(640px, 70vw); }
@@ -374,7 +417,9 @@ kbd {
 #feed .msg.good { border-left-color: var(--green); }
 #feed .msg.bad { border-left-color: var(--red); }
 #chat { position: absolute; left: 22px; bottom: 70px; width: min(430px, 45vw); pointer-events: auto; }
-#chat input { font-size: 14px; padding: 8px 10px; background: rgba(5,7,11,.8); }
+#chat { display: flex; align-items: stretch; }
+#chat::before { content: 'SAY'; display: flex; align-items: center; padding: 0 10px; font-family: var(--font-h); font-weight: 700; font-size: 12px; letter-spacing: 2px; color: #120c00; background: var(--acc); border-radius: var(--r) 0 0 var(--r); }
+#chat input { font-size: 14px; padding: 8px 10px; background: rgba(5,7,11,.8); border-radius: 0 var(--r) var(--r) 0; }
 
 #toasts { position: absolute; top: 96px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 6px; }
 .toast {
@@ -400,6 +445,7 @@ kbd {
 #bigtitle { position: absolute; top: 24%; left: 0; right: 0; text-align: center; animation: titleIn .7s cubic-bezier(.2,.8,.2,1); }
 #bigtitle .t { font-size: 64px; font-weight: 700; letter-spacing: 10px; text-transform: uppercase; color: #fff; line-height: 1; text-shadow: 0 4px 40px rgba(0,0,0,.6); }
 #bigtitle .s { font-family: var(--font-b); font-size: 17px; color: rgba(255,255,255,.85); margin: 14px auto 0; padding: 10px 20px 0; max-width: 720px; border-top: 1px solid rgba(255,255,255,.3); }
+#bigtitle .s kbd { font-size: 13px; line-height: 20px; padding: 0 7px; color: #fff; background: rgba(10,13,20,.7); border-color: rgba(255,255,255,.4); text-shadow: none; vertical-align: 1px; }
 @keyframes titleIn { from { letter-spacing: 30px; opacity: 0; } to { opacity: 1; } }
 
 #hurt { position: absolute; inset: 0; background: radial-gradient(transparent 50%, rgba(200,0,0,.5)); opacity: 0; transition: opacity .35s; }
@@ -498,11 +544,12 @@ kbd {
 }
 @keyframes pin { from { transform: translateY(12px) scale(.98); opacity: 0; } to { transform: none; opacity: 1; } }
 #panel-inner .x {
-  position: absolute; right: 12px; top: 12px; width: 34px; height: 34px; padding: 0; font-size: 16px;
+  position: absolute; right: 12px; top: 12px; height: 34px; padding: 0 8px; gap: 6px; font-size: 16px; z-index: 2;
   background: transparent; border-color: transparent; color: var(--muted);
 }
+#panel-inner .x kbd { font-size: 10px; line-height: 16px; padding: 0 5px; min-width: 0; color: inherit; background: transparent; border-color: currentColor; opacity: .8; }
 #panel-inner .x:hover { color: #fff; background: rgba(255,255,255,.08); }
-.ph { font-family: var(--font-h); font-weight: 700; font-size: 26px; letter-spacing: 3px; text-transform: uppercase; margin: 0; line-height: 1.1; padding-right: 44px; }
+.ph { font-family: var(--font-h); font-weight: 700; font-size: 26px; letter-spacing: 3px; text-transform: uppercase; margin: 0; line-height: 1.1; padding-right: 76px; }
 .psub { margin: 4px 0 14px; font-size: 14px; color: var(--muted); }
 .npc-line { background: rgba(255,255,255,.04); border-left: 2px solid var(--acc); padding: 9px 12px; margin: 10px 0 14px; font-size: 14px; }
 .npc-line::before { content: attr(data-who); display: block; font-family: var(--font-h); font-weight: 700; font-size: 11px; color: var(--acc); letter-spacing: 2px; margin-bottom: 2px; }
@@ -654,7 +701,7 @@ table.list td.r, table.list th.r { text-align: right; }
 .keeper .meter { height: 4px; background: rgba(255,255,255,.1); overflow: hidden; margin-top: 6px; }
 .keeper .meter i { display: block; height: 100%; background: var(--acc); }
 .shop2 .wares { display: flex; flex-direction: column; min-width: 0; }
-.stabs { display: flex; gap: 0; margin: 0 44px 14px 0; border-bottom: 1px solid var(--line); }
+.stabs { display: flex; gap: 0; margin: 0 76px 14px 0; border-bottom: 1px solid var(--line); }
 .stab {
   font-family: var(--font-h); font-weight: 600; font-size: 14px; letter-spacing: 2px; text-transform: uppercase;
   color: var(--muted); background: transparent; cursor: pointer; border: 0; border-bottom: 2px solid transparent;
@@ -726,6 +773,7 @@ table.list td.r, table.list th.r { text-align: right; }
 }
 #hud.flying #toasts { top: 104px; }
 #hud.flying.incockpit #hint { bottom: 8px; }
+#hud.flying.incockpit #flyinst { display: none; } /* (in the cockpit the dashboard's own screens show speed, altitude and descent) */
 
 /* ---------- difficulty ---------- */
 .diffpick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-top: 8px; }
@@ -807,9 +855,6 @@ table.list td.r, table.list th.r { text-align: right; }
 #panel-inner .empty div { font-size: 50px; opacity: .5; }
 
 /* ---------- pause: friendly fire ---------- */
-.ffrow { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px 10px; }
-.ffrow small { grid-column: 1 / -1; font-size: 11px; color: var(--muted); }
-#v-ff { color: var(--green); } #v-ff.on { color: var(--red); }
 
 /* ---------- pictures of the real models (thumbs.js) ---------- */
 img.thumb { display: block; width: 100%; height: 100%; object-fit: contain; pointer-events: none; user-select: none; -webkit-user-drag: none; }
@@ -1007,31 +1052,22 @@ img.thumb.inline { display: inline-block; width: 32px; height: 32px; vertical-al
 @keyframes kbwait { 50% { box-shadow: 0 0 0 4px rgba(255,176,32,.25); } }
 #panel-inner .kbgrid + .tip { text-align: center; font-size: 12px; color: var(--muted); margin: 10px 0 0; }
 .row2.tight { margin-top: 6px; }
-.row.mhelp { align-self: flex-start; }
-#pause .row2 .btn { flex: 1; white-space: nowrap; padding-left: 8px; padding-right: 8px; justify-content: center; }
-#pause .row2.tight .btn { flex: none; }
 
 /* ---------- v1.12: Esc to resume ---------- */
-/* back in the game before the mouse is grabbed again (see Game.lockFailed): no cursor in the way */
-/* the mouse isn't grabbed (see Game.lockFailed): the cursor's there, and a click grabs it */
-#clicklook { display: none; position: absolute; left: 50%; top: 56%; transform: translateX(-50%); padding: 6px 14px; border-radius: 8px;
-  background: rgba(10,14,24,.6); color: #fff; font-size: 14px; letter-spacing: 1px; pointer-events: none; }
-body.softlock #clicklook { display: block; }
 #hud.induel #hotbar { display: none; } /* (a duel: you've got the one gun you picked) */
 /* the Longshot's scope (aiming it): a round window with a crosshair, dark all round it */
 #scope { display: none; position: absolute; inset: 0; pointer-events: none;
-  background: radial-gradient(circle at 50% 50%, transparent 0 33vmin, rgba(0,0,0,.94) 33.4vmin); }
+  background: radial-gradient(circle at 50% 50%, transparent 0 46vmin, rgba(0,0,0,.94) 46.4vmin); }
 #scope::before, #scope::after { content: ''; position: absolute; left: 50%; top: 50%; background: rgba(125,255,138,.85); }
-#scope::before { width: 66vmin; height: 2px; transform: translate(-50%, -50%); }
-#scope::after { width: 2px; height: 66vmin; transform: translate(-50%, -50%); }
-#scope i { position: absolute; left: 50%; top: 50%; width: 66vmin; height: 66vmin; transform: translate(-50%, -50%); border-radius: 50%; box-shadow: inset 0 0 0 3px rgba(20,24,30,.9), inset 0 0 40px rgba(0,0,0,.6); }
+#scope::before { width: 92vmin; height: 2px; transform: translate(-50%, -50%); }
+#scope::after { width: 2px; height: 92vmin; transform: translate(-50%, -50%); }
+#scope i { position: absolute; left: 50%; top: 50%; width: 92vmin; height: 92vmin; transform: translate(-50%, -50%); border-radius: 50%; box-shadow: inset 0 0 0 3px rgba(20,24,30,.9), inset 0 0 22px rgba(0,0,0,.45); }
 body.scoped #scope { display: block; }
 body.scoped #crosshair { opacity: 0; }
-/* a 3x Scope (a sight, see SIGHTS): a bigger window, a thin dark crosshair */
-body.lens3 #scope { background: radial-gradient(circle at 50% 50%, transparent 0 40vmin, rgba(0,0,0,.94) 40.4vmin); }
-body.lens3 #scope::before { width: 80vmin; height: 1px; background: rgba(12,14,18,.85); }
-body.lens3 #scope::after { height: 80vmin; width: 1px; background: rgba(12,14,18,.85); }
-body.lens3 #scope i { width: 80vmin; height: 80vmin; box-shadow: inset 0 0 0 4px rgba(40,44,52,.95), inset 0 0 50px rgba(0,0,0,.55); }
+/* a 3x Scope (a sight, see SIGHTS): the same big window, a thin dark crosshair */
+body.lens3 #scope::before { height: 1px; background: rgba(12,14,18,.85); }
+body.lens3 #scope::after { width: 1px; background: rgba(12,14,18,.85); }
+body.lens3 #scope i { box-shadow: inset 0 0 0 4px rgba(40,44,52,.95), inset 0 0 22px rgba(0,0,0,.45); }
 /* looking through a red dot or a holo sight: its reticle, right where your shots go, instead of the crosshair */
 #reticle { display: none; position: absolute; left: 50%; top: 50%; width: 0; height: 0; pointer-events: none; }
 #reticle i { position: absolute; border-radius: 50%; }
@@ -1043,16 +1079,90 @@ body[data-reticle="dot"] #crosshair, body[data-reticle="holo"] #crosshair { opac
 /* the Loadout tab: which sight goes on which gun */
 .sightcard .sopts { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
 .scope-picker { margin-top: 8px; font-size: 12px; text-align: left; }
-.scope-picker summary { cursor: pointer; padding: 7px 9px; border: 1px solid #57677c; border-radius: 6px; background: #192434; color: #dcefff; }
+.scope-picker summary { list-style: none; position: relative; cursor: pointer; padding: 7px 28px 7px 10px; font-family: var(--font-h); font-weight: 600; font-size: 12px; letter-spacing: 1px; text-transform: uppercase;
+  border: 1px solid var(--line2); border-radius: 4px; background: rgba(255,255,255,.06); color: #dfe6f0; transition: background .12s, border-color .12s; }
+.scope-picker summary::-webkit-details-marker { display: none; }
+.scope-picker summary::after { content: ''; position: absolute; right: 11px; top: 50%; width: 6px; height: 6px; margin-top: -5px; border: solid var(--acc); border-width: 0 2px 2px 0; transform: rotate(45deg); transition: transform .15s, margin .15s; }
+.scope-picker[open] summary::after { transform: rotate(-135deg); margin-top: -1px; }
+.scope-picker summary:hover { background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.35); }
+.scope-picker[open] summary { border-color: var(--acc); }
 .scope-options { display: grid; gap: 5px; padding: 7px 0; }
-.scope-options button { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; width: 100%; padding: 8px; white-space: normal; text-align: left; background: #243448; color: #edf7ff; border: 1px solid #53677c; border-radius: 5px; }
-.scope-options button small { font-size: 11px; color: #a8d9cf; }
+.scope-options button { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; width: 100%; padding: 8px; white-space: normal; text-align: left; font-family: var(--font-b); font-weight: 600; background: rgba(255,255,255,.05); color: #edf2f8; border: 1px solid var(--line); border-radius: 4px; }
+.scope-options button small { font-size: 11px; color: var(--acc2); }
 .scope-options button:disabled { opacity: .55; cursor: default; }
-.scope-options button:not(:disabled):hover { border-color: #8be3cd; }
+.scope-options button:not(:disabled):hover { border-color: var(--acc); background: rgba(255,176,32,.1); }
 .sopt { font-family: var(--font-h); font-weight: 600; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: #cfd6e2;
   background: rgba(255,255,255,.07); border: 1px solid var(--line); border-radius: 3px; padding: 4px 8px; cursor: pointer; }
 .sopt:hover { background: rgba(255,255,255,.12); }
 .sopt.on { background: var(--acc); color: #120c00; border-color: var(--acc); }
+#p-resume .kesc { opacity: .7; font-family: var(--font-h); font-weight: 600; font-size: 11px; letter-spacing: 1px; color: inherit; border: 1px solid currentColor; border-radius: 4px; padding: 1px 6px; align-self: center; }
+
+/* ---------- a PC game, not a web page (Options, tooltips, the FPS counter) ---------- */
+/* Options (title screen and pause menu) */
+#panel-inner:has(.opts) { width: min(720px, 100%); }
+.opts { display: flex; flex-direction: column; min-height: 300px; }
+.orow { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 11px 4px; border-bottom: 1px solid var(--line); }
+.orow:last-child { border-bottom: 0; }
+.olab { display: flex; flex-direction: column; gap: 2px; font-family: var(--font-h); font-weight: 600; font-size: 16px; letter-spacing: 1.5px; text-transform: uppercase; color: #e8edf5; }
+.olab small { font-family: var(--font-b); font-weight: 500; font-size: 12px; letter-spacing: 0; text-transform: none; color: var(--muted); }
+.ochoice { display: flex; align-items: center; flex: none; width: 250px; background: rgba(0,0,0,.3); border: 1px solid var(--line2); border-radius: 4px; }
+.ochoice button { width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; padding: 0; color: var(--acc); background: transparent; border: 0; transition: background .12s; }
+.ochoice button:hover { background: rgba(255,255,255,.08); }
+.ochoice button .ico { width: 18px; height: 18px; }
+.ochoice b { flex: 1; position: relative; text-align: center; font-family: var(--font-h); font-weight: 700; font-size: 15px; letter-spacing: 1.5px; text-transform: uppercase; color: #fff; padding: 8px 0 10px; cursor: pointer; }
+.odots { position: absolute; left: 0; right: 0; bottom: 3px; display: flex; justify-content: center; gap: 4px; }
+.odots i { width: 12px; height: 2px; background: rgba(255,255,255,.18); }
+.odots i.on { background: var(--acc); }
+.ochoice.off { opacity: .45; }
+.ochoice.off b, .ochoice.off button { cursor: default; pointer-events: none; }
+.oslide { display: flex; align-items: center; gap: 12px; flex: none; width: 250px; }
+.oslide b { width: 48px; text-align: right; font-family: var(--font-h); font-weight: 700; font-size: 15px; color: #fff; }
+/* sliders: a flat bar that fills up, a square handle */
+input[type=range] { -webkit-appearance: none; appearance: none; flex: 1; height: 22px; background: transparent; cursor: pointer; }
+input[type=range]::-webkit-slider-runnable-track { height: 4px; background: linear-gradient(90deg, var(--acc) var(--f, 50%), rgba(255,255,255,.14) var(--f, 50%)); }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 18px; margin-top: -7px; background: #fff; border: 2px solid var(--acc); border-radius: 2px; box-shadow: 0 2px 6px rgba(0,0,0,.5); }
+input[type=range]:hover::-webkit-slider-thumb { background: var(--acc2); }
+/* the FPS counter */
+#fps { position: fixed; left: 6px; top: 3px; z-index: 90; pointer-events: none; font-family: var(--font-h); font-weight: 600; font-size: 11px; letter-spacing: 1px; color: #9dffa9; text-shadow: 0 1px 2px #000; }
+/* our own tooltips (a web page's little yellow boxes don't belong in a game) */
+[data-tip] { position: relative; }
+[data-tip]:hover::after {
+  content: attr(data-tip); position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); z-index: 5; pointer-events: none; white-space: nowrap;
+  font-family: var(--font-b); font-weight: 600; font-size: 11px; letter-spacing: .3px; text-transform: none; color: #fff;
+  background: #0b0f17; border: 1px solid var(--line2); border-radius: 3px; padding: 4px 8px; box-shadow: 0 6px 16px rgba(0,0,0,.5);
+}
+#roomcode[data-tip]:hover::after { bottom: auto; top: calc(100% + 6px); left: auto; right: 0; transform: none; }
+/* your name, on the Customize screen (title screen) */
+.cname { display: flex; align-items: center; gap: 12px; margin: 0 0 12px 0; }
+.cname label { font-family: var(--font-h); font-weight: 600; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); }
+.cname input { flex: 1; font-family: var(--font-h) !important; font-weight: 700 !important; font-size: 18px !important; letter-spacing: 1px; padding: 7px 12px !important; }
+/* How to Play: tabs, and the Controls tab's key list */
+#panel-inner:has(.howbody) { width: min(900px, 100%); }
+.howbody { min-height: 340px; }
+.hkgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px 22px; margin-bottom: 10px; }
+.hkgrid h4 { margin: 6px 0 6px; font-family: var(--font-h); font-weight: 700; font-size: 12px; letter-spacing: 3px; text-transform: uppercase; color: var(--acc); border-bottom: 1px solid var(--line); padding-bottom: 5px; }
+.hk { display: flex; align-items: center; gap: 10px; padding: 4px 0; font-size: 13px; color: #d7dde7; }
+.hk .keys { flex: none; min-width: 108px; display: flex; flex-wrap: wrap; gap: 3px; }
+.hk kbd { font-size: 11px; }
+.how1 { columns: 2; column-gap: 30px; font-size: 14px; }
+.how1 p { margin: 0 0 12px; color: #cfd5df; line-height: 1.45; break-inside: avoid; }
+.howbody .stab, .stabs .stab { white-space: nowrap; }
+.how1 p b { color: #fff; }
+@media (max-width: 760px) { .hkgrid { grid-template-columns: 1fr; } .how1 { columns: 1; } }
+/* game over (Hardcore) and "lost the captain": the whole screen, no close button (there's only one way on) */
+#panel:has(.permadeath), #panel:has(.endcard) { background: radial-gradient(ellipse at center, rgba(40,4,10,.72), rgba(6,2,4,.94)); backdrop-filter: blur(6px); }
+#panel:has(.endcard) { background: radial-gradient(ellipse at center, rgba(8,12,22,.75), rgba(3,4,8,.94)); }
+#panel-inner:has(.permadeath), #panel-inner:has(.endcard) { background: transparent; border: 0; box-shadow: none; }
+#panel-inner:has(.permadeath) > .x, #panel-inner:has(.endcard) > .x { display: none; }
+.permadeath .ph, .endcard .ph { font-size: 64px; letter-spacing: 10px; padding: 0; }
+.endcard .ph { font-size: 44px; letter-spacing: 6px; }
+/* the mouse pointer in menus: the game's own arrow, the same over buttons (a pointing hand is a web page thing) */
+:root { --cur: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='26' height='26' viewBox='0 0 26 26'%3E%3Cpath d='M4 3v17l4.6-4.2 3.3 7 3-1.4-3.3-6.9h6.4z' fill='%23ffb020' stroke='%23120c00' stroke-width='1.6' stroke-linejoin='round'/%3E%3Cpath d='M6 7.6v7.6l2.2-2' fill='none' stroke='%23fff3cf' stroke-width='1.2' stroke-linecap='round' opacity='.8'/%3E%3C/svg%3E") 4 3, default; }
+*, *::before, *::after { cursor: var(--cur) !important; }
+input[type=text], input:not([type]) { cursor: text !important; }
+.cust-view canvas { cursor: grab !important; }
+.cust-view canvas:active { cursor: grabbing !important; }
+
 #p-resume .kesc { margin-left: 10px; font-size: 11px; letter-spacing: 1px; opacity: .6; border: 1px solid currentColor; border-radius: 4px; padding: 1px 6px; }
 
 /* Supply exchange: equipment selection and inspection. Scoped to the shop. */

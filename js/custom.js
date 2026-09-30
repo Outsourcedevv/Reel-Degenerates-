@@ -4,8 +4,9 @@
    backpack, helmet glass, face and hair (see LOOK_PARTS),
    with a turning 3D preview of your goober goofing about
    (and trying out the emotes). Opens from the title screen and
-   the pause menu. Your look is kept in this browser and sent
-   to your crew, who see exactly this.
+   the pause menu. Your look (and, on the title screen, your
+   name) is saved with your settings and sent to your crew,
+   who see exactly this.
    ========================================================= */
 const Custom = {
   KEY: 'spacegoobers_look',
@@ -44,7 +45,7 @@ const Custom = {
   // fromPause: closing it goes back to the pause menu
   open(fromPause) {
     const L = lookFrom(G.look), hw = this.hats();
-    const colorRow = (k, list, sel) => `<div class="swrow">${list.map((c, i) => `<button class="csw ${sel === (k === 'color' ? c : i) ? 'on' : ''}" data-act="set" data-k="${k}" data-v="${k === 'color' ? c : i}" style="background:${c}" title="${c}"></button>`).join('')}</div>`;
+    const colorRow = (k, list, sel) => `<div class="swrow">${list.map((c, i) => `<button class="csw ${sel === (k === 'color' ? c : i) ? 'on' : ''}" data-act="set" data-k="${k}" data-v="${k === 'color' ? c : i}" style="background:${c}"></button>`).join('')}</div>`;
     const chipRow = (k, list, sel) => `<div class="chips">${list.map((n, i) => `<button class="chip ${sel === i ? 'on' : ''}" data-act="set" data-k="${k}" data-v="${i}">${U.esc(n)}</button>`).join('')}</div>`;
     const group = (tab, k, label, body, now = '') => `<div class="cgroup ${tab === this.tab ? '' : 'hidden'}" data-tab="${tab}"><h5>${label}<b data-now="${k}">${now}</b></h5>${body}</div>`;
     const part = (k) => {
@@ -65,11 +66,18 @@ const Custom = {
         <div class="cust-view"><canvas id="custcv"></canvas>
           <div class="cust-emotes">${Object.entries(GOOB_EMOTES).map(([k, e]) => `<button class="chip" data-act="emo" data-e="${k}">${U.esc(e[1])}</button>`).join('')}</div>
           <small>Drag to turn around · ${U.esc(Keys.name('emote'))} in the game: emote</small></div>
-        <div class="cust-side"><div class="stabs">${tabs}</div><div class="cust-body">${body}</div></div>
+        <div class="cust-side">${G.started ? '' : `<div class="cname"><label for="c-name">Name</label><input id="c-name" maxlength="14" value="${U.esc(G.name)}" autocomplete="off" spellcheck="false"></div>`}<div class="stabs">${tabs}</div><div class="cust-body">${body}</div></div>
       </div>
       <div class="row2"><button class="btn" data-act="rand">${icon('dice')}Randomize</button><button class="btn green" data-act="close">Done</button></div>`;
     UI.openPanel(html, (act, d) => this.act(act, d), null, () => this.stopView());
     UI.backToPause = !!fromPause;
+    // your name (on the title screen: in a game it's the one your crew already knows you by)
+    const ni = U.$('c-name');
+    if (ni) {
+      ni.addEventListener('input', () => Game.setName(ni.value));
+      ni.addEventListener('change', () => { ni.value = G.name; });
+      ni.addEventListener('keydown', (e) => { if (e.key === 'Enter') ni.blur(); });
+    }
     this.startView();
   },
   act(act, d) {

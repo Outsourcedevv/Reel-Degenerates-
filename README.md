@@ -13,7 +13,9 @@ Get it from the [Releases page](https://github.com/Outsourcedevv/Reel-Degenerate
 - **Linux:** the `.AppImage`.
 
 Send your friends that link, everyone installs it, and you can play together (see below). Solo works offline;
-multiplayer needs internet. Press `F11` for fullscreen.
+multiplayer needs internet. It starts fullscreen: `F11` or `Alt+Enter` (or **Options > Video**) switches to a
+window and back, and it remembers which you like. **Quit Game** on the title screen (or **Quit to Desktop** in the
+pause menu) closes it.
 
 **Updates install themselves.** You only download the app once (from 1.9 on). When a new version is out, the title
 screen says so: click **Update now** and the game restarts on the new version a few seconds later. It's a small
@@ -24,7 +26,7 @@ needs a fresh download of the whole app; the title screen tells you when, with a
 
 Or open `index.html` in Chrome or Edge (double-clicking it works). You need a keyboard and mouse.
 
-Click **Play Solo** or **Host Game**, then pick a world or create a new one. When you create a world you pick a
+Click **Play** (or **Multiplayer > Host a game**), then pick a world or create a new one. When you create a world you pick a
 difficulty:
 
 | Difficulty | What changes |
@@ -53,7 +55,8 @@ and he fidgets: he scratches his helmet, tries to pick his nose (the glass is in
 Your crew sees all of it. Press `G` for an emote: wave, chicken dance, flex, floss, facepalm and faint, a different
 one each press (the camera swings round in front of him so you can watch, and back into your helmet after).
 
-Click **Customize** on the title screen (or in the pause menu) to dress him up, with a preview of him goofing about
+Click **Customize** on the title screen (or your name in its top right corner, or **Customize** in the pause menu)
+to dress him up and, on the title screen, change your name, with a preview of him goofing about
 (the buttons on it try out the emotes):
 
 - **Suit:** suit color, accent color (chest panel, belt, collar, cuffs), pattern (stripes, racing stripe,
@@ -78,8 +81,8 @@ them is still standing. If the whole crew is down at once, the boss wins. You ke
 
 ## Play with friends
 
-1. One person clicks **Host Game** and gets a 5-letter room code.
-2. Everyone else types the code and clicks **Join**.
+1. One person clicks **Multiplayer > Host a game** and gets a 5-letter room code.
+2. Everyone else clicks **Multiplayer**, types the code and clicks **Join**.
 3. Everybody gets in the ship themselves (`E` at the ship). The first one in is the pilot, everyone else rides
    in the back, and the ship won't lift off until the whole crew is aboard. `F` swaps seats: the pilot moves to
    the back, then anyone in the back can take the controls.
@@ -93,7 +96,7 @@ them is still standing. If the whole crew is down at once, the boss wins. You ke
    differently, see above.)
 6. Press `I` to send money to a friend (Crew & Money tab) or drop things from your backpack. Dropped stuff lands
    in a crate anyone can pick up by walking over it.
-7. Friendly fire is off by default (zaps just bonk your friends). The host can turn it on in the pause menu, and then your shots hit friends for 75% of their damage.
+7. Friendly fire is off by default (zaps just bonk your friends). The host can turn it on in **Options > Gameplay** (pause menu), and then your shots hit friends for 75% of their damage.
 
 Each friend needs to open the game too. The easiest way is to put it online for free with GitHub Pages:
 **Settings > Pages > Deploy from a branch > `main` / `(root)` > Save**. After a minute it's live at
@@ -101,7 +104,7 @@ Each friend needs to open the game too. The easiest way is to put it online for 
 
 ## Controls
 
-Every key (and mouse button) can be changed: **Keybinds** in the pause menu or on the title screen. Click an action,
+Every key (and mouse button) can be changed: **Options > Controls > Change keys** (title screen or pause menu). Click an action,
 press the key you want. A key that's taken swaps over, and every hint in the game shows your keys. These are the
 defaults:
 
@@ -127,6 +130,16 @@ defaults:
 | `Space` / `C` | in the ship: lift off, go up / go down (pilot) |
 | `F` | in the ship: swap seats |
 | `M` / `V` | in the ship: star map / look at the ship from outside (passengers) |
+
+### Options
+
+**Options** is on the title screen and in the pause menu (the game stays paused while you're in it, playing solo):
+
+- **Gameplay:** field of view, screen shake (full, reduced, off), an FPS counter, friendly fire (the host's call).
+- **Video:** fullscreen or windowed (the app), graphics quality (High: glow, color grading and sharper shadows; Low:
+  faster), render resolution (100%, 75% or 50%, for slow computers).
+- **Audio:** master volume, sound effects, music, and muting the game while you're in another window.
+- **Controls:** mouse sensitivity, invert mouse, and the Keybinds screen.
 
 ## The galaxy
 
@@ -162,7 +175,7 @@ health but hit a bit softer than they look. Your ship won't start until you've b
 | 3 | Luckstar | **Gambling** in the Luckstar Casino, the big building next to the landing pad: slots, roulette, snail races, coin flips, crates. Vacuum up dropped chips | Chip Beetles, Dice Goblins, Card Crawlers, Slot Mimics | Jackpot Jerry ★★★ | Golden Token, from crates or Mr. Chips |
 | 4 | Frostbyte | Mine crystals with the Laser Drill, vacuum snow piles | Snow Mites, Ice Weasels, Pengulings, Frost Pups | The Abominable Snowdad ★★★★ | Space Milk, frozen in the crystals |
 | 5 | Spookulon | Vacuum ghosts in the graveyards (you can't shoot them; keep them in your sights: they dodge and BOO you) | Space Bats, Skele-Toms, Jack-o'-Landers, Grave Grubs | Count Carbula ★★★★★ | Count's Dinner Bell, haunted by one of the ghosts |
-| 6 | Nimbus-9 | Grab Sky Pearls off floating islands; glowing updrafts carry you up (fall off and you wash up at the ship) | Cloud Puffs, Sky Gulls, Wild Kites, Static Sprites | Stormy McStormface ★★★★★★ | Weather Balloon, in the big pearls on the highest islands |
+| 6 | Nimbus-9 | Grab Sky Pearls off floating islands; glowing updrafts carry you up (fall off and the clouds bounce you back up onto an island) | Cloud Puffs, Sky Gulls, Wild Kites, Static Sprites | Stormy McStormface ★★★★★★ | Weather Balloon, in the big pearls on the highest islands |
 | 7 | Gigopolis | Delivery gigs: take a parcel at the GigHub kiosk and race it to a door or rooftop (jump pads get you up there). Vacuum litter | Rogue Drones, Trash Pandas, Unpaid Intern Bots, Feral E-Scooters | CEO Chad Grindset ★★★★★★★ | Mandatory Meeting Invite, from a delivery customer |
 | 8 | Zorblax Prime | Catch pepperoni meteors with the Pizza Peel, vacuum burnt crusts | Lava Snails, Magma Imps, Ember Bugs, Royal Hounds | Emperor Zorblax ★★★★★★★★ | Reheated Pizza: catch 15 meteors |
 
@@ -188,7 +201,13 @@ if someone leaves, the duel's off.
 
 ### Boss fights
 
-Every attack is telegraphed, so you can read the fight:
+Bosses don't hang about. Their attacks are quick: everything they throw, every shockwave, sweeping beam and charge
+moves three times as fast as it used to, and the warnings are shorter, so you have to move the moment you see one.
+They keep moving too: the ones on foot circle round you instead of standing still (and back off if you get too
+close), the ones that fly round the arena go faster and turn back now and then, and all of them see your shots coming
+and sidestep (not the Longshot's: nothing dodges that). In phase 2 they often throw two attacks at once.
+
+Every attack is still telegraphed, so you can read the fight:
 
 - **Wind-ups.** Before a boss attacks it strikes a pose (arm back to throw, arms up to slam, a crouch before it
   jumps) and glows. The attack's name shows under its health bar, with a bar that fills until it goes off. With
@@ -207,7 +226,9 @@ Bosses only pipe up now and then (a line every half a minute or so). Beat one an
 stiff with sparks popping off it, then it spins up off the floor puffing up bigger and bigger until it goes POP in a
 shower of confetti and coins, its head and hands bouncing across the arena. **VICTORY!** comes up with your reward
 (anyone who was down gets back up), and a beam of light comes down in the middle of the arena: walk into it to go back
-to the planet (it takes you after 30 seconds anyway). No menu to click through. Lose, and everything goes black...
+to the planet (it takes you after 30 seconds anyway). Back on the planet, what you won comes up just above your
+hotbar, and the planet you can fly to now if you just unlocked one ("+$170 · New planet unlocked: Planet Gloop").
+No menu to click through. Lose, and everything goes black...
 then you wake up on the planet you came from, getting up off the ground, with a space hospital bill (10% of your
 bucks, at most $1,000); a rematch needs another summoning item. Mini bosses go flying end over end,
 land on their backs with their legs in the air, and a moment later go pop too.
@@ -398,7 +419,7 @@ still take over) until somebody takes the controls.
 
 No build step: it's plain HTML, CSS and JavaScript using [three.js](https://threejs.org) (r128) for the
 graphics and [PeerJS](https://peerjs.com) for multiplayer (both bundled in `vendor/`). Graphics settings (bloom and color grading on
-High, off on Low for slower computers) are in the pause menu. Every sound and song is made in code. Worlds are saved
+High, off on Low for slower computers, and the render resolution) are in **Options > Video**. Every sound and song is made in code. Worlds are saved
 in your browser (clearing browser data deletes them).
 
 - `js/data.js`: planets, items, prices, bosses, jokes (the easiest file to mess with)
@@ -414,6 +435,8 @@ in your browser (clearing browser data deletes them).
 - `js/goober.js`: how your goober moves (walking, flailing, recoil, fidgets, emotes: `GooberAnim`)
 - `js/post.js`: bloom and color grading · `js/icons.js`: interface icons
 - `js/main.js`: game loop, menus, multiplayer glue · `js/net.js`: networking
+- `js/options.js`: the Options screen (`OPT_ROWS`), the "are you sure?" box, and what keeps it a game rather than
+  a web page (no zooming, no files dropped on the window, menus that tick when you point at them)
 - `desktop/`: the desktop app (Electron). `npm install` then `npm start` runs it; `npm run dist` builds installers.
   GitHub rebuilds the Windows, Mac and Linux downloads on the Releases page whenever the game changes, and posts the
   game's files as one small bundle with a `game.json` next to them. Installed apps check `game.json` when they start

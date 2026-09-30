@@ -8,10 +8,12 @@ const Game = {
   arenas: {},
 
   async boot() {
-    const lt = U.$('loading-text');
-    lt.textContent = 'Warming up the pizza oven...';
+    const lt = U.$('loading-text'), bar = (f) => { U.$('loading').querySelector('.fill').style.width = f * 100 + '%'; };
+    lt.textContent = 'Warming up the pizza oven...'; bar(0.1);
+    AppShell.init();
     try { await Promise.race([document.fonts.load('700 40px "Chakra Petch"'), new Promise((r) => setTimeout(r, 2500))]); } catch (e) { /* offline is fine */ }
 
+    bar(0.3);
     const r = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     r.setPixelRatio(Math.min(devicePixelRatio || 1, 1.5));
     r.setSize(innerWidth, innerHeight);
@@ -40,13 +42,16 @@ const Game = {
     UI.init();
     Input.init();
     Object.assign(G.settings, lsGet('spacegoobers_settings', {}));
+    Options.init();
+    Ask.init();
     Post.init();
     G.player = new LocalPlayer();
     G.player.vm.visible = false;
 
-    lt.textContent = 'Building Scrapyard-9...';
+    lt.textContent = 'Building Scrapyard-9...'; bar(0.45);
     await new Promise((res) => setTimeout(res, 30));
     this.loadPlanet(0);
+    bar(0.9);
 
     this.setupMenu();
     this.setupPause();
@@ -57,7 +62,12 @@ const Game = {
       if (e.code !== 'Escape' || !G.panel || Keys.capturing || document.getElementById('ending')) return;
       e.preventDefault(); e.stopImmediatePropagation();
       Input.keys.Escape = true; Input.pressed = {}; Input.dx = Input.dy = 0;
-      if (!e.repeat) UI.closePanel();
+      if (e.repeat) return;
+      // back to the game (not the pause menu or another screen): the mouse is grabbed when Esc comes back UP, like
+      // on the pause menu (grabbed now, the app lets go of it again as it handles the Esc, and up came the pause menu)
+      const toGame = G.started && !UI.backToPause && !UI.reopen;
+      UI.closePanel(toGame);
+      if (toGame && !G.panel) { this.escToGame = true; this.setSoft(true); G.locked = true; this.updatePause(); }
     }, true);
     this.setupNet();
     addEventListener('resize', () => {
@@ -68,18 +78,27 @@ const Game = {
       G.player.layoutVM();
     });
     document.addEventListener('pointerlockchange', () => {
-      if (document.pointerLockElement === G.renderer.domElement) { this.everLocked = true; this.wantLock = false; clearTimeout(this.lockT); this.fallback = false; this.setSoft(false); G.locked = true; }
+      if (document.pointerLockElement === G.renderer.domElement) { this.everLocked = true; this.wantLock = false; this.relockTried = false; this.grabTries = 0; clearTimeout(this.lockT); clearTimeout(this.grabT); this.fallback = false; this.setSoft(false); G.locked = true; }
       else { this.unlockedAt = performance.now(); if (!this.soft && !this.wantLock) G.locked = false; }
       this.updatePause();
     });
     // the browser wouldn't grab the mouse (some never do: fall back to free-mouse look)
     document.addEventListener('pointerlockerror', () => this.lockFailed());
     G.renderer.domElement.addEventListener('click', () => { if (G.started && !G.panel && (!G.locked || this.soft)) this.lock(); });
-    // playing without the mouse grabbed (see lockFailed): the next click grabs it
+    // playing without the mouse grabbed (see lockFailed): the next click grabs it, and so does the next key you press
+    // (any key but Esc counts for the browser, so the W you press to walk off grabs it: no "click to look" needed)
     addEventListener('mousedown', () => { if (this.soft && G.started && !G.panel) this.lock(); });
+    addEventListener('keydown', (e) => { if (this.soft && !this.wantLock && G.started && !G.panel && !G.chatting && e.code !== 'Escape' && !Keys.capturing) this.lock(); });
     addEventListener('beforeunload', () => { Casino.cashOut(); persist(); Net.leave(); });
-    U.$('loading').classList.add('hidden');
+    // the title screen fades in over the loading screen, with its music (the desktop app lets it play straight
+    // away; a browser waits for your first click)
+    bar(1);
     U.$('menu').classList.remove('hidden');
+    setTimeout(() => { U.$('loading').classList.add('gone'); setTimeout(() => U.$('loading').classList.add('hidden'), 500); }, 120);
+    const menuMusic = () => { Sound.init(); if (!G.started && !Sound.music.on) Sound.playMusic('menu'); };
+    if (AppShell.desk()) menuMusic();
+    const wake = () => { menuMusic(); removeEventListener('pointerdown', wake, true); removeEventListener('keydown', wake, true); };
+    addEventListener('pointerdown', wake, true); addEventListener('keydown', wake, true);
     requestAnimationFrame((t) => this.loop(t));
     this.startBackgroundTicker();
     Thumbs.warmAll(); // (draw the item pictures in the background while you're in the menu)
@@ -151,29 +170,48 @@ const Game = {
   },
 
   /* ---------------- start / menus ---------------- */
-  // your astronaut's picture on the title screen
+  // you, top right on the title screen (your look and your name: click it to change them)
   drawLook() {
-    const pic = !G.started && document.querySelector('#m-cust .pic');
+    const pic = !G.started && document.querySelector('#m-profile .pic');
     if (pic) pic.innerHTML = Thumbs.img(Thumbs.crewKey(G.color, Custom.hats().hat, G.look), '', 'person');
+    const n = U.$('m-pname');
+    if (n) n.textContent = G.name;
+  },
+  // your name, tidied up (letters, numbers, a few marks; 14 at most)
+  cleanName(n) { return String(n || '').replace(/[^\w \-.'!]/g, '').trim().slice(0, 14); },
+  setName(n) {
+    G.name = this.cleanName(n) || 'Goober';
+    lsSet('spacegoobers_name', G.name);
+    this.drawLook();
+  },
+  // which title screen card is up: 'main', 'mp' (multiplayer) or 'worlds'
+  menuCard(id) {
+    for (const [k, el] of [['main', 'm-main'], ['mp', 'm-mp'], ['worlds', 'm-worlds']]) U.$(el).classList.toggle('hidden', k !== id);
+    U.$('m-profile').classList.toggle('hidden', id !== 'main');
+    this.card = id;
   },
   setupMenu() {
-    const nameEl = U.$('m-name'), status = U.$('m-status');
-    nameEl.value = lsGet('spacegoobers_name', '') || 'Goober' + U.randi(10, 99);
+    const status = U.$('m-status');
+    G.name = this.cleanName(lsGet('spacegoobers_name', '')) || 'Goober' + U.randi(10, 99);
+    lsSet('spacegoobers_name', G.name);
     G.color = lsGet('spacegoobers_color', null) || U.pick(ACCENT_COLORS);
     Custom.load();
     this.drawLook();
-    U.$('m-cust').onclick = () => { Sound.init(); Custom.open(); };
-    const readName = () => {
-      const n = (nameEl.value || '').replace(/[^\w \-.'!]/g, '').trim().slice(0, 14) || 'Goober';
-      G.name = n;
-      lsSet('spacegoobers_name', n);
+    this.card = 'main';
+    const ready = () => {
       lsSet('spacegoobers_color', G.color);
       Sound.init();
     };
-    const busy = (on) => ['m-solo', 'm-host', 'm-join'].forEach((id) => (U.$(id).disabled = on));
-    U.$('m-solo').onclick = () => { readName(); this.pickWorld('solo'); };
-    U.$('m-host').onclick = () => { readName(); this.pickWorld('host'); };
-    U.$('m-wback').onclick = () => { U.$('m-worlds').classList.add('hidden'); U.$('m-main').classList.remove('hidden'); };
+    const busy = (on) => ['m-host', 'm-join'].forEach((id) => (U.$(id).disabled = on));
+    U.$('m-solo').onclick = () => { ready(); this.pickWorld('solo'); };
+    U.$('m-multi').onclick = () => { Sound.init(); status.textContent = ''; this.menuCard('mp'); };
+    U.$('m-host').onclick = () => { ready(); this.pickWorld('host'); };
+    U.$('m-mback').onclick = () => this.menuCard('main');
+    U.$('m-cust').onclick = U.$('m-profile').onclick = () => { Sound.init(); Custom.open(); };
+    U.$('m-opts').onclick = () => { Sound.init(); Options.open(); };
+    U.$('m-how').onclick = () => { Sound.init(); UI.showHow(); };
+    U.$('m-quit').onclick = () => AppShell.quit();
+    U.$('m-wback').onclick = () => { if (!this.worldBusy) this.menuCard(this.worldMode === 'host' ? 'mp' : 'main'); };
     U.$('m-wnew').onclick = () => { Sound.play('click'); this.startWorld(Worlds.create(U.$('m-wname').value, this.newDiff)); };
     const drawDiff = () => {
       U.$('m-diff').querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.d === this.newDiff));
@@ -194,7 +232,7 @@ const Game = {
       }
     });
     U.$('m-join').onclick = () => {
-      readName();
+      ready();
       const code = U.$('m-code').value.trim().toUpperCase();
       if (code.length !== 5) { status.className = ''; status.textContent = 'Room codes are 5 letters.'; return; }
       busy(true);
@@ -206,16 +244,19 @@ const Game = {
       }, (err) => { busy(false); status.className = ''; status.textContent = err; });
     };
     U.$('m-code').addEventListener('keydown', (e) => { if (e.key === 'Enter') U.$('m-join').click(); });
-    U.$('m-how').onclick = () => { Sound.init(); UI.showHow(); };
-    U.$('m-keys').onclick = () => { Sound.init(); KeybindsUI.open(); };
+    // Esc on the title screen: back a step
+    addEventListener('keydown', (e) => {
+      if (e.code !== 'Escape' || G.started || G.panel || Ask.isOpen() || Keys.capturing) return;
+      if (this.card === 'worlds') U.$('m-wback').click();
+      else if (this.card === 'mp') this.menuCard('main');
+    });
   },
 
   /* ---------------- worlds ---------------- */
   pickWorld(mode) {
     Worlds.migrate();
     this.worldMode = mode;
-    U.$('m-main').classList.add('hidden');
-    U.$('m-worlds').classList.remove('hidden');
+    this.menuCard('worlds');
     U.$('m-wtag').textContent = mode === 'host' ? 'Pick the world your friends will join.' : 'Each world is its own adventure.';
     this.drawWorlds();
   },
@@ -226,7 +267,7 @@ const Game = {
       const i = Worlds.info(w.id), pl = PLANETS[i.planet] || PLANETS[0];
       return `<div class="wslot"><div class="wico" style="background:${pl.sky[1]}">${Thumbs.img('planet:' + PLANETS.indexOf(pl), '', 'globe')}</div>
         <div class="winfo"><b>${U.esc(w.name)}<span class="dtag d-${Worlds.diff(w.id)}">${DIFFS[Worlds.diff(w.id)].name}</span></b><small>${pl.name} · ${i.beaten}/${PLANETS.length} bosses · ${U.bucks(i.bucks)} · ${ago(w.played)}</small></div>
-        <button class="btn small green" data-play="${w.id}">Play</button><button class="btn small red" data-del="${w.id}" title="Delete world">${icon('trash')}</button></div>`;
+        <button class="btn small green" data-play="${w.id}">Play</button><button class="btn small red" data-del="${w.id}" data-tip="Delete world">${icon('trash')}</button></div>`;
     }).join('') : '<p class="wempty">No worlds yet. Make your first one below!</p>';
   },
   startWorld(id) {
@@ -312,7 +353,9 @@ const Game = {
           because of course it does. Bosses don't just show up, though: find the thing that summons them and use it at the boss altar.<br><br>
           Company policy: no free guns (liability). You get a squirt pistol. Buy a real gun at the pawn shop.
           Do NOT gamble the company's money. (There's a casino planet. I know you.)
-        </div>${UI.howHtml().replace('<h2 class="ph">How to play</h2>', '')}
+        </div>
+        <h5 class="shead">The basics</h5>${UI.basicKeys()}
+        <p class="tip">Everything else is in <b>How to Play</b> (pause menu). Press ${keyKbd('{guide}')} any time to see what to do on the planet you're on.</p>
         <div class="row2"><button class="btn big green" data-act="close" style="max-width:320px">Let's deliver this pizza</button></div>`);
     } else {
       this.updatePause();
@@ -350,7 +393,7 @@ const Game = {
         <p class="center">${wipe ? 'The world has been deleted.' : guest ? 'Your stuff in your friend\'s world is gone.' : 'Your world has been deleted.'}
         ${host && !wipe ? ' Your crew lost their captain.' : ''}</p>
         <p class="center muted">"Driver did not arrive. Pizza presumed cold." Dave has already hired your replacement.</p>
-        <div class="center"><button class="btn big" data-act="menu" style="max-width:300px">Back to menu</button></div></div>`,
+        <div class="center"><button class="btn big" data-act="menu" style="max-width:300px">Back to main menu</button></div></div>`,
       (a) => { if (a === 'menu') location.reload(); }, null, () => location.reload());
     }, 1400);
   },
@@ -385,6 +428,22 @@ const Game = {
     this.setSoft(true);
     G.locked = true;
     this.updatePause();
+    this.regrab();
+  },
+  // get the mouse back without you having to click. The desktop app (what goes on Steam) clicks for us (see
+  // desktop/main.js: Chromium wants a real click or key press after Esc let go of the mouse, and won't take one
+  // for 1.25s after that Esc). In a browser: try once more after that, and the next key you press grabs it too.
+  regrab() {
+    const wait = Math.max(60, (this.unlockedAt || 0) + 1300 - performance.now());
+    const still = () => this.soft && G.started && !G.panel && !G.chatting && !document.pointerLockElement;
+    clearTimeout(this.grabT);
+    if (window.desktop && window.desktop.grabMouse) {
+      if ((this.grabTries = (this.grabTries || 0) + 1) > 3) return; // (it keeps saying no: a click will do it)
+      this.grabT = setTimeout(() => { if (still()) window.desktop.grabMouse(); }, wait);
+    } else if (!this.relockTried) {
+      this.relockTried = true;
+      this.grabT = setTimeout(() => { if (still()) this.lock(); }, wait);
+    }
   },
   setSoft(on) {
     this.soft = !!on;
@@ -406,44 +465,42 @@ const Game = {
     this.updatePause();
   },
   setupPause() {
-    const s = G.settings;
-    const sens = U.$('s-sens'), vol = U.$('s-vol'), mus = U.$('s-mus'), q = U.$('s-q');
-    sens.value = s.sens; vol.value = s.vol; mus.value = s.music; q.value = s.quality;
-    q.addEventListener('change', () => { s.quality = q.value; lsSet('spacegoobers_settings', s); Post.apply(); });
-    U.$('v-sens').textContent = Number(s.sens).toFixed(1);
-    const save = () => {
-      s.sens = Number(sens.value); s.vol = Number(vol.value); s.music = Number(mus.value);
-      U.$('v-sens').textContent = s.sens.toFixed(1);
-      lsSet('spacegoobers_settings', s);
-      Sound.setVolumes();
-    };
-    [sens, vol, mus].forEach((e) => e.addEventListener('input', save));
     U.$('p-resume').onclick = () => this.lock();
+    U.$('p-opts').onclick = () => Options.open(true);
     U.$('p-how').onclick = () => UI.showHow(true);
-    U.$('p-keys').onclick = () => KeybindsUI.open(true);
     U.$('p-cust').onclick = () => Custom.open(true);
-    U.$('p-leave').onclick = () => { persist(); Net.leave(); location.reload(); };
-    U.$('s-ff').onclick = () => { Sound.play('click'); this.setFF(!G.ff); };
-    // Esc on the pause menu: back to the game (the Esc that just paused it doesn't count)
+    U.$('p-leave').onclick = () => Ask.open('Quit to main menu?', this.quitNote(), 'Quit to menu', () => { persist(); Net.leave(); location.reload(); });
+    U.$('p-quit').onclick = () => Ask.open('Quit to desktop?', this.quitNote(), 'Quit game', () => AppShell.quit());
+    // Esc on the pause menu: back to the game (the Esc that just paused it doesn't count). The mouse gets grabbed
+    // when the key comes back UP: grabbed while Esc is still down, it was let go again straight away (letting go of
+    // the mouse is what Esc does), which just brought the menu back
     addEventListener('keydown', (e) => {
-      if (e.code !== 'Escape' || Keys.capturing || G.chatting || U.$('pause').classList.contains('hidden')) return;
+      if (e.code !== 'Escape' || Keys.capturing || G.chatting || Ask.isOpen() || U.$('pause').classList.contains('hidden')) return;
       if (performance.now() - (this.unlockedAt || 0) < 350) return;
       e.preventDefault();
       Input.pressed.Escape = false; // (so this press doesn't pause it again, see keys)
-      this.lock();
+      this.escResume = true;
+    });
+    addEventListener('keyup', (e) => {
+      if (e.code === 'Escape' && this.escToGame) { this.escToGame = false; if (G.started && !G.panel && !document.pointerLockElement) this.lock(); return; }
+      if (e.code !== 'Escape' || !this.escResume) return;
+      this.escResume = false;
+      if (!U.$('pause').classList.contains('hidden')) this.lock();
     });
   },
   updatePause() {
     const show = G.started && !G.locked && !G.panel && !G.chatting && !this.wantLock && !document.getElementById('ending');
     U.$('pause').classList.toggle('hidden', !show);
+    if (!show) { if (Ask.isOpen()) Ask.close(); return; }
     U.$('pause-title').textContent = G.online ? 'MENU' : 'PAUSED';
-    // friendly fire is the captain's call; everyone else can see how it's set
-    U.$('v-ff').textContent = G.ff ? 'ON' : 'OFF';
-    U.$('v-ff').className = G.ff ? 'on' : '';
-    const ffb = U.$('s-ff');
-    ffb.textContent = G.ff ? 'Turn off' : 'Turn on';
-    ffb.classList.toggle('hidden', !Net.isHost);
-    U.$('ff-note').textContent = Net.isHost ? (G.online ? 'Zaps hurt your crew (75% damage) when this is on.' : 'Only matters when friends join.') : 'The captain (host) decides.';
+    const pl = PLANETS[G.planet];
+    U.$('pause-sub').innerHTML = `${U.esc(G.mode === 'boss' ? 'Boss fight' : G.mode === 'duel' ? 'Duel' : G.mode === 'space' ? 'In the ship' : pl.name)} · ${DIFFS[G.diff].name}` +
+      (G.online ? ` · Room <b>${U.esc(Net.code || '')}</b>` : '');
+  },
+  // what quitting means for you (your stuff is saved as you go)
+  quitNote() {
+    if (!G.online) return 'Your progress is saved.';
+    return Net.isHost ? 'Your progress is saved. Your crew gets disconnected.' : 'Your progress is saved. You can join again with the room code.';
   },
 
   setupChat() {
@@ -683,8 +740,8 @@ const Game = {
     N.on('hostgone', () => {
       if (this.permaDead) return;
       if (document.pointerLockElement) document.exitPointerLock();
-      UI.openPanel(`<h2 class="ph">Lost the captain</h2><p class="psub">The host left the game (or their internet sneezed). Your bucks and gear are saved.</p>
-        <div class="center"><button class="btn big" data-act="reload" style="max-width:300px">Back to menu</button></div>`, (a) => { if (a === 'reload') location.reload(); }, null, () => location.reload());
+      UI.openPanel(`<div class="endcard"><h2 class="ph center">Lost the captain</h2><p class="center psub">The host left the game (or their internet sneezed). Your bucks and gear are saved.</p>
+        <div class="center"><button class="btn big green" data-act="reload" style="max-width:300px">Back to main menu</button></div></div>`, (a) => { if (a === 'reload') location.reload(); }, null, () => location.reload());
     });
     // --- everyone
     N.on('chat', (m) => { UI.feed(`<b>${U.esc(m.n)}:</b> ${U.esc(m.text)}`); Sound.play('chat'); });
@@ -816,8 +873,11 @@ const Game = {
   frame(now, hidden) {
     const dt = U.clamp((now - (this.last || now)) / 1000, 0, 0.05); // (never backwards: frame times from two clocks can disagree a hair)
     this.last = now;
+    if (!hidden) Options.frame((now - (this.fpsLast || now)) / 1000);
+    this.fpsLast = now;
     const cam = G.camera;
-    const paused = !G.online && G.started && !G.locked && !G.panel && !G.chatting;
+    // (solo: the pause menu stops the game, and so does anything you open from it, like Options)
+    const paused = !G.online && G.started && ((!G.locked && !G.panel && !G.chatting) || (G.panel && UI.backToPause));
     if (!paused) {
       G.time += dt;
       this.keys();
@@ -894,7 +954,7 @@ const Game = {
   // hotbar: see any shop)" if it isn't)
   slotTip(tool, what) {
     const i = Loadout.findTool(tool);
-    return i >= 0 ? `${Keys.name('slot' + (i + 1))}: ${what}` : `${what} (put it on your hotbar at a shop)`;
+    return i >= 0 ? `{slot${i + 1}}: ${what}` : `${what} (put it on your hotbar at a shop)`;
   },
   updateHint() {
     const p = G.player;

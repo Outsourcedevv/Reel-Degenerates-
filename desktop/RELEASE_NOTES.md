@@ -1,14 +1,36 @@
 ## New in 1.12: a hotbar, keybinds, critters you pick up, and bosses that go out with a bang
 
+- **It looks and plays like a PC game now, not a web page.** A new title screen (Play, Multiplayer, Customize,
+  Options, How to Play, Quit Game) with music, your name and goober in the top right corner (click them to change
+  them), and a loading screen with a progress bar. The pause menu matches it: Resume, Options, Customize, How to Play,
+  Quit to Main Menu and Quit to Desktop (both ask first).
+- **Options.** Gameplay (field of view, screen shake, FPS counter, friendly fire), Video (fullscreen or windowed,
+  graphics quality, render resolution), Audio (master, effects and music volume, mute in the background) and
+  Controls (mouse sensitivity, invert mouse, keybinds). The game stays paused while you're in them.
+- **Fullscreen.** The game starts fullscreen and remembers how you left it; `F11` or `Alt+Enter` switches between
+  fullscreen and a window. (Fullscreen, quitting, the title music straight away, and only one copy running at a time
+  need this version's download; the in-game update brings the rest.)
+- **Esc in a shop** takes you straight back into the game with the mouse grabbed (it sometimes brought up the pause
+  menu instead).
+- No more web page leftovers: no zooming in with `Ctrl` + wheel, a file dropped on the window can't replace the game,
+  no browser tooltips or dropdown arrows, and a button you clicked doesn't get pressed again by `Space`.
+- **How to Play is a field manual now**, in tabs (Controls, Guns, The loop, Critters, Ship, Crew), with every key
+  listed as a key, instead of one long page to scroll. The first-day note from Dave is shorter, with just the basic
+  keys.
+- **Keys look like keys** everywhere in the game: the tips above your hotbar, the big titles (like getting in the
+  ship), and on each menu's close button (`Esc`).
+- The game's own mouse pointer in menus, a `SAY` box for chat, the star map's planet names no longer cut off at the
+  edges (and it has stars now), and "You died" (Hardcore) and "Lost the captain" fill the screen like a game over
+  should. In the cockpit the speed and altitude are on the dashboard only, not twice.
+
 - **A 5-slot hotbar.** Put anything you own in any slot: carry three guns and the Grabby Vac if you like. Pressing a
   slot's key takes out what's in that slot and only that (no more flipping to your last gun). Everything else waits
   in your locker: swap things in, take anything off, or swap two slots on any shop's new **Loadout** tab. New guns
   go straight onto your hotbar if there's room. Die and your gear's slots wait for it; pick your stuff up and it all
   goes back where it was.
 - **Esc does what you'd expect.** It closes shops and menus and drops you straight back into the game (no pause menu),
-  and on the pause menu it's the same as Resume. If the mouse can't be grabbed again right away, "Click to look
-  around" comes up: the keys work, the mouse doesn't turn you until you click (no more getting stuck spinning at the
-  edge of the screen), and that click doesn't shoot.
+  and on the pause menu it's the same as Resume, with the mouse grabbed straight back (no more "Click to look
+  around", and no getting stuck spinning at the edge of the screen).
 - **Mini boss prizes.** Mini bosses turn up a bit more often (after 15 critters, 4% a kill) and drop prizes when they
   pop: a trophy that sells for a lot, Goo Grenades, and the first time, a special item that's yours for keeps: jump
   higher, sell for more, reload faster, heal faster, hit harder, run faster, or take less damage.
@@ -25,6 +47,17 @@
   (Frostbyte, $3,500) and put it on any gun that aims, on the shop's Loadout tab. The red dot aims in twice as fast
   and barely slows you down, the holo zooms in more and tightens your hip fire, the 3x scope is for long shots.
   Your friends see the sight on your gun.
+- **Bosses are much tougher to fight.** Their attacks move three times as fast (shots, shockwaves, sweeping beams,
+  charges, falling stuff), with shorter warnings. They circle round you instead of standing still, see your shots
+  coming and sidestep them, and in phase 2 they often do two attacks at once.
+- **Nimbus-9 is easier on the eyes** (it was nearly all white), and **its clouds are bouncy**: fall off an island and
+  they throw you back up into the sky, onto the nearest island, instead of dumping you back at the ship.
+- **Esc on the pause menu** takes you straight back into the game with the mouse grabbed (it used to open the menu
+  again, and a second press left the mouse loose).
+- **Bigger sights.** The red dot and holo windows are about twice the size with clearer glass, and the scope view
+  (the Longshot's and the 3x Scope's) fills almost the whole screen.
+- **Back from a boss win,** what you won and the planet you just unlocked come up at the bottom of the screen
+  ("+$400 · New planet unlocked: Luckstar").
 - **JACKPOT kills pay double.** A critter killed by a Jackpot Blaster JACKPOT shot (or its blast) is worth 2x: a
   new style bonus, on top of the rest.
 - **No more cap on style bonuses.** They used to stop at 5x in total; now they all multiply together, however many

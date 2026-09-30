@@ -1839,7 +1839,7 @@ const SIGHT_MOUNT = {
   chain: [-0.15, 0.11, 0.138],
 };
 // (each sight's window middle to its bottom: see buildSight)
-const SIGHT_HALF = { dot: 0.038, holo: 0.04, scope: 0.034 };
+const SIGHT_HALF = { dot: 0.058, holo: 0.065, scope: 0.034 };
 // a sight, with the middle of its window (where you look through it) at 0,0,0. drop: how far down its riser
 // goes to the gun. userData.half: from the middle of the window down to the bottom of the sight
 function buildSight(id, drop = 0) {
@@ -1869,7 +1869,7 @@ function buildSight(id, drop = 0) {
     for(let i=0;i<4;i++)box(.002,.002,.008,edge,-.009+i*.006,.038,-.001);
     box(.018,.009,.033,accent,-.022,0,-.08);
   } else {
-    const holo=id==='holo',w=holo?.04:.03,h=holo?.028:.025,t=holo?.012:.013,d=holo?.075:.05;
+    const holo=id==='holo',w=holo?.08:.06,h=holo?.055:.048,t=.01,d=holo?.07:.05;
     // Continuous rounded hood, with a real open window and softened front/back lips.
     const roundedPath=(p,w,h,r)=>{
       p.moveTo(-w+r,-h);p.lineTo(w-r,-h);p.quadraticCurveTo(w,-h,w,-h+r);
@@ -1892,7 +1892,7 @@ function buildSight(id, drop = 0) {
       rounded(.003,h*.8,d*.45,.001,accent,sx*(w+.01),-.005,0);
       screw(sx*(w+.005),-h+.005,d/2+.002);
     }
-    const glass=new THREE.Mesh(new THREE.PlaneGeometry(w*2,h*2),new THREE.MeshPhongMaterial({color:holo?'#76e5d7':'#c78571',transparent:true,opacity:.18,shininess:100,depthWrite:false,side:THREE.DoubleSide}));glass.position.z=-d/2+.006;glass.name='Sight glass';g.add(glass);
+    const glass=new THREE.Mesh(new THREE.PlaneGeometry(w*2,h*2),new THREE.MeshPhongMaterial({color:holo?'#76e5d7':'#c78571',transparent:true,opacity:.1,shininess:100,depthWrite:false,side:THREE.DoubleSide}));glass.position.z=-d/2+.006;glass.name='Sight glass';g.add(glass);
     box(w*1.3,.005,.008,rubber,0,-h+.002,d/2+.004);
     box(.004,.002,.003,holo?'#60f3cb':'#ff6249',0,-h+.005,d/2+.003);
     if(holo){

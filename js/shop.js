@@ -99,7 +99,7 @@ const Shop = {
         <span class="k">${U.esc(Keys.name('slot' + (i + 1)))}</span>
         <div class="ic">${ok || lost ? Thumbs.img(Loadout.pic(it), '', Loadout.icon(it)) : ''}</div>
         <b>${ok ? U.esc(Loadout.name(it)) : lost ? `${U.esc(Loadout.name(it))}<small>in your grave</small>` : 'Empty'}</b>
-        ${ok ? this.sightMenu(Loadout.gun(it)) : ''}${ok || lost ? `<button class="lx" data-act="loff" data-i="${i}" title="${Loadout.crit(it) ? 'Put it in your backpack' : 'Take it off'}">${icon('close')}</button>` : ''}</div>`;
+        ${ok ? this.sightMenu(Loadout.gun(it)) : ''}${ok || lost ? `<button class="lx" data-act="loff" data-i="${i}" data-tip="${Loadout.crit(it) ? 'Put it in your backpack' : 'Take it off'}">${icon('close')}</button>` : ''}</div>`;
     };
     const card = (it) => `<div class="card2"><div class="ic">${Thumbs.img(Loadout.pic(it), '', Loadout.icon(it))}</div>
       <div class="info"><h4>${U.esc(Loadout.name(it))}</h4><div class="chips">${this.gearChips(it).map((c) => `<span>${U.esc(c)}</span>`).join('')}</div>${this.sightMenu(Loadout.gun(it))}</div>
@@ -113,8 +113,8 @@ const Shop = {
   sightMenu(g) {
     if (g == null || !Number.isInteger(g) || !canSight(gunDef(g))) return '';
     const haveGun = g === -1 || SAVE.guns.includes(g), on = sightOf(g);
-    // Magnification relative to the normal 72-degree camera, using projection FOV.
-    const zoom = id => '~' + (Math.tan(72*Math.PI/360)/Math.tan((id?SIGHTS[id].zoom:AIM.zoom)*Math.PI/360)).toFixed(1) + '×';
+    // Magnification relative to the configured normal camera FOV, using projection FOV.
+    const zoom = id => '~' + (Math.tan(((G.settings && G.settings.fov) || 72)*Math.PI/360)/Math.tan((id?SIGHTS[id].zoom:AIM.zoom)*Math.PI/360)).toFixed(1) + '×';
     const picture = id => id ? Thumbs.img('sight:'+id, '', 'star') : icon('gun');
     const row = (id, name, status, disabled) => '<button type="button" data-act="scope-pick" data-g="'+g+'" data-s="'+id+'" '+(disabled?'disabled':'')+'><span class="scope-picture">'+picture(id)+'</span><span class="scope-copy"><b>'+U.esc(name)+'</b><small>'+U.esc(status)+'</small></span><span class="scope-zoom">'+zoom(id)+'<small>AIM ZOOM</small></span></button>';
     const options = row('', 'No scope', on ? 'Equip' : 'Equipped', !haveGun || !on) + Object.entries(SIGHTS).map(([id,s]) => {
