@@ -1844,44 +1844,73 @@ const SIGHT_HALF = { dot: 0.038, holo: 0.04, scope: 0.034 };
 // goes to the gun. userData.half: from the middle of the window down to the bottom of the sight
 function buildSight(id, drop = 0) {
   const g = new THREE.Group(); g.name = SIGHTS[id] ? SIGHTS[id].name : 'Sight';
-  const glass = (w, h, color, z = 0) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide })); m.position.z = z; m.name = 'Sight glass'; g.add(m); return m; };
-  let half;
-  if (id === 'scope') { // (a little scope: a tube, a big front lens, an eyepiece, knobs on top and the side)
-    half = 0.034;
-    tf(mk(CYL(0.022, 0.022, 0.2, 12), '#39404f', g), PI / 2);
-    tf(mk(CYL(0.036, 0.022, 0.05, 12), '#39404f', g, 0, 0, -0.12), PI / 2);
-    tf(mk(CYL(0.03, 0.022, 0.04, 12), '#39404f', g, 0, 0, 0.11), PI / 2);
-    for (const z of [-0.145, 0.13]) tf(mk(CYL(0.034, 0.034, 0.012, 12), '#ffd23f', g, 0, 0, z), PI / 2);
-    tf(mk(CYL(0.033, 0.033, 0.004, 12), '#5fc8ff', g, 0, 0, -0.146, { emissive: '#1d5a80' }), PI / 2);
-    tf(mk(CYL(0.027, 0.027, 0.004, 12), '#1a2030', g, 0, 0, 0.131), PI / 2);
-    mk(CYL(0.012, 0.012, 0.022, 8), '#ffd23f', g, 0, 0.03, 0);
-    tf(mk(CYL(0.012, 0.012, 0.022, 8), '#ffd23f', g, 0.03, 0, 0), 0, 0, PI / 2);
-    for (const z of [-0.06, 0.06]) mk(BOX(0.03, 0.016, 0.022), '#2a2f3a', g, 0, -0.026, z);
-  } else if (id === 'holo') { // (a wide window with neon strips round it, and a battery on the side)
-    const w = 0.04, h = 0.028, t = 0.012, d = 0.075;
-    half = h + t;
-    mk(BOX(2 * w + 2 * t, t, d), '#2b2440', g, 0, -h - t / 2, 0);
-    mk(BOX(2 * w + 2 * t, t, d + 0.02), '#2b2440', g, 0, h + t / 2, -0.01);
-    for (const sx of [-1, 1]) mk(BOX(t, 2 * h, d), '#2b2440', g, sx * (w + t / 2), 0, 0);
-    for (const sy of [-1, 1]) mk(BOX(2 * w, 0.004, 0.006), '#ff3df0', g, 0, sy * (h - 0.002), -d / 2 + 0.004, { emissive: '#a0209a' });
-    for (const sx of [-1, 1]) mk(BOX(0.004, 2 * h, 0.006), '#3df0ff', g, sx * (w - 0.002), 0, -d / 2 + 0.004, { emissive: '#1a8a90' });
-    mk(BOX(0.018, 0.03, 0.045), '#f2c44e', g, w + t + 0.009, -0.01, 0.01);
-    glass(2 * w, 2 * h, '#7df9ff', -d / 2 + 0.008);
-  } else { // (the red dot: a small square hood, red, with a glass window and a little light on the side)
-    const w = 0.03, h = 0.025, t = 0.013, d = 0.05;
-    half = h + t;
-    mk(BOX(2 * w + 2 * t, t, d + 0.01), '#2f3440', g, 0, -h - t / 2, 0);
-    mk(BOX(2 * w + 2 * t, t, d), '#e8483c', g, 0, h + t / 2, 0);
-    for (const sx of [-1, 1]) mk(BOX(t, 2 * h, d), '#e8483c', g, sx * (w + t / 2), 0, 0);
-    tf(mk(CYL(0.008, 0.008, 0.01, 8), '#ff3a2a', g, w + t + 0.004, 0.006, 0.008, { emissive: '#aa1a10' }), 0, 0, PI / 2);
-    glass(2 * w, 2 * h, '#ff8a8a', -d / 2 + 0.006);
+  const metal='#303b45', edge='#71838c', rubber='#151e26', accent=id==='dot'?'#d56a50':id==='holo'?'#67d9d0':'#c5ad78';
+  const half=SIGHT_HALF[id] || .038;
+  const box=(w,h,d,c,x=0,y=0,z=0)=>mk(BOX(w,h,d),c,g,x,y,z);
+  const ring=(r,t,c,z)=>mk(new THREE.TorusGeometry(r,t,6,24),c,g,0,0,z);
+  const lens=(r,z,c)=>{const m=new THREE.Mesh(new THREE.CircleGeometry(r,32),new THREE.MeshPhongMaterial({color:c,transparent:true,opacity:.24,shininess:100,depthWrite:false,side:THREE.DoubleSide}));m.position.z=z;m.name='Sight glass';g.add(m);};
+  const screw=(x,y,z)=>{tf(mk(CYL(.003,.003,.002,8),edge,g,x,y,z),PI/2);box(.003,.0008,.0025,rubber,x,y,z+.001);};
+  if(id==='scope') {
+    // Open optical tube: no opaque end caps through the aiming axis.
+    const tube=(r1,r2,length,z,c)=>tf(mk(new THREE.CylinderGeometry(r1,r2,length,24,1,true),c,g,0,0,z,{side:THREE.DoubleSide}),PI/2);
+    tube(.021,.021,.19,0,metal);
+    tube(.034,.021,.045,-.115,metal);
+    tube(.026,.021,.035,.108,rubber);
+    for(const z of [-.139,-.13])ring(.032,.003,edge,z);
+    for(const z of [.098,.106,.114,.122])ring(.025,.0025,rubber,z);
+    ring(.027,.002,accent,.125);ring(.034,.002,accent,-.14);
+    lens(.031,-.14,'#55b9cc');lens(.024,.126,'#5b9bd4');
+    for(const z of [-.055,.047]){ring(.022,.0035,edge,z);box(.032,.015,.02,metal,0,-.026,z);screw(.015,-.026,z+.011);}
+    mk(CYL(.014,.014,.015,16),metal,g,0,.027,0);
+    mk(CYL(.015,.015,.004,16),rubber,g,0,.036,0);
+    box(.011,.001,.002,accent,0,.0385,0);
+    tf(mk(CYL(.012,.012,.016,16),metal,g,.028,0,0),0,0,PI/2);
+    tf(mk(CYL(.013,.013,.004,16),rubber,g,.038,0,0),0,0,PI/2);
+    for(let i=0;i<4;i++)box(.002,.002,.008,edge,-.009+i*.006,.038,-.001);
+    box(.018,.009,.033,accent,-.022,0,-.08);
+  } else {
+    const holo=id==='holo',w=holo?.04:.03,h=holo?.028:.025,t=holo?.012:.013,d=holo?.075:.05;
+    // Continuous rounded hood, with a real open window and softened front/back lips.
+    const roundedPath=(p,w,h,r)=>{
+      p.moveTo(-w+r,-h);p.lineTo(w-r,-h);p.quadraticCurveTo(w,-h,w,-h+r);
+      p.lineTo(w,h-r);p.quadraticCurveTo(w,h,w-r,h);
+      p.lineTo(-w+r,h);p.quadraticCurveTo(-w,h,-w,h-r);
+      p.lineTo(-w,-h+r);p.quadraticCurveTo(-w,-h,-w+r,-h);return p;
+    };
+    const rounded=(width,height,depth,r,color,x=0,y=0,z=0,hole=null)=>{
+      const shape=roundedPath(new THREE.Shape(),width/2,height/2,r);
+      if(hole)shape.holes.push(roundedPath(new THREE.Path(),hole[0],hole[1],hole[2]));
+      const bevel=.0015,geo=new THREE.ExtrudeGeometry(shape,{depth:depth-2*bevel,steps:1,curveSegments:12,bevelEnabled:true,bevelSegments:4,bevelSize:bevel,bevelThickness:bevel});
+      const mesh=new THREE.Mesh(geo,new THREE.MeshPhongMaterial({color,shininess:45}));
+      mesh.position.set(x,y,z-depth/2+bevel);mesh.castShadow=true;g.add(mesh);return mesh;
+    };
+    rounded(2*w+2*t-.003,t-.003,d+.011,.004,metal,0,-h-t/2,0);
+    rounded(2*w+.017,2*h+.017,d,holo?.016:.014,metal,0,0,-.002,[w,h,.01]);
+    // Rounded trim follows the hood instead of separate angular corner braces.
+    rounded(2*w+.018,2*h+.018,.003,holo?.016:.014,edge,0,0,d/2-.003,[w+.002,h+.002,.011]);
+    for(const sx of [-1,1]){
+      rounded(.003,h*.8,d*.45,.001,accent,sx*(w+.01),-.005,0);
+      screw(sx*(w+.005),-h+.005,d/2+.002);
+    }
+    const glass=new THREE.Mesh(new THREE.PlaneGeometry(w*2,h*2),new THREE.MeshPhongMaterial({color:holo?'#76e5d7':'#c78571',transparent:true,opacity:.18,shininess:100,depthWrite:false,side:THREE.DoubleSide}));glass.position.z=-d/2+.006;glass.name='Sight glass';g.add(glass);
+    box(w*1.3,.005,.008,rubber,0,-h+.002,d/2+.004);
+    box(.004,.002,.003,holo?'#60f3cb':'#ff6249',0,-h+.005,d/2+.003);
+    if(holo){
+      rounded(.06,.014,.039,.005,metal,0,-h-.004,.05);
+      for(const x of [-.022,-.011,0,.011,.022])box(.003,.002,.028,rubber,x,-h+.005,.05);
+      tf(mk(CYL(.009,.009,.025,32),rubber,g,w+.017,-.01,.013),PI/2);
+      ring(.007,.0015,accent,.075).position.y=-h-.005;
+      box(.005,.003,.022,accent,-w-.009,.008,0);
+    }else{
+      tf(mk(CYL(.012,.012,.014,32),rubber,g,w+.014,-.004,.004),0,0,PI/2);
+      tf(mk(CYL(.01,.01,.002,32),edge,g,w+.022,-.004,.004),0,0,PI/2);
+      box(.002,.006,.002,accent,w+.023,-.004,.004);
+    }
   }
-  const riser = drop - half; // (down to the gun)
-  if (riser > 0.004) {
-    mk(BOX(0.03, riser, 0.04), '#2f3440', g, 0, -half - riser / 2, 0);
-    mk(BOX(0.05, 0.012, 0.075), '#2f3440', g, 0, -drop + 0.006, 0);
-  }
-  g.userData.half = half;
+  // Keep the original mount depth and optical centre for existing ADS alignment.
+  const riser=drop-half;
+  if(riser>.004){box(.03,riser,.04,metal,0,-half-riser/2,0);box(.05,.012,.075,rubber,0,-drop+.006,0);for(const x of [-.022,.022])box(.004,.007,.07,edge,x,-drop+.008,0);}
+  g.userData.half=half;
   return g;
 }
 // put sight id on a gun (built by GunDesigns.build). Where you look through it: userData.sightLens

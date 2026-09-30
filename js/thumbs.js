@@ -75,6 +75,19 @@ const Thumbs = {
     return u ? `<img class="thumb ${cls}" src="${u}" alt="" draggable="false">` : fallback === null ? '' : icon(fallback, cls);
   },
 
+  // Larger cached renders are only made for inspected shop items.
+  hero(key, fallback = 'box') {
+    if (!key) return icon(fallback);
+    const cacheKey = 'hero:' + key;
+    if (!this.cache.has(cacheKey)) {
+      if (!this.renderer) this.init();
+      this.renderer.setSize(640, 640, false);
+      try { this.cache.set(cacheKey, this.render(key)); }
+      finally { this.renderer.setSize(this.SIZE, this.SIZE, false); }
+    }
+    const u = this.cache.get(cacheKey);
+    return u ? '<img class="shop-hero" src="'+u+'" alt="" draggable="false">' : icon(fallback);
+  },
   render(key) {
     let spec;
     try { spec = this.model(key); } catch (e) { console.warn('no picture for', key, e); return null; }

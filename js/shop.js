@@ -28,7 +28,7 @@ const STARTER_GUN = { kind: 'zap', lvl: 0, price: 200, desc: 'Your first REAL gu
 function planetUnlocked(i) { return i === 0 || G.progress.includes(PLANETS[i - 1].boss) || (PLANETS[i].boss === 'zorblax' && !!SAVE.zorbOpen); }
 
 const Shop = {
-  tab: 'buy', cur: null, line: '',
+  tab: 'buy', cur: null, line: '', inspect: null,
 
   itemInfo(it) {
     // returns {name, desc, icon, chips[], owned, locked, lockMsg}
@@ -113,13 +113,16 @@ const Shop = {
   sightMenu(g) {
     if (g == null || !Number.isInteger(g) || !canSight(gunDef(g))) return '';
     const haveGun = g === -1 || SAVE.guns.includes(g), on = sightOf(g);
-    const row = (id, name, status, disabled) => '<button type="button" data-act="scope-pick" data-g="'+g+'" data-s="'+id+'" '+(disabled?'disabled':'')+'><span>'+U.esc(name)+'</span><small>'+U.esc(status)+'</small></button>';
+    // Magnification relative to the normal 72-degree camera, using projection FOV.
+    const zoom = id => '~' + (Math.tan(72*Math.PI/360)/Math.tan((id?SIGHTS[id].zoom:AIM.zoom)*Math.PI/360)).toFixed(1) + '×';
+    const picture = id => id ? Thumbs.img('sight:'+id, '', 'star') : icon('gun');
+    const row = (id, name, status, disabled) => '<button type="button" data-act="scope-pick" data-g="'+g+'" data-s="'+id+'" '+(disabled?'disabled':'')+'><span class="scope-picture">'+picture(id)+'</span><span class="scope-copy"><b>'+U.esc(name)+'</b><small>'+U.esc(status)+'</small></span><span class="scope-zoom">'+zoom(id)+'<small>AIM ZOOM</small></span></button>';
     const options = row('', 'No scope', on ? 'Equip' : 'Equipped', !haveGun || !on) + Object.entries(SIGHTS).map(([id,s]) => {
       const unlocked=planetUnlocked(s.planet), owned=(SAVE.sights||[]).includes(id);
       const status=!unlocked?'Unlock '+PLANETS[s.planet].name:!haveGun?'Buy this gun first':on===id?'Equipped':owned?'Equip':'Buy & equip · '+U.bucks(s.price);
       return row(id,s.name,status,!unlocked||!haveGun||on===id||(!owned&&SAVE.bucks<s.price));
     }).join('');
-    return '<details class="scope-picker" data-act="scope-menu"><summary>Scope: '+U.esc(on?SIGHTS[on].short:'None')+'</summary><div class="scope-options">'+options+'</div></details>';
+    return '<details class="scope-picker" data-act="scope-menu"><summary><span class="scope-current-picture">'+picture(on)+'</span><span>Scope: '+U.esc(on?SIGHTS[on].short:'None')+'</span><span class="scope-current-zoom">'+zoom(on)+'</span></summary><div class="scope-options">'+options+'</div></details>';
   },
   pickSight(g,id) {
     if (!Number.isInteger(g) || (g!==-1&&!SAVE.guns.includes(g)) || !canSight(gunDef(g))) return false;
@@ -266,6 +269,7 @@ const Shop = {
     return 'gear';
   },
   open(shopId, tab) {
+    if (this.cur !== shopId || !G.panel) this.inspect = null;
     this.cur = shopId;
     const cfg = SHOPS[shopId];
     const items = !SAVE.guns.length && !cfg.items.some((it) => it.kind === 'zap' && it.lvl === 0) ? [STARTER_GUN, ...cfg.items] : cfg.items;
@@ -328,22 +332,30 @@ const Shop = {
         ${SAVE.hat === h ? '<div class="badge ok">WEARING</div>' : `<button class="price" data-act="hat" data-h="${h}">Wear</button>`}</div>`).join('') + '</div>' +
         '<p class="tip">Your hats come with you to every world. More come from other shops, and from Mystery Crates on Luckstar.</p>';
     } else {
-      body = '<div class="cards">' + items.map((it, i) => [it, i]).filter(([it]) => this.section(it) === this.tab).map(([it, i]) => card(it, i)).join('') + '</div>';
-      if (this.tab === 'weapons') body += '<p class="tip">Every gun you buy is yours to keep. Carry as many as you like on your hotbar: pick what goes where on the <b>Loadout</b> tab.</p>';
-      if (this.tab === 'special') body += '<p class="tip">Summoning items belong to the whole crew: anyone can use them at the boss altar.</p>';
+      const stock = items.map((it, i) => [it, i]).filter(([it]) => this.section(it) === this.tab);
+      if (!stock.some(([,i]) => i === this.inspect)) this.inspect = stock.length ? stock[0][1] : null;
+      const selected = stock.find(([,i]) => i === this.inspect);
+      const rows = stock.map(([it,i]) => {
+        const inf = this.itemInfo(it);
+        return `<button class="stock-row ${i===this.inspect?'selected':''}" data-act="inspect" data-i="${i}" aria-pressed="${i===this.inspect}"><span class="stock-number">${String(i+1).padStart(2,'0')}</span><span class="stock-image">${Thumbs.img(inf.pic,'',inf.icon)}</span><span class="stock-name"><b>${U.esc(inf.name)}</b><small>${inf.owned?'OWNED':U.bucks(it.price)}</small></span><span class="stock-arrow">›</span></button>`;
+      }).join('');
+      let detail = '';
+      if (selected) {
+        const [it,i] = selected, inf = this.itemInfo(it), poor = SAVE.bucks < it.price;
+        detail = `<article class="item-inspector"><div class="item-stage"><span class="stage-label">EQUIPMENT INSPECTION / ${String(i+1).padStart(2,'0')}</span>${Thumbs.hero(inf.pic,inf.icon)}<span class="stage-type">${U.esc(inf.chips[0]||this.tab)}</span></div><div class="item-spec"><div class="item-eyebrow">${U.esc(this.tab)} / ${inf.owned?'IN YOUR COLLECTION':'AVAILABLE TO PURCHASE'}</div><h2>${U.esc(inf.name)}</h2><p>${U.esc(inf.desc)}</p><div class="item-stats">${inf.chips.map(c=>'<span>'+U.esc(c)+'</span>').join('')}</div>${it.kind==='zap'?this.sightMenu(it.lvl):''}<div class="item-purchase"><span><small>${inf.owned?'STATUS':'PRICE'}</small><b>${inf.owned?'Owned':U.bucks(it.price)}</b></span>${inf.owned?'<span class="purchase-owned">'+U.esc(inf.ownedMsg||'IN YOUR COLLECTION')+'</span>':`<button class="price" data-act="buy" data-i="${i}" ${poor||inf.locked?'disabled':''}>${inf.locked?'LOCKED':poor?'INSUFFICIENT BUCKS':'PURCHASE'} <span>↗</span></button>`}</div></div></article>`;
+      }
+      body = '<div class="shop-browser"><div class="stock-list"><div class="stock-heading">LOCAL STOCK <span>'+stock.length+' ITEMS</span></div>'+rows+'</div>'+detail+'</div>';
     }
+
+    const planet = PLANETS.find(p=>p.id===shopId);
     const html = `<div class="shop2" style="--acc:${cfg.color}">
-      <aside class="keeper">
-        <div class="face">${Thumbs.img('face:' + shopId, '', null) || initials(cfg.npc)}</div>
-        <div class="kname">${U.esc(cfg.npc)}</div>
-        <div class="bubble">${U.esc(this.line)}</div>
-        <div class="wallet"><small>YOUR BUCKS</small><b>${U.bucks(SAVE.bucks)}</b></div>
-        <div class="bag"><small>BACKPACK ${SAVE.cargo.length}/${cap}${value ? ` · worth ${U.bucks(value)}` : ''}</small><div class="meter"><i style="width:${Math.min(100, (SAVE.cargo.length / cap) * 100)}%"></i></div></div>
-      </aside>
-      <section class="wares"><div class="stabs">${tabs}</div><div class="wbody">${body}</div></section>
+      <header class="shop-header"><div><span class="shop-kicker">${U.esc(planet?planet.name:shopId)} / TRADING POST</span><h1>SUPPLY EXCHANGE<span> // </span></h1></div><div class="shop-balance"><small>AVAILABLE BUCKS</small><b>${U.bucks(SAVE.bucks)}</b></div></header>
+      <section class="wares"><nav class="stabs" aria-label="Shop sections">${tabs}</nav><div class="wbody">${body}</div></section>
+      <footer class="shop-footer"><div class="merchant-face">${Thumbs.img('face:'+shopId,'',null)}</div><div class="merchant-line"><b>${U.esc(cfg.npc)}</b><span>${U.esc(this.line)}</span></div><div class="shop-cargo"><small>BACKPACK</small><b>${SAVE.cargo.length} / ${cap}</b></div><button data-act="close" class="shop-exit"><kbd>ESC</kbd> LEAVE SHOP</button></footer>
     </div>`;
     const handler = (act, d) => {
       if (act === 'scope-menu') return;
+      if (act === 'inspect') this.inspect = Number(d.i);
       if (act === 'scope-pick') this.pickSight(Number(d.g), d.s);
       if (act === 'tab') { this.tab = d.t; }
       if (act === 'buy') this.buy(items[Number(d.i)]);
