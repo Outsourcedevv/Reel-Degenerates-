@@ -38,15 +38,27 @@ function inventoryEquip(it, i) {
 }
 
 const PhysicalInventory = {
-  on: false, page: 0, perPage: 8, chosen: null,
+  on: false, page: 0, perPage: 8, chosen: null, hovered: null, pinned: false,
   init() {
-    this.scene = new THREE.Scene(); this.scene.background = new THREE.Color('#18232b');
+    this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(40, 1, .05, 40);
     this.scene.add(new THREE.HemisphereLight('#d5ebf0', '#303448', .45));
     const light = new THREE.DirectionalLight('#fff1dc', .72); light.position.set(3, 8, 5); this.scene.add(light);
-    mk(BOX(35, .2, 35), '#28343c', this.scene, 0, -.1, 0);
+    // A light tint over the live world, with the pack rendered clearly on top.
+    const backdrop = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({
+      vertexShader: 'void main(){ gl_Position = vec4(position.xy, 0.0, 1.0); }',
+      fragmentShader: 'void main(){ gl_FragColor = vec4(0.035, 0.065, 0.085, 0.22); }',
+      transparent: true, depthTest: false, depthWrite: false,
+    }));
+    backdrop.frustumCulled = false; this.tintScene = new THREE.Scene(); this.tintScene.add(backdrop);
     this.ray = new THREE.Raycaster(); this.pointer = new THREE.Vector2(2, 2);
     this.caption = document.createElement('div'); this.caption.id = 'pack-caption'; this.caption.className = 'hidden'; document.body.appendChild(this.caption);
+    this.caption.addEventListener('click', e => {
+      const button = e.target.closest('[data-pack-act]'); if (!this.on || !button) return;
+      const action = button.dataset.packAct;
+      if (action === 'close') this.close();
+      else if (['use', 'favourite', 'drop'].includes(action)) this[action]();
+    });
     const canvas = G.renderer.domElement;
     canvas.addEventListener('pointermove', e => {
       if (!this.on) return;
@@ -56,10 +68,25 @@ const PhysicalInventory = {
     canvas.addEventListener('pointerdown', e => {
       if (!this.on) return;
       const r = canvas.getBoundingClientRect(); this.pointer.set((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1);
-      this.hover(); Sound.play('click');
+      e.preventDefault(); this.hover();
       const code = 'Mouse' + e.button;
-      if (['bag', 'use', 'nade', 'reload'].some(a => Keys.map[a] === code)) { Input.pressed[code] = !Input.keys[code]; Input.keys[code] = true; }
+      // Keep custom mouse bindings available inside the pack.
+      if (['bag', 'use', 'nade', 'reload'].some(a => Keys.map[a] === code)) {
+        if (this.hovered) { this.chosen = this.hovered; this.pinned = true; }
+        Input.pressed[code] = !Input.keys[code]; Input.keys[code] = true; return;
+      }
+      if (e.button !== 0 && e.button !== 2) return;
+      this.chosen = this.hovered; this.pinned = !!this.chosen; this.describe();
+      if (!this.chosen) return;
+      if (e.button === 2) this.favourite();
+      else if (this.chosen.kind === 'page' || this.chosen.kind === 'slot') this.use();
+      else Sound.play('click');
     });
+    canvas.addEventListener('dblclick', e => {
+      if (!this.on || e.button !== 0 || Keys.map.use === 'Mouse0') return;
+      if (this.chosen && this.chosen.kind === 'cargo' && cargoRes(this.chosen.id).crit) this.use();
+    });
+    canvas.addEventListener('pointerleave', () => { if (this.on) { this.hovered = null; this.pointer.set(2, 2); this.describe(); } });
     canvas.addEventListener('wheel', e => {
       if (!this.on) return; e.preventDefault();
       if (performance.now() - (this.wheelAt || 0) < 180) return;
@@ -69,7 +96,7 @@ const PhysicalInventory = {
   open() {
     if (this.on || !G.started || G.mode !== 'planet' || G.player.dead || G.player.down || G.panel || G.world.rising) return;
     if (!this.scene) this.init();
-    this.on = true; this.page = 0; this.chosen = null; this.pointer.set(2, 2); this.world = G.world;
+    this.on = true; this.page = 0; this.chosen = this.hovered = null; this.pinned = false; this.pointer.set(2, 2); this.world = G.world;
     G.player.releaseTargets(); Game.wantLock = false; clearTimeout(Game.lockT); clearTimeout(Game.grabT); Game.setSoft(false); G.locked = false;
     Input.keys = {}; Input.pressed = {}; Input.dx = Input.dy = 0;
     document.body.classList.add('pack-open'); this.caption.classList.remove('hidden');
@@ -78,7 +105,7 @@ const PhysicalInventory = {
   },
   close(noLock = false) {
     if (!this.on) return;
-    this.on = false; this.chosen = null; document.body.classList.remove('pack-open'); this.caption.classList.add('hidden');
+    this.on = false; this.chosen = this.hovered = null; this.pinned = false; document.body.classList.remove('pack-open'); this.caption.classList.add('hidden');
     G.renderer.domElement.style.cursor = ''; Input.keys = {}; Input.pressed = {}; Input.dx = Input.dy = 0;
     if (this.root) { this.scene.remove(this.root); disposeObj(this.root); this.root = null; }
     Sound.play('close'); if (!noLock) Game.lock(); Game.updatePause();
@@ -91,7 +118,7 @@ const PhysicalInventory = {
   turnPage(dir) {
     const pages = Math.max(1, Math.ceil(this.stacks().length / this.perPage));
     const next = U.clamp(this.page + dir, 0, pages - 1); if (next === this.page) return;
-    this.page = next; this.chosen = null; this.pointer.set(2, 2); this.rebuild(); Sound.play('click');
+    this.page = next; this.chosen = this.hovered = null; this.pinned = false; this.pointer.set(2, 2); this.rebuild(); Sound.play('click');
   },
   addAction(group, action) { group.userData.inventoryAction = action; this.actions.push(group); action.group = group; return action; },
   rebuild() {
@@ -143,18 +170,21 @@ const PhysicalInventory = {
       action.ring = mk(BOX(.77, .012, .72), '#e3bf6b', group, 0, .249, 0); action.ring.visible = false;
     }
     this.chosen = this.actions.map(g => g.userData.inventoryAction).find(a => a.key === selected) || null;
+    this.hovered = null; if (!this.chosen) this.pinned = false;
     this.root.updateMatrixWorld(true); this.lastSignature = this.signature(); this.describe();
   },
   hover() {
+    this.layout(); this.root.updateMatrixWorld(true);
     this.ray.setFromCamera(this.pointer, this.camera);
     const hits = this.ray.intersectObjects(this.actions, true); let next = null;
     if (hits.length) { let group = hits[0].object; while (group && !group.userData.inventoryAction) group = group.parent; next = group && group.userData.inventoryAction; }
-    if (next) this.chosen = next;
+    this.hovered = next;
+    if (next && !this.pinned) this.chosen = next;
     G.renderer.domElement.style.cursor = next ? 'pointer' : 'default'; this.describe();
   },
   describe() {
     const a = this.chosen, esc = U.esc;
-    for (const g of this.actions) { const action = g.userData.inventoryAction; if (action.ring) action.ring.visible = action === a; }
+    for (const g of this.actions) { const action = g.userData.inventoryAction; if (action.ring) action.ring.visible = action === a || action === this.hovered; }
     let detail = 'Point at an item to inspect it', controls = 'Mouse wheel: pockets';
     if (a) {
       detail = a.name;
@@ -167,7 +197,15 @@ const PhysicalInventory = {
       else if (a.kind === 'page') controls = '{use}: turn pockets';
       else if (a.kind === 'passive') { detail += ' · Always active'; controls = a.id === 'magnet' ? MAGNET[SAVE.magnetLvl].range + 'm pickup radius · Ghosts excluded' : PERKS[a.id.slice(5)].desc; }
     }
-    UI.setHtml(this.caption, '<b>' + esc(detail) + '</b><span>' + keyHtml(controls) + '</span><small>Mouse: inspect · ' + esc(Keys.name('bag')) + ' / Esc: close pack</small>');
+    const button = (act, text) => '<button type="button" data-pack-act="' + act + '">' + esc(text) + '</button>';
+    let buttons = '';
+    if (a && a.id && (a.kind === 'cargo' || a.kind === 'slot')) {
+      const r = cargoRes(a.id);
+      if (a.kind === 'slot' || r.crit) buttons += button('use', a.kind === 'slot' ? 'Put in backpack' : 'Carry critter');
+      buttons += button('favourite', Activities.favourite(a.id) ? 'Unfavourite' : 'Favourite') + button('drop', 'Drop one');
+    } else if (a && a.kind === 'slot') buttons += button('use', 'Select slot') + button('drop', 'Stow gear');
+    else if (a && a.kind === 'page') buttons += button('use', 'Turn pockets');
+    UI.setHtml(this.caption, '<b>' + esc(detail) + '</b><span>' + keyHtml(controls) + '</span><div class="pack-actions">' + buttons + button('close', 'Close pack · ' + Keys.name('bag')) + '</div><small>Click: select · Right click: favourite · Double click: carry critter · Mouse wheel: pockets</small>');
   },
   use() {
     const a = this.chosen; if (!a) return;
@@ -197,7 +235,7 @@ const PhysicalInventory = {
   },
   keys() {
     if (Input.hit('bag') || Input.tap('Escape')) { this.close(); return; }
-    for (let i = 0; i < HOTBAR; i++) if (Input.hit('slot' + (i + 1))) { this.chosen = this.actions.map(g => g.userData.inventoryAction).find(a => a.key === 'slot:' + i); this.pointer.set(2, 2); }
+    for (let i = 0; i < HOTBAR; i++) if (Input.hit('slot' + (i + 1))) { this.chosen = this.actions.map(g => g.userData.inventoryAction).find(a => a.key === 'slot:' + i); this.pinned = true; this.pointer.set(2, 2); }
     if (Input.hit('use')) this.use();
     else if (Input.hit('nade')) this.favourite();
     else if (Input.hit('reload')) this.drop();
@@ -207,11 +245,20 @@ const PhysicalInventory = {
     if (G.mode !== 'planet' || G.world !== this.world || G.player.dead || G.player.down || G.player.ghost || G.panel || G.world.rising) { this.close(); return; }
     if (this.signature() !== this.lastSignature) this.rebuild();
   },
-  render() {
+  layout() {
     const aspect = innerWidth / innerHeight; this.camera.aspect = aspect; this.camera.updateProjectionMatrix();
-    const distance = Math.max(8.5, 6.8 / aspect), pitch = .57, target = new V3(0, 1.2, .3);
+    const distance = Math.max(9.4, 7.6 / aspect), pitch = .57, target = new V3(0, .8, .3);
     this.camera.position.set(.14 * distance, target.y + Math.sin(pitch) * distance, target.z + Math.cos(pitch) * distance); this.camera.lookAt(target);
-    this.hover(); G.renderer.render(this.scene, this.camera);
+    this.camera.updateMatrixWorld(true);
+  },
+  render() {
+    this.hover();
+    const renderer = G.renderer, autoClear = renderer.autoClear;
+    try {
+      renderer.autoClear = false; renderer.clearDepth();
+      renderer.render(this.tintScene, this.camera); renderer.render(this.scene, this.camera);
+    }
+    finally { renderer.autoClear = autoClear; }
   },
 };
 

@@ -33,18 +33,18 @@ const KEY_ACTIONS = {
   slot3: ['Hotbar slot 3', 'Digit3', 'slots', 'foot'],
   slot4: ['Hotbar slot 4', 'Digit4', 'slots', 'foot'],
   slot5: ['Hotbar slot 5', 'Digit5', 'slots', 'foot'],
-  bag: ['Open physical backpack', 'KeyI', 'menu', 'foot'],
+  bag: ['Open physical backpack', 'Tab', 'menu', 'foot'],
   guide: ['What to do on this planet', 'KeyH', 'menu', 'foot'],
   chat: ['Chat', 'KeyT', 'menu', 'any'],
-  crew: ['Crew list (hold)', 'Tab', 'menu', 'any'],
+  crew: ['Crew list (hold)', 'KeyI', 'menu', 'any'],
   music: ['Music on / off', 'KeyM', 'menu', 'foot'],
   map: ['Star map', 'KeyM', 'ship', 'ship'],
   swap: ['Swap seats', 'KeyF', 'ship', 'ship'],
   view: ['Look at the ship from outside (in the back)', 'KeyV', 'ship', 'ship'],
 };
 // (keys that used to be the default: a saved set of keys from before still has them, and gets the new ones)
-const KEY_OLD = { 1: { nade: 'Mouse2', dash: 'KeyQ' }, 2: { nade: 'KeyQ', dash: 'KeyF' } };
-const KEY_V = 3;
+const KEY_OLD = { 1: { nade: 'Mouse2', dash: 'KeyQ' }, 2: { nade: 'KeyQ', dash: 'KeyF' }, 3: { bag: 'KeyI', crew: 'Tab' } };
+const KEY_V = 4;
 const KEY_GROUPS = [['move', 'Moving'], ['act', 'Doing stuff'], ['slots', 'Hotbar'], ['menu', 'Menus & chat'], ['ship', 'The ship']];
 // (both Shift keys, both Ctrl keys... count as the same key)
 const normKey = (c) => (c === 'ShiftRight' ? 'ShiftLeft' : c === 'ControlRight' ? 'ControlLeft' : c === 'AltRight' ? 'AltLeft' : c === 'MetaRight' ? 'MetaLeft' : c);

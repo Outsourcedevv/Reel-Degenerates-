@@ -947,7 +947,7 @@ const Game = {
     G.sun.target.position.copy(f);
     PhysicalInventory.update();
     Input.endFrame();
-    if (!hidden) { if (PhysicalInventory.on) PhysicalInventory.render(); else Post.render(cam, dt); }
+    if (!hidden) { Post.render(cam, dt); if (PhysicalInventory.on) PhysicalInventory.render(); }
   },
   keys() {
     if (!G.started) return;

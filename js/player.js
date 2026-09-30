@@ -11,7 +11,7 @@ const Input = {
       if (G.chatting || e.target.tagName === 'INPUT' || Keys.capturing) return;
       const c = normKey(e.code);
       if (c === 'Tab' || c === 'Space' || (G.started && G.locked && Keys.bound(c) && c !== 'Escape')) e.preventDefault();
-      if (!this.keys[c]) this.pressed[c] = true;
+      if (!this.keys[c] && !e.repeat) this.pressed[c] = true;
       this.keys[c] = true;
     });
     addEventListener('keyup', (e) => { this.keys[normKey(e.code)] = false; });
@@ -1320,7 +1320,7 @@ class LocalPlayer {
     // (picking a friend up takes both hands: what you're holding goes down out of the way)
     this.reviveK = U.damp(this.reviveK || 0, this.reviveT > 0 ? 1 : 0, 10, dt);
     const sw = Math.max(this.swapT * this.swapT, this.reviveK, wk), run = this.sprintK; // (and while you get up off the ground)
-    this.vm.visible = !this.dead && !this.ghost && this.tpK < 0.5 && scopeK < 0.6; // (looking down the scope: no gun in the way)
+    this.vm.visible = !this.dead && !this.ghost && !PhysicalInventory.on && this.tpK < 0.5 && scopeK < 0.6; // (looking down the scope: no gun in the way)
     const steady = 1 - 0.92 * this.aimK; // (aimed, it hardly bobs or sways: a sight stays right on the crosshair)
     this.vm.position.set(
       (Math.cos(this.walkT) * (0.012 + run * 0.02) + this.swayX * 0.5) * steady,
