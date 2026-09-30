@@ -3,7 +3,7 @@ function testHealingAndSpooky() {
   const check = (v, message) => { if (!v) throw Error(message); };
   const old = { mode: G.mode, diff: G.diff }, results = [];
   try {
-    for (const [difficulty, expected] of [['easy', [10, 5]], ['hard', [6, 3]], ['hardcore', [3, 1.5]]]) {
+    for (const [difficulty, expected] of [['easy', [10, 5]], ['hard', [6, 3]], ['hardcore', [6, 3]]]) {
       G.diff = difficulty;
       for (const [i, mode] of ['planet', 'boss'].entries()) {
         G.mode = mode;

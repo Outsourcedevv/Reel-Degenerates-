@@ -44,12 +44,16 @@ const BOSS_PACE = { move: 3, warn: 1.5, tell: 1.25, track: 1.4 };
 // bosses on the move (the user wanted them moving about more and dodging). Walkers go this much faster and circle
 // round you (strafe: how much of their speed goes sideways) instead of standing still, and back off if you get too
 // close; the ones that circle the arena go orbit times as fast, drift in and out, and turn back now and then.
-// dodge: they see shots coming and sidestep (see: how far off they notice one, r: how close to them it has to be
-// heading, dist / t: how far and how quick the step, cd and chance: [phase 1, phase 2])
+// dodge: now and then, at random, they sidestep (the user didn't want them reading your shots: they don't look at
+// them at all). dist / t: how far and how quick the step, every: seconds between tries [phase 1, phase 2], chance:
+// how often a try is a step
 const BOSS_MOVE = { speed: 1.35, strafe: 0.85, orbit: 1.6 };
-const BOSS_DODGE = { see: 16, r: 2.6, dist: 4.5, t: 0.32, cd: [1.9, 1.1], chance: [0.55, 0.85] };
-// phase 2: how often a second attack goes off at the same time as the one it just wound up (see combo)
-const BOSS_COMBO = 0.5;
+const BOSS_DODGE = { dist: 4.5, t: 0.32, every: [[3, 6], [2.5, 5]], chance: 0.6 };
+// phase 2, by difficulty (the user wanted it to attack much less on Easy, a bit less on Hard and a tiny bit less on
+// Hardcore than it did). gap: the time between attacks is this many times longer than phase 2 would make it on its
+// own, combo: how often a second attack goes off at the same time as the one it just wound up (see combo)
+const BOSS_P2 = { easy: { gap: 1.7, combo: 0.12 }, hard: { gap: 1.25, combo: 0.32 }, hardcore: { gap: 1.1, combo: 0.42 } };
+const bossP2 = () => BOSS_P2[G.diff] || BOSS_P2.easy;
 const DANGER = '#ff2a2a'; // floor warnings for anything that hurts
 // the glow and trail of each kind of boss shot
 const SHOT_COL = {
@@ -433,36 +437,32 @@ class BossFight {
     this.fire({ k: 'tell', n: name, p: pose, t: dur, h: o.hold || 0.45, c: o.col || RING_COL[this.id], tg: o.tg || 0 });
     this.later(dur, () => {
       const cd = run();
-      ai.atkT = Math.max(0.5, (cd || 2.4) * ai.comp * U.rand(0.85, 1.15) - dur);
+      ai.atkT = Math.max(0.5, (cd || 2.4) * ai.comp * this.p2gap() * U.rand(0.85, 1.15) - dur);
       if (!o.solo) this.combo();
     });
     return -1;
   }
+  // phase 2: the gaps between attacks get this much longer (see BOSS_P2)
+  p2gap() { return this.phase === 2 ? bossP2().gap : 1; }
   // phase 2: now and then another of its attacks goes off at the same time as the one it just wound up
   combo() {
     const ai = this.ai;
-    if (this.phase !== 2 || this.st !== 'fight' || ai.instant || Math.random() > BOSS_COMBO || !this.targets().length) return;
+    if (this.phase !== 2 || this.st !== 'fight' || ai.instant || Math.random() > bossP2().combo || !this.targets().length) return;
     ai.instant = true;
     try { this['attack_' + this.id](); } finally { ai.instant = false; }
   }
-  // bosses see shots coming (the kind that fly: not beams or the Longshot) and sidestep, not while winding up or
-  // in the middle of a jump
+  // every few seconds (at random: it doesn't look at your shots) a boss may sidestep, not while winding up or in the
+  // middle of a jump
   dodgeCheck(dt) {
     const ai = this.ai, D = BOSS_DODGE, p2 = this.phase === 2 ? 1 : 0;
-    ai.dodgeT = (ai.dodgeT || 0) - dt;
-    if (ai.dodgeT > 0 || ai.mv || ai.busy > 0 || this.hidden) return;
-    const c = this.center();
-    for (const s of Shots.list) {
-      if (!s.vel || s.kind === 'cutter') continue;
-      const dx = c.x - s.pos.x, dy = c.y - s.pos.y, dz = c.z - s.pos.z, dist = Math.hypot(dx, dy, dz), sp = s.vel.length();
-      if (dist > D.see || sp < 3) continue;
-      const along = (dx * s.vel.x + dy * s.vel.y + dz * s.vel.z) / sp; // (how far it'll go before it's closest)
-      if (along <= 0 || dist * dist - along * along > D.r * D.r) continue; // (going away, or going to miss anyway)
-      ai.dodgeT = D.cd[p2];
-      if (Math.random() > D.chance[p2]) return; // (didn't see that one)
-      this.dodge(s.vel);
-      return;
-    }
+    if (ai.dodgeT == null) ai.dodgeT = U.rand(D.every[p2][0], D.every[p2][1]);
+    ai.dodgeT -= dt;
+    if (ai.dodgeT > 0) return;
+    if (ai.mv || ai.busy > 0 || this.hidden) { ai.dodgeT = 0.5; return; } // (busy: try again in a moment)
+    ai.dodgeT = U.rand(D.every[p2][0], D.every[p2][1]);
+    if (Math.random() > D.chance) return;
+    const a = Math.random() * Math.PI * 2;
+    this.dodge(new V3(Math.cos(a), 0, Math.sin(a))); // (a step to one side of a random direction)
   }
   dodge(v) {
     const ai = this.ai, side = Math.random() < 0.5 ? 1 : -1, D = BOSS_DODGE;
@@ -503,7 +503,7 @@ class BossFight {
         ai.attackCount = (ai.attackCount || 0) + 1;
         const precision = ['count', 'stormy', 'chad'].includes(this.id) && ai.attackCount % 4 === 0;
         const cd = precision ? this.attackProcession() : this['attack_' + this.id]();
-        ai.atkT = cd < 0 ? 99 : (cd || 2.4) * ai.comp * U.rand(0.85, 1.15); // (a wind-up sets it when the attack goes off)
+        ai.atkT = cd < 0 ? 99 : (cd || 2.4) * ai.comp * this.p2gap() * U.rand(0.85, 1.15); // (a wind-up sets it when the attack goes off)
       }
       ai.tauntT -= dt;
       if (ai.tauntT <= 0) {

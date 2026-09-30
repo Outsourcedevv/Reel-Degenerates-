@@ -679,7 +679,8 @@ const STYLE = {
 const DIFFS = {
   easy: { name: 'Easy', regen: { planet: 10, boss: 5 }, dmg: 1, crit: 1, crits: 14, spawn: [0.7, 6.5], revive: 10, desc: 'Enemies hit normally, and there are fewer critters about. Die on a planet and you just get back up. Boss fights: one life, but friends can pick you up (or you get up after 10s).' },
   hard: { name: 'Hard', regen: { planet: 6, boss: 3 }, dmg: 2, crit: 1.75, crits: 24, spawn: [0.3, 3], revive: 15, desc: 'Everything hits twice as hard, critters are much tougher, there are more of them and they come back faster. Mini bosses have a new attack. Boss fights: one life, friends can pick you up (or you get up after 15s).' },
-  hardcore: { name: 'Hardcore', regen: { planet: 3, boss: 1.5 }, dmg: 3.5, crit: 2.5, crits: 32, spawn: [0.2, 1.6], revive: 20, perma: true, desc: 'Everything hits WAY harder, critters are tanks and they\'re everywhere, mini bosses have two new attacks, and if you die, you die for good. The world is deleted. With friends in a boss fight you get back up after 20s, if one of them is still standing.' },
+  // (Hardcore heals like Hard: the user wanted them the same)
+  hardcore: { name: 'Hardcore', regen: { planet: 6, boss: 3 }, dmg: 3.5, crit: 2.5, crits: 32, spawn: [0.2, 1.6], revive: 20, perma: true, desc: 'Everything hits WAY harder, critters are tanks and they\'re everywhere, mini bosses have two new attacks, and if you die, you die for good. The world is deleted. With friends in a boss fight you get back up after 20s, if one of them is still standing.' },
 };
 
 const SUMMONS = {

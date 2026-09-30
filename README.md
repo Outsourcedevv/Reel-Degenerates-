@@ -42,8 +42,8 @@ difficulty:
 | Hard | Everything hits twice as hard. Critters have 1.75x the health, and there are more of them (up to 24, back quicker). Mini bosses learn a new attack (and pay 1.5x). |
 | Hardcore | Everything hits 3.5x as hard and critters have 2.5x the health, and they're everywhere (up to 32, back fast). Mini bosses learn two new attacks (and pay 2x). Solo, if you die, the world is deleted. With friends, you go down and can be revived, but if the whole crew is down at once, the world is deleted. |
 
-Health regenerates after the existing post-damage delay: **10 HP/s on Easy, 6 on Hard, and 3 on Hardcore**.
-During boss fights those rates are halved (5, 3, and 1.5 HP/s). Dead or ghost players do not regenerate.
+Health regenerates after the existing post-damage delay: **10 HP/s on Easy, 6 on Hard and Hardcore**.
+During boss fights those rates are halved (5 and 3 HP/s). Dead or ghost players do not regenerate.
 
 Spookulon’s shop sells the **Spooky Vacuum** for $6,500. It reaches 12m, sucks at 2.4x speed, and replaces the Turbo Vac with a haunted ectoplasm trap containing a tiny ghost.
 
@@ -211,8 +211,9 @@ if someone leaves, the duel's off.
 Bosses don't hang about. Their attacks are quick: everything they throw, every shockwave, sweeping beam and charge
 moves three times as fast as it used to, and the warnings are shorter, so you have to move the moment you see one.
 They keep moving too: the ones on foot circle round you instead of standing still (and back off if you get too
-close), the ones that fly round the arena go faster and turn back now and then, and all of them see your shots coming
-and sidestep (not the Longshot's: nothing dodges that). In phase 2 they often throw two attacks at once.
+close), the ones that fly round the arena go faster and turn back now and then, and every few seconds they may
+sidestep (at random: they don't see your shots coming). In phase 2 they attack more, and sometimes throw two attacks
+at once: rarely on Easy (with longer breaks in between), a bit more on Hard, and most on Hardcore.
 
 Every attack is still telegraphed, so you can read the fight:
 

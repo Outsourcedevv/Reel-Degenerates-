@@ -24,6 +24,10 @@
   menu instead).
 - No more web page leftovers: no zooming in with `Ctrl` + wheel, a file dropped on the window can't replace the game,
   no browser tooltips or dropdown arrows, and a button you clicked doesn't get pressed again by `Space`.
+- **Bosses ease off a bit.** They sidestep at random now instead of seeing your shots coming, and in phase 2 they
+  attack less often and rarely do two attacks at once on Easy (a bit less than before on Hard, a tiny bit less on
+  Hardcore).
+- **Hardcore heals as fast as Hard** (6 health a second, 3 in boss fights).
 - **Achievements.** 24 of them: every boss, headshots, GIANT and golden critters, style kills, mini bosses, ghosts,
   reviving a friend, duels, jackpots, gold medals, a sight, $10,000, owning every gun. See them all under
   **Achievements** on the title screen or in the pause menu. Ones your save already shows (bosses you've beaten,

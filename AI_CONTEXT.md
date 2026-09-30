@@ -89,6 +89,12 @@ Known documented systems include:
 
 ## Current Task
 
+### Boss nerf and Hardcore healing (2026-09-30)
+
+- The user asked for bosses to dodge at random, not when a shot comes at them: `dodgeCheck` no longer reads `Shots.list`; every `BOSS_DODGE.every` seconds ([phase 1, phase 2] ranges) it sidesteps with `chance` in a random direction (not while winding up or jumping).
+- Phase 2 attacks less, by difficulty (`BOSS_P2`): the time till the next attack is x`gap` (`p2gap`, both where `atkT` is set) and the double-attack chance is `combo` (was 0.5 everywhere): Easy 1.7 / 0.12, Hard 1.25 / 0.32, Hardcore 1.1 / 0.42.
+- Hardcore now heals like Hard (`DIFFS.hardcore.regen` 6 / 3, was 3 / 1.5); `tests/healing-and-spooky.js` expects that.
+
 ### Steam achievements and overlay (2026-09-30)
 
 - `desktop/steam.js` wraps steamworks.js (a `dependencies` entry; `asarUnpack` for its `dist/**`, mac `x64ArchFiles` for the universal build; electron-builder drops the `.dll` only on non-Windows builds). `prepare()` runs before app ready: App ID from `SteamAppId` (Steam launched us) or `desktop/steam.json` (`appId`, 0 = off; `requireSteam` restarts through Steam via `restartAppIfNecessary`, for the Steam build only); `electronEnableSteamOverlay()` (in-process-gpu, disable-direct-composition, frame invalidation) only when Steam launched the game. `BY_STEAM` is read at load: steamworks' `init` sets `SteamAppId`/`SteamGameId` even when it fails. `start()` after ready; without a Steam client `init` throws and the app carries on. The GitHub self-updater stays on under Steam too: the user asked to keep it for now (to leave updates to Steam later, make `canUpdate` skip when `steam.active()`/`steam.launchedBySteam()`). IPC `steam:info` / `steam:achieve` / `steam:has` / `steam:overlay`, preload `desktop.steam/achieve/achieved/steamAchievements`.
@@ -126,7 +132,7 @@ The user: "make it look more like a steam game so its suitable and it will not b
 
 - The Spooky Vacuum is now tier 2 of `VAC` (12m reach, 2.4x suction), sold only by the Spookulon shop for $6,500. Buying it raises `SAVE.vacLvl`, puts `vac` on the loadout, refreshes the held model and thumbnail, and sends `vl` in multiplayer state so remote players see the correct vacuum.
 - Its model is a purple ectoplasm trap with a green containment jar, captured ghost, rune lights and tooth-lined intake. `buildVacVM(2)` and `buildSpookyVacVM()` share the existing muzzle/nozzle/glow attachment contract and static batching.
-- Regeneration is now 10/6/3 HP/s on Easy/Hard/Hardcore and half those rates in boss fights, after the existing damage delay. The previous request for healing changes remains included.
+- Regeneration is now 10/6/6 HP/s on Easy/Hard/Hardcore (Hardcore was 3; the user asked for Hard and Hardcore to heal the same, 2026-09-30) and half those rates in boss fights, after the existing damage delay. The previous request for healing changes remains included.
 - `tests/healing-and-spooky.js` checks rates, delays, caps, dead/ghost/in-flight exclusions, model geometry/attachments, Spookolon shop purchase/equip and thumbnail rendering.
 
 ### Gameplay fixes, walk-in ship and handheld tools (2026-09-28)
