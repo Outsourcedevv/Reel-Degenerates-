@@ -67,7 +67,9 @@ The list lives in `js/achievements.js` (`ACHIEVEMENTS`). Adding one there means 
   needs the game to run its graphics in the main process (`in-process-gpu`), so that's only switched on when Steam
   starts the game.
 - **Your name.** Until you pick one yourself (Customize), your goober goes by your Steam name.
-- **Updates.** When it runs on Steam the app doesn't update itself from GitHub: Steam delivers updates.
+- **Updates.** For now the app keeps updating itself from GitHub on Steam too (the title screen offers each new
+  version, as in the GitHub download). Steam also delivers whatever build you upload. To leave updates to Steam
+  alone later, `canUpdate` in `desktop/main.js` can skip them when `steam.active()` or `steam.launchedBySteam()`.
 
 ## 4. Uploading the build
 

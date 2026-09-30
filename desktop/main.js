@@ -92,8 +92,8 @@ function gameFailed(why) {
 }
 
 // only an installed app updates itself (SPACE_GOOBERS_UPDATES=<game.json address> tries it out from the source).
-// Not on Steam: Steam keeps the game up to date there
-const canUpdate = () => (app.isPackaged || !!process.env.SPACE_GOOBERS_UPDATES) && !steam.active() && !steam.launchedBySteam();
+// (On Steam too, for now: the user wants the GitHub updates kept there as well)
+const canUpdate = () => app.isPackaged || !!process.env.SPACE_GOOBERS_UPDATES;
 const fromGame = (e) => win && e.sender === win.webContents;
 ipcMain.on('game:ready', (e) => { if (fromGame(e)) clearTimeout(readyT); });
 ipcMain.on('game:failed', (e, why) => { if (fromGame(e)) gameFailed(String(why).slice(0, 200)); });

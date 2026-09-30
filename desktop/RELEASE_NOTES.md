@@ -29,7 +29,8 @@
   **Achievements** on the title screen or in the pause menu. Ones your save already shows (bosses you've beaten,
   guns you own...) unlock the first time you load that world.
 - **Steam ready:** on Steam they're Steam achievements, the Steam overlay works (`Shift+Tab` pauses the game for it),
-  your goober takes your Steam name until you pick one, and Steam handles updates. (Needs this version's download.)
+  and your goober takes your Steam name until you pick one. Updates still come the usual way, from the title
+  screen. (Needs this version's download.)
 - **How to Play is a field manual now**, in tabs (Controls, Guns, The loop, Critters, Ship, Crew), with every key
   listed as a key, instead of one long page to scroll. The first-day note from Dave is shorter, with just the basic
   keys.
