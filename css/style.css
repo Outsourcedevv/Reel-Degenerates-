@@ -364,7 +364,9 @@ body:not(.desk) .mitem.desk { display: none; }
   animation: fadeUp .2s;
 }
 #prompt kbd { margin-right: 6px; background: #fff; color: #000; border-color: #fff; text-shadow: none; }
-#hint { position: absolute; bottom: 98px; left: 50%; transform: translateX(-50%); font-family: var(--font-b); font-size: 12px; color: rgba(255,255,255,.7); white-space: nowrap; }
+#hint { position: absolute; bottom: 98px; left: 50%; transform: translateX(-50%); display: flex; gap: 16px; font-family: var(--font-b); font-weight: 600; font-size: 12px; color: rgba(255,255,255,.85); white-space: nowrap; }
+#hint span { display: inline-flex; align-items: center; gap: 5px; }
+#hint kbd { min-width: 20px; font-size: 11px; padding: 0 5px; line-height: 17px; color: #fff; background: rgba(10,13,20,.72); border-color: rgba(255,255,255,.35); text-shadow: none; }
 @keyframes shake { 0%,100% { translate: 0 0; } 25% { translate: -4px 2px; } 75% { translate: 4px -2px; } }
 
 #bossbar { position: absolute; top: 22px; left: 50%; transform: translateX(-50%); width: min(640px, 70vw); }
@@ -415,7 +417,9 @@ body:not(.desk) .mitem.desk { display: none; }
 #feed .msg.good { border-left-color: var(--green); }
 #feed .msg.bad { border-left-color: var(--red); }
 #chat { position: absolute; left: 22px; bottom: 70px; width: min(430px, 45vw); pointer-events: auto; }
-#chat input { font-size: 14px; padding: 8px 10px; background: rgba(5,7,11,.8); }
+#chat { display: flex; align-items: stretch; }
+#chat::before { content: 'SAY'; display: flex; align-items: center; padding: 0 10px; font-family: var(--font-h); font-weight: 700; font-size: 12px; letter-spacing: 2px; color: #120c00; background: var(--acc); border-radius: var(--r) 0 0 var(--r); }
+#chat input { font-size: 14px; padding: 8px 10px; background: rgba(5,7,11,.8); border-radius: 0 var(--r) var(--r) 0; }
 
 #toasts { position: absolute; top: 96px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 6px; }
 .toast {
@@ -441,6 +445,7 @@ body:not(.desk) .mitem.desk { display: none; }
 #bigtitle { position: absolute; top: 24%; left: 0; right: 0; text-align: center; animation: titleIn .7s cubic-bezier(.2,.8,.2,1); }
 #bigtitle .t { font-size: 64px; font-weight: 700; letter-spacing: 10px; text-transform: uppercase; color: #fff; line-height: 1; text-shadow: 0 4px 40px rgba(0,0,0,.6); }
 #bigtitle .s { font-family: var(--font-b); font-size: 17px; color: rgba(255,255,255,.85); margin: 14px auto 0; padding: 10px 20px 0; max-width: 720px; border-top: 1px solid rgba(255,255,255,.3); }
+#bigtitle .s kbd { font-size: 13px; line-height: 20px; padding: 0 7px; color: #fff; background: rgba(10,13,20,.7); border-color: rgba(255,255,255,.4); text-shadow: none; vertical-align: 1px; }
 @keyframes titleIn { from { letter-spacing: 30px; opacity: 0; } to { opacity: 1; } }
 
 #hurt { position: absolute; inset: 0; background: radial-gradient(transparent 50%, rgba(200,0,0,.5)); opacity: 0; transition: opacity .35s; }
@@ -539,11 +544,12 @@ body:not(.desk) .mitem.desk { display: none; }
 }
 @keyframes pin { from { transform: translateY(12px) scale(.98); opacity: 0; } to { transform: none; opacity: 1; } }
 #panel-inner .x {
-  position: absolute; right: 12px; top: 12px; width: 34px; height: 34px; padding: 0; font-size: 16px;
+  position: absolute; right: 12px; top: 12px; height: 34px; padding: 0 8px; gap: 6px; font-size: 16px; z-index: 2;
   background: transparent; border-color: transparent; color: var(--muted);
 }
+#panel-inner .x kbd { font-size: 10px; line-height: 16px; padding: 0 5px; min-width: 0; color: inherit; background: transparent; border-color: currentColor; opacity: .8; }
 #panel-inner .x:hover { color: #fff; background: rgba(255,255,255,.08); }
-.ph { font-family: var(--font-h); font-weight: 700; font-size: 26px; letter-spacing: 3px; text-transform: uppercase; margin: 0; line-height: 1.1; padding-right: 44px; }
+.ph { font-family: var(--font-h); font-weight: 700; font-size: 26px; letter-spacing: 3px; text-transform: uppercase; margin: 0; line-height: 1.1; padding-right: 76px; }
 .psub { margin: 4px 0 14px; font-size: 14px; color: var(--muted); }
 .npc-line { background: rgba(255,255,255,.04); border-left: 2px solid var(--acc); padding: 9px 12px; margin: 10px 0 14px; font-size: 14px; }
 .npc-line::before { content: attr(data-who); display: block; font-family: var(--font-h); font-weight: 700; font-size: 11px; color: var(--acc); letter-spacing: 2px; margin-bottom: 2px; }
@@ -695,7 +701,7 @@ table.list td.r, table.list th.r { text-align: right; }
 .keeper .meter { height: 4px; background: rgba(255,255,255,.1); overflow: hidden; margin-top: 6px; }
 .keeper .meter i { display: block; height: 100%; background: var(--acc); }
 .shop2 .wares { display: flex; flex-direction: column; min-width: 0; }
-.stabs { display: flex; gap: 0; margin: 0 44px 14px 0; border-bottom: 1px solid var(--line); }
+.stabs { display: flex; gap: 0; margin: 0 76px 14px 0; border-bottom: 1px solid var(--line); }
 .stab {
   font-family: var(--font-h); font-weight: 600; font-size: 14px; letter-spacing: 2px; text-transform: uppercase;
   color: var(--muted); background: transparent; cursor: pointer; border: 0; border-bottom: 2px solid transparent;
@@ -767,6 +773,7 @@ table.list td.r, table.list th.r { text-align: right; }
 }
 #hud.flying #toasts { top: 104px; }
 #hud.flying.incockpit #hint { bottom: 8px; }
+#hud.flying.incockpit #flyinst { display: none; } /* (in the cockpit the dashboard's own screens show speed, altitude and descent) */
 
 /* ---------- difficulty ---------- */
 .diffpick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-top: 8px; }
@@ -1126,6 +1133,32 @@ input[type=range]:hover::-webkit-slider-thumb { background: var(--acc2); }
 }
 #roomcode[data-tip]:hover::after { bottom: auto; top: calc(100% + 6px); left: auto; right: 0; transform: none; }
 /* your name, on the Customize screen (title screen) */
-.cname { display: flex; align-items: center; gap: 12px; margin: 0 44px 12px 0; }
+.cname { display: flex; align-items: center; gap: 12px; margin: 0 0 12px 0; }
 .cname label { font-family: var(--font-h); font-weight: 600; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); }
 .cname input { flex: 1; font-family: var(--font-h) !important; font-weight: 700 !important; font-size: 18px !important; letter-spacing: 1px; padding: 7px 12px !important; }
+/* How to Play: tabs, and the Controls tab's key list */
+#panel-inner:has(.howbody) { width: min(900px, 100%); }
+.howbody { min-height: 340px; }
+.hkgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px 22px; margin-bottom: 10px; }
+.hkgrid h4 { margin: 6px 0 6px; font-family: var(--font-h); font-weight: 700; font-size: 12px; letter-spacing: 3px; text-transform: uppercase; color: var(--acc); border-bottom: 1px solid var(--line); padding-bottom: 5px; }
+.hk { display: flex; align-items: center; gap: 10px; padding: 4px 0; font-size: 13px; color: #d7dde7; }
+.hk .keys { flex: none; min-width: 108px; display: flex; flex-wrap: wrap; gap: 3px; }
+.hk kbd { font-size: 11px; }
+.how1 { columns: 2; column-gap: 30px; font-size: 14px; }
+.how1 p { margin: 0 0 12px; color: #cfd5df; line-height: 1.45; break-inside: avoid; }
+.howbody .stab, .stabs .stab { white-space: nowrap; }
+.how1 p b { color: #fff; }
+@media (max-width: 760px) { .hkgrid { grid-template-columns: 1fr; } .how1 { columns: 1; } }
+/* game over (Hardcore) and "lost the captain": the whole screen, no close button (there's only one way on) */
+#panel:has(.permadeath), #panel:has(.endcard) { background: radial-gradient(ellipse at center, rgba(40,4,10,.72), rgba(6,2,4,.94)); backdrop-filter: blur(6px); }
+#panel:has(.endcard) { background: radial-gradient(ellipse at center, rgba(8,12,22,.75), rgba(3,4,8,.94)); }
+#panel-inner:has(.permadeath), #panel-inner:has(.endcard) { background: transparent; border: 0; box-shadow: none; }
+#panel-inner:has(.permadeath) > .x, #panel-inner:has(.endcard) > .x { display: none; }
+.permadeath .ph, .endcard .ph { font-size: 64px; letter-spacing: 10px; padding: 0; }
+.endcard .ph { font-size: 44px; letter-spacing: 6px; }
+/* the mouse pointer in menus: the game's own arrow, the same over buttons (a pointing hand is a web page thing) */
+:root { --cur: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='26' height='26' viewBox='0 0 26 26'%3E%3Cpath d='M4 3v17l4.6-4.2 3.3 7 3-1.4-3.3-6.9h6.4z' fill='%23ffb020' stroke='%23120c00' stroke-width='1.6' stroke-linejoin='round'/%3E%3Cpath d='M6 7.6v7.6l2.2-2' fill='none' stroke='%23fff3cf' stroke-width='1.2' stroke-linecap='round' opacity='.8'/%3E%3C/svg%3E") 4 3, default; }
+*, *::before, *::after { cursor: var(--cur) !important; }
+input[type=text], input:not([type]) { cursor: text !important; }
+.cust-view canvas { cursor: grab !important; }
+.cust-view canvas:active { cursor: grabbing !important; }

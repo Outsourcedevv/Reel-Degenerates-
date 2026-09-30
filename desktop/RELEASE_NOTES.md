@@ -14,6 +14,14 @@
   menu instead).
 - No more web page leftovers: no zooming in with `Ctrl` + wheel, a file dropped on the window can't replace the game,
   no browser tooltips or dropdown arrows, and a button you clicked doesn't get pressed again by `Space`.
+- **How to Play is a field manual now**, in tabs (Controls, Guns, The loop, Critters, Ship, Crew), with every key
+  listed as a key, instead of one long page to scroll. The first-day note from Dave is shorter, with just the basic
+  keys.
+- **Keys look like keys** everywhere in the game: the tips above your hotbar, the big titles (like getting in the
+  ship), and on each menu's close button (`Esc`).
+- The game's own mouse pointer in menus, a `SAY` box for chat, the star map's planet names no longer cut off at the
+  edges (and it has stars now), and "You died" (Hardcore) and "Lost the captain" fill the screen like a game over
+  should. In the cockpit the speed and altitude are on the dashboard only, not twice.
 
 - **A 5-slot hotbar.** Put anything you own in any slot: carry three guns and the Grabby Vac if you like. Pressing a
   slot's key takes out what's in that slot and only that (no more flipping to your last gun). Everything else waits

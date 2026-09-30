@@ -353,7 +353,9 @@ const Game = {
           because of course it does. Bosses don't just show up, though: find the thing that summons them and use it at the boss altar.<br><br>
           Company policy: no free guns (liability). You get a squirt pistol. Buy a real gun at the pawn shop.
           Do NOT gamble the company's money. (There's a casino planet. I know you.)
-        </div>${UI.howHtml().replace('<h2 class="ph">How to play</h2>', '')}
+        </div>
+        <h5 class="shead">The basics</h5>${UI.basicKeys()}
+        <p class="tip">Everything else is in <b>How to Play</b> (pause menu). Press ${keyKbd('{guide}')} any time to see what to do on the planet you're on.</p>
         <div class="row2"><button class="btn big green" data-act="close" style="max-width:320px">Let's deliver this pizza</button></div>`);
     } else {
       this.updatePause();
@@ -391,7 +393,7 @@ const Game = {
         <p class="center">${wipe ? 'The world has been deleted.' : guest ? 'Your stuff in your friend\'s world is gone.' : 'Your world has been deleted.'}
         ${host && !wipe ? ' Your crew lost their captain.' : ''}</p>
         <p class="center muted">"Driver did not arrive. Pizza presumed cold." Dave has already hired your replacement.</p>
-        <div class="center"><button class="btn big" data-act="menu" style="max-width:300px">Back to menu</button></div></div>`,
+        <div class="center"><button class="btn big" data-act="menu" style="max-width:300px">Back to main menu</button></div></div>`,
       (a) => { if (a === 'menu') location.reload(); }, null, () => location.reload());
     }, 1400);
   },
@@ -738,8 +740,8 @@ const Game = {
     N.on('hostgone', () => {
       if (this.permaDead) return;
       if (document.pointerLockElement) document.exitPointerLock();
-      UI.openPanel(`<h2 class="ph">Lost the captain</h2><p class="psub">The host left the game (or their internet sneezed). Your bucks and gear are saved.</p>
-        <div class="center"><button class="btn big" data-act="reload" style="max-width:300px">Back to menu</button></div>`, (a) => { if (a === 'reload') location.reload(); }, null, () => location.reload());
+      UI.openPanel(`<div class="endcard"><h2 class="ph center">Lost the captain</h2><p class="center psub">The host left the game (or their internet sneezed). Your bucks and gear are saved.</p>
+        <div class="center"><button class="btn big green" data-act="reload" style="max-width:300px">Back to main menu</button></div></div>`, (a) => { if (a === 'reload') location.reload(); }, null, () => location.reload());
     });
     // --- everyone
     N.on('chat', (m) => { UI.feed(`<b>${U.esc(m.n)}:</b> ${U.esc(m.text)}`); Sound.play('chat'); });
@@ -952,7 +954,7 @@ const Game = {
   // hotbar: see any shop)" if it isn't)
   slotTip(tool, what) {
     const i = Loadout.findTool(tool);
-    return i >= 0 ? `${Keys.name('slot' + (i + 1))}: ${what}` : `${what} (put it on your hotbar at a shop)`;
+    return i >= 0 ? `{slot${i + 1}}: ${what}` : `${what} (put it on your hotbar at a shop)`;
   },
   updateHint() {
     const p = G.player;

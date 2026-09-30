@@ -127,7 +127,7 @@ const UI = {
     const b = this.el.bigtitle;
     b.querySelector('.t').textContent = t;
     b.querySelector('.t').style.color = color;
-    b.querySelector('.s').textContent = keyText(s);
+    b.querySelector('.s').innerHTML = keyKbd(U.esc(s)).replace(/<\/kbd>: /g, '</kbd> '); // (keys drawn as keys)
     b.classList.remove('hidden');
     b.style.animation = 'none'; void b.offsetWidth; b.style.animation = '';
     clearTimeout(this._bigT);
@@ -150,7 +150,13 @@ const UI = {
     a.querySelector('span').textContent = label || '';
   },
 
-  hint(text) { text = keyText(text); if (this.el.hint.textContent !== text) this.el.hint.textContent = text; },
+  // the line of tips over the hotbar, with the keys drawn as keys: "{fire}: zap · {reload}: reload"
+  hint(text) {
+    text = text || '';
+    if (this.el.hint._src === text) return;
+    this.el.hint._src = text;
+    this.el.hint.innerHTML = text.split(' · ').map((t) => `<span>${keyKbd(U.esc(t).replace(/^Mouse: /, '<kbd>Mouse</kbd> ')).replace(/<\/kbd>: /g, '</kbd> ')}</span>`).join('');
+  },
   // what to do on this planet, step by step (shown when you land; H shows or hides it; dur: hide after that long).
   // A step starting with ! is the one thing you really need to know.
   guideOn: false,
@@ -227,7 +233,7 @@ const UI = {
   openPanel(html, handler, tick, onClose) {
     if (G.panel && this.onClose) { const cb = this.onClose; this.onClose = null; cb(); }
     this.reopen = null;
-    this.el['panel-inner'].innerHTML = `<button class="btn small x" data-act="close">${icon('close')}</button>` + html;
+    this.el['panel-inner'].innerHTML = `<button class="btn small x" data-act="close"><kbd>Esc</kbd>${icon('close')}</button>` + html;
     this.panelHandler = handler || null;
     this.panelTick = tick || null;
     this.onClose = onClose || null;
@@ -241,7 +247,7 @@ const UI = {
     Sound.play('open');
   },
   setPanel(html) {
-    this.el['panel-inner'].innerHTML = `<button class="btn small x" data-act="close">${icon('close')}</button>` + html;
+    this.el['panel-inner'].innerHTML = `<button class="btn small x" data-act="close"><kbd>Esc</kbd>${icon('close')}</button>` + html;
   },
   closePanel(noLock) {
     if (!G.panel) return;
@@ -448,50 +454,65 @@ const UI = {
       rows.map((r, i) => `<div class="pl"><span>${i === 0 && rows.length > 1 ? icon('crown') + ' ' : ''}${U.esc(r.n)}</span><span>${U.bucks(r.b)}</span></div>`).join('');
   },
 
+  // How to Play: a field manual in tabs (a game's help screen, not one long page to scroll through)
+  howTab: 'keys',
+  // a row of the Controls tab: the key(s), then what it does
+  keyRow(keys, what) { return `<div class="hk"><span class="keys">${keyKbd(keys)}</span><span>${keyKbd(what)}</span></div>`; },
+  // the keys you need first (the Controls tab, and the intro note)
+  basicKeys() {
+    const r = (k, w) => this.keyRow(k, w);
+    return `<div class="hkgrid">
+      <div><h4>On foot</h4>${r('{forward}{left}{back}{right}', 'Move')}${r('{sprint}', 'Sprint')}${r('{jump}', 'Jump')}${r('{use}', 'Talk / use / pick up')}${r('{emote}', 'Emote')}</div>
+      <div><h4>Guns &amp; tools</h4>${r('{fire}', 'Shoot / use what you\'re holding')}${r('{aim}', 'Aim down the sights (hold)')}${r('{reload}', 'Reload')}${r('{nade}', 'Throw a Goo Grenade')}${r('{slot1}-{slot5}', 'Hotbar (or the mouse wheel)')}</div>
+      <div><h4>Menus</h4>${r('{bag}', 'Backpack &amp; crew')}${r('{guide}', 'What to do on this planet')}${r('{chat}', 'Chat')}${r('{crew}', 'Crew list (hold)')}${r('<kbd>Esc</kbd>', 'Pause / close menus')}</div>
+    </div>`;
+  },
+  howTabs() {
+    return {
+      keys: ['Controls', () => `${this.basicKeys()}
+        <div class="hkgrid"><div><h4>Gear from the shops</h4>${this.keyRow('{dash}', 'Dash (Getaway Sneakers)')}${this.keyRow('{stomp}', 'Ground pound, in the air (Yeti Stompers)')}${this.keyRow('{jump}', 'Hold in the air: glide (Glider Cape) or fly (Jet Pack)')}</div>
+        <div><h4>Flying the ship</h4>${this.keyRow('{forward}{back}', 'Throttle')}${this.keyRow('{jump}{stomp}', 'Up / down')}${this.keyRow('{sprint}', 'Turbo')}${this.keyRow('{map}', 'Star map')}${this.keyRow('{swap}', 'Swap seats')}</div>
+        <div><h4>More</h4>${this.keyRow('{music}', 'Music on / off')}${this.keyRow('{view}', 'Riding in the back: look at the ship')}</div></div>
+        <p class="tip">Change any key in <b>Options &gt; Controls</b>.</p>`],
+      guns: ['Guns', () => `<div class="how1">
+        <p><b>Your hotbar.</b> {slot1} to {slot5} take out what's in each slot. Put anything you own in any slot on any shop's <b>Loadout</b> tab: carry three guns and the Grabby Vac if you like.</p>
+        <p><b>Guns.</b> From the hip your shots land somewhere inside the crosshair's circle; hold {aim} and they go dead on (you walk slower). The Goo Lobber, Launcher, Cryo Beam, Pizza Cutter and Wisp Caller don't aim: they're just as good from the hip. You start with a Squirt Pistol (it's terrible). Every planet sells a different real gun, and you keep every one you buy.</p>
+        <p><b>Sights.</b> A red dot, a holo sight and a 3x scope from the shops go on any gun that aims: pick which on the <b>Loadout</b> tab.</p>
+        <p><b>Grabby Vac.</b> Hold {fire} on things to suck them up: junk, berries, chips, snow piles, pearls, litter, crusts, and critters you zapped. Ghosts too: it's the ONLY way to catch one, and you have to keep it in the middle of your screen.</p>
+        <p><b>Laser Drill</b> (Frostbyte): hold {fire} on crystals. <b>Pizza Peel</b> (Zorblax Prime): catch pepperoni meteors. <b>Goo Grenades:</b> {nade}.</p></div>`],
+      loop: ['The loop', () => `<div class="how1">
+        <p><b>1. Collect and sell.</b> Grab the planet's stuff (and zap critters!) and sell it at the shop. Money is tight on the first two planets. {guide} shows what to do on the planet you're on.</p>
+        <p><b>2. Gear up,</b> starting with a real gun.</p>
+        <p><b>3. Summon the boss.</b> Find its summoning item (the whole crew works on it together), then use it at the boss altar.</p>
+        <p><b>4. Fly on.</b> Win, then everyone gets in the ship and flies to the next planet. (It won't start until you beat Trashlord Gary.)</p>
+        <p><b>Just for fun:</b> Planet Gloop has a Ring Run, Frostbyte a Snowman Shooting Gallery and Spookulon a hedge maze. Medals pay cash (each once). Gambling unlocks on planet 3, Luckstar.</p></div>`],
+      critters: ['Critters', () => `<div class="how1">
+        <p><b>Sizes.</b> From Tiny to GIANT: bigger ones are rarer, tougher and worth a lot more. Golden ones are worth 8x. When you arrive they leave you alone for a bit (watch the SAFE timer), unless you shoot first. Harder worlds have more of them.</p>
+        <p><b>Bag them.</b> Zap one and it goes flying and lands in a heap: walk over and press {use} (or vacuum it up). Backpack full? It waits right there.</p>
+        <p><b>Watch out.</b> A red ! means one spotted you. One crouching over a red mark is about to pounce: step aside. Lots of them throw things where you're heading: keep changing direction. Goo and snowballs slow you down.</p>
+        <p><b>Mini bosses.</b> Zap 20 critters on a planet (not Scrapyard-9) and every one after that might bring its huge, crowned mini boss. It names each attack and marks it on the ground first. Everyone on the planet gets paid when it goes down.</p>
+        <p><b>Style kills</b> pay extra and stack: in the air, after a 360, your last shot, long shots, double kills, revenge, headshots and more.</p></div>`],
+      ship: ['Ship', () => `<div class="how1">
+        <p>{use} at the ship to get in. The first one in flies, everyone else rides in the back. It only takes off once the whole crew is in.</p>
+        <p><b>Flying:</b> move the mouse to aim and the ship swings round to the circle (it's big, it takes a moment). {jump} lift off / up, {stomp} down, {forward}/{back} throttle, {sprint} turbo, {map} star map. Look down through the glass floor to line up a landing.</p>
+        <p>{swap} swap seats · {use} get out (on the pad) · in the back: {view} look at the ship from outside.</p></div>`],
+      crew: ['Crew', () => `<div class="how1">
+        <p><b>Friends.</b> Multiplayer &gt; Host a game, and send friends the 5-letter room code. {bag}: send them money or drop them things. The host can turn on friendly fire in Options.</p>
+        <p><b>Going down.</b> With friends around you go down instead of dying: a friend holds {use} on you to pick you up.</p>
+        <p><b>Boss fights:</b> one life. Go down with friends around and they can pick you up, or you get back up by yourself after 10s (Hard: 15s, Hardcore: 20s) while one of them is still standing. If everybody's down, the boss wins.</p>
+        <p><b>Dying on a planet</b> drops everything but your Grabby Vac (and the Squirt Pistol) where you fell. Hold {fire} to respawn, then follow the beam of light to get it back (only you can).</p></div>`],
+    };
+  },
   howHtml() {
-    return keyKbd(`<h2 class="ph">How to play</h2>
-    <p class="psub">You deliver pizza. One pizza. It is three years late. Get it to Emperor Zorblax.</p>
-    <div class="how">
-      <div><h4>Moving</h4>
-        <p>{forward}{left}{back}{right} move · {sprint} sprint</p>
-        <p>{jump} jump (double jump with Bounce Boots)</p>
-        <p>Gear from the shops: {dash} dash (Getaway Sneakers) · {stomp} in the air: ground pound (Yeti Stompers) · hold {jump} in the air: glide (Glider Cape) or fly (Jet Pack)</p>
-        <p>{use} talk / use / pick things up · {bag} backpack &amp; crew · {guide} what to do on this planet · <kbd>Esc</kbd> pause (again to carry on) and closes menus</p>
-        <p>{emote} emote (a different one each press) · change any key on the Keybinds screen (pause menu)</p></div>
-      <div><h4>Your hotbar</h4>
-        <p>{slot1} to {slot5} take out what's in each slot (or flip through them with the mouse wheel). Put anything you own in any slot, or take it off, on any shop's <b>Loadout</b> tab: carry three guns and the Grabby Vac if you like.</p>
-        <p>Guns: {fire} to shoot, {reload} to reload, hold {aim} to aim down the sights. From the hip your shots go somewhere inside the crosshair's circle; aimed, they go dead on (but you walk slower). The Goo Lobber, Launcher, Cryo Beam, Pizza Cutter and Wisp Caller don't need to: they're just as good from the hip. Sights (a red dot, a holo sight, a 3x scope) from the shops go on any gun that aims: pick which on the <b>Loadout</b> tab. You start with a Squirt Pistol (it's terrible). Every planet sells a different real gun, and you keep every one you buy.</p>
-        <p>Grabby Vac: hold {fire} on things to suck them up (junk, berries, chips, snow piles, pearls, litter, crusts, and critters you zapped). Ghosts too: it's the ONLY way to catch one, and you have to keep it in the middle of your screen.</p>
-        <p>Laser Drill: hold {fire} on crystals (buy on Frostbyte) · Pizza Peel: catch pepperoni meteors (buy on Zorblax Prime)</p>
-        <p>{nade} throw a Goo Grenade (boss fights)</p></div>
-      <div><h4>The loop</h4>
-        <p>1. Collect the planet's stuff (and zap critters!) and sell it at the shop. Money is tight on the first two planets. Press {guide} to see what to do on the planet you're on.</p>
-        <p>2. Buy gear, starting with a real gun.</p>
-        <p>3. Find the boss's summoning item (the whole crew works on it together), then use it at the boss altar.</p>
-        <p>4. Win, then everyone gets in the ship and flies to the next planet. (It won't start until you beat Trashlord Gary.)</p>
-        <p>Just for fun: Planet Gloop has a Ring Run, Frostbyte a Snowman Shooting Gallery and Spookulon a hedge maze. Win medals for cash (each pays once). {guide} on the planet says where.</p></div>
-      <div><h4>Critters</h4>
-        <p>They come in sizes from Tiny to GIANT. Bigger ones are rarer, tougher and worth a lot more. Golden ones are worth 8x. When you arrive somewhere they leave you alone for a bit (watch the SAFE timer), unless you shoot one first. Harder worlds have more of them about.</p>
-        <p>Zap one and it goes flying and lands in a heap: walk over and press {use} to bag it (or vacuum it up). Backpack full? It waits right there for you.</p>
-        <p>Mean ones hunt you: a red ! means one spotted you. When one crouches over a red mark, it's about to pounce: step aside. Lots of them throw things, aimed where you're heading: keep changing direction. Goo and snowballs slow you down, some leave puddles. Shoot one and its friends join in.</p>
-        <p>Mini bosses: zap 20 critters on a planet (not Scrapyard-9) and from then on every one you zap has a small chance of bringing its huge, crowned mini boss. Like a boss fight: it names each attack and marks it on the ground first. Hard and Hardcore give it extra attacks. Everyone on the planet gets paid when it goes down.</p>
-        <p>Style kills pay extra (up to 2x each, and they all stack): in the air, after a 360, with your last shot, long shots, double kills, revenge and more.</p></div>
-      <div><h4>The ship</h4>
-        <p>{use} at the ship to get in. First one in flies, everyone else rides in the back. It only takes off once the whole crew is in.</p>
-        <p>Pilot (flies from the cockpit): move the mouse to aim and the ship swings round to the circle (it's big, it takes a moment), {jump} lift off / up, {stomp} down, {forward}/{back} throttle, {sprint} turbo, {map} star map. Look down through the glass floor to line up a landing.</p>
-        <p>{swap} swap seats · {use} get out (on the pad) · riding in the back: {view} look at the ship from outside</p></div>
-      <div><h4>Friends &amp; stuff</h4>
-        <p>Host a game and send friends the 5-letter code.</p>
-        <p>If a friend goes down, walk over and hold {use} to pick them up.</p>
-        <p>Boss fights: one life. Go down with friends around and they can pick you up, or you get back up by yourself after 10s (Hard: 15s, Hardcore: 20s) as long as one of them is still standing. If everybody's down, the boss wins.</p>
-        <p>Die on a planet and everything but your Grabby Vac (and the Squirt Pistol) drops where you fell. Hold {fire} to respawn, then follow the beam of light to get it back (only you can). It all goes back on your hotbar where it was.</p>
-        <p>{bag}: drop items for friends, or send them money. The host can turn on friendly fire in the pause menu.</p>
-        <p>Gambling unlocks on planet 3, Luckstar. {chat} chat · {crew} crew list · {music} music</p></div>
-    </div>`);
+    const T = this.howTabs(), tab = T[this.howTab] ? this.howTab : 'keys';
+    const tabs = Object.entries(T).map(([k, [n]]) => `<button class="stab ${k === tab ? 'on' : ''}" data-act="howtab" data-t="${k}">${n}</button>`).join('');
+    return `<h2 class="ph">How to play</h2><p class="psub">You deliver pizza. One pizza. It is three years late. Get it to Emperor Zorblax.</p>
+      <div class="stabs">${tabs}</div><div class="howbody">${keyKbd(T[tab][1]())}</div>`;
   },
   // fromPause: closing it goes back to the pause menu
   showHow(fromPause) {
-    this.openPanel(this.howHtml() + '<div class="row2"><button class="btn" data-act="close">Got it</button></div>');
+    const draw = () => this.howHtml() + '<div class="row2"><button class="btn green" data-act="close">Got it</button></div>';
+    this.openPanel(draw(), (act, d) => { if (act === 'howtab') { this.howTab = d.t; this.setPanel(draw()); } });
     this.backToPause = !!fromPause;
   },
 

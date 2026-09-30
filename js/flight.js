@@ -996,10 +996,20 @@ const Flight = {
     const c = cv.getContext('2d');
     c.clearRect(0, 0, Wd, Ht);
     const xs = SYSTEM.map((p) => p.x), zs = SYSTEM.map((p) => p.z);
-    const minX = Math.min(...xs) - 1200, maxX = Math.max(...xs) + 1200, minZ = Math.min(...zs) - 1400, maxZ = Math.max(...zs) + 1400;
-    const s = Math.min(Wd / (maxX - minX), Ht / (maxZ - minZ));
+    const minX = Math.min(...xs), maxX = Math.max(...xs), minZ = Math.min(...zs), maxZ = Math.max(...zs);
+    // (room round the edge in pixels, so the names of the planets out at the ends aren't cut off)
+    const padX = 120, padY = 70;
+    const s = Math.min((Wd - padX * 2) / (maxX - minX || 1), (Ht - padY * 2) / (maxZ - minZ || 1));
     const ox = (Wd - (maxX - minX) * s) / 2, oz = (Ht - (maxZ - minZ) * s) / 2;
     const P = (x, z) => [ox + (x - minX) * s, oz + (z - minZ) * s];
+    // space behind it: a faint grid and the same stars every time
+    c.fillStyle = '#04060c'; c.fillRect(0, 0, Wd, Ht);
+    c.strokeStyle = 'rgba(120,200,255,.05)'; c.lineWidth = 1;
+    for (let gx = (Wd / 2) % 60; gx < Wd; gx += 60) { c.beginPath(); c.moveTo(gx, 0); c.lineTo(gx, Ht); c.stroke(); }
+    for (let gy = (Ht / 2) % 60; gy < Ht; gy += 60) { c.beginPath(); c.moveTo(0, gy); c.lineTo(Wd, gy); c.stroke(); }
+    let seed = 7;
+    const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    for (let i = 0; i < 220; i++) { c.fillStyle = `rgba(255,255,255,${(0.15 + rnd() * 0.55).toFixed(2)})`; c.fillRect(rnd() * Wd, rnd() * Ht, rnd() < 0.1 ? 2 : 1, rnd() < 0.1 ? 2 : 1); }
     this.mapHits = [];
     c.strokeStyle = 'rgba(120,220,255,.25)'; c.setLineDash([6, 8]); c.lineWidth = 2;
     c.beginPath(); SYSTEM.forEach((p, i) => { const [x, y] = P(p.x, p.z); if (i) c.lineTo(x, y); else c.moveTo(x, y); }); c.stroke(); c.setLineDash([]);
