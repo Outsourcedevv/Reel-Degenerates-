@@ -73,7 +73,7 @@ const Post = {
   apply() {
     const high = G.settings.quality !== 'low';
     const r = G.renderer;
-    r.setPixelRatio(Math.min(devicePixelRatio || 1, high ? 1.5 : 1));
+    r.setPixelRatio(Math.min(devicePixelRatio || 1, high ? 1.5 : 1) * (G.settings.res || 1)); // (Render resolution, see Options)
     r.setSize(innerWidth, innerHeight);
     const ms = high ? 2048 : 1024;
     if (G.sun.shadow.mapSize.x !== ms) {

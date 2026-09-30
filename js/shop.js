@@ -99,7 +99,7 @@ const Shop = {
         <span class="k">${U.esc(Keys.name('slot' + (i + 1)))}</span>
         <div class="ic">${ok || lost ? Thumbs.img(Loadout.pic(it), '', Loadout.icon(it)) : ''}</div>
         <b>${ok ? U.esc(Loadout.name(it)) : lost ? `${U.esc(Loadout.name(it))}<small>in your grave</small>` : 'Empty'}</b>
-        ${ok ? this.sightMenu(Loadout.gun(it)) : ''}${ok || lost ? `<button class="lx" data-act="loff" data-i="${i}" title="${Loadout.crit(it) ? 'Put it in your backpack' : 'Take it off'}">${icon('close')}</button>` : ''}</div>`;
+        ${ok ? this.sightMenu(Loadout.gun(it)) : ''}${ok || lost ? `<button class="lx" data-act="loff" data-i="${i}" data-tip="${Loadout.crit(it) ? 'Put it in your backpack' : 'Take it off'}">${icon('close')}</button>` : ''}</div>`;
     };
     const card = (it) => `<div class="card2"><div class="ic">${Thumbs.img(Loadout.pic(it), '', Loadout.icon(it))}</div>
       <div class="info"><h4>${U.esc(Loadout.name(it))}</h4><div class="chips">${this.gearChips(it).map((c) => `<span>${U.esc(c)}</span>`).join('')}</div>${this.sightMenu(Loadout.gun(it))}</div>

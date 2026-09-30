@@ -14,7 +14,8 @@ const Sound = {
     if (!AC) return;
     const ctx = (this.ctx = new AC());
     this.out = ctx.createDynamicsCompressor();
-    this.out.connect(ctx.destination);
+    this.master = ctx.createGain(); // (Master volume, and quiet while you're in another window: see Options)
+    this.out.connect(this.master); this.master.connect(ctx.destination);
     this.sfx = ctx.createGain(); this.sfx.connect(this.out);
     this.mus = ctx.createGain(); this.mus.connect(this.out);
     this.setVolumes();
@@ -28,6 +29,7 @@ const Sound = {
     if (!this.ctx) return;
     this.sfx.gain.value = G.settings.vol;
     this.mus.gain.value = G.settings.music * 0.55;
+    this.master.gain.value = this.bgMuted ? 0 : G.settings.master == null ? 1 : G.settings.master;
   },
 
   tone(f, dur, o = {}) {
@@ -79,6 +81,7 @@ const Sound = {
     const T = (f, d, o) => this.tone(f, d, o), N = (d, o) => this.noise(d, o);
     switch (name) {
       case 'click': T(900, 0.05, { type: 'square', vol: 0.05 }); break;
+      case 'hover': T(1500, 0.025, { type: 'sine', vol: 0.03 }); break;
       case 'open': T(440, 0.07, { type: 'triangle', vol: 0.1 }); T(660, 0.09, { type: 'triangle', vol: 0.1, delay: 0.05 }); break;
       case 'close': T(660, 0.07, { type: 'triangle', vol: 0.08 }); T(440, 0.09, { type: 'triangle', vol: 0.08, delay: 0.05 }); break;
       case 'error': T(160, 0.18, { type: 'square', vol: 0.1 }); break;

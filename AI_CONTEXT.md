@@ -54,6 +54,7 @@ No React/framework build step is used for the main game; scripts are loaded dire
 - `js/activities.js` / `js/fun.js` — planet activities/minigames.
 - `js/data.js` — significant game data/configuration.
 - `js/update.js` — game update behavior.
+- `js/options.js` — Options screen (`OPT_ROWS`), the quit confirm box (`Ask`), and `AppShell` (desktop-game behaviour: no page zoom, drops, focus leftovers).
 - `js/casino.js` — Luckstar gambling-specific systems; leave outside current ChatGPT work.
 - `desktop/main.js` — Electron main process.
 - `desktop/preload.js` — Electron preload bridge.
@@ -86,6 +87,19 @@ Known documented systems include:
 `package.json` currently reports version **1.12.0**. Note that visible version text elsewhere in the project may need checking for synchronization before a release.
 
 ## Current Task
+
+### A PC game, not a web page (2026-09-30)
+
+The user: "make it look more like a steam game so its suitable and it will not be a website game". It ships as the Electron app on Steam; the browser build still works but isn't the target.
+
+- **Title screen** (`index.html` `#menu`, `Game.setupMenu`/`menuCard`): a list of `.mitem` words (Play / Multiplayer / Customize / Options / How to Play / Quit Game) instead of form fields. The name box moved to the Customize screen (`#c-name`, title screen only: a guest's save is keyed by name, so it can't change mid-game) and `#m-profile` (top right: goober picture + name, opens Customize). Host/Join moved to the `#m-mp` card. Esc steps back a card. The `menu` track plays on the title screen (at once in the app via Electron's `autoplay-policy` switch, after the first click in a browser). Loading screen: logo + `.lbar` progress set in `boot`, fades out (`.gone`).
+- **Pause menu**: the same `.mitem` list on the left (Resume, Options, Customize, How to Play, Quit to Main Menu, Quit to Desktop). The old sliders, graphics `<select>`, friendly fire toggle and Keybinds button moved into Options. Quits go through `Ask` (`#confirm`, Esc = cancel, never reaches the pause menu). Solo stays paused under any panel opened from the pause menu (`UI.backToPause` in `Game.frame`'s `paused`).
+- **Options** (`js/options.js`, `OPT_ROWS`/`OPT_DEFAULTS`, stored in `G.settings`): fov (player + flight FOV, `layoutVM` uses the setting, not the current zoomed FOV), shake (multiplies camera shake in player.js/flight.js), fps (`#fps`, `Options.frame`), ff (host only, `Game.setFF`), display (desktop only), quality, res (multiplies the pixel ratio in `Post.apply`), master (new `Sound.master` gain), vol, music, bgMute (`Sound.bgMuted` on blur/hidden), sens, invert (Input mousemove), keys (opens Keybinds; `UI.reopen` brings Options back when it closes). Choices are arrow selectors, sliders are custom-styled with a `--f` fill.
+- **Desktop app** (`desktop/main.js`, `preload.js`): starts fullscreen the first time, remembered in `userData/window.json`; F11 and Alt+Enter toggle; `display:get`/`display:set`/`display:changed` IPC for the Options row; `app:quit` for Quit; single-instance lock; spellcheck off; visual zoom locked; every `will-navigate` is blocked (http(s) opens in the browser) so a dropped file can't replace the game; Cmd+Q on mac. Old app shells that only got the game-file update have no `desktop.quit`, so `body.desk` is off and the Quit items / Display row stay hidden.
+- **Web leftovers** (`AppShell`): Ctrl+wheel and Ctrl+key browser shortcuts blocked, drops/drags blocked, clicked buttons lose focus (Space won't re-press them), hover tick on menu items, `data-tip` CSS tooltips replace `title=`, the shop's scope `<details>` restyled as a game dropdown, arrow cursor everywhere.
+- **Esc in a shop** (any panel that goes back to the game) now grabs the mouse on Esc keyup (`Game.escToGame`, soft mode meanwhile), like the pause menu's Esc: grabbing on keydown got released by the app's own Esc handling and showed the pause menu (it was broken in the app before this change too).
+- Tested: browser harness (every screen, Options changes applied/saved, Keybinds -> back to Options, pause stays paused, confirm + Esc, Codex regressions) and the real Electron app under xvfb (fullscreen first start, Alt+Enter/F11/Options toggles and window.json, no zoom, blocked navigation, second copy exits, Quit Game / Quit to Desktop close the app, Esc from pause and from a shop grabs the mouse, first game grabs the mouse after the intro).
+- Not done (needs the user's Steam App ID / Steamworks): Steam overlay, achievements, Steam friends invites, controller support.
 
 ### Aiming down the sights, hip-fire spread, grenades on Q (2026-09-29)
 
@@ -231,6 +245,6 @@ Keep updates concise and useful to the next AI.
 
 ## Last Updated
 
-- Date: 2026-09-29
-- AI: Claude (aiming down the sights, hip-fire spread, grenades on Q)
+- Date: 2026-09-30
+- AI: Claude (PC-game menus, Options, fullscreen desktop app)
 - Reason: Initial Claude ↔ GPT/Codex handoff setup from the current GitHub repository.

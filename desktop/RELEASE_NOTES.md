@@ -1,5 +1,20 @@
 ## New in 1.12: a hotbar, keybinds, critters you pick up, and bosses that go out with a bang
 
+- **It looks and plays like a PC game now, not a web page.** A new title screen (Play, Multiplayer, Customize,
+  Options, How to Play, Quit Game) with music, your name and goober in the top right corner (click them to change
+  them), and a loading screen with a progress bar. The pause menu matches it: Resume, Options, Customize, How to Play,
+  Quit to Main Menu and Quit to Desktop (both ask first).
+- **Options.** Gameplay (field of view, screen shake, FPS counter, friendly fire), Video (fullscreen or windowed,
+  graphics quality, render resolution), Audio (master, effects and music volume, mute in the background) and
+  Controls (mouse sensitivity, invert mouse, keybinds). The game stays paused while you're in them.
+- **Fullscreen.** The game starts fullscreen and remembers how you left it; `F11` or `Alt+Enter` switches between
+  fullscreen and a window. (Fullscreen, quitting, the title music straight away, and only one copy running at a time
+  need this version's download; the in-game update brings the rest.)
+- **Esc in a shop** takes you straight back into the game with the mouse grabbed (it sometimes brought up the pause
+  menu instead).
+- No more web page leftovers: no zooming in with `Ctrl` + wheel, a file dropped on the window can't replace the game,
+  no browser tooltips or dropdown arrows, and a button you clicked doesn't get pressed again by `Space`.
+
 - **A 5-slot hotbar.** Put anything you own in any slot: carry three guns and the Grabby Vac if you like. Pressing a
   slot's key takes out what's in that slot and only that (no more flipping to your last gun). Everything else waits
   in your locker: swap things in, take anything off, or swap two slots on any shop's new **Loadout** tab. New guns

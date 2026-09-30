@@ -15,27 +15,57 @@ function shippedGame() {
 
 let win = null, updater = null, game = null, readyT = null;
 
+// the window, the way you left it: fullscreen (how it starts the first time, like most games) or windowed
+const prefsFile = () => path.join(app.getPath('userData'), 'window.json');
+function loadPrefs() {
+  try { return Object.assign({ fullscreen: true }, JSON.parse(fs.readFileSync(prefsFile(), 'utf8'))); } catch (e) { return { fullscreen: true }; }
+}
+function savePrefs(p) {
+  try { fs.writeFileSync(prefsFile(), JSON.stringify(p)); } catch (e) { /* not the end of the world */ }
+}
+let prefs = { fullscreen: true };
+function setFullscreen(on) {
+  if (!win) return;
+  win.setFullScreen(!!on);
+}
+
 function createWindow() {
   win = new BrowserWindow({
     width: 1280,
     height: 800,
     minWidth: 960,
     minHeight: 600,
+    fullscreen: !!prefs.fullscreen,
     title: 'Space Goobers',
     backgroundColor: '#07090f',
     icon: path.join(__dirname, 'icon.png'),
     autoHideMenuBar: true,
     show: false,
-    webPreferences: { contextIsolation: true, sandbox: true, backgroundThrottling: false, preload: path.join(__dirname, 'preload.js') },
+    webPreferences: { contextIsolation: true, sandbox: true, backgroundThrottling: false, spellcheck: false, preload: path.join(__dirname, 'preload.js') },
   });
   win.once('ready-to-show', () => win.show());
-  // links (like the GitHub page) open in the normal browser, not inside the game
-  win.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: 'deny' }; });
-  win.webContents.on('will-navigate', (e, url) => { if (!url.startsWith('file://')) { e.preventDefault(); shell.openExternal(url); } });
-  // F11 = fullscreen, like most games
+  // links (like the GitHub page) open in the normal browser, not inside the game. Nothing else ever replaces the
+  // game in its window: a file dropped on it, say, would otherwise open in place of the game
+  win.webContents.setWindowOpenHandler(({ url }) => { if (/^https?:/.test(url)) shell.openExternal(url); return { action: 'deny' }; });
+  win.webContents.on('will-navigate', (e, url) => { e.preventDefault(); if (/^https?:/.test(url)) shell.openExternal(url); });
+  // a game, not a web page: no zooming in and out
+  Promise.resolve(win.webContents.setVisualZoomLevelLimits(1, 1)).catch(() => {});
+  win.webContents.on('did-finish-load', () => win && win.webContents.setZoomFactor(1));
+  // F11 or Alt+Enter = fullscreen / windowed, like most games (Options in the game does it too). Cmd+Q on a Mac
   win.webContents.on('before-input-event', (e, input) => {
-    if (input.type === 'keyDown' && input.key === 'F11') { win.setFullScreen(!win.isFullScreen()); e.preventDefault(); }
+    if (input.type !== 'keyDown') return;
+    if (input.key === 'F11' || (input.key === 'Enter' && input.alt && !input.control && !input.meta)) { setFullscreen(!win.isFullScreen()); e.preventDefault(); }
+    else if (process.platform === 'darwin' && input.meta && input.key.toLowerCase() === 'q') { e.preventDefault(); app.quit(); }
   });
+  // remember it for next time, and tell the game (its Options screen shows which it is)
+  const display = () => {
+    if (!win) return;
+    prefs.fullscreen = win.isFullScreen();
+    savePrefs(prefs);
+    if (!win.webContents.isDestroyed()) win.webContents.send('display:changed', prefs.fullscreen);
+  };
+  win.on('enter-full-screen', display);
+  win.on('leave-full-screen', display);
   // a downloaded game that won't load or crashes: go back to the one that came with the app
   win.webContents.on('did-fail-load', (e, code, desc, url, mainFrame) => { if (mainFrame && code !== -3) gameFailed(desc || 'it would not load'); });
   win.webContents.on('render-process-gone', (e, d) => { if (d.reason !== 'clean-exit') gameFailed(d.reason); });
@@ -86,10 +116,23 @@ ipcMain.on('game:grab-mouse', (e) => {
   e.sender.sendInputEvent({ type: 'mouseDown', x, y, button: 'left', clickCount: 1 });
   e.sender.sendInputEvent({ type: 'mouseUp', x, y, button: 'left', clickCount: 1 });
 });
+// Options in the game: fullscreen or windowed. Quit Game / Quit to Desktop: close the app
+ipcMain.handle('display:get', (e) => (fromGame(e) ? win.isFullScreen() : false));
+ipcMain.on('display:set', (e, on) => { if (fromGame(e)) setFullscreen(on); });
+ipcMain.on('app:quit', (e) => { if (fromGame(e)) app.quit(); });
 ipcMain.on('update:releases', (e, v) => { if (fromGame(e)) shell.openExternal(/^\d+(\.\d+)*$/.test(v) ? `${RELEASES}/tag/v${v}` : `${RELEASES}/latest`); });
+
+// one copy of the game at a time: starting it again just brings the one that's running to the front
+const first = app.requestSingleInstanceLock();
+if (!first) app.quit();
+app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(); win.show(); win.focus(); } });
+// the title screen's music can start before you've clicked anything (a web page has to wait for a click)
+app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 
 Menu.setApplicationMenu(null);
 app.whenReady().then(() => {
+  if (!first) return;
+  prefs = loadPrefs();
   updater = new Updater({
     shippedDir: path.join(__dirname, '..'),
     shipped: shippedGame(),

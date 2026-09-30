@@ -30,7 +30,7 @@ const Input = {
       this.mx = e.clientX; this.my = e.clientY;
       if (!G.locked || G.panel || Input.loose()) return;
       if (Math.abs(e.movementX) > 400 || Math.abs(e.movementY) > 400) return; // browser glitch spikes
-      this.dx += e.movementX; this.dy += e.movementY;
+      this.dx += e.movementX; this.dy += G.settings.invert ? -e.movementY : e.movementY; // (Invert mouse, see Options)
     });
     addEventListener('wheel', (e) => { if (G.locked) this.wheel += Math.sign(e.deltaY); }, { passive: true });
     addEventListener('contextmenu', (e) => e.preventDefault());
@@ -304,7 +304,7 @@ class LocalPlayer {
   }
   // keep held tools in the lower-right corner on any screen shape
   layoutVM() {
-    const d = 0.5, hh = d * Math.tan(THREE.MathUtils.degToRad(G.camera.fov / 2)), hw = hh * G.camera.aspect;
+    const d = 0.5, hh = d * Math.tan(THREE.MathUtils.degToRad((G.settings.fov || 72) / 2)), hw = hh * G.camera.aspect;
     const x = Math.min(0.24, hw * 0.55), y = -hh * 0.45;
     for (const o of [...(this.vmGuns ? this.vmGuns.values() : []), this.vmVac, this.vmDrill, this.vmPeel]) { if (o) { o.position.set(x, y, -d); o.userData.base = o.position.clone(); o.scale.setScalar(0.62); } }
   }
@@ -1283,7 +1283,7 @@ class LocalPlayer {
     // (it never touches your actual look direction)
     G.shake = U.clamp(G.shake - dt * 2.4, 0, 1.2);
     this.shakeT += dt * 22;
-    const sh = Math.min(1, G.shake) ** 2 * 0.03, t = this.shakeT;
+    const sh = Math.min(1, G.shake) ** 2 * 0.03 * (G.settings.shake == null ? 1 : G.settings.shake), t = this.shakeT; // (Screen shake, see Options)
     const sx = (Math.sin(t * 1.31) + 0.5 * Math.sin(t * 2.97)) * sh, sy = (Math.cos(t * 1.73) + 0.5 * Math.sin(t * 3.71)) * sh;
     this.kickP = U.damp(this.kickP, 0, 9, dt); this.kickY = U.damp(this.kickY, 0, 9, dt);
     cam.rotation.set(U.clamp(this.pitch + sx + this.kickP + wk * wk * 0.9, -1.55, 1.55), yaw + sy + this.kickY, this.dead ? Math.min(this.deadT * 0.6, 0.3) * (1 - this.tpK) : wk * wk * 0.5, 'YXZ');
@@ -1300,7 +1300,7 @@ class LocalPlayer {
     const ret = sid && sid !== 'scope' && this.aimK > 0.6 ? sid : '';
     if (ret !== this.retShown) { this.retShown = ret; document.body.dataset.reticle = ret; }
     // sprinting widens the view a little, aiming narrows it
-    const fov = U.lerp(72 + this.sprintK * 7, this.aimZoom(), this.aimK);
+    const fov = U.lerp((G.settings.fov || 72) + this.sprintK * 7, this.aimZoom(), this.aimK); // (Field of view, see Options)
     if (Math.abs(cam.fov - fov) > 0.05) { cam.fov = fov; cam.updateProjectionMatrix(); }
     this.drawSpread(cam);
     // viewmodel: lags behind the mouse, bobs with steps, dips on landing, drops out of view when swapping tools

@@ -207,7 +207,7 @@ const Flight = {
     if (this.mapOpen) UI.closePanel(true);
     this.mapOpen = false;
     G.liquid.mesh.visible = true;
-    G.camera.far = 1500; G.camera.fov = 72; G.camera.updateProjectionMatrix();
+    G.camera.far = 1500; G.camera.fov = G.settings.fov || 72; G.camera.updateProjectionMatrix();
   },
 
   /* ---------------- the ship: outside model + inside ---------------- */
@@ -831,7 +831,7 @@ const Flight = {
     const cam = G.camera;
     G.shake = Math.max(0, G.shake - dt * 2.2);
     this.shakeT = (this.shakeT || 0) + dt * 22;
-    const sh = Math.min(1, G.shake) ** 2 * 0.03, st = this.shakeT;
+    const sh = Math.min(1, G.shake) ** 2 * 0.03 * (G.settings.shake == null ? 1 : G.settings.shake), st = this.shakeT;
     const jx = Math.sin(st * 1.31) * sh, jy = Math.cos(st * 1.73) * sh;
     if (this.cur === 'cockpit' || this.cur === 'seat') {
       this.pivot.updateMatrixWorld(true);
@@ -851,7 +851,7 @@ const Flight = {
       cam.position.lerp(want, 1 - Math.exp(-8 * dt));
       cam.lookAt(this.pos.clone().add(new V3(0, 2.5, 0)));
     }
-    const fov = this.ph === 'space' ? 74 + U.clamp((this.speed - FLY.space.cruise) / 10, 0, 14) : this.cur === 'cockpit' ? 80 : 74;
+    const fov = (this.ph === 'space' ? 74 + U.clamp((this.speed - FLY.space.cruise) / 10, 0, 14) : this.cur === 'cockpit' ? 80 : 74) + (G.settings.fov || 72) - 72;
     if (Math.abs(cam.fov - fov) > 0.05) { cam.fov = U.damp(cam.fov, fov, 4, dt); cam.updateProjectionMatrix(); }
   },
   target() {

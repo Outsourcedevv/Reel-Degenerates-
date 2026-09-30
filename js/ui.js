@@ -226,6 +226,7 @@ const UI = {
   /* ----- panels ----- */
   openPanel(html, handler, tick, onClose) {
     if (G.panel && this.onClose) { const cb = this.onClose; this.onClose = null; cb(); }
+    this.reopen = null;
     this.el['panel-inner'].innerHTML = `<button class="btn small x" data-act="close">${icon('close')}</button>` + html;
     this.panelHandler = handler || null;
     this.panelTick = tick || null;
@@ -252,6 +253,10 @@ const UI = {
     const cb = this.onClose;
     this.onClose = null;
     if (cb) cb();
+    // opened from another screen (Keybinds from Options): back to that one
+    const re = this.reopen;
+    this.reopen = null;
+    if (re) { re(); return; }
     // opened from the pause menu: go back to it instead of jumping into the game
     const back = this.backToPause;
     this.backToPause = false;
@@ -507,7 +512,7 @@ const UI = {
           return `<div class="srow bagrow ${r.rare ? 'rare' : ''}"><div class="ic">${Thumbs.img(Thumbs.cargoKey(id), '', r.icon)}</div>
             <div class="info"><b>${U.esc(r.name)}</b><small>${U.esc(r.desc)}</small></div>
             <div class="qty">x${counts[id]}</div><div class="each">${U.bucks(r.v)} each</div>
-            <div class="drops">${r.crit ? `<button class="btn small" data-act="tohot" data-id="${U.esc(id)}" ${hotFree ? '' : 'disabled title="Your hotbar is full"'}>To hotbar</button>` : ''}<button class="btn small" data-act="drop1" data-id="${U.esc(id)}">Drop 1</button>${counts[id] > 1 ? `<button class="btn small" data-act="dropall" data-id="${U.esc(id)}">Drop all</button>` : ''}</div></div>`;
+            <div class="drops">${r.crit ? `<button class="btn small" data-act="tohot" data-id="${U.esc(id)}" ${hotFree ? '' : 'disabled data-tip="Your hotbar is full"'}>To hotbar</button>` : ''}<button class="btn small" data-act="drop1" data-id="${U.esc(id)}">Drop 1</button>${counts[id] > 1 ? `<button class="btn small" data-act="dropall" data-id="${U.esc(id)}">Drop all</button>` : ''}</div></div>`;
         }).join('');
         // critters you're carrying in your hotbar (see Loadout): back in the backpack, or drop them
         const held = Loadout.critters(), full = SAVE.cargo.length >= cap;
@@ -516,7 +521,7 @@ const UI = {
           return `<div class="srow bagrow ${r.rare ? 'rare' : ''}"><div class="ic">${Thumbs.img(Thumbs.cargoKey(id), '', r.icon)}</div>
             <div class="info"><b>${U.esc(r.name)}</b><small>Carrying it in hotbar slot ${i + 1}</small></div>
             <div class="qty">x1</div><div class="each">${U.bucks(r.v)}</div>
-            <div class="drops"><button class="btn small" data-act="tobag" data-i="${i}" ${full ? 'disabled title="Your backpack is full"' : ''}>To backpack</button><button class="btn small" data-act="drophot" data-i="${i}">Drop</button></div></div>`;
+            <div class="drops"><button class="btn small" data-act="tobag" data-i="${i}" ${full ? 'disabled data-tip="Your backpack is full"' : ''}>To backpack</button><button class="btn small" data-act="drophot" data-i="${i}">Drop</button></div></div>`;
         }).join('');
         body = (held.length ? `<h5 class="shead">In your hotbar</h5><div class="srows">${hrows}</div><h5 class="shead">In your backpack</h5>` : '') + (SAVE.cargo.length
           ? `<p class="psub">Worth <b>${U.bucks(value)}</b> at any shop. Dropped stuff lands in front of you in a crate anyone can pick up (walk over it). A critter can ride in your hotbar too (To hotbar).</p><div class="srows">${rows}</div>`
