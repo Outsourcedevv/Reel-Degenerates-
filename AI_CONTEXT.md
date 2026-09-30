@@ -54,6 +54,7 @@ No React/framework build step is used for the main game; scripts are loaded dire
 - `js/activities.js` / `js/fun.js` — planet activities/minigames.
 - `js/data.js` — significant game data/configuration.
 - `js/update.js` — game update behavior.
+- `js/achievements.js` — achievements list, unlocking, Achievements screen; `desktop/steam.js` — Steam (steamworks.js); `STEAM.md` — Steamworks setup.
 - `js/options.js` — Options screen (`OPT_ROWS`), the quit confirm box (`Ask`), and `AppShell` (desktop-game behaviour: no page zoom, drops, focus leftovers).
 - `js/casino.js` — Luckstar gambling-specific systems; leave outside current ChatGPT work.
 - `desktop/main.js` — Electron main process.
@@ -87,6 +88,12 @@ Known documented systems include:
 `package.json` currently reports version **1.12.0**. Note that visible version text elsewhere in the project may need checking for synchronization before a release.
 
 ## Current Task
+
+### Steam achievements and overlay (2026-09-30)
+
+- `desktop/steam.js` wraps steamworks.js (a `dependencies` entry; `asarUnpack` for its `dist/**`, mac `x64ArchFiles` for the universal build; electron-builder drops the `.dll` only on non-Windows builds). `prepare()` runs before app ready: App ID from `SteamAppId` (Steam launched us) or `desktop/steam.json` (`appId`, 0 = off; `requireSteam` restarts through Steam via `restartAppIfNecessary`, for the Steam build only); `electronEnableSteamOverlay()` (in-process-gpu, disable-direct-composition, frame invalidation) only when Steam launched the game. `BY_STEAM` is read at load: steamworks' `init` sets `SteamAppId`/`SteamGameId` even when it fails. `start()` after ready; without a Steam client `init` throws and the app carries on. The GitHub self-updater is off when Steam is connected or launched us (`canUpdate`). IPC `steam:info` / `steam:achieve` / `steam:has` / `steam:overlay`, preload `desktop.steam/achieve/achieved/steamAchievements`.
+- `js/achievements.js`: `ACHIEVEMENTS` (ids = Steam API names; STEAM.md lists them with 64x64 icons in `steam/achievements/`, regenerate with a harness that draws `Thumbs.url(pic)`), `Achieve.init/unlock/check/zapped/open`. Off Steam: stored in `spacegoobers_achievements` and shown with `#achieve` (3+ at once collapse into one card). On Steam: Steam's `isActivated` list is the truth and unlocks go to Steam (it shows its own pop-up). `check()` runs from `persist()` (save-derived: `SAVE.beaten` -> `BOSS_<ID>`, Hardcore, guns, sights, bucks, `SAVE.fun` gold, `stats.jackpots`, `stats.minis`); event ones: `Critters.loot` (head/GIANT/golden/3 styles), ghost collect, revive done, duel won, `doLand` to another planet. Shift+Tab on Steam releases the mouse (pause) for the overlay. `Game.steamName` uses the Steam persona while the name is still the made-up one (`spacegoobers_name_auto`).
+- Tested: browser harness (real GIANT golden kill, save-based unlocks, Steam stand-in: dedupe, Steam list counts, no own pop-up), Electron dev app (no App ID / App ID without Steam / launched by Steam), and an electron-builder `--linux dir` build launched as by Steam (steamworks loads from asar.unpacked, overlay switches on, updater off, graceful without a Steam client). A real Steam client wasn't available to test the overlay and real unlocks.
 
 ### A PC game, not a web page (2026-09-30)
 

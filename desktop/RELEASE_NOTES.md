@@ -24,6 +24,12 @@
   menu instead).
 - No more web page leftovers: no zooming in with `Ctrl` + wheel, a file dropped on the window can't replace the game,
   no browser tooltips or dropdown arrows, and a button you clicked doesn't get pressed again by `Space`.
+- **Achievements.** 24 of them: every boss, headshots, GIANT and golden critters, style kills, mini bosses, ghosts,
+  reviving a friend, duels, jackpots, gold medals, a sight, $10,000, owning every gun. See them all under
+  **Achievements** on the title screen or in the pause menu. Ones your save already shows (bosses you've beaten,
+  guns you own...) unlock the first time you load that world.
+- **Steam ready:** on Steam they're Steam achievements, the Steam overlay works (`Shift+Tab` pauses the game for it),
+  your goober takes your Steam name until you pick one, and Steam handles updates. (Needs this version's download.)
 - **How to Play is a field manual now**, in tabs (Controls, Guns, The loop, Critters, Ship, Crew), with every key
   listed as a key, instead of one long page to scroll. The first-day note from Dave is shorter, with just the basic
   keys.

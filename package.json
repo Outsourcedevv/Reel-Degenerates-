@@ -9,6 +9,9 @@
     "start": "electron .",
     "dist": "electron-builder --publish never"
   },
+  "dependencies": {
+    "steamworks.js": "^0.4.0"
+  },
   "devDependencies": {
     "electron": "^44.4.5",
     "electron-builder": "^26.15.3"
@@ -18,12 +21,13 @@
     "productName": "Space Goobers",
     "artifactName": "Space-Goobers-${version}-${os}-${arch}.${ext}",
     "files": ["index.html", "css/**", "js/**", "vendor/**", "desktop/**", "package.json"],
+    "asarUnpack": ["**/node_modules/steamworks.js/dist/**"],
     "directories": { "output": "dist", "buildResources": "desktop" },
     "icon": "desktop/icon.png",
     "win": { "target": [{ "target": "nsis", "arch": ["x64"] }, { "target": "portable", "arch": ["x64"] }] },
     "portable": { "artifactName": "Space-Goobers-${version}-portable.exe" },
     "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true, "artifactName": "Space-Goobers-${version}-Setup.exe" },
-    "mac": { "target": [{ "target": "dmg", "arch": ["universal"] }], "category": "public.app-category.games", "identity": null },
+    "mac": { "target": [{ "target": "dmg", "arch": ["universal"] }], "category": "public.app-category.games", "identity": null, "x64ArchFiles": "**/node_modules/steamworks.js/dist/osx/**" },
     "linux": { "target": [{ "target": "AppImage", "arch": ["x64"] }], "category": "Game" }
   }
 }

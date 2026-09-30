@@ -95,7 +95,7 @@ const Activities = {
     const [col, size, snd] = PICKUP_FX[n.kind] || ['#c9b3ff', 8, 'pickup'];
     Sound.play(rare ? 'rare' : snd);
     FX.burst(new V3(n.x, n.y + 0.8, n.z), col, size, 4);
-    if (n.kind === 'ghost') FX.text(new V3(n.x, n.y + 1.6, n.z), U.pick(LINES.ghostCaught), '#b9ffc8', 48);
+    if (n.kind === 'ghost') { FX.text(new V3(n.x, n.y + 1.6, n.z), U.pick(LINES.ghostCaught), '#b9ffc8', 48); Achieve.unlock('GHOST'); }
     if (SAVE.cargo.length >= cap) UI.toast('Backpack full! Go sell stuff at the shop.', 'bad', 2.2);
     persist();
     UI.hud();

@@ -807,6 +807,7 @@ class LocalPlayer {
       if (this.reviveT >= REVIVE_TIME) {
         this.reviveT = 0; best.lift = 0; best.liftHold = G.time + 1.2; UI.action(null); // (still holding them while their game catches up)
         Net.relay({ t: 'revive', to: best.id, by: G.name });
+        Achieve.unlock('REVIVE');
         const html = `<b>${U.esc(G.name)}</b> picked <b>${U.esc(best.name)}</b> back up!`;
         UI.feed(html, 'good');
         Net.relay({ t: 'ann', html, cls: 'good' });

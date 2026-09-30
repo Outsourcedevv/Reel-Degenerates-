@@ -44,6 +44,7 @@ const Game = {
     Object.assign(G.settings, lsGet('spacegoobers_settings', {}));
     Options.init();
     Ask.init();
+    Achieve.init();
     Post.init();
     G.player = new LocalPlayer();
     G.player.vm.visible = false;
@@ -156,6 +157,7 @@ const Game = {
   },
   doLand(i, taken, loot) {
     const moved = i !== G.planet;
+    if (moved) Achieve.unlock('FIRST_FLIGHT');
     Flight.finish();
     Sound.play('land');
     this.loadPlanet(i);
@@ -192,7 +194,19 @@ const Game = {
   setName(n) {
     G.name = this.cleanName(n) || 'Goober';
     lsSet('spacegoobers_name', G.name);
+    lsSet('spacegoobers_name_auto', false); // (you picked it)
     this.drawLook();
+  },
+  // on Steam: until you pick a name yourself, your goober goes by your Steam name (on the title screen only: in a
+  // game your crew already knows you by the one you have)
+  steamName(n) {
+    const name = this.cleanName(n), auto = lsGet('spacegoobers_name_auto', false) || !lsGet('spacegoobers_name', '');
+    if (!name || G.started || !auto) return;
+    G.name = name;
+    lsSet('spacegoobers_name', name);
+    lsSet('spacegoobers_name_auto', true);
+    const el = U.$('m-pname');
+    if (el) el.textContent = name;
   },
   // which title screen card is up: 'main', 'mp' (multiplayer) or 'worlds'
   menuCard(id) {
@@ -202,7 +216,8 @@ const Game = {
   },
   setupMenu() {
     const status = U.$('m-status');
-    G.name = this.cleanName(lsGet('spacegoobers_name', '')) || 'Goober' + U.randi(10, 99);
+    G.name = this.cleanName(lsGet('spacegoobers_name', ''));
+    if (!G.name) { G.name = 'Goober' + U.randi(10, 99); lsSet('spacegoobers_name_auto', true); } // (made up: Steam's name can replace it)
     lsSet('spacegoobers_name', G.name);
     G.color = lsGet('spacegoobers_color', null) || U.pick(ACCENT_COLORS);
     Custom.load();
@@ -219,6 +234,7 @@ const Game = {
     U.$('m-mback').onclick = () => this.menuCard('main');
     U.$('m-cust').onclick = U.$('m-profile').onclick = () => { Sound.init(); Custom.open(); };
     U.$('m-opts').onclick = () => { Sound.init(); Options.open(); };
+    U.$('m-ach').onclick = () => { Sound.init(); Achieve.open(); };
     U.$('m-how').onclick = () => { Sound.init(); UI.showHow(); };
     U.$('m-quit').onclick = () => AppShell.quit();
     U.$('m-wback').onclick = () => { if (!this.worldBusy) this.menuCard(this.worldMode === 'host' ? 'mp' : 'main'); };
@@ -479,6 +495,7 @@ const Game = {
   setupPause() {
     U.$('p-resume').onclick = () => this.lock();
     U.$('p-opts').onclick = () => Options.open(true);
+    U.$('p-ach').onclick = () => Achieve.open(true);
     U.$('p-how').onclick = () => UI.showHow(true);
     U.$('p-cust').onclick = () => Custom.open(true);
     U.$('p-crew').onclick = () => { UI.openCrew(); UI.backToPause = true; };

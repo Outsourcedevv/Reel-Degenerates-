@@ -546,6 +546,7 @@ function persist() {
   if (!SAVE_KEY) return;
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(SAVE)); } catch (e) { /* private mode etc. */ }
   Wardrobe.sync();
+  if (typeof Achieve !== 'undefined') Achieve.check(); // (achievements your save now shows, see achievements.js)
 }
 
 /* ---------- your hats belong to YOU, not to a world ----------

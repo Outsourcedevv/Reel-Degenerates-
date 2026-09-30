@@ -218,6 +218,7 @@ const Duel = {
     }
     c.st = 'over'; c.t = 0;
     UI.bigTitle('YOU WIN!', `You beat ${c.oppName}. +${U.bucks(c.wager)}`, '#7dff8a', 3.2);
+    Achieve.unlock('DUEL');
     Sound.play('victory');
     const html = `<b>${U.esc(G.name)}</b> won the duel against <b>${U.esc(c.oppName)}</b> (${U.bucks(c.wager)})!`;
     UI.feed(html, 'good'); Net.relay({ t: 'ann', html, cls: 'good' });

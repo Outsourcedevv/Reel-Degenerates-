@@ -899,6 +899,7 @@ const Critters = {
     if (c.g) lines.push([8, 'Golden', 'gold']);
     for (const st of styles) lines.push([STYLE[st].m, STYLE[st].name, '']);
     UI.killed(def.name, worth, lines);
+    Achieve.zapped(c, styles);
     FX.text(pos.clone().setY(pos.y + 1.5), U.bucks(worth), '#ffd23f', 44);
     if (styles.length) {
       Sound.play(mult >= 3 ? 'jackpot' : 'win');
