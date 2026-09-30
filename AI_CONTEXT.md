@@ -95,6 +95,18 @@ Known documented systems include:
 - Phase 2 attacks less, by difficulty (`BOSS_P2`): the time till the next attack is x`gap` (`p2gap`, both where `atkT` is set) and the double-attack chance is `combo` (was 0.5 everywhere): Easy 1.7 / 0.12, Hard 1.25 / 0.32, Hardcore 1.1 / 0.42.
 - Hardcore now heals like Hard (`DIFFS.hardcore.regen` 6 / 3, was 3 / 1.5); `tests/healing-and-spooky.js` expects that.
 
+### Supply shack and armory navigation (2026-09-30)
+
+- Each planet's native stock remains on a physical rack (`buildEquipmentStand`, `equipmentStandLayout`), now at .58 scale / 1.59m high. `buildEquipmentShack` houses the keeper behind the sell tray, with closed plank walls, roof, flat safe interior and an open front. The Frostbyte igloo moved back to clear the shack; the lower footwear bay moved forward so the socks stay visible beneath the stompers. Scopes, purchases, magnets and favourite-safe sales keep existing rules and do not open trading menus.
+- `ShipLocker` has Weapons / Tools sections with remembered pages, labelled Prev / Next, full names, equipped-slot status, explicit slot selection and a top Unequip held control. Slot selection no longer doubles as stowing. Gear stays owned; critters stow only with cargo space. `LocalPlayer.refreshGear` preserves a selected empty slot, including on saved-world reload, while missing grave gear still falls back to usable equipment.
+- Headless Edge checked all eight shacks, unobstructed real E targets, transactions/favourites, walls and sloped roof queries. Armory checks cover category/page bounds, real E equip/unequip, full-cargo safety, saved-world reload and grave fallback. Screenshots are outside the repo in `outputs/supply-shack`. User reviewed the preview and approved pushing this version to main; further changes still require preview approval before pushing.
+
+### Backpack opening and stack quantities (2026-09-30)
+
+- `PhysicalInventory` in `js/inventory.js` lifts the backpack into view over 380ms with cubic easing while its world tint and caption fade in. Reduced-motion preferences skip the lift. Rebuilding pockets or changing inventory does not replay the opening; closing during it still works.
+- Each occupied cargo pocket has a large clickable quantity badge, including single-item stacks. Selection shows the stack count; carrying, stowing, dropping and collecting update it from SAVE.
+- Approved for main after preview. Headless Edge checked the opening phases, quantity-badge selection, count changes, resize, reduced motion and Tab/Esc closure without pause. The newer Steam/achievement changes are preserved; Steam's Shift+Tab remains separate from the backpack's Tab.
+
 ### Steam achievements and overlay (2026-09-30)
 
 - `desktop/steam.js` wraps steamworks.js (a `dependencies` entry; `asarUnpack` for its `dist/**`, mac `x64ArchFiles` for the universal build; electron-builder drops the `.dll` only on non-Windows builds). `prepare()` runs before app ready: App ID from `SteamAppId` (Steam launched us) or `desktop/steam.json` (`appId`, 0 = off; `requireSteam` restarts through Steam via `restartAppIfNecessary`, for the Steam build only); `electronEnableSteamOverlay()` (in-process-gpu, disable-direct-composition, frame invalidation) only when Steam launched the game. `BY_STEAM` is read at load: steamworks' `init` sets `SteamAppId`/`SteamGameId` even when it fails. `start()` after ready; without a Steam client `init` throws and the app carries on. The GitHub self-updater stays on under Steam too: the user asked to keep it for now (to leave updates to Steam later, make `canUpdate` skip when `steam.active()`/`steam.launchedBySteam()`). IPC `steam:info` / `steam:achieve` / `steam:has` / `steam:overlay`, preload `desktop.steam/achieve/achieved/steamAchievements`.

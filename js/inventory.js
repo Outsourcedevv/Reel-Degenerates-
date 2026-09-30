@@ -45,11 +45,13 @@ const PhysicalInventory = {
     this.scene.add(new THREE.HemisphereLight('#d5ebf0', '#303448', .45));
     const light = new THREE.DirectionalLight('#fff1dc', .72); light.position.set(3, 8, 5); this.scene.add(light);
     // A light tint over the live world, with the pack rendered clearly on top.
-    const backdrop = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({
+    this.tintMaterial = new THREE.ShaderMaterial({
+      uniforms: { fade: { value: 0 } },
       vertexShader: 'void main(){ gl_Position = vec4(position.xy, 0.0, 1.0); }',
-      fragmentShader: 'void main(){ gl_FragColor = vec4(0.035, 0.065, 0.085, 0.22); }',
+      fragmentShader: 'uniform float fade; void main(){ gl_FragColor = vec4(0.035, 0.065, 0.085, fade); }',
       transparent: true, depthTest: false, depthWrite: false,
-    }));
+    });
+    const backdrop = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), this.tintMaterial);
     backdrop.frustumCulled = false; this.tintScene = new THREE.Scene(); this.tintScene.add(backdrop);
     this.ray = new THREE.Raycaster(); this.pointer = new THREE.Vector2(2, 2);
     this.caption = document.createElement('div'); this.caption.id = 'pack-caption'; this.caption.className = 'hidden'; document.body.appendChild(this.caption);
@@ -97,6 +99,7 @@ const PhysicalInventory = {
     if (this.on || !G.started || G.mode !== 'planet' || G.player.dead || G.player.down || G.panel || G.world.rising) return;
     if (!this.scene) this.init();
     this.on = true; this.page = 0; this.chosen = this.hovered = null; this.pinned = false; this.pointer.set(2, 2); this.world = G.world;
+    this.openedAt = performance.now(); this.openDuration = matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 380;
     G.player.releaseTargets(); Game.wantLock = false; clearTimeout(Game.lockT); clearTimeout(Game.grabT); Game.setSoft(false); G.locked = false;
     Input.keys = {}; Input.pressed = {}; Input.dx = Input.dy = 0;
     document.body.classList.add('pack-open'); this.caption.classList.remove('hidden');
@@ -153,7 +156,9 @@ const PhysicalInventory = {
       if (!stack) continue;
       const [id, count] = stack, r = cargoRes(id), action = this.addAction(group, { key: 'cargo:' + id, kind: 'cargo', id, count, name: r.name });
       group.add(inventoryFit(inventoryModel(id, true), [.73, .6, .68], 0, .64, -.08));
-      const tag = inventoryPlate(group, [r.name, '×' + count + ' · ' + U.bucks(r.v) + ' EACH'], .88, .26, 0, .72, .45); tag.rotation.x = -.35;
+      const tag = inventoryPlate(group, [r.name, U.bucks(r.v) + ' EACH'], .88, .26, 0, .72, .45); tag.rotation.x = -.35;
+      action.countBadge = inventoryPlate(group, '×' + count, .46, .27, -.21, 1.055, .42, '#fff4ce');
+      action.countBadge.rotation.x = -.35;
       if (Activities.favourite(id)) inventoryPlate(group, '★', .24, .24, .32, .98, .4, '#ffd45c');
       action.ring = mk(BOX(.85, .007, 1.12), '#e3bf6b', group, 0, .642, 0); action.ring.visible = false;
     }
@@ -171,7 +176,7 @@ const PhysicalInventory = {
     }
     this.chosen = this.actions.map(g => g.userData.inventoryAction).find(a => a.key === selected) || null;
     this.hovered = null; if (!this.chosen) this.pinned = false;
-    this.root.updateMatrixWorld(true); this.lastSignature = this.signature(); this.describe();
+    this.layout(); this.root.updateMatrixWorld(true); this.lastSignature = this.signature(); this.describe();
   },
   hover() {
     this.layout(); this.root.updateMatrixWorld(true);
@@ -189,7 +194,7 @@ const PhysicalInventory = {
     if (a) {
       detail = a.name;
       if (a.id && (a.kind === 'cargo' || a.kind === 'slot')) {
-        const r = cargoRes(a.id); detail += ' · ' + U.bucks(r.v) + ' each' + (Activities.favourite(a.id) ? ' · ★ Favourite' : '');
+        const r = cargoRes(a.id); detail += (a.kind === 'cargo' ? ' · ' + a.count + ' in stack' : '') + ' · ' + U.bucks(r.v) + ' each' + (Activities.favourite(a.id) ? ' · ★ Favourite' : '');
         controls = '{nade}: favourite · {reload}: drop one';
         if (a.kind === 'slot') controls = '{use}: put in backpack · ' + controls;
         else if (r.crit) controls = '{use}: carry in a free slot · ' + controls;
@@ -250,6 +255,14 @@ const PhysicalInventory = {
     const distance = Math.max(9.4, 7.6 / aspect), pitch = .57, target = new V3(0, .8, .3);
     this.camera.position.set(.14 * distance, target.y + Math.sin(pitch) * distance, target.z + Math.cos(pitch) * distance); this.camera.lookAt(target);
     this.camera.updateMatrixWorld(true);
+    // Lift the pack into view and fade its tint, without replaying on item changes.
+    const progress = this.openDuration ? U.clamp((performance.now() - this.openedAt) / this.openDuration, 0, 1) : 1;
+    const eased = 1 - Math.pow(1 - progress, 3), remaining = 1 - eased;
+    this.root.position.copy(new V3(0, 1, 0).applyQuaternion(this.camera.quaternion)).multiplyScalar(-6.8 * remaining);
+    this.root.rotation.x = -.08 * remaining;
+    this.tintMaterial.uniforms.fade.value = .22 * eased;
+    this.caption.style.opacity = String(eased);
+    this.caption.style.transform = 'translate(-50%, ' + (12 * remaining).toFixed(2) + 'px)';
   },
   render() {
     this.hover();
@@ -264,39 +277,92 @@ const PhysicalInventory = {
 
 class ShipLocker {
   constructor(world) {
-    this.world = world; this.page = 0; this.root = new THREE.Group(); this.root.name = 'personal-ship-locker'; this.root.userData.dynamic = true;
+    this.world = world; this.category = 'weapons'; this.page = 0; this.pages = { weapons: 0, tools: 0 };
+    this.root = new THREE.Group(); this.root.name = 'personal-ship-locker'; this.root.userData.dynamic = true;
     // Starboard rear bulkhead, behind the ramp: clear of the seats and cockpit.
     this.root.position.set(1.49, CABIN.floor + .06, -1.98); this.root.rotation.y = -PI / 2;
     const g = this.root;
-    mk(BOX(1.72, 1.97, .14), '#34454e', g, 0, .985, -.1);
+    mk(BOX(1.72, 2.22, .14), '#34454e', g, 0, 1.11, -.1);
     mk(BOX(1.57, 1.55, .025), '#1b2a32', g, 0, 1.06, -.015);
-    for (const x of [-.82, .82]) mk(BOX(.065, 1.98, .25), '#87959a', g, x, .99, -.03);
+    for (const x of [-.82, .82]) mk(BOX(.065, 2.22, .25), '#87959a', g, x, 1.11, -.03);
     for (let x = -.74; x < .8; x += .15) mk(BOX(.008, 1.5, .014), '#465761', g, x, 1.08, .006);
-    inventoryPlate(g, 'PERSONAL EQUIPMENT', 1.51, .14, 0, 1.87, .07);
-    this.header = inventoryPlate(g, '', 1.05, .11, 0, 1.68, .07);
+    this.plate('SHIP ARMORY', 1.51, .14, 0, 1.88, .07);
+    this.categories = [];
+    for (const [x, category, name] of [[-.4, 'weapons', 'WEAPONS'], [.4, 'tools', 'TOOLS']]) {
+      const tab = mk(BOX(.73, .21, .06), '#34454e', g, x, 1.67, .055);
+      const tag = this.plate(name, .68, .16, x, 1.67, .09); this.categories.push({ category, tab, tag, name });
+      this.interaction(x, 1.67, .11, () => 'Browse ' + name.toLowerCase(), () => this.browse(category));
+    }
+    this.header = this.plate('', .73, .14, 0, 1.45, .07);
+    this.nav = [];
     for (const [x, dir] of [[-.66, -1], [.66, 1]]) {
-      inventoryPlate(g, dir < 0 ? '‹' : '›', .19, .14, x, 1.68, .07);
-      this.interaction(x, 1.68, .09, () => dir < 0 ? 'Previous locker rack' : 'Next locker rack', () => { this.page += dir; this.update(true); Sound.play('click'); });
+      const tab = mk(BOX(.32, .2, .05), '#34454e', g, x, 1.45, .045);
+      this.plate(dir < 0 ? 'PREV' : 'NEXT', .3, .15, x, 1.45, .075); this.nav.push({ dir, tab });
+      this.interaction(x, 1.45, .1, () => (dir < 0 ? 'Previous ' : 'Next ') + this.category + ' page', () => this.turnPage(dir));
     }
     this.cells = [];
     for (let i = 0; i < 4; i++) {
-      const x = i % 2 ? .4 : -.4, y = i < 2 ? 1.1 : .52;
+      const x = i % 2 ? .4 : -.4, y = i < 2 ? 1.03 : .57;
       mk(BOX(.75, .045, .38), '#455861', g, x, y - .03, .14);
-      const tag = inventoryPlate(g, '', .72, .12, x, y - .05, .34);
+      const tag = this.plate('', .73, .19, x, y - .06, .34);
       this.cells.push({ x, y, tag, model: null, it: null });
-      this.interaction(x, y + .18, .17, () => this.cells[i].it ? 'Equip ' + Loadout.name(this.cells[i].it) + ' in slot ' + (G.player.slot + 1) : 'Empty rack — buy gear at the equipment stand', () => { const it = this.cells[i].it; if (it) inventoryEquip(it, G.player.slot); this.update(true); });
+      this.interaction(x, y + .16, .17, () => {
+        const it = this.cells[i].it, slot = G.player.slot;
+        if (!it) return 'No more ' + this.category + ' — buy gear at the trading shack';
+        return Loadout.find(it) === slot ? Loadout.name(it) + ' is equipped in slot ' + (slot + 1)
+          : 'Equip ' + Loadout.name(it) + ' in slot ' + (slot + 1);
+      }, () => { const it = this.cells[i].it; if (it) inventoryEquip(it, G.player.slot); this.update(true); });
     }
     this.slots = [];
     for (let i = 0; i < HOTBAR; i++) {
       const x = (i - 2) * .31;
-      mk(BOX(.28, .04, .28), '#263841', g, x, .16, .16);
-      const tag = inventoryPlate(g, '', .29, .14, x, .13, .33); this.slots.push(tag);
-      this.interaction(x, .16, .34, () => {
+      const tab = mk(BOX(.28, .19, .07), '#263841', g, x, .28, .27);
+      const tag = this.plate('', .28, .16, x, .28, .315); this.slots.push({ tag, tab });
+      this.interaction(x, .28, .34, () => {
         const it = Loadout.slots()[i], name = it ? Loadout.name(it) : 'Empty';
-        return 'Slot ' + (i + 1) + ': ' + name + (G.player.slot === i && it ? ' — stow' : ' — select');
-      }, () => { if (G.player.slot === i && Loadout.slots()[i]) inventoryStow(i); else G.player.selectSlot(i, true); this.update(true); });
+        return 'Select slot ' + (i + 1) + ': ' + name + (G.player.slot === i ? ' — selected' : '');
+      }, () => { G.player.selectSlot(i, true); this.update(true); Sound.play('click'); });
     }
+    this.unequipTab = mk(BOX(1.51, .2, .06), '#655339', g, 0, 2.07, .28);
+    this.unequipTag = this.plate('', 1.45, .18, 0, 2.07, .32);
+    this.interaction(0, 2.07, .34, () => {
+      const it = Loadout.at(G.player.slot);
+      return it ? 'Unequip ' + Loadout.name(it) + (Loadout.crit(it) ? ' — put in backpack' : ' — put in ship locker') : 'Your hands are empty';
+    }, () => this.unequip());
     this.update(true);
+  }
+  plate(text, w, h, x, y, z) {
+    const tag = inventoryPlate(this.root, '', w, h, x, y, z);
+    this.updateTag(tag, Array.isArray(text) ? text : [text]); return tag;
+  }
+  updateTag(tag, lines) {
+    const text = lines.join('\n'); if (tag.userData.tradeText === text) return;
+    // Small in-world labels need enough texels to read up close in the cabin.
+    const next = signMesh(lines, tag.geometry.parameters.width * 4, tag.geometry.parameters.height * 4,
+      { bg: '#172126', color: '#eadbb6', border: false });
+    tag.material.map.dispose(); tag.material.dispose(); tag.material = next.material;
+    next.geometry.dispose(); tag.userData.tradeText = text;
+  }
+  items(category = this.category) {
+    return Loadout.all().filter(it => (Loadout.gun(it) != null) === (category === 'weapons'));
+  }
+  browse(category) {
+    if (category === this.category) return;
+    this.pages[this.category] = this.page; this.category = category; this.page = this.pages[category];
+    this.update(true); Sound.play('click');
+  }
+  turnPage(dir) {
+    const next = U.clamp(this.page + dir, 0, Math.max(0, Math.ceil(this.items().length / 4) - 1));
+    if (next === this.page) return;
+    this.page = this.pages[this.category] = next; this.update(true); Sound.play('click');
+  }
+  unequip() {
+    const slot = G.player.slot, it = Loadout.at(slot);
+    if (!it || !inventoryStow(slot)) return false;
+    // Keep the emptied slot selected and persist the empty-hands choice.
+    G.player.selectSlot(slot, true); persist(); this.update(true);
+    UI.toast(Loadout.name(it) + (Loadout.crit(it) ? ' put in your backpack.' : ' put in the ship locker.'), 'good', 2);
+    return true;
   }
   interaction(x, y, z, label, use) {
     if (!this.world) return;
@@ -311,20 +377,32 @@ class ShipLocker {
     it.locker = true;
   }
   update(force = false) {
-    const all = Loadout.all(), pages = Math.max(1, Math.ceil(all.length / 4)); this.page = U.clamp(this.page, 0, pages - 1);
-    const signature = JSON.stringify([all, SAVE.slots, SAVE.vacLvl, SAVE.sightOn, G.player ? G.player.slot : 0, this.page]);
+    const all = this.items(), pages = Math.max(1, Math.ceil(all.length / 4)); this.page = U.clamp(this.page, 0, pages - 1);
+    const signature = JSON.stringify([Loadout.all(), SAVE.slots, SAVE.vacLvl, SAVE.sightOn, G.player ? G.player.slot : 0, this.category, this.page]);
     if (!force && signature === this.lastSignature) return; this.lastSignature = signature;
-    updateTradeTag(this.header, [(this.page + 1) + ' / ' + pages + ' · EQUIP TO SLOT ' + ((G.player ? G.player.slot : 0) + 1)]);
+    this.updateTag(this.header, [(this.page * 4 + 1) + '–' + Math.min(all.length, this.page * 4 + 4) + ' OF ' + all.length]);
+    this.categories.forEach(({ category, tab, tag, name }) => {
+      tab.material.color.set(category === this.category ? '#aa8246' : '#34454e');
+      this.updateTag(tag, [name + ' ' + this.items(category).length]);
+    });
+    this.nav.forEach(({ dir, tab }) => tab.material.color.set(this.page + dir < 0 || this.page + dir >= pages ? '#1c2a31' : '#5f737e'));
     this.cells.forEach((cell, i) => {
       const it = all[this.page * 4 + i];
       if (cell.model) { this.root.remove(cell.model); disposeObj(cell.model); cell.model = null; }
       cell.it = it;
       if (it) {
         const model = inventoryModel(it); model.rotation.y = PI / 2;
-        this.root.add(inventoryFit(model, [.67, .4, .28], cell.x, cell.y, .13)); cell.model = model;
+        this.root.add(inventoryFit(model, [.67, .32, .28], cell.x, cell.y, .13)); cell.model = model;
       }
-      updateTradeTag(cell.tag, it ? [Loadout.short(it), Loadout.find(it) >= 0 ? 'SLOT ' + (Loadout.find(it) + 1) : 'IN LOCKER'] : ['EMPTY']);
+      const slot = it ? Loadout.find(it) : -1;
+      this.updateTag(cell.tag, it ? [Loadout.name(it), slot >= 0 ? 'SLOT ' + (slot + 1) + (G.player.slot === slot ? ' · HELD' : '') : 'EQUIP TO SLOT ' + (G.player.slot + 1)] : ['EMPTY RACK']);
     });
-    this.slots.forEach((tag, i) => updateTradeTag(tag, [Keys.name('slot' + (i + 1)) + (G.player && G.player.slot === i ? ' ◀' : ''), Loadout.at(i) ? Loadout.short(Loadout.at(i)) : Loadout.slots()[i] ? 'IN GRAVE' : 'EMPTY']));
+    this.slots.forEach(({ tag, tab }, i) => {
+      tab.material.color.set(G.player.slot === i ? '#aa8246' : '#263841');
+      this.updateTag(tag, ['SLOT ' + (i + 1), G.player.slot === i ? 'SELECTED' : Loadout.at(i) ? 'READY' : Loadout.slots()[i] ? 'IN GRAVE' : 'EMPTY']);
+    });
+    const held = Loadout.at(G.player.slot);
+    this.unequipTab.material.color.set(held ? '#aa8246' : '#34454e');
+    this.updateTag(this.unequipTag, held ? ['UNEQUIP HELD · SLOT ' + (G.player.slot + 1), Loadout.name(held)] : ['EMPTY HANDS · SLOT ' + (G.player.slot + 1), 'Select a slot, then take an item from the rack']);
   }
 }

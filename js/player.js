@@ -184,7 +184,9 @@ class LocalPlayer {
       this.prepVM(this.vmVac);
     }
     if (!this.vmZap) this.setGun(SAVE.zap);
-    const hand = Loadout.at(this.slot) ? this.slot : Loadout.find(this.shown) >= 0 && Loadout.at(Loadout.find(this.shown)) ? Loadout.find(this.shown) : Math.max(0, Loadout.firstUsed());
+    // A selected empty slot means empty hands, including after unequipping and reloading a save.
+    // A slot whose gear is in a grave still falls back to something usable.
+    const hand = Loadout.at(this.slot) || Loadout.slots()[this.slot] == null ? this.slot : Loadout.find(this.shown) >= 0 && Loadout.at(Loadout.find(this.shown)) ? Loadout.find(this.shown) : Math.max(0, Loadout.firstUsed());
     this.shown = undefined; // (whatever's in that slot now, take it out)
     this.selectSlot(hand, true);
   }
@@ -255,7 +257,7 @@ class LocalPlayer {
     this.vmPeel.visible = t === 'peel';
     this.holdCrit(t === 'crit' ? Loadout.crit(it) : null);
     this.releaseTargets();
-    if (!quiet && !it) UI.toast(`Slot ${i + 1} is empty. Fill it on any shop's Loadout tab.`, '', 1.8);
+    if (!quiet && !it) UI.toast(`Slot ${i + 1} is empty. Choose gear from your ship's armory.`, '', 1.8);
     UI.hud();
   }
   // a duel: you hold the one gun you picked (see Duel.choose). Your hotbar comes back after (refreshGear).

@@ -398,8 +398,11 @@ function equipmentStandLayout(shopId) {
   const gunSpan = guns.length > 1 ? 2.6 : 1.8, bay = .92;
   const width = Math.max(3.5, gunSpan + bay * (!!bags.length + !!footwear.length) + .28, gear.length * .73 + .3);
   const gunZ = (bags.length ? bay / 2 : 0) - (footwear.length ? bay / 2 : 0);
+  const rackScale = .58, keeperZ = width * rackScale / 2 + .3;
   return { x:17.8, z:-5.8, width, depth:1.9, gunSpan, gunZ, guns, bags, footwear, gear, magnet,
-    bagZ:-width / 2 + .5, bootZ:width / 2 - .5, sellZ:-5.8 + width / 2 + 1.6 };
+    bagZ:-width / 2 + .5, bootZ:width / 2 - .5,
+    rackScale, rackX:-.15, rackZ:-1.055, shackWidth:width * rackScale + 2.55, shackDepth:3,
+    keeperX:.8, keeperZ, sellX:17.8 - .88, sellZ:-5.8 + keeperZ };
 }
 
 function tradeTagLines(it) {
@@ -420,7 +423,7 @@ function scopeTradeLines(id) {
   return [s.short + ' · ' + zoom, !planetUnlocked(s.planet) ? 'LOCKED' : (SAVE.sights || []).includes(id) ? 'OWNED' : U.bucks(s.price)];
 }
 
-// One shallow stand at the merchant: local stock, floor bays, and a small scope rail.
+// A low, miniature display inside the supply shack: only this planet's stock.
 function buildEquipmentStand(shopId) {
   const L = equipmentStandLayout(shopId), g = new THREE.Group(), displays = [];
   g.name = 'Compact planet equipment stand'; g.userData.dynamic = true;
@@ -475,9 +478,10 @@ function buildEquipmentStand(shopId) {
     display(lean,[.48,.88,.75],.43,.09,z,{it,tag:label(tradeTagLines(it),.87,.24,-.48,.25,z)});
   });
   L.footwear.forEach((it,i) => {
-    const y = .13 + i * .57, boots = ITEM_MODELS[it.kind](); boots.rotation.y = -PI / 2;
-    mk(BOX(.83,.06,.85),frame,g,.28,y-.02,L.bootZ);
-    display(boots,[.65,.46,.7],.27,y+.035,L.bootZ,{it,tag:label(tradeTagLines(it),.87,.23,-.2,y+.03,L.bootZ)});
+    const y = .13 + i * .57, x = L.footwear.length > 1 && i === 0 ? -.28 : .27;
+    const boots = ITEM_MODELS[it.kind](); boots.rotation.y = -PI / 2;
+    mk(BOX(.83,.06,.85),frame,g,x,y-.02,L.bootZ);
+    display(boots,[.65,.46,.7],x,y+.035,L.bootZ,{it,tag:label(tradeTagLines(it),.87,.23,x-.47,y+.03,L.bootZ)});
   });
 
   // Scope fittings live in the stand, with the existing planet-unlock rules.
@@ -491,22 +495,60 @@ function buildEquipmentStand(shopId) {
     mk(BOX(.38,.018,scopeStep-.045),dark,g,-.86,.658,z);
     display(scope,[.32,.23,scopeStep-.07],-.86,.677,z,{sight:id,tag:label(scopeTradeLines(id),scopeStep-.02,.23,-1.11,.54,z)});
   });
+  g.scale.setScalar(L.rackScale);
   g.userData.displays = displays; g.userData.layout = L;
+  return g;
+}
+
+function buildEquipmentShack(shopId) {
+  const L = equipmentStandLayout(shopId), g = new THREE.Group(), half = L.shackWidth / 2;
+  g.name = 'Planet supply shack'; g.userData.dynamic = true;
+  const wood = '#75604b', pale = '#907758', frame = '#3d3934', metal = '#44525a';
+  const roofColor = new THREE.Color(metal).lerp(new THREE.Color(SHOPS[shopId].color), .2);
+  // Closed plank walls and a solid pitched metal roof, with the whole front open.
+  mk(BOX(3.12,.07,L.shackWidth),frame,g,.14,.025,0);
+  mk(BOX(.12,3.38,L.shackWidth),wood,g,1.64,1.73,0);
+  for (let z = -half + .16; z < half; z += .32)
+    mk(BOX(.12,3.23,Math.min(.31,half-z+.15)),Math.round((z+half)/.32)%2 ? wood : pale,g,1.58,1.66,z);
+  for (const z of [-half,half]) {
+    for (let i = 0; i < 12; i++) mk(BOX(2.78,.265,.12),i%3 ? wood : pale,g,.16,.18+i*.265,z);
+    for (const x of [-1.19,1.56]) mk(BOX(.15,3.28,.16),frame,g,x,1.68,z);
+    mk(BOX(2.78,.1,.18),frame,g,.16,.14,z);
+    mk(BOX(2.78,.1,.18),frame,g,.16,2.94,z);
+    const fascia = mk(BOX(2.96,.4,.16),wood,g,.16,3.23,z); fascia.rotation.z = .08;
+  }
+  const roof = mk(BOX(3.4,.12,L.shackWidth+.42),roofColor,g,.08,3.49,0); roof.rotation.z = .08;
+  for (let z = -half-.16; z <= half+.16; z += .24) {
+    const rib = mk(BOX(3.4,.035,.035),metal,g,.08,3.572,z); rib.rotation.z = .08;
+  }
+  mk(BOX(.13,.13,L.shackWidth+.45),frame,g,-1.6,3.37,0);
+  // A modest sign and warm strip light leave the keeper's face unobstructed.
+  const sign = signMesh(['FIELD SUPPLIES'],L.shackWidth-.45,.3,{bg:'#29352f',color:'#eadbb6',border:false});
+  sign.position.set(-1.671,3.33,0); sign.rotation.y = -PI/2; g.add(sign);
+  const name = signMesh([SHOPS[shopId].npc],1.8,.2,{bg:'#3d3329',color:'#f1e4cd',border:false});
+  name.position.set(-1.42,3.1,L.keeperZ); name.rotation.y = -PI/2; g.add(name);
+  mk(BOX(.1,.035,L.shackWidth-.4),'#ffe5b6',g,-1.3,3.16,0,{emissive:'#9a6531'});
+  // Small back-room details help the keeper feel housed, rather than hidden by a rack.
+  for (const [x,z] of [[1.03,L.keeperZ+.54],[1.03,L.keeperZ-.61]]) {
+    mk(BOX(.43,.4,.38),wood,g,x,.28,z);
+    for (const y of [.12,.43]) mk(BOX(.46,.055,.4),frame,g,x,y,z);
+  }
+  mergeLocal(g); g.userData.layout = L;
   return g;
 }
 
 function buildCompactSellStation() {
   const g = new THREE.Group(); g.name = 'Sell loot station';
-  mk(BOX(.95,.78,1.8),'#537263',g,0,.47,0);
-  mk(BOX(1.05,.1,2.0),'#293b35',g,0,.91,0);
-  for (const z of [-.76,.76]) mk(BOX(.08,.19,.11),'#a4b5ad',g,-.3,.095,z);
-  mk(BOX(.62,.07,1.46),'#182923',g,-.05,1.0,0);
-  for (const z of [-.76,.76]) mk(BOX(.75,.19,.05),'#78978a',g,0,1.07,z);
-  mk(BOX(.075,.75,.075),'#42574f',g,.41,1.31,-.76);
-  const tag = signMesh(['SELL LOOT','FAVOURITES KEPT'],1.8,.52,{bg:'#18302a',color:'#d4f4dc',border:false});
-  tag.rotation.y = -PI / 2; tag.position.set(.34,1.56,0); g.add(tag);
-  const front = signMesh(['SELL'],1.4,.3,{bg:'#284b3b',color:'#e6eee8',border:false});
-  front.rotation.y = -PI / 2; front.position.set(-.482,.51,0); g.add(front);
+  mk(BOX(.78,.72,1.64),'#537263',g,0,.4,0);
+  mk(BOX(.9,.1,1.8),'#293b35',g,0,.82,0);
+  for (const z of [-.71,.71]) mk(BOX(.09,.17,.12),'#a4b5ad',g,-.26,.085,z);
+  mk(BOX(.59,.035,1.29),'#182923',g,-.02,.894,0);
+  for (const z of [-.67,.67]) mk(BOX(.66,.095,.04),'#78978a',g,-.02,.94,z);
+  const tag = signMesh(['SELL LOOT','FAVOURITES KEPT'],1.5,.43,{bg:'#18302a',color:'#d4f4dc',border:false});
+  tag.rotation.y = -PI/2; tag.position.set(-.398,.47,0); g.add(tag);
+  const receipt = signMesh(['SELL'],.46,.17,{bg:'#284b3b',color:'#e6eee8',border:false});
+  receipt.rotation.y = -PI/2; receipt.position.set(.16,.96,.53); g.add(receipt);
+  mk(BOX(.19,.12,.36),'#35413e',g,.23,.91,.53);
   g.userData.tag = tag; return g;
 }
 
@@ -535,7 +577,7 @@ class PlanetWorld {
     this.addPad(0, 0, 11);
     this.addPad(16, -6, 6);
     const stand = equipmentStandLayout(this.cfg.shop);
-    this.addFlat(stand.x - 2.4, stand.x + 2.2, stand.z - stand.width / 2 - .9, stand.sellZ + 1.7, this.rawH(16, -6));
+    this.addFlat(stand.x - 2.7, stand.x + 2.2, stand.z - stand.shackWidth / 2 - .7, stand.z + stand.shackWidth / 2 + .7, this.rawH(16, -6));
     this.addPad(0, -38, 6);
     this.addPad(-12, 10, 3);
     if (this.cfg.id === 'luck') {
@@ -744,9 +786,11 @@ class PlanetWorld {
   interact(x, z, r, label, fn, y) { const it={ x, y: y == null ? this.h(x, z) + 1.2 : y, z, r, label, fn };this.inter.push(it);return it; }
   npc(model, x, z, ry, name, tagY = 2.7) {
     this.place(model.root, x, z, ry, this.dyn);
-    const tag = textSprite(name, { size: 40, bg: 'rgba(43,29,20,.7)', scale: 0.0065 });
-    tag.position.set(0, tagY, 0);
-    model.root.add(tag);
+    if (tagY !== false) {
+      const tag = textSprite(name, { size: 40, bg: 'rgba(43,29,20,.7)', scale: 0.0065 });
+      tag.position.set(0, tagY, 0);
+      model.root.add(tag);
+    }
     // glue the body into a few meshes (fewer draw calls). The head turns to look at you, so it gets its own.
     if (model.bulb) model.bulb.userData.keep = true;
     mergeLocal(model.root, model.head ? [model.head] : []);
@@ -780,7 +824,7 @@ class PlanetWorld {
     this.locker = new ShipLocker(this);
     ship.add(this.locker.root);
     this.anim.push(() => this.locker.update());
-    this.box(1.48, -1.98, .36, 1.74, ship.position.y + CABIN.floor + 2.06);
+    this.box(1.48, -1.98, .36, 1.74, ship.position.y + CABIN.floor + 2.3);
     // Hull walls leave the ramp aperture open; the underbody blocks walking
     // underneath the cabin while allowing players on its raised floor through.
     this.box(0, .3, 3.3, 5.9, ship.position.y + CABIN.floor - .71);
@@ -793,29 +837,40 @@ class PlanetWorld {
     this.interact(0, 2.3, 1.3, () => Flight.boardLabel('pilot'), () => Flight.board('pilot'), seatY);
     this.interact(-.95, -1.5, 1.3, () => Flight.boardLabel('pass'), () => Flight.board('pass'), seatY);
     const shopCfg = SHOPS[this.cfg.shop], L = equipmentStandLayout(this.cfg.shop);
+    this.place(this.equipmentShack = buildEquipmentShack(this.cfg.shop),L.x,L.z);
     const stand = (this.equipmentStand = buildEquipmentStand(this.cfg.shop));
-    this.place(stand,L.x,L.z);
+    this.place(stand,L.x+L.rackX,L.z+L.rackZ); stand.position.y += .06;
     const ground = stand.position.y;
-    this.box(L.x+.27,L.z,.94,L.width,ground+1.79);
-    this.box(L.x-.86,L.z+L.gunZ,.48,L.gunSpan,ground+.67);
-    this.npc(buildShopkeeper(this.cfg.shop),L.x+1.4,L.z,-PI/2,shopCfg.npc,4.1);
-    this.interact(L.x+1.4,L.z,2.2,'Talk to '+shopCfg.npc,()=>UI.toast(U.pick(shopCfg.greet),'',3));
+    const scale = L.rackScale, half = L.shackWidth / 2, shackGround = this.equipmentShack.position.y;
+    this.box(stand.position.x+.27*scale,stand.position.z,.94*scale,L.width*scale,ground+1.79*scale);
+    this.box(stand.position.x-.86*scale,stand.position.z+L.gunZ*scale,.48*scale,L.gunSpan*scale,ground+.67*scale);
+    this.box(L.x+1.58,L.z,.12,L.shackWidth,shackGround+3.28,true);
+    for (const z of [-half,half]) this.box(L.x+.16,L.z+z,2.9,.16,shackGround+3.28,true);
+    this.plats.push({x0:L.x-1.615,x1:L.x+1.775,z0:L.z-half-.21,z1:L.z+half+.21,
+      top:shackGround+3.55,bot:shackGround+3.43,slopeX:Math.tan(.08)});
+    this.indoors.push({x0:L.x-1.25,x1:L.x+1.65,z0:L.z-half,z1:L.z+half});
+    const keeper = buildShopkeeper(this.cfg.shop);
+    this.npc(keeper,L.x+L.keeperX,L.z+L.keeperZ,-PI/2,shopCfg.npc,false);
+    const talk = this.interact(L.x-.2,L.z+L.keeperZ,2.2,'Talk to '+shopCfg.npc,()=>UI.toast(U.pick(shopCfg.greet),'',3));
+    talk.aim = keeper.root.localToWorld(new V3(0,1.9,.25));
+    stand.updateMatrixWorld(true);
     for (const d of stand.userData.displays) {
       const getItem = d.getItem || (() => d.it), isSight = d.sight !== undefined;
-      const interaction = this.interact(L.x+d.x,L.z+d.z,2.25,
+      const aim = stand.localToWorld(d.aim.clone());
+      const interaction = this.interact(stand.position.x+d.x*scale,stand.position.z+d.z*scale,2.25,
         () => isSight ? Shop.sightLabel(d.sight) : Shop.displayLabel(getItem()),
-        () => isSight ? Shop.useSight(d.sight) : Shop.useDisplay(getItem()),ground+d.y);
-      interaction.aim = d.aim.clone().add(stand.position); interaction.trade = true;
+        () => isSight ? Shop.useSight(d.sight) : Shop.useDisplay(getItem()),aim.y);
+      interaction.aim = aim; interaction.trade = true;
     }
-    const sell = (this.sellStation = buildCompactSellStation()); this.place(sell,L.x,L.sellZ);
-    this.box(L.x,L.sellZ,1.05,2, sell.position.y+1.13);
-    const seller = this.interact(L.x-.65,L.sellZ,2.3,()=>Shop.sellLabel(),()=>Shop.sellAtStation(),sell.position.y+1.05);
-    seller.aim = new V3(L.x-.12,sell.position.y+1.02,L.sellZ); seller.trade = true;
+    const sell = (this.sellStation = buildCompactSellStation()); this.place(sell,L.sellX,L.sellZ); sell.position.y += .06;
+    this.box(L.sellX,L.sellZ,.9,1.8,sell.position.y+.99);
+    const seller = this.interact(L.sellX-.5,L.sellZ,2.3,()=>Shop.sellLabel(),()=>Shop.sellAtStation(),sell.position.y+.9);
+    seller.aim = new V3(L.sellX-.4,sell.position.y+.47,L.sellZ); seller.trade = true;
     let lastTags = -1;
     this.anim.push(t => {
       const tick = Math.floor(t * 2); if (tick === lastTags) return; lastTags = tick;
       for (const d of stand.userData.displays) updateTradeTag(d.tag,d.sight !== undefined ? scopeTradeLines(d.sight) : tradeTagLines(d.getItem ? d.getItem() : d.it));
-      updateTradeTag(sell.userData.tag,['SELL LOOT',U.bucks(Activities.pays(Activities.sellableValue()))+' · FAVOURITES KEPT']);
+      updateTradeTag(sell.userData.tag,['SELL LOOT',U.bucks(Activities.pays(Activities.sellableValue())),'FAVOURITES KEPT']);
     });
   }
 
@@ -1228,8 +1283,9 @@ class PlanetWorld {
     const ig = buildIgloo();
     this.jokeSign(-12, 10, ig);
     this.circles.pop(); this.circle(-12, 10, 2.6);
-    this.place(buildIgloo(), 21.8, -6, -Math.PI / 2, null, 2.4);
-    this.circle(21.8, -6, 2.6);
+    // Keep the igloo entrance clear of the supply shack's new back wall.
+    this.place(buildIgloo(), 24.8, -6, -Math.PI / 2, null, 2.4);
+    this.circle(24.8, -6, 2.6);
     this.scatter(6, 20, 72, 4, (x, z) => { this.place(buildIgloo(), x, z, rng() * 6, null, 2.4); this.circle(x, z, 2.6); });
     this.scatter(80, 12, 88, 1.6, (x, z) => { this.place(buildPine(rng, true), x, z, rng() * 6, null, 0.4); this.circle(x, z, 0.5); });
     this.scatter(12, 10, 80, 1.2, (x, z) => { this.place(buildSnowman(rng), x, z, rng() * 6, null, 0.6); this.circle(x, z, 0.8); });
@@ -1541,7 +1597,10 @@ class PlanetWorld {
       if (y >= floor - .7) g = Math.max(g, floor);
     }
     for (const c of this.caps) { const t = this.capAt(c, x, z); if (y >= t - 0.7) g = Math.max(g, t); }
-    for (const p of this.plats) if (x > p.x0 && x < p.x1 && z > p.z0 && z < p.z1 && y >= p.top - 0.7) g = Math.max(g, p.top);
+    for (const p of this.plats) {
+      const top = p.top + (p.slopeX || 0) * (x - (p.x0 + p.x1) / 2);
+      if (x > p.x0 && x < p.x1 && z > p.z0 && z < p.z1 && y >= top - 0.7) g = Math.max(g, top);
+    }
     return g;
   }
   // the lowest mushroom cap over the head of someone standing at y (Infinity: open sky)
@@ -1552,6 +1611,11 @@ class PlanetWorld {
       if (y >= base + CABIN.floor - .3 && y < base + 4.5)
         c0 = base + 4.68; // underside of the remodeled shuttle's solid roof
     }
+    for (const p of this.plats) {
+      if (p.bot == null || x <= p.x0 || x >= p.x1 || z <= p.z0 || z >= p.z1) continue;
+      const bot = p.bot + (p.slopeX || 0) * (x - (p.x0 + p.x1) / 2);
+      if (y + 1.8 <= bot + .05) c0 = Math.min(c0, bot);
+    }
     for (const c of this.caps) {
       if (c.bot == null || y + 1.8 > c.bot + 0.05) continue;
       const dx = x - c.x, dz = z - c.z;
@@ -1561,7 +1625,10 @@ class PlanetWorld {
   }
   onPlatform(x, z, y) {
     for (const c of this.caps) { const t = this.capAt(c, x, z); if (t > -Infinity && y >= t - 0.7) return true; }
-    for (const p of this.plats) if (x > p.x0 && x < p.x1 && z > p.z0 && z < p.z1 && y >= p.top - 0.7) return true;
+    for (const p of this.plats) {
+      const top = p.top + (p.slopeX || 0) * (x - (p.x0 + p.x1) / 2);
+      if (x > p.x0 && x < p.x1 && z > p.z0 && z < p.z1 && y >= top - 0.7) return true;
+    }
     return false;
   }
   blocked(x, z, y) {
