@@ -61,9 +61,12 @@ const Achieve = {
       if (s.name) Game.steamName(s.name);
       return d.achieved(ACHIEVEMENTS.map((a) => a.id)).then((has) => { ACHIEVEMENTS.forEach((a, i) => { if (has[i]) this.onSteam[a.id] = true; }); });
     }).catch(() => { this.steam = false; }).then(() => { this.known = true; });
-    // the Steam overlay's shortcut (Shift+Tab): let go of the mouse so you can use it (the game pauses)
+    // the Steam overlay's shortcut (Shift+Tab): it's the overlay's, not the game's (Tab alone opens your backpack),
+    // and the game lets go of the mouse so you can use it (it pauses)
     addEventListener('keydown', (e) => {
-      if (this.steam && e.code === 'Tab' && e.shiftKey && document.pointerLockElement) document.exitPointerLock();
+      if (!this.steam || e.code !== 'Tab' || !e.shiftKey) return;
+      Input.pressed.Tab = false; Input.keys.Tab = false;
+      if (document.pointerLockElement) document.exitPointerLock();
     });
   },
   has(id) { return this.steam ? !!this.onSteam[id] : !!this.got[id]; },
