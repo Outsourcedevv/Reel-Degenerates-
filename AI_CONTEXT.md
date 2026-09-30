@@ -89,6 +89,12 @@ Known documented systems include:
 
 ## Current Task
 
+### Backpack opening and stack quantities (2026-09-30)
+
+- `PhysicalInventory` in `js/inventory.js` lifts the backpack into view over 380ms with cubic easing while its world tint and caption fade in. Reduced-motion preferences skip the lift. Rebuilding pockets or changing inventory does not replay the opening; closing during it still works.
+- Each occupied cargo pocket has a large clickable quantity badge, including single-item stacks. Selection shows the stack count; carrying, stowing, dropping and collecting update it from SAVE.
+- Approved for main after preview. Headless Edge checked the opening phases, quantity-badge selection, count changes, resize, reduced motion and Tab/Esc closure without pause. The newer Steam/achievement changes are preserved; Steam's Shift+Tab remains separate from the backpack's Tab.
+
 ### Steam achievements and overlay (2026-09-30)
 
 - `desktop/steam.js` wraps steamworks.js (a `dependencies` entry; `asarUnpack` for its `dist/**`, mac `x64ArchFiles` for the universal build; electron-builder drops the `.dll` only on non-Windows builds). `prepare()` runs before app ready: App ID from `SteamAppId` (Steam launched us) or `desktop/steam.json` (`appId`, 0 = off; `requireSteam` restarts through Steam via `restartAppIfNecessary`, for the Steam build only); `electronEnableSteamOverlay()` (in-process-gpu, disable-direct-composition, frame invalidation) only when Steam launched the game. `BY_STEAM` is read at load: steamworks' `init` sets `SteamAppId`/`SteamGameId` even when it fails. `start()` after ready; without a Steam client `init` throws and the app carries on. The GitHub self-updater stays on under Steam too: the user asked to keep it for now (to leave updates to Steam later, make `canUpdate` skip when `steam.active()`/`steam.launchedBySteam()`). IPC `steam:info` / `steam:achieve` / `steam:has` / `steam:overlay`, preload `desktop.steam/achieve/achieved/steamAchievements`.
