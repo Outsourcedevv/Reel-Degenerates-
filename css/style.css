@@ -1273,4 +1273,7 @@ input[type=text], input:not([type]) { cursor: text !important; }
 #pack-caption b { display:block; font-size:19px; font-weight:600; }
 #pack-caption span { display:block; margin-top:7px; font-size:14px; color:#d9cfb2; }
 #pack-caption small { display:block; margin-top:9px; color:#acb9bd; font-size:12px; }
+.pack-actions { display:flex; justify-content:center; flex-wrap:wrap; gap:8px; margin-top:10px; }
+.pack-actions button { pointer-events:auto; padding:7px 13px; border:1px solid #d5e1da66; border-radius:2px; background:rgba(17,29,35,.6); color:#eee6cf; font:600 13px var(--font-h); }
+.pack-actions button:hover, .pack-actions button:focus-visible { background:rgba(73,80,67,.85); border-color:#dfcb92; }
 body.pack-open #hud, body.pack-open #flyhud { visibility:hidden; }
