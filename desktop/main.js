@@ -5,6 +5,7 @@ const { app, BrowserWindow, shell, Menu, ipcMain, net } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { Updater, RELEASES } = require('./updater');
+const steam = require('./steam');
 
 // the game that came with this download (build.json is written when the app is built for a release)
 function shippedGame() {
@@ -90,7 +91,8 @@ function gameFailed(why) {
   loadGame();
 }
 
-// only an installed app updates itself (SPACE_GOOBERS_UPDATES=<game.json address> tries it out from the source)
+// only an installed app updates itself (SPACE_GOOBERS_UPDATES=<game.json address> tries it out from the source).
+// (On Steam too, for now: the user wants the GitHub updates kept there as well)
 const canUpdate = () => app.isPackaged || !!process.env.SPACE_GOOBERS_UPDATES;
 const fromGame = (e) => win && e.sender === win.webContents;
 ipcMain.on('game:ready', (e) => { if (fromGame(e)) clearTimeout(readyT); });
@@ -120,10 +122,18 @@ ipcMain.on('game:grab-mouse', (e) => {
 ipcMain.handle('display:get', (e) => (fromGame(e) ? win.isFullScreen() : false));
 ipcMain.on('display:set', (e, on) => { if (fromGame(e)) setFullscreen(on); });
 ipcMain.on('app:quit', (e) => { if (fromGame(e)) app.quit(); });
+// Steam (see steam.js): are we on it, unlock an achievement, which ones you have, the overlay's achievements page
+ipcMain.handle('steam:info', (e) => (fromGame(e) ? steam.info() : { on: false }));
+ipcMain.on('steam:achieve', (e, name) => { if (fromGame(e)) steam.achieve(String(name)); });
+ipcMain.handle('steam:has', (e, names) => (fromGame(e) ? steam.has(names) : []));
+ipcMain.on('steam:overlay', (e) => { if (fromGame(e)) steam.showAchievements(); });
 ipcMain.on('update:releases', (e, v) => { if (fromGame(e)) shell.openExternal(/^\d+(\.\d+)*$/.test(v) ? `${RELEASES}/tag/v${v}` : `${RELEASES}/latest`); });
 
+// Steam first (its overlay needs settings made before anything starts). A copy that Steam is starting again for
+// us (requireSteam, see steam.js) just quits
+const viaSteam = steam.prepare();
 // one copy of the game at a time: starting it again just brings the one that's running to the front
-const first = app.requestSingleInstanceLock();
+const first = viaSteam && app.requestSingleInstanceLock();
 if (!first) app.quit();
 app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(); win.show(); win.focus(); } });
 // the title screen's music can start before you've clicked anything (a web page has to wait for a click)
@@ -133,6 +143,7 @@ Menu.setApplicationMenu(null);
 app.whenReady().then(() => {
   if (!first) return;
   prefs = loadPrefs();
+  steam.start();
   updater = new Updater({
     shippedDir: path.join(__dirname, '..'),
     shipped: shippedGame(),

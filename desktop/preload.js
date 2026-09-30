@@ -24,4 +24,10 @@ contextBridge.exposeInMainWorld('desktop', {
   },
   // Quit Game (title screen) / Quit to Desktop (pause menu)
   quit: () => ipcRenderer.send('app:quit'),
+  // Steam (see steam.js): { on, name } / unlock an achievement by its API name / which of these you have / the
+  // overlay's achievements page
+  steam: () => ipcRenderer.invoke('steam:info'),
+  achieve: (id) => ipcRenderer.send('steam:achieve', String(id || '')),
+  achieved: (ids) => ipcRenderer.invoke('steam:has', Array.isArray(ids) ? ids.map(String) : []),
+  steamAchievements: () => ipcRenderer.send('steam:overlay'),
 });

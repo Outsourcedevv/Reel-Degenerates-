@@ -22,6 +22,13 @@ screen says so: click **Update now** and the game restarts on the new version a 
 download, usually under a megabyte, and your worlds, settings and astronaut stay as they are. Once in a while an update
 needs a fresh download of the whole app; the title screen tells you when, with a button to the Releases page.
 
+### Achievements and Steam
+
+24 achievements (every boss, headshots, GIANT and golden critters, jackpots, gold medals, owning every gun...): see
+**Achievements** on the title screen or in the pause menu. On Steam they're Steam achievements, with the Steam
+overlay (`Shift+Tab`); setting that up (the App ID, and the list to add on Steamworks with ready-made icons) is in
+[STEAM.md](STEAM.md).
+
 ## Play in a browser
 
 Or open `index.html` in Chrome or Edge (double-clicking it works). You need a keyboard and mouse.
@@ -435,6 +442,8 @@ in your browser (clearing browser data deletes them).
 - `js/goober.js`: how your goober moves (walking, flailing, recoil, fidgets, emotes: `GooberAnim`)
 - `js/post.js`: bloom and color grading · `js/icons.js`: interface icons
 - `js/main.js`: game loop, menus, multiplayer glue · `js/net.js`: networking
+- `js/achievements.js`: achievements (`ACHIEVEMENTS`) and the Achievements screen · `desktop/steam.js`: Steam
+  (achievements, overlay), see [STEAM.md](STEAM.md)
 - `js/options.js`: the Options screen (`OPT_ROWS`), the "are you sure?" box, and what keeps it a game rather than
   a web page (no zooming, no files dropped on the window, menus that tick when you point at them)
 - `desktop/`: the desktop app (Electron). `npm install` then `npm start` runs it; `npm run dist` builds installers.

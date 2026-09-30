@@ -1277,3 +1277,35 @@ input[type=text], input:not([type]) { cursor: text !important; }
 .pack-actions button { pointer-events:auto; padding:7px 13px; border:1px solid #d5e1da66; border-radius:2px; background:rgba(17,29,35,.6); color:#eee6cf; font:600 13px var(--font-h); }
 .pack-actions button:hover, .pack-actions button:focus-visible { background:rgba(73,80,67,.85); border-color:#dfcb92; }
 body.pack-open #hud, body.pack-open #flyhud { visibility:hidden; }
+/* ---------- achievements (see achievements.js) ---------- */
+/* "Achievement unlocked" (off Steam: Steam shows its own), bottom right over everything */
+#achieve {
+  position: fixed; right: 22px; bottom: 140px; z-index: 95; width: 330px; display: flex; align-items: center; gap: 12px; padding: 10px 14px 10px 10px;
+  background: linear-gradient(90deg, rgba(20,16,6,.96), rgba(12,14,20,.96)); border: 1px solid rgba(255,176,32,.55); border-left: 3px solid var(--acc); border-radius: 6px;
+  box-shadow: 0 16px 40px rgba(0,0,0,.55), 0 0 24px rgba(255,176,32,.18); pointer-events: none;
+  opacity: 0; transform: translateX(40px); transition: opacity .35s ease, transform .35s cubic-bezier(.2,.8,.2,1);
+}
+#achieve.on { opacity: 1; transform: none; }
+#achieve .pic { width: 56px; height: 56px; flex: none; border-radius: 4px; background: radial-gradient(circle at 50% 40%, rgba(255,176,32,.3), rgba(0,0,0,.3) 70%); display: flex; align-items: center; justify-content: center; }
+#achieve .pic img, #achieve .pic .ico { width: 100%; height: 100%; }
+#achieve .txt { display: flex; flex-direction: column; min-width: 0; }
+#achieve small { font-family: var(--font-h); font-weight: 700; font-size: 10px; letter-spacing: 2.5px; text-transform: uppercase; color: var(--acc); }
+#achieve b { font-family: var(--font-h); font-weight: 700; font-size: 17px; letter-spacing: 1px; color: #fff; }
+#achieve span { font-size: 12px; color: #c9d0dc; }
+/* the Achievements screen */
+#panel-inner:has(.achs) { width: min(900px, 100%); }
+.achbar { height: 4px; background: rgba(255,255,255,.1); margin: -4px 0 14px; overflow: hidden; }
+.achbar i { display: block; height: 100%; background: var(--acc); box-shadow: 0 0 10px var(--acc); }
+.achs { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; max-height: min(58vh, 560px); overflow-y: auto; padding-right: 4px; }
+.ach { position: relative; display: flex; align-items: center; gap: 10px; padding: 8px 34px 8px 8px; background: rgba(255,255,255,.03); border: 1px solid var(--line); border-radius: 5px; }
+.ach .pic { width: 48px; height: 48px; flex: none; border-radius: 4px; background: rgba(0,0,0,.3); display: flex; align-items: center; justify-content: center; filter: grayscale(1) brightness(.55); }
+.ach .pic img, .ach .pic .ico { width: 100%; height: 100%; }
+.ach .txt { display: flex; flex-direction: column; min-width: 0; }
+.ach b { font-family: var(--font-h); font-weight: 600; font-size: 15px; letter-spacing: .5px; color: #8a93a4; }
+.ach small { font-size: 12px; color: #6f7888; }
+.ach .tick { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: #4b5261; }
+.ach.got { background: linear-gradient(90deg, rgba(255,176,32,.1), rgba(255,255,255,.03)); border-color: rgba(255,176,32,.4); }
+.ach.got .pic { filter: none; background: radial-gradient(circle at 50% 40%, rgba(255,176,32,.28), rgba(0,0,0,.3) 70%); }
+.ach.got b { color: #fff; }
+.ach.got small { color: #c3cad6; }
+.ach.got .tick { color: var(--acc); }
