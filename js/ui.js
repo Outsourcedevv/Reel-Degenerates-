@@ -479,7 +479,7 @@ const UI = {
         <p><b>Your hotbar.</b> {slot1} to {slot5} take out what's in each slot. Walk into your landed ship and look at gear in its equipment locker. Pick a slot with its key, then {use} to equip. Look at the selected slot's label and {use} to stow it.</p>
         <p><b>Your pack.</b> {bag} opens a physical tray of your loot. Point at an item: {nade} pins this exact variant as a favourite, {reload} drops one, and {use} moves a critter between your pack and a free hotbar slot. Mouse wheel turns pockets. {bag} or Esc closes the pack.</p>
         <p><b>Guns.</b> From the hip your shots land somewhere inside the crosshair's circle; hold {aim} and they go dead on (you walk slower). The Goo Lobber, Launcher, Cryo Beam, Pizza Cutter and Wisp Caller don't aim: they're just as good from the hip. You start with a Squirt Pistol (it's terrible). Every planet sells a different real gun, and you keep every one you buy.</p>
-        <p><b>Sights.</b> Hold a compatible gun and walk up to a scope on the optics bench. Press {use} to buy and fit it. Fitting an owned sight is free.</p>
+        <p><b>Sights.</b> Hold a compatible gun and look at a scope on the equipment stand's lower rail. Press {use} to buy and fit it. Its planet must be unlocked; fitting an owned sight is free.</p>
         <p><b>Grabby Vac.</b> Hold {fire} on things to suck them up: junk, berries, chips, snow piles, pearls, litter, crusts, and critters you zapped. Ghosts too: it's the ONLY way to catch one, and you have to keep it in the middle of your screen.</p>
         <p><b>Laser Drill</b> (Frostbyte): hold {fire} on crystals. <b>Pizza Peel</b> (Zorblax Prime): catch pepperoni meteors. <b>Goo Grenades:</b> {nade}.</p></div>`],
       loop: ['The loop', () => `<div class="how1">

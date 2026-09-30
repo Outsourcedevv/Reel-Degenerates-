@@ -222,7 +222,7 @@ const Shop = {
     for (const g of guns) if (g === held || !sightOf(g)) SAVE.sightOn[g] = id;
     const n = guns.filter((g) => SAVE.sightOn[g] === id).length;
     G.player.refitSight();
-    UI.toast(`${SIGHTS[id].name}! It's on ${n === 1 ? 'your ' + gunDef(guns.find((g) => SAVE.sightOn[g] === id)).name : n + ' of your guns'}. Hold {aim} to look through it. Swap sights at the optics bench.`, 'good', 4.5);
+    UI.toast(`${SIGHTS[id].name}! It's on ${n === 1 ? 'your ' + gunDef(guns.find((g) => SAVE.sightOn[g] === id)).name : n + ' of your guns'}. Hold {aim} to look through it. Swap sights on the equipment stand's scope rail.`, 'good', 4.5);
   },
   // pricier stuff gets a fancier frame
   tier(price) { return price >= 5000 ? 'legend' : price >= 1500 ? 'epic' : price >= 400 ? 'rare' : 'common'; },
@@ -273,9 +273,7 @@ const Shop = {
     return 'gear';
   },
   weaponStock(shopId) {
-    const stock=SHOPS[shopId].items.filter(it=>it.kind==='zap');
-    if(!stock.some(it=>it.lvl===0)) stock.unshift(STARTER_GUN);
-    return stock;
+    return SHOPS[shopId].items.filter(it=>it.kind==='zap');
   },
   magnetStock(shopId) {
     const cap = PLANETS.findIndex(p => p.shop === shopId) + 1, lvl = (SAVE.magnetLvl || 0) + 1;

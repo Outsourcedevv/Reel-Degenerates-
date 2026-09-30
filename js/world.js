@@ -389,11 +389,17 @@ function buildCounter(col) {
 }
 
 function equipmentStandLayout(shopId) {
-  const stock = SHOPS[shopId].items, guns = Shop.weaponStock(shopId);
-  const gunSpan = Math.max(4.8, guns.length * 2.35);
-  return { x: 15.8, z: 5, width: gunSpan + 4.6, depth: 3.8, gunSpan, guns,
-    bags: stock.filter(it => it.kind === 'cargo'),
-    footwear: stock.filter(it => ['boots', 'skates', 'dash', 'stomp', 'springs', 'socks'].includes(it.kind)) };
+  const stock = SHOPS[shopId].items.filter(it => it.kind !== 'hat'), guns = stock.filter(it => it.kind === 'zap');
+  const bags = stock.filter(it => it.kind === 'cargo'), footwear = stock.filter(it => ['boots','skates','dash','stomp','springs','socks'].includes(it.kind));
+  const gear = stock.filter(it => !guns.includes(it) && !bags.includes(it) && !footwear.includes(it));
+  const cap = Math.min(MAGNET.length - 1, PLANETS.findIndex(p => p.shop === shopId) + 1);
+  const magnet = { kind:'magnet', lvl:cap, price:MAGNET[cap].price, name:cap === 1 ? 'Pickup Magnet' : 'Magnet Upgrade ' + cap };
+  gear.push(magnet);
+  const gunSpan = guns.length > 1 ? 2.6 : 1.8, bay = .92;
+  const width = Math.max(3.5, gunSpan + bay * (!!bags.length + !!footwear.length) + .28, gear.length * .73 + .3);
+  const gunZ = (bags.length ? bay / 2 : 0) - (footwear.length ? bay / 2 : 0);
+  return { x:17.8, z:-5.8, width, depth:1.9, gunSpan, gunZ, guns, bags, footwear, gear, magnet,
+    bagZ:-width / 2 + .5, bootZ:width / 2 - .5, sellZ:-5.8 + width / 2 + 1.6 };
 }
 
 function tradeTagLines(it) {
@@ -408,139 +414,102 @@ function updateTradeTag(tag, lines) {
   tag.material.map.dispose(); tag.material.dispose(); tag.material = next.material;
   next.geometry.dispose(); tag.userData.tradeText = text;
 }
-
-function buildGearDisplay(shopId) {
-  const footwear = ['boots','skates','dash','stomp','springs','socks'];
-  const stock = SHOPS[shopId].items.filter(it => !['zap','hat','cargo',...footwear].includes(it.kind));
-  const cap = Math.min(MAGNET.length - 1, PLANETS.findIndex(p => p.shop === shopId) + 1);
-  const fallback = { kind:'magnet',lvl:cap,price:MAGNET[cap].price,name:cap === 1 ? 'Pickup Magnet' : 'Magnet Upgrade ' + cap };
-  stock.push(Shop.magnetStock(shopId) || fallback);
-  const g = new THREE.Group(), width = Math.max(4.8, stock.length * 1.5), displays = [];
-  g.name = 'Walk-up gear display';
-  mk(BOX(1.9,.16,width),'#4d4540',g,0,1.1,0);
-  for (const x of [-.72,.72]) for (const z of [-width/2+.2,width/2-.2]) mk(BOX(.16,1.03,.16),'#323d42',g,x,.52,z);
-  mk(BOX(.09,.8,width),'#37474a',g,.9,1.56,0);
-  const title = signMesh(['GEAR & UPGRADES'],width-.3,.33,{bg:'#253237',color:'#eadbb6',border:false});
-  title.position.set(.84,1.86,0);title.rotation.y=-PI/2;g.add(title);
-  stock.forEach((initial,i) => {
-    const z = (i - (stock.length - 1)/2)*1.5, getItem = initial.kind === 'magnet' ? () => Shop.magnetStock(shopId) || fallback : () => initial;
-    const model = Thumbs.model(Thumbs.shopKey(initial)).o;
-    model.rotation.y = -PI/2;
-    let bounds = new THREE.Box3().setFromObject(model), size = bounds.getSize(new V3());
-    model.scale.setScalar(Math.min(3,1.3/size.x,1.15/size.z,.85/size.y));
-    bounds = new THREE.Box3().setFromObject(model);const centre = bounds.getCenter(new V3());
-    model.position.set(-centre.x,1.22-bounds.min.y,z-centre.z);g.add(model);
-    mk(BOX(1.55,.025,1.3),'#202a2c',g,0,1.2,z);
-    const tag = signMesh(tradeTagLines(initial),1.4,.42,{bg:'#172126',color:'#eadbb6',border:false});
-    tag.position.set(-.98,1.06,z);tag.rotation.y=-PI/2;g.add(tag);
-    displays.push({getItem,tag,x:-1.07,z,y:1.4,aim:new V3(0,1.22+(bounds.max.y-bounds.min.y)/2,z)});
-  });
-  g.userData.displays = displays;g.userData.width = width;return g;
+function scopeTradeLines(id) {
+  if (!id) return ['Iron sights', 'REMOVE SCOPE'];
+  const s = SIGHTS[id], zoom = (Math.tan(((G.settings && G.settings.fov) || 72) * PI / 360) / Math.tan(s.zoom * PI / 360)).toFixed(1) + '×';
+  return [s.short + ' · ' + zoom, !planetUnlocked(s.planet) ? 'LOCKED' : (SAVE.sights || []).includes(id) ? 'OWNED' : U.bucks(s.price)];
 }
 
-function buildOpticsDisplay() {
-  const g = new THREE.Group(), ids = ['',...Object.keys(SIGHTS)], displays = [];
-  g.name = 'Optics workbench';
-  mk(BOX(1.55,.14,5.2),'#4d4540',g,0,1.1,0);
-  for(const z of [-2.35,2.35])for(const x of [-.6,.6])mk(BOX(.12,1.03,.12),'#323d42',g,x,.52,z);
-  const sign = signMesh(['OPTICS · HOLD YOUR GUN TO FIT'],4.8,.35,{bg:'#253237',color:'#eadbb6',border:false});
-  sign.rotation.y=-PI/2;sign.position.set(.7,2.1,0);g.add(sign);
-  mk(BOX(.07,1.05,.09),'#37474a',g,.73,1.62,-2.35);mk(BOX(.07,1.05,.09),'#37474a',g,.73,1.62,2.35);
-  ids.forEach((id,i)=>{
-    const z=(i-1.5)*1.3;
-    mk(BOX(1.2,.04,1.1),'#202a2c',g,0,1.2,z);
-    if(id){
-      const sight=buildSight(id);sight.rotation.y=-PI/2;
-      let bounds=new THREE.Box3().setFromObject(sight),size=bounds.getSize(new V3());
-      sight.scale.setScalar(Math.min(8,.9/size.x,.95/size.z,.5/size.y));
-      bounds=new THREE.Box3().setFromObject(sight);const centre=bounds.getCenter(new V3());
-      sight.position.set(-centre.x,1.25-bounds.min.y,z-centre.z);g.add(sight);
-    }else{
-      for(const zz of [z-.25,z+.25])mk(BOX(.24,.13,.07),'#a8b0b2',g,0,1.32,zz);
-    }
-    const tag=signMesh([id?SIGHTS[id].short:'Iron sights',id?U.bucks(SIGHTS[id].price):'REMOVE SCOPE'],1.25,.42,{bg:'#172126',color:'#eadbb6',border:false});
-    tag.position.set(-.81,1.08,z);tag.rotation.y=-PI/2;g.add(tag);displays.push({id,tag,x:-.92,z});
-  });
-  g.userData.displays=displays;return g;
-}
-
-// An open equipment stand: the centre bench leaves both floor bays accessible.
+// One shallow stand at the merchant: local stock, floor bays, and a small scope rail.
 function buildEquipmentStand(shopId) {
   const L = equipmentStandLayout(shopId), g = new THREE.Group(), displays = [];
-  g.name = 'Equipment display stand';
-  const frame = '#39464c', wall = '#253238', trim = '#adb6b5', accent = SHOPS[shopId].color;
+  g.name = 'Compact planet equipment stand'; g.userData.dynamic = true;
+  const frame = '#39464c', trim = '#95a4a6', dark = '#1a252b', accent = SHOPS[shopId].color;
   const label = (lines, w, h, x, y, z) => {
-    const s = signMesh(lines, w, h, { bg: '#172126', color: '#eadbb6', border: false });
-    s.position.set(x, y, z); s.rotation.y = -PI / 2; g.add(s); return s;
+    const tag = signMesh(lines, w, h, { bg:'#172126', color:'#eadbb6', border:false });
+    tag.position.set(x, y, z); tag.rotation.y = -PI / 2; g.add(tag); return tag;
   };
-  mk(BOX(L.depth, .1, L.width), frame, g, 0, .05, 0);
-  mk(BOX(.18, 3.2, L.width), wall, g, 1.7, 1.7, 0);
-  for (let z = -L.width / 2 + .3; z < L.width / 2; z += .55)
-    mk(BOX(.07, 2.35, .025), '#46545a', g, 1.58, 1.42, z);
-  for (const z of [-L.width / 2 + .1, L.width / 2 - .1]) {
-    mk(BOX(.23, 3.3, .23), frame, g, 1.65, 1.7, z);
-    mk(BOX(L.depth, .12, .18), trim, g, 0, .16, z);
+  const display = (model, limits, x, y, z, options = {}) => {
+    inventoryFit(model, limits, x, y, z); g.add(model);
+    const aim = new THREE.Box3().setFromObject(model).getCenter(new V3());
+    displays.push({ x:-1.05, z, y:aim.y, aim, model, ...options });
+    return displays[displays.length - 1];
+  };
+  mk(BOX(1.7,.08,L.width),frame,g,0,.04,0);
+  mk(BOX(.09,1.6,L.width),'#293940',g,.73,.88,0);
+  for (let z = -L.width / 2 + .22; z < L.width / 2; z += .45) mk(BOX(.025,1.4,.018),'#45555c',g,.67,.88,z);
+  for (const z of [-L.width / 2 + .06, L.width / 2 - .06]) {
+    mk(BOX(.09,2.63,.1),frame,g,.7,1.34,z);
+    mk(BOX(1.7,.055,.09),trim,g,0,.1,z);
   }
-  mk(BOX(.3, .58, L.width + .15), frame, g, 1.65, 3.15, 0);
-  mk(BOX(.025, .05, L.width - .35), accent, g, 1.48, 2.82, 0);
-  label(['FIELD EQUIPMENT'], L.width - 1, .38, 1.48, 3.17, 0);
-  // A shallow hood shelters the rack without hiding it from above.
-  mk(BOX(.9, .12, L.width + .15), frame, g, 1.33, 3.48, 0);
-  mk(BOX(.6, .025, L.width - .5), '#e8e3cd', g, 1.2, 3.4, 0, { emissive: '#544629' });
+  mk(BOX(.12,.28,L.width + .06),frame,g,.69,2.5,0);
+  label(['FIELD EQUIPMENT'],L.width-.3,.22,.61,2.5,0);
+  mk(BOX(.65,.08,L.width+.1),frame,g,.45,2.7,0);
+  mk(BOX(.35,.02,L.width-.25),'#dfdccd',g,.36,2.646,0,{emissive:'#504732'});
+  mk(BOX(.02,.035,L.width-.2),accent,g,.61,2.31,0);
 
-  mk(BOX(2.25, .18, L.gunSpan), frame, g, -.15, 1.12, 0);
-  for (const z of [-L.gunSpan / 2 + .15, L.gunSpan / 2 - .15])
-    for (const x of [-1.05, .7]) mk(BOX(.14, .98, .14), frame, g, x, .59, z);
-  L.guns.forEach((it, i) => {
-    const z = (i - (L.guns.length - 1) / 2) * 2.35;
-    mk(BOX(1.75, .045, 2.15), '#131d22', g, -.15, 1.235, z);
-    for (const zz of [z - 1.08, z + 1.08]) mk(BOX(1.8, .045, .025), trim, g, -.15, 1.26, zz);
-    const gun = GunDesigns.build(ZAPPERS[it.lvl].type);
-    gun.rotation.z = PI / 2; // roll onto its side, with the barrel along the bench
-    let bounds = new THREE.Box3().setFromObject(gun), size = bounds.getSize(new V3());
-    gun.scale.setScalar(Math.min(3.2, 1.65 / size.x, 2.05 / size.z));
-    bounds = new THREE.Box3().setFromObject(gun);
-    const centre = bounds.getCenter(new V3());
-    gun.position.set(-.15 - centre.x, 1.28 - bounds.min.y, z - centre.z); g.add(gun);
-    const tag = label(tradeTagLines(it), 2.1, .42, -1.29, 1.05, z);
-    displays.push({ it, tag, x: -1.38, z, y: 1.22, aim:new V3(-.15,1.28+(bounds.max.y-bounds.min.y)/2,z) });
+  // Small guns lie on the central worktop; the floor bays remain visible beside it.
+  mk(BOX(1.12,.12,L.gunSpan),frame,g,-.16,1.13,L.gunZ);
+  for (const z of [L.gunZ-L.gunSpan/2+.08,L.gunZ+L.gunSpan/2-.08])
+    for (const x of [-.62,.28]) mk(BOX(.07,1.02,.07),frame,g,x,.57,z);
+  L.guns.forEach((it,i) => {
+    const z = L.gunZ + (i - (L.guns.length - 1) / 2) * 1.3;
+    mk(BOX(.96,.025,1.2),dark,g,-.16,1.204,z);
+    const gun = GunDesigns.build(ZAPPERS[it.lvl].type); gun.rotation.z = PI / 2;
+    display(gun,[.88,.3,1.1],-.16,1.23,z,{it,tag:label(tradeTagLines(it),1.22,.26,-.75,1.05,z)});
   });
 
-  const bagZ = -(L.gunSpan / 2 + 1.15), bootZ = -bagZ;
-  label(['PACKS'], 1.85, .3, 1.48, 2.48, bagZ);
-  label(['FOOTWEAR'], 1.85, .3, 1.48, 2.48, bootZ);
-  L.bags.forEach((it, i) => {
-    const z = bagZ + (i - (L.bags.length - 1) / 2) * 1.05;
-    const lean = new THREE.Group(), bag = buildBackpackItem(it.lvl);
-    bag.rotation.y = -PI / 2; bag.scale.setScalar(1.65); lean.add(bag);
-    lean.rotation.z = -.17; // the top rests against the rear wall
-    const bounds = new THREE.Box3().setFromObject(lean);
-    lean.position.set(1.57 - bounds.max.x, .1 - bounds.min.y, z); g.add(lean);
-    const tag = label(tradeTagLines(it), 2, .43, -.2, .34, z);
-    displays.push({ it, tag, x: -.45, z, y: .8, aim:new V3(1.57-(bounds.max.x-bounds.min.x)/2,.1+(bounds.max.y-bounds.min.y)/2,z) });
+  // Vacuums, tools, grenades and upgrades share one upper shelf.
+  mk(BOX(.75,.08,L.width-.16),frame,g,.27,1.74,0);
+  const spacing = (L.width-.22) / L.gear.length;
+  L.gear.forEach((initial,i) => {
+    const z = (i - (L.gear.length - 1) / 2) * spacing;
+    const getItem = initial.kind === 'magnet' ? () => Shop.magnetStock(shopId) || L.magnet : () => initial;
+    const model = Thumbs.model(Thumbs.shopKey(initial)).o; model.rotation.y = -PI / 2;
+    mk(BOX(.59,.02,spacing-.08),dark,g,.25,1.79,z);
+    display(model,[.58,.46,spacing-.12],.25,1.805,z,{getItem,tag:label(tradeTagLines(getItem()),spacing-.035,.24,-.14,1.64,z)});
   });
-  if (!L.bags.length) {
-    mk(BOX(.7, .55, 1.1), '#625746', g, 1.05, .38, bagZ);
-    label(['SUPPLY CRATE'], 1.5, .25, .68, .45, bagZ);
-  }
-  L.footwear.forEach((it, i) => {
-    const y = .78 + i * .85;
-    mk(BOX(2.1, .12, 2), frame, g, .25, y, bootZ);
-    const boots = ITEM_MODELS[it.kind](); boots.rotation.y = -PI / 2;
-    const size = new THREE.Box3().setFromObject(boots).getSize(new V3());
-    boots.scale.setScalar(Math.min(2.2, .7 / size.y, 1.55 / size.z, 1.4 / size.x));
-    const bounds = new THREE.Box3().setFromObject(boots), centre = bounds.getCenter(new V3());
-    boots.position.set(.15 - centre.x, y + .08 - bounds.min.y, bootZ - centre.z); g.add(boots);
-    const tag = label(tradeTagLines(it), 1.95, .35, -.84, y, bootZ);
-    displays.push({ it, tag, x: -1, z: bootZ, y: y + .25, aim:new V3(.15,y+.08+(bounds.max.y-bounds.min.y)/2,bootZ) });
+  L.bags.forEach((it,i) => {
+    const z = L.bagZ + (i - (L.bags.length - 1) / 2) * .7, lean = new THREE.Group();
+    const bag = buildBackpackItem(it.lvl); bag.rotation.y = -PI / 2; lean.add(bag); lean.rotation.z = -.15;
+    display(lean,[.48,.88,.75],.43,.09,z,{it,tag:label(tradeTagLines(it),.87,.24,-.48,.25,z)});
   });
-  if (!L.footwear.length) {
-    mk(BOX(2.1, .12, 2), frame, g, .25, .78, bootZ);
-    label(['GEAR AT THE COUNTER'], 1.95, .35, -.84, .78, bootZ);
-  }
-  g.userData.displays = displays;
+  L.footwear.forEach((it,i) => {
+    const y = .13 + i * .57, boots = ITEM_MODELS[it.kind](); boots.rotation.y = -PI / 2;
+    mk(BOX(.83,.06,.85),frame,g,.28,y-.02,L.bootZ);
+    display(boots,[.65,.46,.7],.27,y+.035,L.bootZ,{it,tag:label(tradeTagLines(it),.87,.23,-.2,y+.03,L.bootZ)});
+  });
+
+  // Scope fittings live in the stand, with the existing planet-unlock rules.
+  const ids = ['',...Object.keys(SIGHTS)], span = L.gunSpan, scopeStep = span / ids.length;
+  mk(BOX(.48,.07,span),frame,g,-.86,.61,L.gunZ);
+  ids.forEach((id,i) => {
+    const z = L.gunZ + (i - (ids.length - 1) / 2) * scopeStep;
+    const scope = id ? buildSight(id) : new THREE.Group();
+    if (!id) for (const zz of [-.1,.1]) mk(BOX(.1,.1,.025),trim,scope,0,.05,zz);
+    scope.rotation.y = -PI / 2;
+    mk(BOX(.38,.018,scopeStep-.045),dark,g,-.86,.658,z);
+    display(scope,[.32,.23,scopeStep-.07],-.86,.677,z,{sight:id,tag:label(scopeTradeLines(id),scopeStep-.02,.23,-1.11,.54,z)});
+  });
+  g.userData.displays = displays; g.userData.layout = L;
   return g;
 }
+
+function buildCompactSellStation() {
+  const g = new THREE.Group(); g.name = 'Sell loot station';
+  mk(BOX(.95,.78,1.8),'#537263',g,0,.47,0);
+  mk(BOX(1.05,.1,2.0),'#293b35',g,0,.91,0);
+  for (const z of [-.76,.76]) mk(BOX(.08,.19,.11),'#a4b5ad',g,-.3,.095,z);
+  mk(BOX(.62,.07,1.46),'#182923',g,-.05,1.0,0);
+  for (const z of [-.76,.76]) mk(BOX(.75,.19,.05),'#78978a',g,0,1.07,z);
+  mk(BOX(.075,.75,.075),'#42574f',g,.41,1.31,-.76);
+  const tag = signMesh(['SELL LOOT','FAVOURITES KEPT'],1.8,.52,{bg:'#18302a',color:'#d4f4dc',border:false});
+  tag.rotation.y = -PI / 2; tag.position.set(.34,1.56,0); g.add(tag);
+  const front = signMesh(['SELL'],1.4,.3,{bg:'#284b3b',color:'#e6eee8',border:false});
+  front.rotation.y = -PI / 2; front.position.set(-.482,.51,0); g.add(front);
+  g.userData.tag = tag; return g;
+}
+
 
 /* ---------------- a planet ---------------- */
 class PlanetWorld {
@@ -565,10 +534,8 @@ class PlanetWorld {
     // pads keep the ground flat under buildings
     this.addPad(0, 0, 11);
     this.addPad(16, -6, 6);
-    this.addPad(14.2,-12,4);
-    this.addPad(8,-14,4);
     const stand = equipmentStandLayout(this.cfg.shop);
-    this.addFlat(stand.x - 3, stand.x + 3, stand.z - stand.width / 2 - 1, stand.z + stand.width / 2 + 1, this.rawH(stand.x, stand.z));
+    this.addFlat(stand.x - 2.4, stand.x + 2.2, stand.z - stand.width / 2 - .9, stand.sellZ + 1.7, this.rawH(16, -6));
     this.addPad(0, -38, 6);
     this.addPad(-12, 10, 3);
     if (this.cfg.id === 'luck') {
@@ -825,48 +792,33 @@ class PlanetWorld {
     const seatY = ship.position.y + CABIN.floor + 1.2;
     this.interact(0, 2.3, 1.3, () => Flight.boardLabel('pilot'), () => Flight.board('pilot'), seatY);
     this.interact(-.95, -1.5, 1.3, () => Flight.boardLabel('pass'), () => Flight.board('pass'), seatY);
-    const shopCfg = SHOPS[this.cfg.shop];
-    const gear = buildGearDisplay(this.cfg.shop);
-    this.place(gear,15.8,-5.8);
-    this.box(15.8,-5.8,1.9,gear.userData.width,gear.position.y+1.2);
-    this.npc(buildShopkeeper(this.cfg.shop),17.8,-5.8,-PI/2,shopCfg.npc,4.1);
-    this.interact(17.8,-5.8,2.2,'Talk to '+shopCfg.npc,()=>UI.toast(U.pick(shopCfg.greet),'',3));
-    for (const d of gear.userData.displays) this.interact(15.8+d.x,-5.8+d.z,2,
-      ()=>Shop.displayLabel(d.getItem()),()=>Shop.useDisplay(d.getItem()),gear.position.y+d.y).aim=d.aim.clone().add(gear.position);
-    const sell=buildCounter('#70a68a');this.place(sell,14.2,-12,PI/2);this.box(14.2,-12,1.1,3.4,99);
-    const sellSign=signMesh(['SELL INVENTORY','FAVOURITES ARE KEPT'],3.2,1,{bg:'#18302a',color:'#d4f4dc'});
-    sellSign.position.set(13.7,this.h(14.2,-12)+2.4,-12);sellSign.rotation.y=-PI/2;this.group.add(sellSign);
-    mk(BOX(.55,.15,2.2),'#1f3931',sell,0,1.28,0);
-    this.interact(14.2,-12,3,()=>Shop.sellLabel(),()=>Shop.sellAtStation());
-    const L = equipmentStandLayout(this.cfg.shop), stand = buildEquipmentStand(this.cfg.shop);
-    this.place(stand, L.x, L.z);
+    const shopCfg = SHOPS[this.cfg.shop], L = equipmentStandLayout(this.cfg.shop);
+    const stand = (this.equipmentStand = buildEquipmentStand(this.cfg.shop));
+    this.place(stand,L.x,L.z);
     const ground = stand.position.y;
-    this.box(L.x + 1.7, L.z, .18, L.width, ground + 3.4);
-    this.box(L.x - .15, L.z, 2.25, L.gunSpan, ground + 1.22);
-    for (const z of [-L.width / 2 + .1, L.width / 2 - .1]) this.box(L.x, L.z + z, L.depth, .18, ground + .22);
-    for (const [i] of L.footwear.entries()) this.box(L.x + .25, L.z + L.gunSpan / 2 + 1.15, 2.1, 2, ground + .84 + i * .85);
+    this.box(L.x+.27,L.z,.94,L.width,ground+1.79);
+    this.box(L.x-.86,L.z+L.gunZ,.48,L.gunSpan,ground+.67);
+    this.npc(buildShopkeeper(this.cfg.shop),L.x+1.4,L.z,-PI/2,shopCfg.npc,4.1);
+    this.interact(L.x+1.4,L.z,2.2,'Talk to '+shopCfg.npc,()=>UI.toast(U.pick(shopCfg.greet),'',3));
     for (const d of stand.userData.displays) {
-      const { it } = d;
-      this.interact(L.x + d.x, L.z + d.z, 2.2,
-        () => Shop.displayLabel(it), () => Shop.useDisplay(it), ground + d.y).aim=d.aim.clone().add(stand.position);
+      const getItem = d.getItem || (() => d.it), isSight = d.sight !== undefined;
+      const interaction = this.interact(L.x+d.x,L.z+d.z,2.25,
+        () => isSight ? Shop.sightLabel(d.sight) : Shop.displayLabel(getItem()),
+        () => isSight ? Shop.useSight(d.sight) : Shop.useDisplay(getItem()),ground+d.y);
+      interaction.aim = d.aim.clone().add(stand.position); interaction.trade = true;
     }
-    const optics = buildOpticsDisplay();
-    this.place(optics,8,-14,PI/2);this.box(8,-14,5.2,1.55,optics.position.y+1.22);
-    for(const d of optics.userData.displays) this.interact(8+d.z,-14-d.x,1.8,
-      ()=>Shop.sightLabel(d.id),()=>Shop.useSight(d.id),optics.position.y+1.4).aim=new V3(8+d.z,optics.position.y+1.5,-14);
+    const sell = (this.sellStation = buildCompactSellStation()); this.place(sell,L.x,L.sellZ);
+    this.box(L.x,L.sellZ,1.05,2, sell.position.y+1.13);
+    const seller = this.interact(L.x-.65,L.sellZ,2.3,()=>Shop.sellLabel(),()=>Shop.sellAtStation(),sell.position.y+1.05);
+    seller.aim = new V3(L.x-.12,sell.position.y+1.02,L.sellZ); seller.trade = true;
     let lastTags = -1;
-    this.anim.push(t=>{
-      const tick=Math.floor(t*2);if(tick===lastTags)return;lastTags=tick;
-      for(const d of stand.userData.displays)updateTradeTag(d.tag,tradeTagLines(d.it));
-      for(const d of gear.userData.displays)updateTradeTag(d.tag,tradeTagLines(d.getItem()));
-      for(const d of optics.userData.displays){
-        if(!d.id){updateTradeTag(d.tag,['Iron sights','REMOVE SCOPE']);continue;}
-        const s=SIGHTS[d.id],zoom=(Math.tan(((G.settings&&G.settings.fov)||72)*PI/360)/Math.tan(s.zoom*PI/360)).toFixed(1)+'×';
-        updateTradeTag(d.tag,[s.short+' · '+zoom,(SAVE.sights||[]).includes(d.id)?'OWNED':U.bucks(s.price),planetUnlocked(s.planet)?'FIT TO HELD GUN':'Unlock '+PLANETS[s.planet].name]);
-      }
-      updateTradeTag(sellSign,['SELL INVENTORY',U.bucks(Activities.pays(Activities.sellableValue()))+' · FAVOURITES KEPT']);
+    this.anim.push(t => {
+      const tick = Math.floor(t * 2); if (tick === lastTags) return; lastTags = tick;
+      for (const d of stand.userData.displays) updateTradeTag(d.tag,d.sight !== undefined ? scopeTradeLines(d.sight) : tradeTagLines(d.getItem ? d.getItem() : d.it));
+      updateTradeTag(sell.userData.tag,['SELL LOOT',U.bucks(Activities.pays(Activities.sellableValue()))+' · FAVOURITES KEPT']);
     });
   }
+
   // the boss altar: use the planet's summoning item here to start the fight
   buildBeacon() {
     const b = BOSSES[this.cfg.boss], s = SUMMONS[this.cfg.boss];

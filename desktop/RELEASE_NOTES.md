@@ -1,6 +1,6 @@
 ## New in 1.12: physical trading, backpack, ship locker, and pickup magnets
 
-- Buy guns, backpacks, boots, and other gear directly from priced displays with E. The sell station sells unfavourited loot; the optics bench buys and fits scopes after their planet is unlocked.
+- Each planet's guns, backpacks, footwear, tools, and magnet upgrades share one compact stand at the shopkeeper. Look at a priced item and press E to buy or equip. The scope rail buys and fits sights after their planet is unlocked; a separate sell station beside the stand sells unfavourited loot.
 - I opens your physical backpack. Inspect your actual loot, browse pockets with the mouse wheel, pin exact item and size favourites with F, drop one with R, and move critters between the pack and free hotbar slots with E. I or Esc closes without pausing.
 - Owned guns and tools live on equipment racks inside the landed ship. Choose a slot with 1–5, then look at gear and E to equip. Swaps preserve carried critters when your backpack is full.
 - Buy a passive pickup magnet and upgrade it on every planet. It collects nearby vacuumable resources and your dead critters, respects capacity, and excludes ghosts and drill crystals.
