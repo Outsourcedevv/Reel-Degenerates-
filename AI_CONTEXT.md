@@ -89,6 +89,12 @@ Known documented systems include:
 
 ## Current Task
 
+### Supply shack and armory navigation (2026-09-30)
+
+- Each planet's native stock remains on a physical rack (`buildEquipmentStand`, `equipmentStandLayout`), now at .58 scale / 1.59m high. `buildEquipmentShack` houses the keeper behind the sell tray, with closed plank walls, roof, flat safe interior and an open front. The Frostbyte igloo moved back to clear the shack; the lower footwear bay moved forward so the socks stay visible beneath the stompers. Scopes, purchases, magnets and favourite-safe sales keep existing rules and do not open trading menus.
+- `ShipLocker` has Weapons / Tools sections with remembered pages, labelled Prev / Next, full names, equipped-slot status, explicit slot selection and a top Unequip held control. Slot selection no longer doubles as stowing. Gear stays owned; critters stow only with cargo space. `LocalPlayer.refreshGear` preserves a selected empty slot, including on saved-world reload, while missing grave gear still falls back to usable equipment.
+- Headless Edge checked all eight shacks, unobstructed real E targets, transactions/favourites, walls and sloped roof queries. Armory checks cover category/page bounds, real E equip/unequip, full-cargo safety, saved-world reload and grave fallback. Screenshots are outside the repo in `outputs/supply-shack`. User reviewed the preview and approved pushing this version to main; further changes still require preview approval before pushing.
+
 ### Backpack opening and stack quantities (2026-09-30)
 
 - `PhysicalInventory` in `js/inventory.js` lifts the backpack into view over 380ms with cubic easing while its world tint and caption fade in. Reduced-motion preferences skip the lift. Rebuilding pockets or changing inventory does not replay the opening; closing during it still works.
