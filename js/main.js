@@ -59,6 +59,12 @@ const Game = {
     // Close panels during the actual key event, before pause handling or the
     // next frame can reuse Escape. A direct gesture can reacquire pointer lock.
     addEventListener('keydown', (e) => {
+      if (e.code === 'Escape' && PhysicalInventory.on) {
+        e.preventDefault(); e.stopImmediatePropagation();
+        if (e.repeat) return;
+        PhysicalInventory.close(true); Input.keys.Escape = true;
+        this.escToGame = true; this.setSoft(true); G.locked = true; this.updatePause(); return;
+      }
       if (e.code !== 'Escape' || !G.panel || Keys.capturing || document.getElementById('ending')) return;
       e.preventDefault(); e.stopImmediatePropagation();
       Input.keys.Escape = true; Input.pressed = {}; Input.dx = Input.dy = 0;
@@ -78,6 +84,10 @@ const Game = {
       G.player.layoutVM();
     });
     document.addEventListener('pointerlockchange', () => {
+      if (PhysicalInventory.on) {
+        if (document.pointerLockElement) document.exitPointerLock();
+        G.locked = false; this.wantLock = false; this.updatePause(); return;
+      }
       if (document.pointerLockElement === G.renderer.domElement) { this.everLocked = true; this.wantLock = false; this.relockTried = false; this.grabTries = 0; clearTimeout(this.lockT); clearTimeout(this.grabT); this.fallback = false; this.setSoft(false); G.locked = true; }
       else { this.unlockedAt = performance.now(); if (!this.soft && !this.wantLock) G.locked = false; }
       this.updatePause();
@@ -165,7 +175,7 @@ const Game = {
     if (!moved) return;
     const pl = PLANETS[i];
     setTimeout(() => UI.bigTitle(pl.name, pl.blurb, '#fff', 3.4), 600);
-    setTimeout(() => { if (G.mode === 'planet' && G.planet === i) UI.guide(true, 16); }, 4000); // (as the title fades)
+    // Planet help is opened manually with the guide key after the initial world introduction.
     if (i === 2 && !SAVE.seenCasino) { SAVE.seenCasino = true; persist(); setTimeout(() => UI.toast('GAMBLING UNLOCKED. Please gamble responsibly. (You won\'t.)', 'purple', 5), 5200); }
   },
 
@@ -343,7 +353,9 @@ const Game = {
     Sound.init();
     Sound.setVolumes();
     Sound.playMusic(PLANETS[G.planet].music);
-    if (!SAVE.seenIntro) {
+    const freshIntro = !SAVE.seenIntro && !SAVE.beaten.length && !(SAVE.planet || 0) && !SAVE.guns.length && !SAVE.stats.collected && !SAVE.stats.deaths;
+    if (!SAVE.seenIntro && !freshIntro) { SAVE.seenIntro = true; persist(); }
+    if (freshIntro) {
       SAVE.seenIntro = true; persist();
       UI.openPanel(`<h2 class="ph">NEW DELIVERY ASSIGNMENT</h2>
         <div class="npc-line" data-who="FROM: DAVE, YOUR MANAGER">
@@ -358,12 +370,12 @@ const Game = {
         <p class="tip">Everything else is in <b>How to Play</b> (pause menu). Press ${keyKbd('{guide}')} any time to see what to do on the planet you're on.</p>
         <div class="row2"><button class="btn big green" data-act="close" style="max-width:320px">Let's deliver this pizza</button></div>`);
     } else {
-      this.updatePause();
+      this.lock();
       setTimeout(() => UI.bigTitle(PLANETS[G.planet].name, PLANETS[G.planet].blurb, '#fff', 3), 300);
     }
     // what to do here (once the intro note is out of the way)
     const guide = () => { if (G.panel) { setTimeout(guide, 500); return; } if (G.mode === 'planet') UI.guide(true, 16); };
-    setTimeout(guide, 3400);
+    if (freshIntro) setTimeout(guide, 3400);
   },
 
   // how hard enemies hit in this world
@@ -399,7 +411,7 @@ const Game = {
   },
 
   lock() {
-    if (!G.started || G.panel) return;
+    if (!G.started || G.panel || PhysicalInventory.on) return;
     Input.dx = Input.dy = 0;
     Input.mx = innerWidth / 2; Input.my = innerHeight / 2;
     // Keep the pause menu hidden during the asynchronous lock request.
@@ -469,6 +481,7 @@ const Game = {
     U.$('p-opts').onclick = () => Options.open(true);
     U.$('p-how').onclick = () => UI.showHow(true);
     U.$('p-cust').onclick = () => Custom.open(true);
+    U.$('p-crew').onclick = () => { UI.openCrew(); UI.backToPause = true; };
     U.$('p-leave').onclick = () => Ask.open('Quit to main menu?', this.quitNote(), 'Quit to menu', () => { persist(); Net.leave(); location.reload(); });
     U.$('p-quit').onclick = () => Ask.open('Quit to desktop?', this.quitNote(), 'Quit game', () => AppShell.quit());
     // Esc on the pause menu: back to the game (the Esc that just paused it doesn't count). The mouse gets grabbed
@@ -489,7 +502,7 @@ const Game = {
     });
   },
   updatePause() {
-    const show = G.started && !G.locked && !G.panel && !G.chatting && !this.wantLock && !document.getElementById('ending');
+    const show = G.started && !G.locked && !G.panel && !G.chatting && !PhysicalInventory.on && !this.wantLock && !document.getElementById('ending');
     U.$('pause').classList.toggle('hidden', !show);
     if (!show) { if (Ask.isOpen()) Ask.close(); return; }
     U.$('pause-title').textContent = G.online ? 'MENU' : 'PAUSED';
@@ -877,7 +890,7 @@ const Game = {
     this.fpsLast = now;
     const cam = G.camera;
     // (solo: the pause menu stops the game, and so does anything you open from it, like Options)
-    const paused = !G.online && G.started && ((!G.locked && !G.panel && !G.chatting) || (G.panel && UI.backToPause));
+    const paused = !G.online && G.started && ((!G.locked && !G.panel && !G.chatting && !PhysicalInventory.on) || (G.panel && UI.backToPause));
     if (!paused) {
       G.time += dt;
       this.keys();
@@ -915,16 +928,18 @@ const Game = {
     const f = G.mode === 'menu' ? new V3(0, 0, 0) : G.mode === 'space' ? Flight.pos : G.player.pos;
     G.sun.position.set(f.x + 30, f.y + 55, f.z + 18);
     G.sun.target.position.copy(f);
+    PhysicalInventory.update();
     Input.endFrame();
-    if (!hidden) Post.render(cam, dt);
+    if (!hidden) { if (PhysicalInventory.on) PhysicalInventory.render(); else Post.render(cam, dt); }
   },
   keys() {
     if (!G.started) return;
+    if (PhysicalInventory.on) { PhysicalInventory.keys(); return; }
     if (G.panel && (Input.tap('Escape') || Input.hit('use') || (Flight.mapOpen && Input.hit('map'))) && !document.getElementById('ending')) { Input.pressed = {}; UI.closePanel(); return; }
     if (G.panel || G.chatting) return;
     if ((this.fallback || this.soft) && G.locked && Input.tap('Escape')) { this.pause(); return; }
     if (Input.hit('chat') || (Input.tap('Enter') && !Keys.bound('Enter'))) { this.openChat(); return; }
-    if (Input.hit('bag') && G.mode === 'planet' && !G.player.dead) { UI.openBag(); return; }
+    if (Input.hit('bag') && G.mode === 'planet' && !G.player.dead) { PhysicalInventory.open(); return; }
     if (Input.hit('guide') && G.mode === 'planet') UI.guide(!UI.guideOn);
     if (G.mode !== 'planet' && UI.guideOn) UI.guide(false);
     if (Input.hit('music') && (G.mode !== 'space' || Keys.map.music !== Keys.map.map)) { // (in the ship M is the star map)
@@ -935,26 +950,13 @@ const Game = {
   },
   // what shooting does with the gun you've got out (every gun works differently, see ZAPPERS)
   gunHint() {
-    const z = gunDef(SAVE.zap);
-    switch (z.type) {
-      case 'squirt': return '{fire}: squirt (it\'s terrible: buy a real gun!) · {reload}: refill';
-      case 'spread': return '{fire}: blast · hold {aim}: aim (tighter spread) · {reload}: reload';
-      case 'lob': return '{fire}: lob goo (aim a bit high) · {reload}: reload';
-      case 'jackpot': return '{fire}: shoot and pray · hold {aim}: aim · {reload}: reload';
-      case 'beam': return 'Hold {fire}: freeze beam · {reload}: recharge';
-      case 'cutter': return '{fire}: throw a pizza cutter (it comes back)';
-      case 'homing': return '{fire}: ghost wisps (they chase things) · {reload}: reload';
-      case 'chain': return '{fire}: chain lightning (it jumps between targets) · hold {aim}: aim · {reload}: reload';
-      case 'rocket': return '{fire}: launch a parcel (shoot your feet to rocket-jump) · {reload}: reload';
-      case 'sniper': return '{fire}: shoot · hold {aim}: look down the scope · {reload}: reload';
-      default: return '{fire}: zap · hold {aim}: aim (dead on) · {reload}: reload';
-    }
+    return ''; // Combat controls remain in How to Play; keep the HUD clear.
   },
   // "3: Laser Drill for the crystals" if it's on your hotbar ("the Laser Drill for the crystals (on your
   // hotbar: see any shop)" if it isn't)
   slotTip(tool, what) {
     const i = Loadout.findTool(tool);
-    return i >= 0 ? `{slot${i + 1}}: ${what}` : `${what} (put it on your hotbar at a shop)`;
+    return i >= 0 ? `{slot${i + 1}}: ${what}` : `${what} (equip it at the ship locker)`;
   },
   updateHint() {
     const p = G.player;

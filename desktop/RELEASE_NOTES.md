@@ -1,4 +1,14 @@
-## New in 1.12: a hotbar, keybinds, critters you pick up, and bosses that go out with a bang
+## New in 1.12: physical trading, backpack, ship locker, and pickup magnets
+
+- Buy guns, backpacks, boots, and other gear directly from priced displays with E. The sell station sells unfavourited loot; the optics bench buys and fits scopes after their planet is unlocked.
+- I opens your physical backpack. Inspect your actual loot, browse pockets with the mouse wheel, pin exact item and size favourites with F, drop one with R, and move critters between the pack and free hotbar slots with E. I or Esc closes without pausing.
+- Owned guns and tools live on equipment racks inside the landed ship. Choose a slot with 1–5, then look at gear and E to equip. Swaps preserve carried critters when your backpack is full.
+- Buy a passive pickup magnet and upgrade it on every planet. It collects nearby vacuumable resources and your dead critters, respects capacity, and excludes ghosts and drill crystals.
+- Default controls are F for grenades and Q for dashing. Dash recharges after 1.5 seconds, including in the air. Custom bindings are retained.
+- Saved worlds resume without automatically opening pause or planet help. Combat control reminders no longer fill the bottom of the HUD.
+- Nimbus-9 has lighter terrain. All cosmetics are freely equippable. Crew & Money is available from the pause menu.
+
+## Earlier in 1.12: a hotbar, keybinds, critters you pick up, and bosses that go out with a bang
 
 - **It looks and plays like a PC game now, not a web page.** A new title screen (Play, Multiplayer, Customize,
   Options, How to Play, Quit Game) with music, your name and goober in the top right corner (click them to change

@@ -92,7 +92,7 @@ const VAC_HINT = {
 // what to point it at on each planet (by activity)
 const VAC_WHAT = { scrap: 'a glowing junk pile', berry: 'a berry', casino: 'a dropped chip', crystal: 'a snow pile', ghost: 'a ghost (get closer)', pearl: 'a pearl', deliver: 'some litter', meteor: 'a burnt crust' };
 // movement gear (see LocalPlayer.update): Getaway Sneakers, Jet Pack, Glider Cape, Yeti Stompers
-const DASH = { speed: 22, time: 0.18, cd: 1.1 };
+const DASH = { speed: 22, time: 0.18, cd: 1.5 };
 const JET = { fuel: 2.2, up: 7, acc: 24, refuel: 0.6, hold: 0.22 }; // (seconds of fuel; hold Space this long before it kicks in)
 const CAPE_FALL = 2.2; // how fast you fall while gliding
 const STOMP = { speed: 32, r: 4.5, dmg: 80 };
@@ -333,10 +333,10 @@ class LocalPlayer {
   update(dt) {
     const w = this.world();
     const cfg = PLANETS[G.planet];
-    const canAct = G.locked && !G.panel && !G.chatting;
+    const canAct = G.locked && !G.panel && !G.chatting && !PhysicalInventory.on;
     // --- look
     const s = 0.0022 * G.settings.sens * U.lerp(1, this.aimSens(), this.aimK || 0); // (aimed: finer aim)
-    if (G.locked && !G.panel) {
+    if (G.locked && !G.panel && !PhysicalInventory.on) {
       this.yaw -= Input.dx * s;
       this.pitch = U.clamp(this.pitch - Input.dy * s, -1.5, 1.5);
     }
@@ -383,9 +383,9 @@ class LocalPlayer {
     }
     // moving (or jumping) stops an emote
     if (this.emoteT > 0) { this.emoteT -= dt; if (len > 0 || (canAct && Input.hit('jump'))) this.stopEmote(); }
-    // --- Getaway Sneakers: {dash} (F) dashes the way you're going (once per jump in the air)
+    // --- Getaway Sneakers: a timed cooldown, on the ground or in the air.
     this.dashCd -= dt; this.launchT -= dt; this.padCd -= dt;
-    if (canAct && !frozen && SAVE.dash && Input.hit('dash') && this.dashCd <= 0 && !this.stomping && (this.onGround || !this.airDash)) this.startDash(tx, tz);
+    if (canAct && !frozen && SAVE.dash && Input.hit('dash') && this.dashCd <= 0 && !this.stomping) this.startDash(tx, tz);
     if (this.dashT > 0) {
       this.dashT -= dt;
       const k = this.dashT > 0 ? 1 : 0.45; // (then ease off, so it's a quick burst and not a long slide)
@@ -1225,14 +1225,22 @@ class LocalPlayer {
     this.near = null;
     if (!can || G.mode !== 'planet' || G.world.rising) { UI.prompt(null); return; } // no shopping while a boss climbs out
     const dir = this.camDir(new V3());
-    let best = null, bd = Infinity;
+    let best = null, bd = Infinity, bestScore = Infinity;
     for (const it of G.world.inter) {
+      if (it.available && !it.available()) continue;
       const dx = it.x - this.pos.x, dz = it.z - this.pos.z;
       const d = Math.hypot(dx, dz);
       if (d > it.r) continue;
-      const dot = d > 0.5 ? (dx * dir.x + dz * dir.z) / (d * Math.hypot(dir.x, dir.z) + 1e-6) : 1;
-      if (dot < 0.2) continue;
-      if (d < bd) { bd = d; best = it; }
+      let score = d;
+      if (it.aim) {
+        const facing = it.aim.clone().sub(G.camera.position).normalize().dot(dir);
+        if (facing < .94) continue;
+        score = (1 - facing) * 30 + d * .03;
+      } else {
+        const dot = d > 0.5 ? (dx * dir.x + dz * dir.z) / (d * Math.hypot(dir.x, dir.z) + 1e-6) : 1;
+        if (dot < 0.2) continue;
+      }
+      if (score < bestScore) { bestScore = score; bd = d; best = it; }
     }
     // a critter you zapped, lying there: pick it up (when it's closer than anything else you could use)
     const body = Critters.nearBody(this.pos, dir);

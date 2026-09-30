@@ -155,7 +155,7 @@ const UI = {
     text = text || '';
     if (this.el.hint._src === text) return;
     this.el.hint._src = text;
-    this.el.hint.innerHTML = text.split(' · ').map((t) => `<span>${keyKbd(U.esc(t).replace(/^Mouse: /, '<kbd>Mouse</kbd> ')).replace(/<\/kbd>: /g, '</kbd> ')}</span>`).join('');
+    this.el.hint.innerHTML = text.split(' · ').map(t => t.trim()).filter(Boolean).map((t) => `<span>${keyKbd(U.esc(t).replace(/^Mouse: /, '<kbd>Mouse</kbd> ')).replace(/<\/kbd>: /g, '</kbd> ')}</span>`).join('');
   },
   // what to do on this planet, step by step (shown when you land; H shows or hides it; dur: hide after that long).
   // A step starting with ! is the one thing you really need to know.
@@ -231,6 +231,7 @@ const UI = {
 
   /* ----- panels ----- */
   openPanel(html, handler, tick, onClose) {
+    if (PhysicalInventory.on) PhysicalInventory.close(true);
     if (G.panel && this.onClose) { const cb = this.onClose; this.onClose = null; cb(); }
     this.reopen = null;
     this.el['panel-inner'].innerHTML = `<button class="btn small x" data-act="close"><kbd>Esc</kbd>${icon('close')}</button>` + html;
@@ -464,7 +465,7 @@ const UI = {
     return `<div class="hkgrid">
       <div><h4>On foot</h4>${r('{forward}{left}{back}{right}', 'Move')}${r('{sprint}', 'Sprint')}${r('{jump}', 'Jump')}${r('{use}', 'Talk / use / pick up')}${r('{emote}', 'Emote')}</div>
       <div><h4>Guns &amp; tools</h4>${r('{fire}', 'Shoot / use what you\'re holding')}${r('{aim}', 'Aim down the sights (hold)')}${r('{reload}', 'Reload')}${r('{nade}', 'Throw a Goo Grenade')}${r('{slot1}-{slot5}', 'Hotbar (or the mouse wheel)')}</div>
-      <div><h4>Menus</h4>${r('{bag}', 'Backpack &amp; crew')}${r('{guide}', 'What to do on this planet')}${r('{chat}', 'Chat')}${r('{crew}', 'Crew list (hold)')}${r('<kbd>Esc</kbd>', 'Pause / close menus')}</div>
+      <div><h4>Pack &amp; help</h4>${r('{bag}', 'Physical backpack')}${r('{guide}', 'What to do on this planet')}${r('{chat}', 'Chat')}${r('{crew}', 'Crew list (hold)')}${r('<kbd>Esc</kbd>', 'Pause / close pack')}</div>
     </div>`;
   },
   howTabs() {
@@ -475,13 +476,14 @@ const UI = {
         <div><h4>More</h4>${this.keyRow('{music}', 'Music on / off')}${this.keyRow('{view}', 'Riding in the back: look at the ship')}</div></div>
         <p class="tip">Change any key in <b>Options &gt; Controls</b>.</p>`],
       guns: ['Guns', () => `<div class="how1">
-        <p><b>Your hotbar.</b> {slot1} to {slot5} take out what's in each slot. Put anything you own in any slot on any shop's <b>Loadout</b> tab: carry three guns and the Grabby Vac if you like.</p>
+        <p><b>Your hotbar.</b> {slot1} to {slot5} take out what's in each slot. Walk into your landed ship and look at gear in its equipment locker. Pick a slot with its key, then {use} to equip. Look at the selected slot's label and {use} to stow it.</p>
+        <p><b>Your pack.</b> {bag} opens a physical tray of your loot. Point at an item: {nade} pins this exact variant as a favourite, {reload} drops one, and {use} moves a critter between your pack and a free hotbar slot. Mouse wheel turns pockets. {bag} or Esc closes the pack.</p>
         <p><b>Guns.</b> From the hip your shots land somewhere inside the crosshair's circle; hold {aim} and they go dead on (you walk slower). The Goo Lobber, Launcher, Cryo Beam, Pizza Cutter and Wisp Caller don't aim: they're just as good from the hip. You start with a Squirt Pistol (it's terrible). Every planet sells a different real gun, and you keep every one you buy.</p>
-        <p><b>Sights.</b> A red dot, a holo sight and a 3x scope from the shops go on any gun that aims: pick which on the <b>Loadout</b> tab.</p>
+        <p><b>Sights.</b> Hold a compatible gun and walk up to a scope on the optics bench. Press {use} to buy and fit it. Fitting an owned sight is free.</p>
         <p><b>Grabby Vac.</b> Hold {fire} on things to suck them up: junk, berries, chips, snow piles, pearls, litter, crusts, and critters you zapped. Ghosts too: it's the ONLY way to catch one, and you have to keep it in the middle of your screen.</p>
         <p><b>Laser Drill</b> (Frostbyte): hold {fire} on crystals. <b>Pizza Peel</b> (Zorblax Prime): catch pepperoni meteors. <b>Goo Grenades:</b> {nade}.</p></div>`],
       loop: ['The loop', () => `<div class="how1">
-        <p><b>1. Collect and sell.</b> Grab the planet's stuff (and zap critters!) and sell it at the shop. Money is tight on the first two planets. {guide} shows what to do on the planet you're on.</p>
+        <p><b>1. Collect and sell.</b> Grab the planet's stuff (and zap critters!), then press {use} at the sell station to sell everything except favourites. Buy equipment by looking at the priced item on its display and pressing {use}. {guide} shows what to do on the planet you're on.</p>
         <p><b>2. Gear up,</b> starting with a real gun.</p>
         <p><b>3. Summon the boss.</b> Find its summoning item (the whole crew works on it together), then use it at the boss altar.</p>
         <p><b>4. Fly on.</b> Win, then everyone gets in the ship and flies to the next planet. (It won't start until you beat Trashlord Gary.)</p>
@@ -497,7 +499,7 @@ const UI = {
         <p><b>Flying:</b> move the mouse to aim and the ship swings round to the circle (it's big, it takes a moment). {jump} lift off / up, {stomp} down, {forward}/{back} throttle, {sprint} turbo, {map} star map. Look down through the glass floor to line up a landing.</p>
         <p>{swap} swap seats · {use} get out (on the pad) · in the back: {view} look at the ship from outside.</p></div>`],
       crew: ['Crew', () => `<div class="how1">
-        <p><b>Friends.</b> Multiplayer &gt; Host a game, and send friends the 5-letter room code. {bag}: send them money or drop them things. The host can turn on friendly fire in Options.</p>
+        <p><b>Friends.</b> Multiplayer &gt; Host a game, and send friends the 5-letter room code. Pause &gt; Crew & Money: send them money. Open your physical pack ({bag}) to drop loot. The host can turn on friendly fire in Options.</p>
         <p><b>Going down.</b> With friends around you go down instead of dying: a friend holds {use} on you to pick you up.</p>
         <p><b>Boss fights:</b> one life. Go down with friends around and they can pick you up, or you get back up by yourself after 10s (Hard: 15s, Hardcore: 20s) while one of them is still standing. If everybody's down, the boss wins.</p>
         <p><b>Dying on a planet</b> drops everything but your Grabby Vac (and the Squirt Pistol) where you fell. Hold {fire} to respawn, then follow the beam of light to get it back (only you can).</p></div>`],
@@ -517,66 +519,21 @@ const UI = {
   },
 
   /* ----- backpack & crew (press I) ----- */
-  bagTab: 'bag',
-  openBag(tab) {
-    if (tab) this.bagTab = tab;
+  favouriteButton(id) { return '<button class="btn small favourite '+(Activities.favourite(id)?'on':'')+'" data-act="favourite" data-id="'+U.esc(id)+'" aria-pressed="'+Activities.favourite(id)+'">'+(Activities.favourite(id)?'★ Favourite':'☆ Favourite')+'</button>'; },
+  openBag(tab) { if (tab === 'crew') this.openCrew(); else PhysicalInventory.open(); },
+  openCrew() {
     const render = () => {
-      const cap = CARGO[SAVE.cargoLvl], value = Activities.cargoValue();
-      const tabs = [['bag', 'bag', `Backpack (${SAVE.cargo.length}/${cap})`], ['crew', 'person', 'Crew & Money']]
-        .map(([t, ic, lab]) => `<button class="stab ${this.bagTab === t ? 'on' : ''}" data-act="tab" data-t="${t}">${icon(ic)}${lab}</button>`).join('');
-      let body;
-      if (this.bagTab === 'bag') {
-        const counts = {}, hotFree = Loadout.free() >= 0;
-        for (const id of SAVE.cargo) counts[id] = (counts[id] || 0) + 1;
-        const rows = Object.keys(counts).sort((a, b) => cargoRes(b).v * counts[b] - cargoRes(a).v * counts[a]).map((id) => {
-          const r = cargoRes(id);
-          return `<div class="srow bagrow ${r.rare ? 'rare' : ''}"><div class="ic">${Thumbs.img(Thumbs.cargoKey(id), '', r.icon)}</div>
-            <div class="info"><b>${U.esc(r.name)}</b><small>${U.esc(r.desc)}</small></div>
-            <div class="qty">x${counts[id]}</div><div class="each">${U.bucks(r.v)} each</div>
-            <div class="drops">${r.crit ? `<button class="btn small" data-act="tohot" data-id="${U.esc(id)}" ${hotFree ? '' : 'disabled data-tip="Your hotbar is full"'}>To hotbar</button>` : ''}<button class="btn small" data-act="drop1" data-id="${U.esc(id)}">Drop 1</button>${counts[id] > 1 ? `<button class="btn small" data-act="dropall" data-id="${U.esc(id)}">Drop all</button>` : ''}</div></div>`;
-        }).join('');
-        // critters you're carrying in your hotbar (see Loadout): back in the backpack, or drop them
-        const held = Loadout.critters(), full = SAVE.cargo.length >= cap;
-        const hrows = held.map(([i, id]) => {
-          const r = cargoRes(id);
-          return `<div class="srow bagrow ${r.rare ? 'rare' : ''}"><div class="ic">${Thumbs.img(Thumbs.cargoKey(id), '', r.icon)}</div>
-            <div class="info"><b>${U.esc(r.name)}</b><small>Carrying it in hotbar slot ${i + 1}</small></div>
-            <div class="qty">x1</div><div class="each">${U.bucks(r.v)}</div>
-            <div class="drops"><button class="btn small" data-act="tobag" data-i="${i}" ${full ? 'disabled data-tip="Your backpack is full"' : ''}>To backpack</button><button class="btn small" data-act="drophot" data-i="${i}">Drop</button></div></div>`;
-        }).join('');
-        body = (held.length ? `<h5 class="shead">In your hotbar</h5><div class="srows">${hrows}</div><h5 class="shead">In your backpack</h5>` : '') + (SAVE.cargo.length
-          ? `<p class="psub">Worth <b>${U.bucks(value)}</b> at any shop. Dropped stuff lands in front of you in a crate anyone can pick up (walk over it). A critter can ride in your hotbar too (To hotbar).</p><div class="srows">${rows}</div>`
-          : `<div class="empty"><div>${Thumbs.img('cargo:' + SAVE.cargoLvl, '', 'bag')}</div>Your backpack is empty.</div>`);
-      } else {
-        const crew = [...G.remotes.values()];
-        body = !crew.length ? `<div class="empty"><div>${Thumbs.img(Thumbs.crewKey(G.color, SAVE.hat, G.look), '', 'person')}</div>You're flying solo.<br>Host a game and invite friends to share money and loot.</div>`
-          : `<p class="psub">You have <b>${U.bucks(SAVE.bucks)}</b>. Send some to a crewmate:</p>` + crew.map((r) => `<div class="srow crewrow">
-              <div class="ic">${Thumbs.img(Thumbs.crewKey(r.s.c, r.s.h, r.s.lk), '', 'person')}</div>
-              <div class="info"><b>${U.esc(r.name)}</b><small>${U.bucks(r.s.$ || 0)} · ${r.s.m === 'space' ? 'in the ship' : r.s.m === 'boss' ? 'fighting a boss' : PLANETS[r.s.p] ? PLANETS[r.s.p].name : ''}</small></div>
-              <div class="gifts">${[10, 50, 100, 500].map((a) => `<button class="btn small" data-act="give" data-id="${U.esc(r.id)}" data-a="${a}" ${SAVE.bucks < a ? 'disabled' : ''}>${U.bucks(a)}</button>`).join('')}
-              <button class="btn small green" data-act="givehalf" data-id="${U.esc(r.id)}" ${SAVE.bucks < 2 ? 'disabled' : ''}>Half</button></div></div>`).join('');
-      }
-      return `<h2 class="ph">${this.bagTab === 'bag' ? 'Backpack' : 'Crew'}</h2><div class="stabs">${tabs}</div><div class="wbody">${body}</div>`;
+      const crew = [...G.remotes.values()];
+      const body = !crew.length ? '<p class="psub">You are flying solo. Host a game and invite friends to share money and loot.</p>'
+        : '<p class="psub">You have <b>' + U.bucks(SAVE.bucks) + '</b>. Send some to a crewmate:</p>' + crew.map(r =>
+          '<div class="srow crewrow"><div class="ic">' + Thumbs.img(Thumbs.crewKey(r.s.c, r.s.h, r.s.lk), '', 'person') + '</div><div class="info"><b>' + U.esc(r.name) + '</b><small>' + U.bucks(r.s.$ || 0) + '</small></div><div class="gifts">' + [10,50,100,500].map(a => '<button class="btn small" data-act="give" data-id="' + U.esc(r.id) + '" data-a="' + a + '" ' + (SAVE.bucks < a ? 'disabled' : '') + '>' + U.bucks(a) + '</button>').join('') + '<button class="btn small green" data-act="givehalf" data-id="' + U.esc(r.id) + '" ' + (SAVE.bucks < 2 ? 'disabled' : '') + '>Half</button></div></div>').join('');
+      return '<h2 class="ph">Crew & Money</h2><div class="wbody">' + body + '</div>';
     };
-    const handler = (act, d) => {
-      if (act === 'tab') this.bagTab = d.t;
-      if (act === 'drop1') Drops.drop([d.id]);
-      if (act === 'dropall') Drops.drop(SAVE.cargo.filter((e) => e === d.id));
-      if (act === 'tohot') { // (a critter out of your backpack, into a free hotbar slot)
-        const j = SAVE.cargo.indexOf(d.id), at = j >= 0 ? Loadout.holdCrit(d.id) : -1;
-        if (at >= 0) { SAVE.cargo.splice(j, 1); persist(); G.player.refreshGear(); Sound.play('click'); this.toast(`It's in hotbar slot ${at + 1}: {slot${at + 1}} to hold it.`, '', 2.4); }
-        else if (j >= 0) { this.toast('Your hotbar is full!', 'bad', 2); Sound.play('error'); }
-      }
-      if (act === 'tobag') {
-        if (Loadout.stowCrit(Number(d.i))) { G.player.refreshGear(); Sound.play('click'); }
-        else { this.toast('Your backpack is full!', 'bad', 2); Sound.play('error'); }
-      }
-      if (act === 'drophot') { const c = Loadout.crit(Loadout.slots()[Number(d.i)]); if (c) Drops.drop([c], Number(d.i)); }
+    this.openPanel(render(), (act,d) => {
       if (act === 'give') Game.giveMoney(d.id, Number(d.a));
       if (act === 'givehalf') Game.giveMoney(d.id, Math.floor(SAVE.bucks / 2));
       this.setPanel(render());
-    };
-    this.openPanel(render(), handler);
+    });
   },
 };
 

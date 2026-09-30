@@ -14,10 +14,19 @@ const PICKUP_FX = {
 
 const Activities = {
   respawn: new Map(),   // host only: "planet:id" -> time it comes back
-  fullT: 0,
+  fullT: 0, magnetT: 0,
+  favourite(id) { return (SAVE.favourites || []).includes(id); },
+  toggleFavourite(id) {
+    if (!SAVE.favourites) SAVE.favourites = [];
+    if (this.favourite(id)) SAVE.favourites = SAVE.favourites.filter(x => x !== id);
+    else SAVE.favourites.push(id);
+    persist();
+  },
+  sellableValue() { return SAVE.cargo.filter(id => !this.favourite(id)).reduce((v,id) => v + cargoRes(id).v,0) + Loadout.critters().filter(([,id]) => !this.favourite(id)).reduce((v,[,id]) => v + cargoRes(id).v,0); },
 
   update(dt) {
     this.fullT -= dt;
+    this.updateMagnet(dt);
     if (G.mode === 'planet' && G.world && G.player && !G.player.dead) {
       const p = G.player.pos, cap = CARGO[SAVE.cargoLvl];
       for (const n of G.world.nodes) {
@@ -49,6 +58,26 @@ const Activities = {
     Fun.update(dt);
   },
 
+  updateMagnet(dt) {
+    this.magnetT -= dt;
+    const player=G.player, tier=MAGNET[SAVE.magnetLvl || 0];
+    if(this.magnetT>0 || !tier || !tier.range || G.mode!=='planet' || !G.world || !player || player.dead || player.ghost || G.panel || !G.locked) return;
+    this.magnetT=.25;
+    const pos=player.pos, range=tier.range;
+    // Use normal collection paths: capacity, shared node state and personal body ownership still apply.
+    if(cargoFree()>0) for(const n of G.world.nodes) {
+      if(n.taken || n.grab || n.kind==='ghost' || !VAC_KINDS.includes(n.kind)) continue;
+      if(Math.hypot(n.x-pos.x,n.y-pos.y,n.z-pos.z)>range) continue;
+      this.collect(n);
+      if(cargoFree()<=0) break;
+    }
+    if(cargoFree()>0 || Loadout.free()>=0) for(const b of [...Critters.bodies.values()]) {
+      if(!b.mine || !b.rest || b.taken || b.grab || b.p!==G.planet) continue;
+      if(Math.abs(b.pos.y-pos.y)>range || Critters.edgeDist(b,pos)>range) continue;
+      Critters.pickBody(b);
+      if(cargoFree()<=0 && Loadout.free()<0) break;
+    }
+  },
   // you get exactly what it looked like (see PlanetWorld.addNode)
   collect(n) {
     const cap = CARGO[SAVE.cargoLvl];
@@ -138,6 +167,7 @@ const Activities = {
   pays(v) { return Math.round(v * (hasPerk('dice') ? 1.25 : 1)); },
   // sell every one of one kind of thing
   sellType(id) {
+    if (this.favourite(id)) return 0;
     const n = SAVE.cargo.filter((x) => x === id).length;
     if (!n) return 0;
     SAVE.cargo = SAVE.cargo.filter((x) => x !== id);
@@ -152,7 +182,7 @@ const Activities = {
   // sell the critter in hotbar slot i
   sellSlot(i) {
     const c = Loadout.crit(Loadout.slots()[i]);
-    if (!c) return 0;
+    if (!c || this.favourite(c)) return 0;
     Loadout.dropCrit(i);
     const v = this.pays(cargoRes(c).v);
     addBucks(v);
@@ -163,9 +193,9 @@ const Activities = {
   },
   // your whole backpack, and any critters in your hotbar
   sellAll() {
-    const held = Loadout.critters(), v = this.pays(this.cargoValue() + this.heldValue()), n = SAVE.cargo.length + held.length;
+    const held = Loadout.critters().filter(([,id]) => !this.favourite(id)), sold = SAVE.cargo.filter(id => !this.favourite(id)), v = this.pays(this.sellableValue()), n = sold.length + held.length;
     if (!n) return 0;
-    SAVE.cargo = [];
+    SAVE.cargo = SAVE.cargo.filter(id => this.favourite(id));
     for (const [i] of held) Loadout.dropCrit(i);
     addBucks(v);
     Sound.play('cash');

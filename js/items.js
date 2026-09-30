@@ -960,3 +960,5 @@ const ITEM_MODELS = {
   'prize:iou': () => buildPaperItem(['I.O.U.', 'one (1) money', '- Glorp'], ['#2b1d14', '#2b1d14', '#1e7b3a']),
 };
 for (const [pid, d] of Object.entries(MINIBOSSES)) ITEM_MODELS['res:mbt_' + pid] = () => buildTrophyItem(d.color);
+
+ITEM_MODELS.magnet = () => { const g=new THREE.Group(); for(const x of [-.22,.22]) { mk(BOX(.16,.44,.18),'#657e83',g,x,.3,0); mk(BOX(.16,.12,.18),'#d9e4e4',g,x,.58,0); } mk(BOX(.6,.16,.18),'#3b5058',g,0,.1,0); mk(BOX(.14,.14,.19),'#e6ad55',g,0,.11,0); return g; };

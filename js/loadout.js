@@ -4,7 +4,7 @@
    each holding one thing: a gun (as many guns as you like),
    the Grabby Vac, the Laser Drill or the Pizza Peel. The
    rest of what you own waits in your locker. Swap things in
-   and out (or take anything off) on any shop's Loadout tab.
+   and out (or take anything off) at the landed ship's locker.
    Pressing a slot's key takes out what's in that slot, and
    only that: it never flips to some other gun.
    A slot remembers what was in it even while you don't have

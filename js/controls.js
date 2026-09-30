@@ -20,11 +20,11 @@ const KEY_ACTIONS = {
   right: ['Move right', 'KeyD', 'move', 'foot'],
   jump: ['Jump (ship: lift off / up)', 'Space', 'move', 'any'],
   sprint: ['Sprint (ship: turbo)', 'ShiftLeft', 'move', 'any'],
-  dash: ['Dash (Getaway Sneakers)', 'KeyF', 'move', 'foot'],
+  dash: ['Dash (Getaway Sneakers)', 'KeyQ', 'move', 'foot'],
   stomp: ['Ground pound (ship: down)', 'KeyC', 'move', 'any'],
   fire: ['Shoot / use what you\'re holding', 'Mouse0', 'act', 'foot'],
   aim: ['Aim down the sights (hold)', 'Mouse2', 'act', 'foot'],
-  nade: ['Throw a Goo Grenade', 'KeyQ', 'act', 'foot'],
+  nade: ['Throw a Goo Grenade', 'KeyF', 'act', 'foot'],
   reload: ['Reload', 'KeyR', 'act', 'foot'],
   use: ['Talk / use / pick up (ship: get out)', 'KeyE', 'act', 'any'],
   emote: ['Emote', 'KeyG', 'act', 'foot'],
@@ -33,7 +33,7 @@ const KEY_ACTIONS = {
   slot3: ['Hotbar slot 3', 'Digit3', 'slots', 'foot'],
   slot4: ['Hotbar slot 4', 'Digit4', 'slots', 'foot'],
   slot5: ['Hotbar slot 5', 'Digit5', 'slots', 'foot'],
-  bag: ['Backpack & crew', 'KeyI', 'menu', 'foot'],
+  bag: ['Open physical backpack', 'KeyI', 'menu', 'foot'],
   guide: ['What to do on this planet', 'KeyH', 'menu', 'foot'],
   chat: ['Chat', 'KeyT', 'menu', 'any'],
   crew: ['Crew list (hold)', 'Tab', 'menu', 'any'],
@@ -43,8 +43,8 @@ const KEY_ACTIONS = {
   view: ['Look at the ship from outside (in the back)', 'KeyV', 'ship', 'ship'],
 };
 // (keys that used to be the default: a saved set of keys from before still has them, and gets the new ones)
-const KEY_OLD = { 1: { nade: 'Mouse2', dash: 'KeyQ' } };
-const KEY_V = 2;
+const KEY_OLD = { 1: { nade: 'Mouse2', dash: 'KeyQ' }, 2: { nade: 'KeyQ', dash: 'KeyF' } };
+const KEY_V = 3;
 const KEY_GROUPS = [['move', 'Moving'], ['act', 'Doing stuff'], ['slots', 'Hotbar'], ['menu', 'Menus & chat'], ['ship', 'The ship']];
 // (both Shift keys, both Ctrl keys... count as the same key)
 const normKey = (c) => (c === 'ShiftRight' ? 'ShiftLeft' : c === 'ControlRight' ? 'ControlLeft' : c === 'AltRight' ? 'AltLeft' : c === 'MetaRight' ? 'MetaLeft' : c);

@@ -1199,6 +1199,7 @@ input[type=text], input:not([type]) { cursor: text !important; }
 .item-inspector { min-width:0; }
 .item-stage { position:relative; display:flex; align-items:center; justify-content:center; height:260px; overflow:hidden; background:radial-gradient(ellipse at 50% 80%,color-mix(in srgb,var(--acc) 13%,transparent),transparent 65%),repeating-linear-gradient(0deg,transparent 0 39px,#ffffff03 40px),repeating-linear-gradient(90deg,transparent 0 39px,#ffffff03 40px); border-bottom:1px solid #ffffff12; }
 .shop-hero { width:360px; height:360px; object-fit:contain; filter:drop-shadow(0 20px 18px #0009); }
+.item-stage .shop-hero { max-height:calc(100% - 44px); max-width:calc(100% - 100px); }
 .stage-label { position:absolute; top:20px; left:28px; color:#84929d; font-size:9px; }
 .stage-type { position:absolute; right:24px; bottom:17px; color:var(--acc); font-size:9px; }
 .item-spec { padding:24px 30px; }
@@ -1257,3 +1258,19 @@ input[type=text], input:not([type]) { cursor: text !important; }
 .lslot .scope-options button { gap:6px; padding:6px; flex-wrap:wrap; }
 .lslot .scope-zoom { font-size:15px; }
 .shop2 .scope-picker summary { border-radius:1px; background:#171f27; border-color:#ffffff25; }
+
+.weapon-counter { max-width:700px; margin:auto; }
+.counter-model { display:grid; place-items:center; height:230px; background:radial-gradient(ellipse,#ffffff08,transparent 70%); }
+.counter-model .shop-hero { width:320px;height:280px; }
+.weapon-counter > p { color:var(--muted); font-size:13px;line-height:1.7; }
+.favourite.on { color:#edd391; border-color:#b99b56; }
+.shop2 .srow { grid-template-columns:40px 1fr auto auto auto; }
+@media(max-width:760px) { .shop2 .srow { grid-template-columns:34px 1fr auto; } }
+.shop2 .wbody > .sellall { width:calc(100% - 48px); }
+.item-magnet .shop-hero { width:230px;height:230px; }
+.shop2 .sellall:disabled { background:#313b3d;color:#9fadaf; }
+#pack-caption { position:fixed; z-index:12; left:50%; bottom:24px; transform:translateX(-50%); width:min(90vw,800px); text-align:center; color:#e2e5df; text-shadow:0 2px 5px #10191f; pointer-events:none; }
+#pack-caption b { display:block; font-size:19px; font-weight:600; }
+#pack-caption span { display:block; margin-top:7px; font-size:14px; color:#d9cfb2; }
+#pack-caption small { display:block; margin-top:9px; color:#acb9bd; font-size:12px; }
+body.pack-open #hud, body.pack-open #flyhud { visibility:hidden; }

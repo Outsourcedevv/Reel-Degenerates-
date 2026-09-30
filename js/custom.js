@@ -30,9 +30,9 @@ const Custom = {
   part(k) { const p = LOOK_PARTS.find((q) => q.k === k); return p.colors || p.opts; },
   // the hats you own and the one you have on (your hats follow you from world to world, see Wardrobe)
   hats() {
-    if (G.started && SAVE) return { hats: ['none', ...SAVE.hats.filter((h) => h !== 'none' && HATS[h])], hat: SAVE.hat };
+    if (G.started && SAVE) return { hats: Object.keys(HATS), hat: SAVE.hat };
     const w = Wardrobe.load();
-    return { hats: ['none', ...w.hats.filter((h) => h !== 'none' && HATS[h])], hat: HATS[w.hat] ? w.hat : 'none' };
+    return { hats: Object.keys(HATS), hat: HATS[w.hat] ? w.hat : 'none' };
   },
   wearHat(h) {
     if (!HATS[h]) return;
@@ -53,7 +53,7 @@ const Custom = {
       return group(p.tab, k, p.label, p.colors ? colorRow(k, p.colors, L[k]) : chipRow(k, p.opts, L[k]), p.opts ? U.esc(p.opts[L[k]]) : '');
     };
     const hats = `<div class="chips hatchips">${hw.hats.map((h) => `<button class="chip ${hw.hat === h ? 'on' : ''}" data-act="set" data-k="hat" data-v="${h}">${h === 'none' ? '' : Thumbs.img('hat:' + h, '', null)}${U.esc(HATS[h])}</button>`).join('')}</div>` +
-      (hw.hats.length < 2 ? '<p class="tip">Shops sell hats, and Mystery Crates on Luckstar give them out. They show up here once you have some.</p>' : '');
+      '<p class="tip">All hats are available. Choose one to equip it.</p>';
     const body = [
       group('suit', 'color', 'Accent color', colorRow('color', ACCENT_COLORS, G.color)),
       part('body'), part('pattern'), part('badge'), part('pack'),

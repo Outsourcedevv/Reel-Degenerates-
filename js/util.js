@@ -433,7 +433,7 @@ const SAVE_DEFAULT = {
   slots: null, hand: 0, // your hotbar (see loadout.js) and which slot you have out
   drill: false, boots: false, socks: false, armor: false, lifeIns: false, charm: false, peel: false,
   skates: false, dash: false, stomp: false, springs: false, cape: false, jetpack: false, // movement gear
-  nades: 0, cargo: [], hats: ['none'], hat: 'none',
+  nades: 0, cargo: [], favourites: [], magnetLvl: 0, hats: ['none'], hat: 'none',
   beaten: [], seenIntro: false,
   summons: {}, pity: {}, heat: 0, // boss summoning items held, tries since the last drop, pizza warmth
   fun: {}, // your best and your medal on each planet's fun thing: { rings: { best, medal }, ... } (see fun.js)
@@ -576,7 +576,7 @@ const Wardrobe = {
   // a save was just loaded: it gets every hat you own, and your hat goes on
   apply() {
     const w = this.load();
-    const hats = new Set(['none', ...(SAVE.hats || []), ...w.hats].filter((h) => HATS[h]));
+    const hats = new Set(['none', ...Object.keys(HATS), ...(SAVE.hats || []), ...w.hats].filter((h) => HATS[h]));
     SAVE.hats = [...hats];
     SAVE.hat = hats.has(w.hat) ? w.hat : 'none';
     this.sync(true);

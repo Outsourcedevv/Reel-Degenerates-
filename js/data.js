@@ -9,7 +9,7 @@ const PLANETS = [
     blurb: 'A moon made entirely of garbage. Smells like it too.',
     steps: [
       'Take out your Grabby Vac ({tool:vac}), then hold {fire} on the glowing junk to suck it up.',
-      'Walk up to Robo-Pawn\'s shop, press {use} and sell it. Then buy a real gun (your Squirt Pistol is awful).',
+      'Press {use} at the sell station to sell your junk. Look at a priced gun on the display and press {use} to buy it (your Squirt Pistol is awful).',
       'Zap critters and sell them too. Careful: the mean ones hunt you, and pounce when they crouch.',
       'Boss: Trashlord Gary. His Stinky Crown is buried in the junk. Take it to the boss altar.',
     ],
@@ -116,8 +116,8 @@ const PLANETS = [
     sky: ['#2f7fe0', '#a4c6ec'], fog: ['#a2c0e2', 110, 420], stars: 0.1, mood: 'day',
     sun: ['#fff1dc', 0.62], hemi: ['#d9e5f5', '#6c7fa3', 0.4],
     bodies: [{ color: '#ffd9a8', r: 85, dir: [-0.55, 0.3, -1], ring: '#fff3e0' }],
-    ground: ['#c9d5ea', '#b6c6e0', '#e6b8d9'], amp: 0.4, islands: true,
-    liquid: { color: '#a3bcdc', op: 0.95, name: 'clouds' },
+    ground: ['#e3e8f0', '#d4deeb', '#eee5ec'], amp: 0.4, islands: true,
+    liquid: { color: '#d4deeb', op: 0.95, name: 'clouds' },
     grav: 15, fric: 12, pizza: 'Cold & Fluffy',
   },
   {
@@ -795,3 +795,6 @@ const SIGNS = {
   city: { title: 'Parking Meter', lines: ['$40 for 15 minutes...', 'Accepts: exposure, vibes, equity.', '"EXPIRED." It\'s talking about you.'] },
   zorb: { title: 'Doormat', lines: ['It says "GO AWAY."', 'It says "NO SOLICITORS. NO DELIVERY DRIVERS. ESPECIALLY LATE ONES."', 'It\'s soaking wet. Somehow. On a lava planet.'] },
 };
+
+// Passive pickup magnet: one new tier is available at each planet's gear counter.
+const MAGNET = [{range:0,price:0}, ...[2.5,3.5,4.5,5.5,6.5,7.5,8.5,10].map((range,i)=>({range,price:[400,900,1800,3200,5000,7500,11000,16000][i]}))];

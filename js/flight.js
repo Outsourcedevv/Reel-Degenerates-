@@ -280,6 +280,8 @@ const Flight = {
     mk(BOX(0.14, 0.08, 0.1), '#20252f', this.throttleL, 0, 0.36, 0);
     mergeLocal(ck, [this.stick, this.throttleL]);
     ck.traverse((c) => { if (c.isMesh) c.castShadow = false; });
+    this.locker = new ShipLocker(null);
+    ck.add(this.locker.root);
     this.crewGroup = grp(this.pivot);
     this.setView(this.seat === 'pilot' ? 'cockpit' : this.pview);
   },
@@ -710,6 +712,7 @@ const Flight = {
   update(dt) {
     if (!this.on) return;
     this.t += dt;
+    this.locker.update();
     G.player.vm.visible = false; // no gun in your hand while you're in the ship
     for (const a of this.sitters || []) a.anim.update(dt, { sit: a.seat, ground: true, yaw: 0 });
     const free = G.locked && !G.panel && !G.chatting;
