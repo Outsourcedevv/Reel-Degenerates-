@@ -45,11 +45,13 @@ const PhysicalInventory = {
     this.scene.add(new THREE.HemisphereLight('#d5ebf0', '#303448', .45));
     const light = new THREE.DirectionalLight('#fff1dc', .72); light.position.set(3, 8, 5); this.scene.add(light);
     // A light tint over the live world, with the pack rendered clearly on top.
-    const backdrop = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({
+    this.tintMaterial = new THREE.ShaderMaterial({
+      uniforms: { fade: { value: 0 } },
       vertexShader: 'void main(){ gl_Position = vec4(position.xy, 0.0, 1.0); }',
-      fragmentShader: 'void main(){ gl_FragColor = vec4(0.035, 0.065, 0.085, 0.22); }',
+      fragmentShader: 'uniform float fade; void main(){ gl_FragColor = vec4(0.035, 0.065, 0.085, fade); }',
       transparent: true, depthTest: false, depthWrite: false,
-    }));
+    });
+    const backdrop = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), this.tintMaterial);
     backdrop.frustumCulled = false; this.tintScene = new THREE.Scene(); this.tintScene.add(backdrop);
     this.ray = new THREE.Raycaster(); this.pointer = new THREE.Vector2(2, 2);
     this.caption = document.createElement('div'); this.caption.id = 'pack-caption'; this.caption.className = 'hidden'; document.body.appendChild(this.caption);
@@ -97,6 +99,7 @@ const PhysicalInventory = {
     if (this.on || !G.started || G.mode !== 'planet' || G.player.dead || G.player.down || G.panel || G.world.rising) return;
     if (!this.scene) this.init();
     this.on = true; this.page = 0; this.chosen = this.hovered = null; this.pinned = false; this.pointer.set(2, 2); this.world = G.world;
+    this.openedAt = performance.now(); this.openDuration = matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 380;
     G.player.releaseTargets(); Game.wantLock = false; clearTimeout(Game.lockT); clearTimeout(Game.grabT); Game.setSoft(false); G.locked = false;
     Input.keys = {}; Input.pressed = {}; Input.dx = Input.dy = 0;
     document.body.classList.add('pack-open'); this.caption.classList.remove('hidden');
@@ -153,7 +156,9 @@ const PhysicalInventory = {
       if (!stack) continue;
       const [id, count] = stack, r = cargoRes(id), action = this.addAction(group, { key: 'cargo:' + id, kind: 'cargo', id, count, name: r.name });
       group.add(inventoryFit(inventoryModel(id, true), [.73, .6, .68], 0, .64, -.08));
-      const tag = inventoryPlate(group, [r.name, '×' + count + ' · ' + U.bucks(r.v) + ' EACH'], .88, .26, 0, .72, .45); tag.rotation.x = -.35;
+      const tag = inventoryPlate(group, [r.name, U.bucks(r.v) + ' EACH'], .88, .26, 0, .72, .45); tag.rotation.x = -.35;
+      action.countBadge = inventoryPlate(group, '×' + count, .46, .27, -.21, 1.055, .42, '#fff4ce');
+      action.countBadge.rotation.x = -.35;
       if (Activities.favourite(id)) inventoryPlate(group, '★', .24, .24, .32, .98, .4, '#ffd45c');
       action.ring = mk(BOX(.85, .007, 1.12), '#e3bf6b', group, 0, .642, 0); action.ring.visible = false;
     }
@@ -171,7 +176,7 @@ const PhysicalInventory = {
     }
     this.chosen = this.actions.map(g => g.userData.inventoryAction).find(a => a.key === selected) || null;
     this.hovered = null; if (!this.chosen) this.pinned = false;
-    this.root.updateMatrixWorld(true); this.lastSignature = this.signature(); this.describe();
+    this.layout(); this.root.updateMatrixWorld(true); this.lastSignature = this.signature(); this.describe();
   },
   hover() {
     this.layout(); this.root.updateMatrixWorld(true);
@@ -189,7 +194,7 @@ const PhysicalInventory = {
     if (a) {
       detail = a.name;
       if (a.id && (a.kind === 'cargo' || a.kind === 'slot')) {
-        const r = cargoRes(a.id); detail += ' · ' + U.bucks(r.v) + ' each' + (Activities.favourite(a.id) ? ' · ★ Favourite' : '');
+        const r = cargoRes(a.id); detail += (a.kind === 'cargo' ? ' · ' + a.count + ' in stack' : '') + ' · ' + U.bucks(r.v) + ' each' + (Activities.favourite(a.id) ? ' · ★ Favourite' : '');
         controls = '{nade}: favourite · {reload}: drop one';
         if (a.kind === 'slot') controls = '{use}: put in backpack · ' + controls;
         else if (r.crit) controls = '{use}: carry in a free slot · ' + controls;
@@ -250,6 +255,14 @@ const PhysicalInventory = {
     const distance = Math.max(9.4, 7.6 / aspect), pitch = .57, target = new V3(0, .8, .3);
     this.camera.position.set(.14 * distance, target.y + Math.sin(pitch) * distance, target.z + Math.cos(pitch) * distance); this.camera.lookAt(target);
     this.camera.updateMatrixWorld(true);
+    // Lift the pack into view and fade its tint, without replaying on item changes.
+    const progress = this.openDuration ? U.clamp((performance.now() - this.openedAt) / this.openDuration, 0, 1) : 1;
+    const eased = 1 - Math.pow(1 - progress, 3), remaining = 1 - eased;
+    this.root.position.copy(new V3(0, 1, 0).applyQuaternion(this.camera.quaternion)).multiplyScalar(-6.8 * remaining);
+    this.root.rotation.x = -.08 * remaining;
+    this.tintMaterial.uniforms.fade.value = .22 * eased;
+    this.caption.style.opacity = String(eased);
+    this.caption.style.transform = 'translate(-50%, ' + (12 * remaining).toFixed(2) + 'px)';
   },
   render() {
     this.hover();

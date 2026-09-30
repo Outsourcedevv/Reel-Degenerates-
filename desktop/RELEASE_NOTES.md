@@ -2,6 +2,7 @@
 
 - Each planet's guns, backpacks, footwear, tools, and magnet upgrades share one compact stand at the shopkeeper. Look at a priced item and press E to buy or equip. The scope rail buys and fits sights after their planet is unlocked; a separate sell station beside the stand sells unfavourited loot.
 - Tab opens your physical backpack over the visible world with a light transparent tint. Click items to select them and use the Favourite, Drop one, or Carry critter buttons. Right click toggles favourites; double click carries a critter. Click hotbar critters to put them back. Mouse wheel and the arrows change pockets. F, R and E still work; Tab or Esc closes without pausing. Previous default keys migrate, and custom bindings stay saved.
+- The backpack eases into view instead of appearing instantly. Every stack has a large quantity badge; selecting it shows its count too. Counts update when items are carried, stowed, dropped, or collected.
 - Owned guns and tools live on equipment racks inside the landed ship. Choose a slot with 1–5, then look at gear and E to equip. Swaps preserve carried critters when your backpack is full.
 - Buy a passive pickup magnet and upgrade it on every planet. It collects nearby vacuumable resources and your dead critters, respects capacity, and excludes ghosts and drill crystals.
 - Default controls are F for grenades and Q for dashing. Dash recharges after 1.5 seconds, including in the air. Custom bindings are retained.
