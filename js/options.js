@@ -35,6 +35,8 @@ const OPT_ROWS = {
     { k: 'master', label: 'Master volume', range: [0, 1, 0.05, pct] },
     { k: 'vol', label: 'Sound effects', range: [0, 1, 0.05, pct] },
     { k: 'music', label: 'Music', range: [0, 1, 0.05, pct] },
+    { k: 'voice', label: 'Voice chat', desc: 'Online: talk to your crew nearby. Push to talk is {talk}.', choice: [['ptt', 'Push to talk'], ['open', 'Open mic'], ['off', 'Off']] },
+    { k: 'voiceVol', label: 'Voice volume', desc: 'How loud your crew is.', range: [0, 1, 0.05, pct] },
     { k: 'bgMute', label: 'Mute in the background', desc: 'No sound while you\'re in another window.', choice: [[false, 'Off'], [true, 'On']] },
   ],
   controls: [
@@ -43,7 +45,7 @@ const OPT_ROWS = {
     { k: 'keys', label: 'Keybinds', desc: 'Change any key or mouse button.', button: 'Change keys' },
   ],
 };
-const OPT_DEFAULTS = { sens: 1, vol: 0.7, music: 0.45, master: 1, quality: 'high', res: 1, fov: 72, shake: 1, fps: false, invert: false, bgMute: false };
+const OPT_DEFAULTS = { voice: 'ptt', voiceVol: 1, sens: 1, vol: 0.7, music: 0.45, master: 1, quality: 'high', res: 1, fov: 72, shake: 1, fps: false, invert: false, bgMute: false };
 
 const Options = {
   tab: 'game',
@@ -93,7 +95,7 @@ const Options = {
         ctl = `<div class="ochoice ${why ? 'off' : ''}"><button data-act="oprev" data-k="${r.k}" ${off}>${icon('left')}</button>
           <b data-act="onext" data-k="${r.k}">${r.choice[i][1]}<span class="odots">${dots}</span></b><button data-act="onext" data-k="${r.k}" ${off}>${icon('right')}</button></div>`;
       }
-      return `<div class="orow"><div class="olab">${r.label}${why || desc ? `<small>${U.esc(why || desc)}</small>` : ''}</div>${ctl}</div>`;
+      return `<div class="orow"><div class="olab">${r.label}${why || desc ? `<small>${U.esc(keyText(why || desc))}</small>` : ''}</div>${ctl}</div>`;
     }).join('');
   },
   // how full a slider's bar is
@@ -137,6 +139,7 @@ const Options = {
     if (k === 'vol' || k === 'music' || k === 'master' || k === 'bgMute') Sound.setVolumes();
     if (k === 'fov' && G.player) G.player.layoutVM();
     if (k === 'fps') this.showFps();
+    if (k === 'voice' || k === 'voiceVol') Voice.changed();
   },
 
   /* ----- the FPS counter ----- */

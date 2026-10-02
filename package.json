@@ -27,7 +27,7 @@
     "win": { "target": [{ "target": "nsis", "arch": ["x64"] }, { "target": "portable", "arch": ["x64"] }] },
     "portable": { "artifactName": "Space-Goobers-${version}-portable.exe" },
     "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true, "artifactName": "Space-Goobers-${version}-Setup.exe" },
-    "mac": { "target": [{ "target": "dmg", "arch": ["universal"] }], "category": "public.app-category.games", "identity": null, "x64ArchFiles": "**/node_modules/steamworks.js/dist/osx/**" },
+    "mac": { "target": [{ "target": "dmg", "arch": ["universal"] }], "category": "public.app-category.games", "identity": null, "x64ArchFiles": "**/node_modules/steamworks.js/dist/osx/**", "extendInfo": { "NSMicrophoneUsageDescription": "Space Goobers uses your microphone for voice chat with your crew." } },
     "linux": { "target": [{ "target": "AppImage", "arch": ["x64"] }], "category": "Game" }
   }
 }

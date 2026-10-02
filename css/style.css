@@ -1309,3 +1309,12 @@ body.pack-open #hud, body.pack-open #flyhud { visibility:hidden; }
 .ach.got b { color: #fff; }
 .ach.got small { color: #c3cad6; }
 .ach.got .tick { color: var(--acc); }
+/* voice chat: your mic (push to talk / open mic), bottom right over the ammo */
+#voicehud { position: absolute; right: 26px; bottom: 112px; display: flex; align-items: center; gap: 6px; padding: 4px 10px 4px 8px; border-radius: 14px;
+  font-family: var(--font-h); font-weight: 600; font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; color: rgba(255,255,255,.7); background: rgba(8,11,17,.5); border: 1px solid var(--line); }
+#voicehud .ico { width: 15px; height: 15px; }
+#voicehud kbd { font-size: 10px; line-height: 15px; padding: 0 5px; min-width: 0; }
+#voicehud.live, #voicehud.talking { color: #fff; border-color: rgba(125,255,138,.6); background: rgba(20,60,30,.6); }
+#voicehud.talking .ico { color: #7dff8a; filter: drop-shadow(0 0 4px #7dff8a); }
+#hud.dead #voicehud { display: none; }
+#plist .pl .ico { width: 13px; height: 13px; color: #7dff8a; vertical-align: -2px; }

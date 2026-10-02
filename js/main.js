@@ -369,6 +369,7 @@ const Game = {
     Sound.init();
     Sound.setVolumes();
     Sound.playMusic(PLANETS[G.planet].music);
+    if (Net.online) Voice.start(); // (voice chat with the crew, see voice.js)
     const freshIntro = !SAVE.seenIntro && !SAVE.beaten.length && !(SAVE.planet || 0) && !SAVE.guns.length && !SAVE.stats.collected && !SAVE.stats.deaths;
     if (!SAVE.seenIntro && !freshIntro) { SAVE.seenIntro = true; persist(); }
     if (freshIntro) {
@@ -904,6 +905,7 @@ const Game = {
     const dt = U.clamp((now - (this.last || now)) / 1000, 0, 0.05); // (never backwards: frame times from two clocks can disagree a hair)
     this.last = now;
     if (!hidden) Options.frame((now - (this.fpsLast || now)) / 1000);
+    if (G.started) Voice.update(dt); // (voice chat: who you can hear, and your mic)
     this.fpsLast = now;
     const cam = G.camera;
     // (solo: the pause menu stops the game, and so does anything you open from it, like Options)

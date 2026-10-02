@@ -57,6 +57,7 @@ const ICON_PATHS = {
   brush: 'M18 3l3 3-9 9-3-3z M9 12c-3 0-4.5 2-4.5 4S3 20 3 20s5 .5 7-1.5 1.5-4.5-1-6.5',
   download: 'M12 3v12 M7 10l5 5 5-5 M4 20h16',
   left: 'M15 5l-7 7 7 7',
+  mic: 'M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z M5 11a7 7 0 0 0 14 0 M12 18v3 M8 21h8',
   right: 'M9 5l7 7-7 7',
 };
 function icon(name, cls = '') {

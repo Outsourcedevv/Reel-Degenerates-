@@ -89,6 +89,13 @@ Known documented systems include:
 
 ## Current Task
 
+### Proximity voice chat (2026-10-02)
+
+- `js/voice.js` (`Voice`, `VOICE`): online only. Each player calls every other player with `Net.peer.call(id, mic)` (PeerJS media over WebRTC, mesh, alongside the host-star data connections; peer ids = `G.remotes` keys) and answers incoming calls without a stream, so each direction is its own one-way call and listen-only works without a mic. `Voice.attach(peer)` is called from `Net.hostGame/joinGame` as soon as the peer exists (a call that arrived before the guest's game started used to be lost); calls that don't open within `VOICE.connect` seconds are dropped and retried with backoff (`fail`).
+- Playback: the remote stream -> (muted `<audio>` element, a Chromium requirement) -> MediaStreamSource -> gain (0 when out of reach) -> PannerNode (HRTF, linear falloff `near` 2.5 m .. `range` 32 m) -> voice bus (`voiceVol`) -> `Sound.master`. Listener = camera, panner = remote `pos` + 1.6. `reach`: same mode, same planet on foot (boss/duel arenas too), or both in the ship (full volume, no falloff); otherwise silent.
+- Mic: `getUserMedia` with echo cancellation/noise suppression when an online game starts (`Game.enterGame` -> `Voice.start`) unless voice is off. Push to talk (`talk` action, default `KeyB`, `menu` group, 'any') enables the track while held and not chatting; open mic keeps it on. Settings: `G.settings.voice` ('ptt' | 'open' | 'off') and `voiceVol` (Options > Audio). HUD `#voicehud` (bottom right: key hint / talking), a speaker sprite over a talking remote (`speakerSprite`, `r.voiceTag`), a mic icon in the crew list. Mac builds get `NSMicrophoneUsageDescription` (package.json `mac.extendInfo`).
+- Tested with two real game pages over a local PeerJS server (the public one is blocked from the sandbox) and fake microphones: both directions connect, PTT gates, 3.4 m full / 15 m ~59% / 28 m ~14% / 45 m silent, voice volume scales, another planet silent, open mic, voice off hangs up. Electron's getUserMedia works with the default permission handling.
+
 ### Boss nerf and Hardcore healing (2026-09-30)
 
 - The user asked for bosses to dodge at random, not when a shot comes at them: `dodgeCheck` no longer reads `Shots.list`; every `BOSS_DODGE.every` seconds ([phase 1, phase 2] ranges) it sidesteps with `chance` in a random direction (not while winding up or jumping).

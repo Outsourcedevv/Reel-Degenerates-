@@ -41,6 +41,7 @@ const Net = {
     const code = this.genCode();
     const peer = new Peer('spcgoob-' + code.toLowerCase(), this.peerCfg());
     this.peer = peer;
+    if (typeof Voice !== 'undefined') Voice.attach(peer); // (voice chat calls can come in from the start)
     let opened = false;
     peer.on('open', (id) => {
       opened = true;
@@ -81,6 +82,7 @@ const Net = {
     if (typeof Peer === 'undefined') return fail('Multiplayer library didn\'t load. Are you online?');
     const peer = new Peer(undefined, this.peerCfg());
     this.peer = peer;
+    if (typeof Voice !== 'undefined') Voice.attach(peer);
     let done = false;
     const to = setTimeout(() => {
       if (done) return;

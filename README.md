@@ -103,7 +103,12 @@ them is still standing. If the whole crew is down at once, the boss wins. You ke
    differently, see above.)
 6. Press `I` to send money to a friend (Crew & Money tab) or drop things from your backpack. Dropped stuff lands
    in a crate anyone can pick up by walking over it.
-7. Friendly fire is off by default (zaps just bonk your friends). The host can turn it on in **Options > Gameplay** (pause menu), and then your shots hit friends for 75% of their damage.
+7. **Proximity voice chat.** Hold `B` to talk (push to talk, the default) and everyone nearby hears you, louder the
+   closer they are and from where you're standing; past about 30 m they can't. Someone on another planet can't hear
+   you, and everyone in the ship hears everyone in it. A speaker over someone's head means they're talking. **Options
+   > Audio > Voice chat** switches it to open mic or off, and **Voice volume** sets how loud your crew is. No
+   microphone? You can still listen.
+8. Friendly fire is off by default (zaps just bonk your friends). The host can turn it on in **Options > Gameplay** (pause menu), and then your shots hit friends for 75% of their damage.
 
 Each friend needs to open the game too. The easiest way is to put it online for free with GitHub Pages:
 **Settings > Pages > Deploy from a branch > `main` / `(root)` > Save**. After a minute it's live at
@@ -132,6 +137,7 @@ defaults:
 | `G` | emote (a different one each press) |
 | `H` | what to do on this planet (a short guide) |
 | `T` / `Tab` / `M` / `Esc` | chat / crew list / music / pause (`Esc` again to carry on) · `Esc` also closes shops and menus |
+| `B` (hold) | push to talk (voice chat, online) |
 | `E` at the ship | get in (and get out again while it's parked on the pad) |
 | Mouse · `W`/`S` · `Shift` | in the ship: aim (the ship swings round to the circle) · throttle · boost (pilot) |
 | `Space` / `C` | in the ship: lift off, go up / go down (pilot) |
@@ -443,6 +449,8 @@ in your browser (clearing browser data deletes them).
 - `js/goober.js`: how your goober moves (walking, flailing, recoil, fidgets, emotes: `GooberAnim`)
 - `js/post.js`: bloom and color grading · `js/icons.js`: interface icons
 - `js/main.js`: game loop, menus, multiplayer glue · `js/net.js`: networking
+- `js/voice.js`: proximity voice chat (a PeerJS call to each crewmate carrying your mic, played back positioned where
+  they stand)
 - `js/achievements.js`: achievements (`ACHIEVEMENTS`) and the Achievements screen · `desktop/steam.js`: Steam
   (achievements, overlay), see [STEAM.md](STEAM.md)
 - `js/options.js`: the Options screen (`OPT_ROWS`), the "are you sure?" box, and what keeps it a game rather than

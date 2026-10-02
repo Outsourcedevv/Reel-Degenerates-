@@ -445,14 +445,24 @@ const UI = {
     if (t.innerHTML !== html) t.innerHTML = html;
   },
 
+  // voice chat (see voice.js): your mic, lit while it's sending (on: voice chat's on and you have a mic)
+  voice(on, live, talking) {
+    const el = U.$('voicehud');
+    if (!el) return;
+    const st = !on ? '' : live ? (talking ? 'talking' : 'live') : Voice.mode() === 'ptt' ? 'ptt' : 'idle';
+    if (el._st === st) return;
+    el._st = st;
+    el.className = st ? st : 'hidden';
+    el.innerHTML = st ? `${icon('mic')}<span>${st === 'ptt' ? `${keyKbd('{talk}')} talk` : st === 'idle' ? 'Mic on' : 'Talking'}</span>` : '';
+  },
   plist(show) {
     this.show('plist', show);
     if (!show) return;
     const rows = [{ n: G.name + ' (you)', b: SAVE.bucks }];
-    for (const r of G.remotes.values()) rows.push({ n: r.name, b: r.s.$ || 0 });
+    for (const r of G.remotes.values()) rows.push({ n: r.name, b: r.s.$ || 0, t: r.talking });
     rows.sort((a, b) => b.b - a.b);
     this.el.plist.innerHTML = `<h3>Crew ${G.online ? '· Room ' + Net.code : '· Solo'}</h3>` +
-      rows.map((r, i) => `<div class="pl"><span>${i === 0 && rows.length > 1 ? icon('crown') + ' ' : ''}${U.esc(r.n)}</span><span>${U.bucks(r.b)}</span></div>`).join('');
+      rows.map((r, i) => `<div class="pl"><span>${i === 0 && rows.length > 1 ? icon('crown') + ' ' : ''}${U.esc(r.n)}${r.t ? ' ' + icon('mic') : ''}</span><span>${U.bucks(r.b)}</span></div>`).join('');
   },
 
   // How to Play: a field manual in tabs (a game's help screen, not one long page to scroll through)
@@ -465,7 +475,7 @@ const UI = {
     return `<div class="hkgrid">
       <div><h4>On foot</h4>${r('{forward}{left}{back}{right}', 'Move')}${r('{sprint}', 'Sprint')}${r('{jump}', 'Jump')}${r('{use}', 'Talk / use / pick up')}${r('{emote}', 'Emote')}</div>
       <div><h4>Guns &amp; tools</h4>${r('{fire}', 'Shoot / use what you\'re holding')}${r('{aim}', 'Aim down the sights (hold)')}${r('{reload}', 'Reload')}${r('{nade}', 'Throw a Goo Grenade')}${r('{slot1}-{slot5}', 'Hotbar (or the mouse wheel)')}</div>
-      <div><h4>Pack &amp; help</h4>${r('{bag}', 'Physical backpack')}${r('{guide}', 'What to do on this planet')}${r('{chat}', 'Chat')}${r('{crew}', 'Crew list (hold)')}${r('<kbd>Esc</kbd>', 'Pause / close pack')}</div>
+      <div><h4>Pack &amp; help</h4>${r('{talk}', 'Push to talk (online, hold)')}${r('{bag}', 'Physical backpack')}${r('{guide}', 'What to do on this planet')}${r('{chat}', 'Chat')}${r('{crew}', 'Crew list (hold)')}${r('<kbd>Esc</kbd>', 'Pause / close pack')}</div>
     </div>`;
   },
   howTabs() {

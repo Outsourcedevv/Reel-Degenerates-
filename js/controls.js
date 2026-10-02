@@ -37,6 +37,7 @@ const KEY_ACTIONS = {
   guide: ['What to do on this planet', 'KeyH', 'menu', 'foot'],
   chat: ['Chat', 'KeyT', 'menu', 'any'],
   crew: ['Crew list (hold)', 'KeyI', 'menu', 'any'],
+  talk: ['Push to talk (voice chat, hold)', 'KeyB', 'menu', 'any'],
   music: ['Music on / off', 'KeyM', 'menu', 'foot'],
   map: ['Star map', 'KeyM', 'ship', 'ship'],
   swap: ['Swap seats', 'KeyF', 'ship', 'ship'],

@@ -25,6 +25,10 @@
   menu instead).
 - No more web page leftovers: no zooming in with `Ctrl` + wheel, a file dropped on the window can't replace the game,
   no browser tooltips or dropdown arrows, and a button you clicked doesn't get pressed again by `Space`.
+- **Proximity voice chat.** Playing online, hold `B` to talk: your crew hears you from where you're standing, louder
+  close up and fading out with distance (nothing past about 30 m, or from another planet; everyone in the ship hears
+  each other). A speaker over a goober's head shows who's talking. Switch to open mic or turn it off in
+  **Options > Audio**, and set how loud your crew is there too. No microphone? You still hear everyone.
 - **Bosses ease off a bit.** They sidestep at random now instead of seeing your shots coming, and in phase 2 they
   attack less often and rarely do two attacks at once on Easy (a bit less than before on Hard, a tiny bit less on
   Hardcore).
